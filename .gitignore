@@ -141,3 +141,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# 리더 전용 운영 계획 (로컬 관리, 원격에 올리지 않음)
+docs/PLAN.md
+
+# Next.js / Vercel
+.vercel
+next-env.d.ts
+.pnpm-debug.log*
