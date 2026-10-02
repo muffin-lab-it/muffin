@@ -50,6 +50,56 @@ Next.js (App Router) · React · TypeScript · OpenAI Agents SDK · Zod · Codex
 
 사용자 흐름: 관심 영역 + 깊이 + 질문 → Agent가 tool 선택·호출 → Structured Report → History 저장
 
+```mermaid
+flowchart LR
+    U(["👤 사용자"]) -->|"영역 · 깊이 · 질문"| Home["홈 화면<br/>app/page.tsx"]
+    Home -->|"POST"| API["/api/report<br/>route.ts"]
+    API -->|"research()"| Agent["🧁 Muffin Agent<br/>src/agent/muffin.ts"]
+
+    Agent -->|"tool 선택·호출"| Reg["Tool 레지스트리<br/>src/tools/index.ts"]
+    Reg --> FX["💵 FX"]
+    Reg --> ETF["📈 ETF"]
+    Reg --> News["📰 News"]
+    Reg --> Rate["🏦 Rate"]
+    Reg --> Macro["📊 Macro"]
+
+    FX & ETF & News & Rate & Macro -->|"data + source"| Agent
+    FX -.-> X1[("외부 API<br/>ECOS · Frankfurter")]
+    ETF -.-> X2[("외부 API<br/>Twelve Data · KRX")]
+    News -.-> X3[("RSS<br/>연합뉴스 · 한국경제")]
+    Rate -.-> X4[("외부 API<br/>ECOS · FRED")]
+    Macro -.-> X5[("외부 API<br/>FRED · ECOS")]
+
+    Agent -->|"Structured Output"| Report["리포트<br/>요약 · 숫자 · 원인 · 영향 · 출처 · 더해볼 것"]
+    Report --> Home
+    Report -.-> Hist[("History")]
+```
+
+Agent는 깊이(Easy / Standard / Deep Dive)에 따라 다른 instruction을 받고, 같은 데이터를 다른 길이와 용어로 풀어 씁니다.
+
+```mermaid
+sequenceDiagram
+    actor U as 사용자
+    participant H as 홈 화면
+    participant R as /api/report
+    participant A as Muffin Agent
+    participant T as Tool (예: FX)
+    participant X as 외부 API
+
+    U->>H: 영역 · 깊이 · 질문 입력
+    H->>R: POST { question, depth, area }
+    R->>A: research()
+    A->>A: 질문을 보고 필요한 tool 결정
+    A->>T: execute(parameters)
+    T->>X: fetch (타임아웃 8초)
+    X-->>T: JSON / RSS
+    T-->>A: { data, source }
+    A->>A: 깊이별 instruction으로 리포트 작성
+    A-->>R: Report (zod 검증)
+    R-->>H: JSON
+    H-->>U: 6칸 리포트 + 출처 링크
+```
+
 ## 디렉토리 구조
 
 ```
@@ -376,6 +426,36 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 | 6 | 11/13 오프라인 20:00~21:30 | Integration & Ship | 배포 / Demo / 회고 |
 | 고도화 | 11/14~11/30 | 기능 보완, README, 발표 준비 | 최종 배포 |
 | 발표 | 12/16 | 성과공유회 | 발표 + 라이브 데모 |
+
+```mermaid
+gantt
+    title 머핀랩 5기 로드맵
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m/%d
+
+    section 설계
+    OT · 역할 배정 (오프라인)        :milestone, ot, 2026-10-02, 0d
+    환경 세팅 · RQ · 소스 조사         :a1, 2026-10-03, 2026-10-09
+    1주 문제 정의 & 설계              :milestone, w1, 2026-10-09, 0d
+    tool 스펙 · 키 발급               :a2, 2026-10-10, 2026-10-16
+
+    section Tools & Agent
+    2주 데이터 & Tools                :milestone, w2, 2026-10-16, 0d
+    tool MVP · fixture · 첫 PR         :b1, 2026-10-17, 2026-10-23
+    3주 Research Agent · 백/프론트 분담 :milestone, w3, 2026-10-23, 0d
+    tool 보강 · 화면/API 설계안         :b2, 2026-10-24, 2026-10-30
+
+    section Web
+    4주 Personalized Report           :milestone, w4, 2026-10-30, 0d
+    홈 · 진행상황 · /api/report        :c1, 2026-10-31, 2026-11-06
+    5주 Web 통합                      :milestone, w5, 2026-11-06, 0d
+    리포트 화면 · History · 스트리밍    :c2, 2026-11-07, 2026-11-13
+    6주 Ship + 회고 (오프라인)         :milestone, w6, 2026-11-13, 0d
+
+    section 마무리
+    고도화 · README · 발표 준비         :d1, 2026-11-14, 2026-11-30
+    성과공유회                        :milestone, demo, 2026-12-16, 0d
+```
 
 매주 모임은 같은 60분 포맷으로 진행합니다. 체크인과 PR 목록 5분, 데모 라운드 25분, 리더 세션 15분, 과제 안내 10분, 캡처 5분. 자세한 안내는 [팀 가이드 페이지](https://claude.ai/artifact/HLGS5dPQ2TDmzSGq2zRuZw)를 참고하세요.
 
