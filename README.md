@@ -358,6 +358,8 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 ## 협업 규칙
 
+처음부터 끝까지 따라 하는 순서는 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다. 아래는 요약입니다.
+
 **브랜치**
 - `main`: 배포 브랜치, 직접 push 금지
 - `feat/<tool>-<내용>` / `fix/…` / `docs/…` 에서 작업 → `main`으로 PR
