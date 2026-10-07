@@ -3,6 +3,56 @@
 이 문서는 코드를 고쳐서 레포에 올리는 방법을 처음부터 끝까지 적은 것입니다.
 Git이 처음이어도 위에서부터 순서대로 따라 하면 됩니다. 막히면 Discord #질문에 에러 화면을 올려 주세요.
 
+## 한눈에 보기
+
+```mermaid
+flowchart LR
+    subgraph T["👩‍💻 팀원"]
+        A["최신 main 에서<br/>브랜치 생성"] --> B["코드 수정<br/>pnpm test"] --> C["커밋 · push"] --> D["PR 생성<br/>Reviewer: 리더"]
+        H["리뷰 반영<br/>같은 브랜치에 push"]
+    end
+    subgraph AUTO["🤖 자동"]
+        E["CI<br/>lint · typecheck · test"]
+        F["Vercel<br/>미리보기 URL"]
+    end
+    subgraph L["🧁 리더"]
+        G{"리뷰"}
+        I["Approve · Merge<br/>(merge commit)"]
+    end
+    D --> E & F
+    E --> G
+    G -->|"수정 요청"| H --> E
+    G -->|"OK"| I
+    I --> M[("main")]
+    M -->|"자동"| P["Vercel 프로덕션 배포"]
+    M -.->|"브랜치 자동 삭제"| D
+```
+
+브랜치는 이렇게 갈라졌다 합쳐집니다. 각자 자기 브랜치에서만 작업하고, `main` 은 리더의 머지로만 바뀝니다.
+
+```mermaid
+gitGraph
+    commit id: "뼈대"
+    commit id: "docs: 협업 가이드"
+    branch feat/fx-rate
+    checkout feat/fx-rate
+    commit id: "feat: 환율 조회"
+    commit id: "test: fixture 테스트"
+    checkout main
+    branch feat/news-rss
+    checkout feat/news-rss
+    commit id: "feat: RSS 파서"
+    checkout main
+    merge feat/fx-rate id: "PR #2 머지 → 배포"
+    checkout feat/news-rss
+    commit id: "fix: 리뷰 반영"
+    checkout main
+    merge feat/news-rss id: "PR #3 머지 → 배포"
+    branch feat/fx-change-pct
+    checkout feat/fx-change-pct
+    commit id: "feat: 변동률 계산"
+```
+
 ## 한 줄 요약
 
 ```
