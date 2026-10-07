@@ -304,7 +304,7 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 - [ ] `fetch`에 타임아웃 8초 지정 (`AbortSignal.timeout`)
 - [ ] `source.url`이 실제로 열리는 링크
 - [ ] `src/tools/<이름>/README.md`에 데이터 소스·키 발급 방법·제한(rate limit) 기록
-- [ ] Codex 리뷰 1회 + 짝 리뷰어 승인
+- [ ] Codex 리뷰 1회 이상 반영
 
 ---
 
@@ -358,6 +358,8 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 ## 협업 규칙
 
+처음부터 끝까지 따라 하는 순서는 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다. 아래는 요약입니다.
+
 **브랜치**
 - `main`: 배포 브랜치, 직접 push 금지
 - `feat/<tool>-<내용>` / `fix/…` / `docs/…` 에서 작업 → `main`으로 PR
@@ -365,17 +367,7 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 **PR**
 - 제목: `[fx] 환율 변동률 계산 추가`
 - 본문: 무엇을 / 왜 / 테스트 방법 / 스크린샷(화면이면)
-- CI(lint + test) 통과 + 리뷰 1명 승인 후 머지
-- 리뷰어: 자기 tool → 짝 리뷰어 승인 후 리더 머지. 4주차 이후 프론트 → 프론트 리드, 백엔드 → 같은 파트 팀원
-
-**짝 리뷰**
-| PR 작성자 | 리뷰어 |
-|---|---|
-| FX | Rate 담당 |
-| Rate | FX 담당 |
-| News | Macro 담당 |
-| Macro | News 담당 |
-| ETF | 리더 |
+- CI(lint + test) 통과 + 리더 리뷰 승인 후 리더가 머지
 
 리뷰에서 보는 것: 읽히는가, 에러 처리가 있는가, `source`가 맞는가. 동작 확인은 CI가 합니다.
 
@@ -402,14 +394,14 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 ## 팀
 
-| 역할 | 담당 | GitHub | 후반 파트 | 짝 리뷰어 |
-|---|---|---|---|---|
-| 리더 — Orchestrator · 인프라 · 배포 | | | | |
-| 💵 FX Tool | | | 프론트 | Rate |
-| 📈 ETF Tool | | | 백엔드 | 리더 |
-| 📰 News Tool | | | 프론트 리드 | Macro |
-| 🏦 Rate Tool | | | 백엔드 | FX |
-| 📊 Macro Tool | | | 프론트 | News |
+| 역할 | 담당 | GitHub | 후반 파트 |
+|---|---|---|---|
+| 리더 — Orchestrator · 인프라 · 배포 | | | |
+| 💵 FX Tool | | | |
+| 📈 ETF Tool | | | |
+| 📰 News Tool | | | |
+| 🏦 Rate Tool | | | |
+| 📊 Macro Tool | | | |
 
 3주차(10/23)에 백엔드 2 / 프론트 3으로 Muffin Web을 분담합니다. 자기 tool 유지보수는 끝까지 본인 담당입니다.
 
