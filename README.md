@@ -111,11 +111,13 @@ muffin-lab/
 │  └─ api/report/route.ts      POST /api/report — 지금은 JSON 응답, 4주차에 스트리밍 (백엔드 팀)
 ├─ src/
 │  ├─ agent/
-│  │  ├─ muffin.ts             Orchestrator Agent
+│  │  ├─ muffin.ts             Orchestrator Agent, research()
+│  │  ├─ context.ts            실행 컨텍스트 (출처·tool 실행 기록 수집)
 │  │  ├─ instructions.ts       깊이별 instruction
 │  │  └─ schema.ts             리포트 zod 스키마 (Structured Output)
 │  ├─ tools/
 │  │  ├─ index.ts              레지스트리 (리더만 수정)
+│  │  ├─ define.ts             defineTool 래퍼 (타임아웃·에러·출처 수집, 리더만 수정)
 │  │  ├─ types.ts              ToolResult / Source 공통 타입
 │  │  ├─ _template/            새 tool 시작용 템플릿 (USD/KRW 샘플, 실제로 동작)
 │  │  │  ├─ index.ts           parameters / execute / tool 정의
@@ -124,7 +126,8 @@ muffin-lab/
 │  │  │  ├─ index.test.ts      fixture 기반 테스트
 │  │  │  └─ README.md          데이터 소스·키 발급·제한 기록
 │  │  └─ fx/ etf/ news/ rate/ macro/   (같은 구성)
-│  └─ lib/                     공통 유틸 (fetch 래퍼, 날짜, 캐시) — 필요해지면 추가
+│  └─ lib/http.ts              fetchJson / fetchText (타임아웃, HttpError)
+├─ scripts/probe.ts            데이터 소스 후보 응답 확인 (pnpm probe)
 ├─ .github/
 │  ├─ workflows/ci.yml         lint + typecheck + test
 │  └─ PULL_REQUEST_TEMPLATE.md
@@ -155,6 +158,7 @@ pnpm test         # fixture 테스트 (CI 와 동일, 키 불필요)
 pnpm lint         # ESLint
 pnpm typecheck    # tsc --noEmit
 pnpm tool src/tools/<이름>/run.ts --옵션 값   # tool 단독 실행 (실제 API 호출, 로컬 전용)
+pnpm probe "<URL>"                           # 데이터 소스 후보 응답 확인
 ```
 
 `.env.local` 예시 (실제 키는 절대 커밋하지 않습니다)
@@ -190,6 +194,15 @@ ECOS_API_KEY=
 
 조사 산출물: 후보명 / URL / 키 필요 여부 / 무료 한도 / 샘플 응답 캡처 1장 / 선택 이유 2줄.
 
+후보 URL 이 어떤 응답을 주는지는 `probe` 로 바로 볼 수 있습니다. 키는 `.env.local` 에 넣고 `$이름` 으로 씁니다.
+
+```bash
+pnpm probe "https://api.frankfurter.app/latest?from=USD&to=KRW"
+pnpm probe "https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=\$FRED_API_KEY&file_type=json"
+pnpm probe "<URL>" --header "Authorization: Bearer \$NEWS_API_KEY"
+pnpm probe "<URL>" --save src/tools/fx/fixture.json     # 응답을 fixture 로 저장
+```
+
 ---
 
 ## Tool 만들기 가이드 (팀원용)
@@ -204,12 +217,13 @@ cp -r src/tools/_template src/tools/fx
 
 `name / description / parameters / execute` 4개를 채우면 됩니다.
 
-`execute`를 `tool()` 바깥에 따로 두는 이유는 `run.ts`와 테스트가 Agent 없이 직접 부르기 위해서입니다.
+`execute`를 따로 두는 이유는 `run.ts`와 테스트가 Agent 없이 직접 부르기 위해서입니다. `defineTool`은 리더가 만든 공통 래퍼로, 타임아웃·에러 처리·출처 수집을 모든 tool에 똑같이 적용합니다. 응답을 어떻게 읽고 어떤 값을 뽑을지는 각 tool이 정합니다.
 
 ```ts
 // src/tools/fx/index.ts
-import { tool } from "@openai/agents";
 import { z } from "zod";
+import { fetchJson } from "../../lib/http";
+import { defineTool } from "../define";
 import type { ToolResult } from "../types";
 
 // 1) 입력 스키마. 모든 필드는 required (optional 대신 nullable)
@@ -219,14 +233,13 @@ export const parameters = z.object({
 });
 export type Input = z.infer<typeof parameters>;
 
-// 2) 실제 로직
+// 2) 실제 로직. 실패하면 throw (fetchJson 이 2xx 가 아니면 알아서 던집니다)
+type FxResponse = { latest: number; past: number; date: string };
+
 export async function execute({ currency, days }: Input): Promise<ToolResult> {
-  const res = await fetch(`https://api.example.com/fx?base=${currency}&days=${days}`, {
+  const json = await fetchJson<FxResponse>(`https://api.example.com/fx?base=${currency}&days=${days}`, {
     headers: { Authorization: `Bearer ${process.env.FX_API_KEY}` },
-    signal: AbortSignal.timeout(8_000),
   });
-  if (!res.ok) throw new Error(`FX API ${res.status}`);
-  const json = await res.json();
 
   return {
     data: {
@@ -245,7 +258,7 @@ export async function execute({ currency, days }: Input): Promise<ToolResult> {
 }
 
 // 3) Agent 에 등록할 tool
-export const fxTool = tool({
+export const fxTool = defineTool({
   name: "get_fx_rate",
   description:
     "USD/JPY/EUR의 원화 환율(한국은행 매매기준율)과 최근 N일 변동률을 조회한다. " +
@@ -275,6 +288,17 @@ export type ToolResult<T = unknown> = {
 };
 ```
 
+### 공통 헬퍼가 해 주는 것 / 안 해 주는 것
+
+| 해 줌 (리더 담당, 모든 tool 동일) | 안 해 줌 (tool 담당자 몫) |
+|---|---|
+| `fetchJson` / `fetchText`: 타임아웃 8초, 2xx 아니면 상태코드 담긴 `HttpError` | 응답 파싱 (JSON 구조 읽기, RSS/XML/CSV 해석) |
+| `defineTool`: execute 가 throw 하면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 값 계산 (변동률, 평균, 기간 비교) |
+| `defineTool`: 반환한 `source` 를 자동 수집해 리포트 출처에 반드시 포함 | 어떤 데이터를 어떤 파라미터로 받을지 |
+| `defineTool`: tool 별 실행 시간·성공 여부 기록 (진행상황 화면용) | `description` 작성 |
+
+그래서 tool 안에서는 **실패하면 그냥 throw** 하면 됩니다. 빈 값을 돌려주거나 try/catch 로 삼키지 마세요.
+
 ### 3. description 작성 팁
 
 Agent는 `description`만 보고 어떤 tool을 쓸지 결정합니다.
@@ -301,7 +325,7 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 - [ ] `fixture.json`에 실제 응답 샘플 저장
 - [ ] API 키는 `process.env`로만 접근, 코드에 하드코딩 없음
 - [ ] 외부 API 실패 시 `throw new Error(...)`로 명확히 실패 (빈 값 반환 금지)
-- [ ] `fetch`에 타임아웃 8초 지정 (`AbortSignal.timeout`)
+- [ ] 외부 호출은 `fetchJson` / `fetchText` 사용 (타임아웃·에러 처리 포함)
 - [ ] `source.url`이 실제로 열리는 링크
 - [ ] `src/tools/<이름>/README.md`에 데이터 소스·키 발급 방법·제한(rate limit) 기록
 - [ ] Codex 리뷰 1회 이상 반영
@@ -333,8 +357,11 @@ export function createMuffinAgent(depth: Depth, area?: Area) {
   });
 }
 
-export async function research({ question, depth, area }: ResearchInput): Promise<Report>
+export async function research({ question, depth, area }: ResearchInput): Promise<ResearchResult>
+// ResearchResult = { report, steps }  — steps: 어떤 tool 을 불렀고 성공했는지
 ```
+
+`research()`는 Agent 실행이 끝난 뒤 tool 이 실제로 반환한 출처를 리포트 `sources`에 병합합니다. 모델이 출처를 빼먹거나 지어내도 실제 호출한 출처는 반드시 들어갑니다.
 
 백엔드 팀은 `research()`만 호출합니다. 시그니처는 3주차에 고정하고 이후 바꾸지 않습니다. 스트리밍은 `run(agent, question, { stream: true })`로 확장합니다.
 

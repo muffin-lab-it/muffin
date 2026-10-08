@@ -1,5 +1,6 @@
 /**
  * fixture 기반 테스트. 실제 API 를 호출하지 않으므로 키 없이 CI 에서 돌아갑니다.
+ * 자기 tool 로 복사할 때 fixture 와 기대값만 바꾸면 됩니다.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fixture from "./fixture.json";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ToolStep } from "@/src/agent/context";
 import type { Report } from "@/src/agent/schema";
 
 const areaOptions = [
@@ -24,12 +25,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
+  const [steps, setSteps] = useState<ToolStep[]>([]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setReport(null);
+    setSteps([]);
     try {
       const res = await fetch("/api/report", {
         method: "POST",
@@ -39,6 +42,7 @@ export default function Home() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setReport(json.report);
+      setSteps(json.steps ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
     } finally {
@@ -101,6 +105,12 @@ export default function Home() {
             <ul>{report.sources.map((s, i) => <li key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.name}</a> · {s.asOf}</li>)}</ul>
           </section>
           <section><h2>더해볼 것</h2><p>{report.nextTopics.join(" · ")}</p></section>
+          {steps.length > 0 && (
+            <section>
+              <h2>사용한 Tool</h2>
+              <ul>{steps.map((s, i) => <li key={i}>{s.status === "ok" ? "✅" : "❌"} {s.tool} · {s.ms}ms{s.error ? ` · ${s.error}` : ""}</li>)}</ul>
+            </section>
+          )}
         </div>
       )}
     </main>
