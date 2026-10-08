@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "tool": "tsx"
+    "tool": "tsx",
+    "probe": "tsx scripts/probe.ts"
   },
   "dependencies": {
     "@openai/agents": "^0.18.0",

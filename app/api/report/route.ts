@@ -22,8 +22,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const report = await research(parsed.data);
-    return NextResponse.json({ report });
+    const { report, steps } = await research(parsed.data);
+    return NextResponse.json({ report, steps });
   } catch (err) {
     const message = err instanceof Error ? err.message : "알 수 없는 오류";
     return NextResponse.json({ error: message }, { status: 500 });
