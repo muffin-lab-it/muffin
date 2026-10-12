@@ -4,7 +4,7 @@
 
 ## 데이터 소스
 - 이름: Frankfurter (ECB reference rates)
-- URL: https://www.frankfurter.app
+- URL: https://frankfurter.dev
 - 키: 불필요
 - 호출 제한: 명시된 제한 없음
 - 갱신 주기: ECB 고시 기준 평일 1회

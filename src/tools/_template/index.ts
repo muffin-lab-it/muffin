@@ -31,7 +31,7 @@ type FrankfurterLatest = { date: string; base: string; rates: Record<string, num
 //    run.ts 와 index.test.ts 가 이 함수를 직접 부릅니다.
 export async function execute({ base, quote }: Input): Promise<ToolResult> {
   const json = await fetchJson<FrankfurterLatest>(
-    `https://api.frankfurter.app/latest?from=${base}&to=${quote}`,
+    `https://api.frankfurter.dev/v1/latest?from=${base}&to=${quote}`,
   );
 
   const rate = json.rates[quote];
@@ -41,7 +41,7 @@ export async function execute({ base, quote }: Input): Promise<ToolResult> {
     data: { pair: `${base}/${quote}`, rate, asOf: json.date },
     source: {
       name: "Frankfurter (ECB reference rates)",
-      url: "https://www.frankfurter.app",
+      url: "https://frankfurter.dev",
       asOf: json.date,
     },
     note: "ECB 고시 환율. 주말·공휴일은 직전 영업일 값입니다.",

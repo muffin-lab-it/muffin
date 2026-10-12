@@ -186,8 +186,8 @@ ECOS_API_KEY=
 
 | Tool | 출발점 | 피할 것 |
 |---|---|---|
-| FX | frankfurter.app(키 불필요, KRW 지원), 한국은행 ECOS | exchangerate.host(키 필수로 전환) |
-| ETF | Twelve Data, Stooq CSV(키 불필요), KRX 정보데이터 | Yahoo Finance(공식 API 없음), Alpha Vantage(무료 하루 25회) |
+| FX | frankfurter.dev(키 불필요, KRW 지원), 한국은행 ECOS | exchangerate.host(키 필수로 전환) |
+| ETF | 공공데이터포털 금융위원회 증권상품시세정보(국내 ETF, 자동승인) | Twelve Data 무료(비표시 내부용 조건), Stooq(봇 차단), Yahoo Finance(공식 API 없음), Alpha Vantage(무료 하루 25회) |
 | News | 연합뉴스·한국경제 RSS, Google News RSS | NewsAPI 무료(개발용 한정, 24시간 지연) |
 | Rate | 한국은행 ECOS(기준금리), FRED(DFF, DGS10) | |
 | Macro | FRED(CPI, 실업률), ECOS | KOSIS(API 구조 복잡) |
@@ -197,7 +197,7 @@ ECOS_API_KEY=
 후보 URL 이 어떤 응답을 주는지는 `probe` 로 바로 볼 수 있습니다. 키는 `.env.local` 에 넣고 `$이름` 으로 씁니다.
 
 ```bash
-pnpm probe "https://api.frankfurter.app/latest?from=USD&to=KRW"
+pnpm probe "https://api.frankfurter.dev/v1/latest?from=USD&to=KRW"
 pnpm probe "https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=\$FRED_API_KEY&file_type=json"
 pnpm probe "<URL>" --header "Authorization: Bearer \$NEWS_API_KEY"
 pnpm probe "<URL>" --save src/tools/fx/fixture.json     # 응답을 fixture 로 저장
