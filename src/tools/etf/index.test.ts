@@ -105,6 +105,36 @@ describe("get_etf_kr_price", () => {
     expect(result.data).toMatchObject({ period: { from: "2026-10-06", to: "2026-10-12", tradingDays: 4 } });
   });
 
+  it("기간에 관측값이 하나뿐이면 수익률과 추적 차이는 null 이다", async () => {
+    mockApi(() => fixture);
+
+    const result = await execute({ query: "069500", days: 1 });
+
+    expect(result.data).toMatchObject({
+      latest: { date: "2026-10-12", close: 101605, changePct: -3.83 },
+      period: {
+        from: "2026-10-12",
+        to: "2026-10-12",
+        tradingDays: 1,
+        returnPct: null,
+        indexReturnPct: null,
+        trackingDiffPct: null,
+        high: 105000,
+        low: 101275,
+      },
+    });
+  });
+
+  it("관측값이 두 개이고 가격이 같으면 수익률은 0 이다", async () => {
+    mockApi(() => okBody([kodex200[0], { ...kodex200[0], basDt: "20261008" }]));
+
+    const result = await execute({ query: "069500", days: 7 });
+
+    expect(result.data).toMatchObject({
+      period: { tradingDays: 2, returnPct: 0, indexReturnPct: 0, trackingDiffPct: 0 },
+    });
+  });
+
   it("정확한 종목명이면 itmsNm 으로 한 번에 조회한다", async () => {
     const calls = mockApi((p) => (p.get("itmsNm") === "KODEX 200" ? fixture : okBody([])));
 

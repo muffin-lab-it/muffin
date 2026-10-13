@@ -142,8 +142,9 @@ function toResult(allRows: EtfRow[], days: number): ToolResult {
 
   const close = num(last.clpr);
   const nav = num(last.nav);
-  const returnPct = pctChange(num(first.clpr), close);
-  const indexReturnPct = pctChange(num(first.bssIdxClpr), num(last.bssIdxClpr));
+  const hasBaseline = period.length >= 2;
+  const returnPct = hasBaseline ? pctChange(num(first.clpr), close) : null;
+  const indexReturnPct = hasBaseline ? pctChange(num(first.bssIdxClpr), num(last.bssIdxClpr)) : null;
 
   return {
     data: {
