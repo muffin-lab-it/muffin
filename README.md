@@ -159,6 +159,7 @@ pnpm lint         # ESLint
 pnpm typecheck    # tsc --noEmit
 pnpm tool src/tools/<이름>/run.ts --옵션 값   # tool 단독 실행 (실제 API 호출, 로컬 전용)
 pnpm probe "<URL>"                           # 데이터 소스 후보 응답 확인
+pnpm eval                                    # 리포트 품질 평가 (OpenAI 호출, 로컬 전용)
 ```
 
 `.env.local` 예시 (실제 키는 절대 커밋하지 않습니다)
@@ -367,7 +368,9 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 `depth` 값은 `easy | standard | deep`, `area` 값은 `fx | etf | news | rate | macro` 입니다 (`src/agent/schema.ts`).
 
-리포트 스키마(Structured Output)는 `src/agent/schema.ts`에 있습니다. 항목은 `summary · numbers · why · impact · sources · nextTopics` 여섯 개이고 화면의 칸과 1:1로 대응합니다.
+리포트 스키마(Structured Output)는 `src/agent/schema.ts`에 있습니다. 항목은 `summary · numbers · why(claim+evidence) · impact · caveats · dataGaps · sources · nextTopics` 여덟 개이고 화면의 칸과 1:1로 대응합니다. `why`의 각 항목은 어떤 tool 데이터가 근거인지 `evidence`에 적어야 하고, 근거가 없으면 "데이터로 확인되지 않음"으로 드러나게 합니다. 투자 권유 표현은 `src/agent/guard.ts`가 검사해 걸리면 한 번 다시 쓰게 합니다.
+
+품질 확인은 `pnpm eval`로 합니다. 질문 여러 개를 세 깊이로 돌려 `docs/eval/`에 한 파일로 모아 줍니다 (실제 호출, 로컬 전용).
 
 ### 설명 깊이 정의 (초안, 1주차에 확정)
 

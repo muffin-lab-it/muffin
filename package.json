@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tool": "tsx",
-    "probe": "tsx scripts/probe.ts"
+    "probe": "tsx scripts/probe.ts",
+    "eval": "tsx scripts/eval.ts"
   },
   "dependencies": {
     "@openai/agents": "^0.18.0",

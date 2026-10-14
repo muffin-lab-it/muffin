@@ -43,3 +43,5 @@ button:disabled { opacity: .6; cursor: wait; }
 .num small { display: block; color: var(--ink-2); font-size: 12px; }
 .num b { font-size: 18px; font-variant-numeric: tabular-nums; }
 .num i { display: block; font-style: normal; font-size: 12px; color: var(--ink-2); }
+
+.evidence { color: var(--ink-2); font-size: 12.5px; }

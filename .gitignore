@@ -149,3 +149,6 @@ docs/PLAN.md
 .vercel
 next-env.d.ts
 .pnpm-debug.log*
+
+# 리포트 평가 결과 (로컬)
+docs/eval/
