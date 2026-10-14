@@ -105,13 +105,18 @@ sequenceDiagram
 ```
 muffin-lab/
 ├─ app/
-│  ├─ page.tsx                 홈 (영역·깊이 선택, 질문 입력, 리포트 표시) — 뼈대
-│  ├─ report/[id]/page.tsx     리포트 상세 (4주차, 프론트 팀)
-│  ├─ history/page.tsx         저장한 리포트 (5주차, 프론트 팀)
+│  ├─ layout.tsx               사이드바 + 본문 레이아웃
+│  ├─ page.tsx                 홈 (영역·깊이·질문 → 생성 → 저장 → 리포트로 이동)
+│  ├─ report/[id]/page.tsx     리포트 상세 (저장함에서 조회)
+│  ├─ history/page.tsx         저장한 리포트 목록
+│  ├─ components/              Sidebar, ReportView
 │  └─ api/report/route.ts      POST /api/report — 지금은 JSON 응답, 4주차에 스트리밍 (백엔드 팀)
 ├─ src/
 │  ├─ agent/
 │  │  ├─ muffin.ts             Orchestrator Agent, research()
+│  │  ├─ mock.ts               MUFFIN_MOCK=1 이면 샘플 리포트 (프론트 개발용)
+│  │  ├─ events.ts             스트리밍 이벤트 규격, tool 한국어 라벨
+│  │  ├─ fixtures/             샘플 리포트
 │  │  ├─ context.ts            실행 컨텍스트 (출처·tool 실행 기록 수집)
 │  │  ├─ instructions.ts       깊이별 instruction
 │  │  └─ schema.ts             리포트 zod 스키마 (Structured Output)
@@ -126,7 +131,10 @@ muffin-lab/
 │  │  │  ├─ index.test.ts      fixture 기반 테스트
 │  │  │  └─ README.md          데이터 소스·키 발급·제한 기록
 │  │  └─ fx/ etf/ news/ rate/ macro/   (같은 구성)
-│  └─ lib/http.ts              fetchJson / fetchText (타임아웃, HttpError)
+│  └─ lib/
+│     ├─ http.ts               fetchJson / fetchText (타임아웃, HttpError)
+│     ├─ api.ts                프론트용 API 호출 함수
+│     └─ history.ts            리포트 저장함 (localStorage, 서버로 교체 가능)
 ├─ scripts/probe.ts            데이터 소스 후보 응답 확인 (pnpm probe)
 ├─ .github/
 │  ├─ workflows/ci.yml         lint + typecheck + test
@@ -205,6 +213,43 @@ pnpm probe "<URL>" --save src/tools/fx/fixture.json     # 응답을 fixture 로 
 ```
 
 ---
+
+## Muffin Web 만들기 가이드 (프론트·백엔드 팀, 3주차부터)
+
+화면과 API 의 뼈대는 리더가 만들어 두었습니다. 팀은 그 위에서 각 화면의 안쪽과 API 의 안쪽을 채웁니다.
+
+### 이미 있는 것
+
+| 파일 | 역할 | 누가 손대나 |
+|---|---|---|
+| `app/layout.tsx`, `app/components/Sidebar.tsx` | 사이드바 + 본문 공통 레이아웃 | 프론트 |
+| `app/page.tsx` | 홈. 영역·깊이·질문 → 리포트 생성 → 저장함에 넣고 리포트 페이지로 이동. 로딩 중 화면이 "진행상황" 화면 자리 | 프론트 |
+| `app/report/[id]/page.tsx` | 리포트 상세. 저장함에서 id 로 꺼내 보여줌 | 프론트 |
+| `app/history/page.tsx` | 저장한 리포트 목록 | 프론트 |
+| `app/components/ReportView.tsx` | 리포트 한 장을 그리는 컴포넌트. 홈과 상세가 같이 씀 | 프론트 |
+| `src/lib/api.ts` | `createReport(input)` 하나로 API 호출. 프론트는 `fetch` 를 직접 쓰지 않음 | 리더 (바꿀 일 있으면 상의) |
+| `src/lib/history.ts` | 저장·목록·조회·삭제 네 함수. 지금은 localStorage, 고도화 때 서버로 | 백엔드 (서버 저장으로 바꿀 때) |
+| `src/agent/events.ts` | 스트리밍 이벤트 규격 `step / report / error` 와 tool 한국어 라벨 | 백엔드가 구현, 프론트가 소비 |
+| `app/api/report/route.ts` | POST /api/report. 지금은 완료 후 한 번에 JSON | 백엔드 |
+
+### Mock 모드 (프론트 개발용)
+
+`.env.local` 에 `MUFFIN_MOCK=1` 을 넣으면 OpenAI 와 tool 을 부르지 않고 저장된 샘플 리포트를 1.2초 뒤에 돌려줍니다. 키도 비용도 필요 없고, 화면을 고칠 때마다 6초씩 기다리지 않아도 됩니다. 샘플은 `src/agent/fixtures/report.sample.json` 입니다.
+
+```
+MUFFIN_MOCK=1
+```
+
+### 화면 범위 (콘셉트 이미지 기준)
+
+- 만든다: 홈, 진행상황, 리포트, 저장함. 네 개.
+- 안 만든다: 부동산 영역, AI스토리, 설정, Pro 업그레이드, PDF 다운로드(고도화 때 선택), 진행률 퍼센트 숫자.
+- 진행상황 화면은 두 단계. 먼저 문구와 진행 바(지금 있음), 스트리밍이 붙으면 tool 단계 목록.
+
+### 백엔드 과제
+
+- `/api/report` 스트리밍: `src/agent/events.ts` 의 `MuffinEvent` 를 SSE 로 보냅니다. Agent 를 `run(agent, question, { stream: true, context })` 로 돌리고 tool 완료마다 `step`, 끝나면 `report`.
+- 입력 검증·호출 제한, History 서버 저장(고도화 때).
 
 ## Tool 만들기 가이드 (팀원용)
 

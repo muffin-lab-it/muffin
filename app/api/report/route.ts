@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isMockMode, mockResearch } from "@/src/agent/mock";
 import { research } from "@/src/agent/muffin";
 import { areas, depths } from "@/src/agent/schema";
 
@@ -17,6 +18,12 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "question(필수), depth, area 를 확인하세요." }, { status: 400 });
   }
+
+  // MUFFIN_MOCK=1 이면 샘플 리포트. 프론트 개발용.
+  if (isMockMode()) {
+    return NextResponse.json(await mockResearch(parsed.data));
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: "OPENAI_API_KEY 가 설정되지 않았습니다. .env.local 을 확인하세요." }, { status: 500 });
   }
