@@ -16,4 +16,13 @@ describe("http helpers", () => {
     expect(err.status).toBe(403);
     expect(err.message).toContain("403");
   });
+
+  it("에러 메시지와 url 에 쿼리(키)가 남지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 401 })));
+    const err = await fetchJson("https://x.test/api?serviceKey=SECRET123&q=1").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpError);
+    const httpErr = err as HttpError;
+    expect(httpErr.message).not.toContain("SECRET123");
+    expect(httpErr.url).toBe("https://x.test/api");
+  });
 });

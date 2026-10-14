@@ -2,14 +2,25 @@
  * 공통 HTTP 헬퍼. 모든 tool 이 같은 방식으로 호출·실패하도록 합니다.
  * 응답을 어떻게 읽고 어떤 값을 뽑을지는 각 tool 이 알아서 합니다.
  */
+/** 쿼리 문자열을 떼어냅니다. 키를 쿼리로 보내는 API 가 많아서 에러 메시지·로그에는 경로까지만 남깁니다. */
+export function stripQuery(url: string): string {
+  const i = url.indexOf("?");
+  return i === -1 ? url : url.slice(0, i);
+}
+
 export class HttpError extends Error {
+  /** 쿼리를 뗀 URL. 키가 섞여 들어오지 않습니다. */
+  public readonly url: string;
+
   constructor(
     public readonly status: number,
-    public readonly url: string,
+    url: string,
     body?: string,
   ) {
-    super(`HTTP ${status} ${url}${body ? ` — ${body.slice(0, 200)}` : ""}`);
+    const safeUrl = stripQuery(url);
+    super(`HTTP ${status} ${safeUrl}${body ? ` — ${body.slice(0, 200)}` : ""}`);
     this.name = "HttpError";
+    this.url = safeUrl;
   }
 }
 
