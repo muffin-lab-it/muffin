@@ -94,12 +94,21 @@ export default function Home() {
             <h2>오늘의 숫자</h2>
             <div className="numbers">
               {report.numbers.map((n, i) => (
-                <div className="num" key={i}><small>{n.label}</small><b>{n.value}</b><i>{n.change}</i></div>
+                <div className="num" key={i}><small>{n.label}</small><b>{n.value}</b><i>{n.change}{n.asOf ? ` · ${n.asOf}` : ""}</i></div>
               ))}
             </div>
           </section>
-          <section><h2>왜 그럴까요?</h2><ul>{report.why.map((w, i) => <li key={i}>{w}</li>)}</ul></section>
+          <section>
+            <h2>왜 그럴까요?</h2>
+            <ul>{report.why.map((w, i) => <li key={i}>{w.claim}<br /><small className="evidence">근거: {w.evidence}</small></li>)}</ul>
+          </section>
           <section><h2>나에게 미치는 영향</h2><ul>{report.impact.map((w, i) => <li key={i}>{w}</li>)}</ul></section>
+          {report.caveats.length > 0 && (
+            <section><h2>주의점</h2><ul>{report.caveats.map((w, i) => <li key={i}>{w}</li>)}</ul></section>
+          )}
+          {report.dataGaps.length > 0 && (
+            <section><h2>확인하지 못한 것</h2><ul>{report.dataGaps.map((w, i) => <li key={i}>{w}</li>)}</ul></section>
+          )}
           <section>
             <h2>출처</h2>
             <ul>{report.sources.map((s, i) => <li key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.name}</a> · {s.asOf}</li>)}</ul>
