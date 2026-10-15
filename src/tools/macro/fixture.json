@@ -1,0 +1,876 @@
+{
+  "KR_cpi": {
+    "input": {
+      "country": "KR",
+      "indicator": "cpi",
+      "endMonth": "202509",
+      "months": 6
+    },
+    "capturedAt": "2026-10-15T01:59:54.442Z",
+    "response": {
+      "StatisticSearch": {
+        "list_total_count": 18,
+        "row": [
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202404",
+            "DATA_VALUE": "114.01"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202405",
+            "DATA_VALUE": "114.1"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202406",
+            "DATA_VALUE": "113.84"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202407",
+            "DATA_VALUE": "114.13"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202408",
+            "DATA_VALUE": "114.54"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202409",
+            "DATA_VALUE": "114.65"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202410",
+            "DATA_VALUE": "114.69"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202411",
+            "DATA_VALUE": "114.4"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202412",
+            "DATA_VALUE": "114.91"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202501",
+            "DATA_VALUE": "115.71"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202502",
+            "DATA_VALUE": "116.08"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202503",
+            "DATA_VALUE": "116.29"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202504",
+            "DATA_VALUE": "116.38"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202505",
+            "DATA_VALUE": "116.27"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202506",
+            "DATA_VALUE": "116.31"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202507",
+            "DATA_VALUE": "116.52"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202508",
+            "DATA_VALUE": "116.45"
+          },
+          {
+            "STAT_CODE": "901Y009",
+            "STAT_NAME": "4.2.1. 소비자물가지수",
+            "ITEM_CODE1": "0",
+            "ITEM_NAME1": "총지수",
+            "ITEM_CODE2": null,
+            "ITEM_NAME2": null,
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "2020=100",
+            "WGT": "1000",
+            "TIME": "202509",
+            "DATA_VALUE": "117.06"
+          }
+        ]
+      }
+    }
+  },
+  "KR_unemployment": {
+    "input": {
+      "country": "KR",
+      "indicator": "unemployment",
+      "endMonth": "202509",
+      "months": 6
+    },
+    "capturedAt": "2026-10-15T01:59:35.666Z",
+    "response": {
+      "StatisticSearch": {
+        "list_total_count": 18,
+        "row": [
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202404",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202405",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202406",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202407",
+            "DATA_VALUE": "2.7"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202408",
+            "DATA_VALUE": "2.6"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202409",
+            "DATA_VALUE": "2.6"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202410",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202411",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202412",
+            "DATA_VALUE": "3.1"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202501",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202502",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202503",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202504",
+            "DATA_VALUE": "2.7"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202505",
+            "DATA_VALUE": "2.7"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202506",
+            "DATA_VALUE": "2.7"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202507",
+            "DATA_VALUE": "2.7"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202508",
+            "DATA_VALUE": "2.8"
+          },
+          {
+            "STAT_CODE": "901Y027",
+            "STAT_NAME": "8.6.2. 경제활동인구",
+            "ITEM_CODE1": "I61BC",
+            "ITEM_NAME1": "실업률",
+            "ITEM_CODE2": "I28B",
+            "ITEM_NAME2": "계절조정",
+            "ITEM_CODE3": null,
+            "ITEM_NAME3": null,
+            "ITEM_CODE4": null,
+            "ITEM_NAME4": null,
+            "UNIT_NAME": "%",
+            "WGT": null,
+            "TIME": "202509",
+            "DATA_VALUE": "2.7"
+          }
+        ]
+      }
+    }
+  },
+  "US_cpi": {
+    "input": {
+      "country": "US",
+      "indicator": "cpi",
+      "endMonth": "202509",
+      "months": 6
+    },
+    "capturedAt": "2026-10-15T02:00:03.236Z",
+    "response": {
+      "realtime_start": "2026-10-14",
+      "realtime_end": "2026-10-14",
+      "observation_start": "2024-04-01",
+      "observation_end": "2025-09-01",
+      "units": "lin",
+      "output_type": 1,
+      "file_type": "json",
+      "order_by": "observation_date",
+      "sort_order": "asc",
+      "count": 18,
+      "offset": 0,
+      "limit": 1000,
+      "observations": [
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-04-01",
+          "value": "313.023"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-05-01",
+          "value": "313.175"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-06-01",
+          "value": "313.044"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-07-01",
+          "value": "313.569"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-08-01",
+          "value": "314.062"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-09-01",
+          "value": "314.732"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-10-01",
+          "value": "315.631"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-11-01",
+          "value": "316.528"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-12-01",
+          "value": "317.604"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-01-01",
+          "value": "318.961"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-02-01",
+          "value": "319.679"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-03-01",
+          "value": "319.785"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-04-01",
+          "value": "320.302"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-05-01",
+          "value": "320.620"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-06-01",
+          "value": "321.435"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-07-01",
+          "value": "322.169"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-08-01",
+          "value": "323.291"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-09-01",
+          "value": "324.245"
+        }
+      ]
+    }
+  },
+  "US_unemployment": {
+    "input": {
+      "country": "US",
+      "indicator": "unemployment",
+      "endMonth": "202509",
+      "months": 6
+    },
+    "capturedAt": "2026-10-15T02:00:16.220Z",
+    "response": {
+      "realtime_start": "2026-10-14",
+      "realtime_end": "2026-10-14",
+      "observation_start": "2024-04-01",
+      "observation_end": "2025-09-01",
+      "units": "lin",
+      "output_type": 1,
+      "file_type": "json",
+      "order_by": "observation_date",
+      "sort_order": "asc",
+      "count": 18,
+      "offset": 0,
+      "limit": 1000,
+      "observations": [
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-04-01",
+          "value": "3.9"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-05-01",
+          "value": "3.9"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-06-01",
+          "value": "4.1"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-07-01",
+          "value": "4.2"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-08-01",
+          "value": "4.2"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-09-01",
+          "value": "4.1"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-10-01",
+          "value": "4.1"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-11-01",
+          "value": "4.2"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2024-12-01",
+          "value": "4.1"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-01-01",
+          "value": "4.0"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-02-01",
+          "value": "4.2"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-03-01",
+          "value": "4.2"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-04-01",
+          "value": "4.2"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-05-01",
+          "value": "4.3"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-06-01",
+          "value": "4.1"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-07-01",
+          "value": "4.3"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-08-01",
+          "value": "4.3"
+        },
+        {
+          "realtime_start": "2026-10-14",
+          "realtime_end": "2026-10-14",
+          "date": "2025-09-01",
+          "value": "4.4"
+        }
+      ]
+    }
+  }
+}
