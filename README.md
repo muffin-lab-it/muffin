@@ -249,7 +249,29 @@ MUFFIN_MOCK=1
 ### 백엔드 과제
 
 - `/api/report` 스트리밍: `src/agent/events.ts` 의 `MuffinEvent` 를 SSE 로 보냅니다. Agent 를 `run(agent, question, { stream: true, context })` 로 돌리고 tool 완료마다 `step`, 끝나면 `report`.
+- 실행 로그 저장: 아래 `RunLog` 를 데이터베이스에 저장하고, 리더용 `/admin` 페이지에 최근 실패·평균 시간·tool 별 성공률·토큰 사용량을 보여줍니다. History 서버 저장과 같은 데이터베이스를 씁니다.
 - 입력 검증·호출 제한, History 서버 저장(고도화 때).
+
+### 실행 로그
+
+`/api/report` 는 요청 1건마다 JSON 한 줄을 서버 로그에 남깁니다 (`src/lib/log.ts`). Vercel → 프로젝트 → Logs 에서 `muffin.run` 으로 검색합니다. 실패하면 화면 에러 메시지에 요청 id 가 붙으니 그 id 로 찾으면 됩니다.
+
+```json
+{"type":"muffin.run","id":"mv8usbkp-5ov0h1","ok":true,"stage":"ok","ms":8493,
+ "model":"gpt-4.1-mini","usage":{"requests":2,"inputTokens":5745,"outputTokens":414},
+ "steps":[{"tool":"get_etf_kr_price","status":"ok","ms":161}],"rewrites":0,
+ "quality":{"numbers":2,"why":0,"whyUnsupported":0,"dataGaps":1,"sources":1}}
+```
+
+| 필드 | 뜻 |
+|---|---|
+| `stage` | 어디서 끝났나: `input`(입력 오류) / `config`(키 없음) / `agent`(실행 중 실패) / `ok` |
+| `ms` | 전체 걸린 시간 |
+| `steps` | tool 별 성공/실패, 시간, 에러 |
+| `usage` | OpenAI 호출 수와 토큰 (재작성 포함) |
+| `quality` | 숫자·원인·근거없는 원인·빈칸·출처 개수 |
+
+Agent 내부 흐름(어떤 tool 을 어떤 순서로 불렀는지)은 OpenAI 대시보드 → Traces 에서도 볼 수 있습니다.
 
 ## Tool 만들기 가이드 (팀원용)
 
@@ -342,6 +364,7 @@ export type ToolResult<T = unknown> = {
 | `defineTool`: execute 가 throw 하면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 값 계산 (변동률, 평균, 기간 비교) |
 | `defineTool`: 반환한 `source` 를 자동 수집해 리포트 출처에 반드시 포함 | 어떤 데이터를 어떤 파라미터로 받을지 |
 | `defineTool`: tool 별 실행 시간·성공 여부 기록 (진행상황 화면용) | `description` 작성 |
+| 에러 메시지에 섞인 `.env` 키 값(`*_KEY`) 자동 가리기. 쿼리·경로 어디에 있든 | |
 
 그래서 tool 안에서는 **실패하면 그냥 throw** 하면 됩니다. 빈 값을 돌려주거나 try/catch 로 삼키지 마세요.
 

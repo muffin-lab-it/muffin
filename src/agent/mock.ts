@@ -18,5 +18,6 @@ export async function mockResearch(input: ResearchInput): Promise<ResearchResult
     report: { ...report, summary: `[MOCK · ${input.depth}] ${report.summary}` },
     steps: sample.steps.map((s) => ({ ...s, status: s.status as "ok" | "error" })),
     rewrites: 0,
+    model: "mock",
   };
 }

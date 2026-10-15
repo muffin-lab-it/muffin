@@ -6,12 +6,14 @@
  *  - 에러: execute 가 throw 하면 Agent 전체를 멈추지 않고, 모델에게 "이 tool 은 실패했다" 고 알립니다
  *  - 출처 수집: 반환값의 source 를 ResearchContext 에 쌓아 리포트 sources 에 반드시 들어가게 합니다
  *  - 실행 기록: 어떤 tool 이 몇 ms 걸렸는지, 성공했는지 기록합니다 (진행상황 화면용)
+ *  - 키 가리기: 에러 메시지에 .env 의 키 값이 섞여 있으면 모델·로그에 닿기 전에 지웁니다
  *
  * 응답 파싱, 값 계산, 데이터 해석은 각 tool 의 execute 가 담당합니다.
  */
 import { tool, type FunctionTool, type RunContext } from "@openai/agents";
 import type { z } from "zod";
 import { ResearchContext } from "../agent/context";
+import { redactSecrets } from "../lib/redact";
 import type { ToolResult } from "./types";
 
 export type ToolSpec<P extends z.ZodObject> = {
@@ -47,7 +49,8 @@ export function defineTool<P extends z.ZodObject>(
         ctx?.steps.push({ tool: spec.name, status: "ok", ms: Date.now() - started });
         return result;
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        // tool 이 직접 만든 에러 메시지에 키가 섞여도 모델과 로그로 새지 않게 합니다.
+        const message = redactSecrets(err instanceof Error ? err.message : String(err));
         ctx?.steps.push({ tool: spec.name, status: "error", ms: Date.now() - started, error: message });
         return {
           error: `${spec.name} 호출 실패: ${message}`,
