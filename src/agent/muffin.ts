@@ -1,4 +1,4 @@
-import { Agent, run } from "@openai/agents";
+import { Agent, RunContext, run } from "@openai/agents";
 import { muffinTools } from "../tools";
 import { ResearchContext, mergeSources, type ToolStep } from "./context";
 import { findAdvice } from "./guard";
@@ -28,6 +28,9 @@ export type ResearchResult = {
   steps: ToolStep[];
   /** 권유 표현 검사에 걸려 다시 쓴 횟수 */
   rewrites: number;
+  /** 사용한 모델과 토큰 (재작성 포함 합계). 로그·비용 추적용 */
+  model?: string;
+  usage?: { requests: number; inputTokens: number; outputTokens: number };
 };
 
 /**
@@ -36,6 +39,8 @@ export type ResearchResult = {
  */
 export async function research({ question, depth, area }: ResearchInput): Promise<ResearchResult> {
   const ctx = new ResearchContext();
+  // RunContext 로 직접 감싸야 재작성까지 포함한 토큰 사용량이 한곳에 쌓입니다.
+  const runCtx = new RunContext(ctx);
   let extra = "";
   let rewrites = 0;
   let report: Report | undefined;
@@ -43,7 +48,7 @@ export async function research({ question, depth, area }: ResearchInput): Promis
   // 권유 표현이 걸리면 한 번만 다시 씁니다. 두 번째도 걸리면 그대로 내보내고 rewrites 로 표시합니다.
   for (let attempt = 0; attempt < 2; attempt++) {
     const agent = createMuffinAgent(depth, area, extra);
-    const result = await run(agent, question, { context: ctx });
+    const result = await run(agent, question, { context: runCtx });
     if (!result.finalOutput) throw new Error("Agent 가 리포트를 생성하지 못했습니다.");
     report = result.finalOutput;
 
@@ -55,5 +60,12 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
   // 출처는 모델의 기억이 아니라 tool 이 실제로 반환한 것을 기준으로 합니다.
   const final: Report = { ...report!, sources: mergeSources(ctx.sources, report!.sources) };
-  return { report: final, steps: ctx.steps, rewrites };
+  const { requests, inputTokens, outputTokens } = runCtx.usage;
+  return {
+    report: final,
+    steps: ctx.steps,
+    rewrites,
+    model: modelFor(depth),
+    usage: { requests, inputTokens, outputTokens },
+  };
 }
