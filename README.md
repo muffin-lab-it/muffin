@@ -364,6 +364,7 @@ export type ToolResult<T = unknown> = {
 | `defineTool`: execute 가 throw 하면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 값 계산 (변동률, 평균, 기간 비교) |
 | `defineTool`: 반환한 `source` 를 자동 수집해 리포트 출처에 반드시 포함 | 어떤 데이터를 어떤 파라미터로 받을지 |
 | `defineTool`: tool 별 실행 시간·성공 여부 기록 (진행상황 화면용) | `description` 작성 |
+| 에러 메시지에 섞인 `.env` 키 값(`*_KEY`) 자동 가리기. 쿼리·경로 어디에 있든 | |
 
 그래서 tool 안에서는 **실패하면 그냥 throw** 하면 됩니다. 빈 값을 돌려주거나 try/catch 로 삼키지 마세요.
 

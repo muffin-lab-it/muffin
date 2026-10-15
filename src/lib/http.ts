@@ -2,6 +2,7 @@
  * 공통 HTTP 헬퍼. 모든 tool 이 같은 방식으로 호출·실패하도록 합니다.
  * 응답을 어떻게 읽고 어떤 값을 뽑을지는 각 tool 이 알아서 합니다.
  */
+import { redactSecrets } from "./redact";
 /** 쿼리 문자열을 떼어냅니다. 키를 쿼리로 보내는 API 가 많아서 에러 메시지·로그에는 경로까지만 남깁니다. */
 export function stripQuery(url: string): string {
   const i = url.indexOf("?");
@@ -18,9 +19,10 @@ export class HttpError extends Error {
     body?: string,
   ) {
     const safeUrl = stripQuery(url);
-    super(`HTTP ${status} ${safeUrl}${body ? ` — ${body.slice(0, 200)}` : ""}`);
+    // 쿼리를 떼고, 경로·본문에 섞인 키 값도 지웁니다 (ECOS 는 키가 경로에 있음).
+    super(redactSecrets(`HTTP ${status} ${safeUrl}${body ? ` — ${body.slice(0, 200)}` : ""}`));
     this.name = "HttpError";
-    this.url = safeUrl;
+    this.url = redactSecrets(safeUrl);
   }
 }
 
