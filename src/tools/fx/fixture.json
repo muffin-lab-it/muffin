@@ -1,0 +1,17 @@
+[
+  { "date": "2026-10-02", "base": "USD", "quote": "KRW", "rate": 1354.87 },
+  { "date": "2026-10-03", "base": "USD", "quote": "KRW", "rate": 1353.44 },
+  { "date": "2026-10-04", "base": "USD", "quote": "KRW", "rate": 1352.36 },
+  { "date": "2026-10-05", "base": "USD", "quote": "KRW", "rate": 1346.06 },
+  { "date": "2026-10-06", "base": "USD", "quote": "KRW", "rate": 1342.61 },
+  { "date": "2026-10-07", "base": "USD", "quote": "KRW", "rate": 1339.97 },
+  { "date": "2026-10-08", "base": "USD", "quote": "KRW", "rate": 1340.56 },
+  { "date": "2026-10-09", "base": "USD", "quote": "KRW", "rate": 1342.09 },
+  { "date": "2026-10-10", "base": "USD", "quote": "KRW", "rate": 1341.73 },
+  { "date": "2026-10-11", "base": "USD", "quote": "KRW", "rate": 1341.78 },
+  { "date": "2026-10-12", "base": "USD", "quote": "KRW", "rate": 1336.8 },
+  { "date": "2026-10-13", "base": "USD", "quote": "KRW", "rate": 1339.01 },
+  { "date": "2026-10-14", "base": "USD", "quote": "KRW", "rate": 1338.46 },
+  { "date": "2026-10-15", "base": "USD", "quote": "KRW", "rate": 1342.21 },
+  { "date": "2026-10-16", "base": "USD", "quote": "KRW", "rate": 1342.51 }
+]
