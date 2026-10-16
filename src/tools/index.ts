@@ -4,13 +4,14 @@
  */
 import { sampleTool } from "./_template";
 import { etfTool } from "./etf";
+import { macroTool } from "./macro";
 // import { fxTool } from "./fx";
 // import { newsTool } from "./news";
 // import { rateTool } from "./rate";
-// import { macroTool } from "./macro";
 
 export const muffinTools = [
   sampleTool, // fx tool 이 머지되면 제거
   etfTool,
-  // fxTool, newsTool, rateTool, macroTool,
+  macroTool,
+  // fxTool, newsTool, rateTool,
 ];
