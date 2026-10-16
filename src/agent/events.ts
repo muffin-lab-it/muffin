@@ -18,6 +18,7 @@ export type MuffinEvent =
 export const toolLabels: Record<string, string> = {
   get_sample_fx_rate: "환율 확인",
   get_etf_kr_price: "국내 ETF 시세 확인",
+  get_macro_indicators: "물가·고용 지표 확인",
 };
 
 export function labelFor(toolName: string): string {
