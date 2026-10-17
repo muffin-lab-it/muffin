@@ -3,6 +3,8 @@ import fixture from "./fixture.json";
 import { execute, parameters } from "./index";
 import { extractHankyung, extractYonhap } from "./body";
 import { fetchArticleBody } from "./body";
+import { parseRss } from "./rss";
+import { normalizeArticles } from "./sources";
 import type { Article } from "./sources";
 
 type FeedKey = "yonhap" | "hankyung" | "google";
@@ -63,6 +65,45 @@ function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "m
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("News Tool", () => {
+  it("실제 세 피드에서 확인한 XML 필드 구조를 합성 fixture로 파싱한다", () => {
+    const yonhap = parseRss(fixture.yonhapObservedShape);
+    const hankyung = parseRss(fixture.hankyungObservedShape);
+    const google = parseRss(fixture.googleObservedShape);
+
+    expect(yonhap.items[0]).toMatchObject({
+      "dc:creator": "합성 기자",
+      guid: { "@_isPermaLink": "true" },
+      "media:content": { "@_type": "image/jpeg" },
+    });
+    expect(hankyung.items[0].author).toBe("합성 기자");
+    expect(hankyung.items[0].description).toBeUndefined();
+    expect(google.items[0].source).toMatchObject({
+      "#text": "예시신문",
+      "@_url": "https://example.com",
+    });
+    expect(google.items[0].description).toContain("<a href=");
+
+    expect(normalizeArticles(yonhap, "yonhap")).toMatchObject([{
+      title: "합성 수출 & 물가 기사",
+      publishedAt: "2026-10-17T00:00:00.000Z",
+      publisher: "연합뉴스",
+    }]);
+    expect(normalizeArticles(hankyung, "hankyung")).toMatchObject([{
+      title: "합성 기업 & 투자 기사",
+      publishedAt: "2026-10-17T01:00:00.000Z",
+      publisher: "한국경제",
+    }]);
+    expect(normalizeArticles(google, "google")).toMatchObject([{
+      title: "합성 시장 & 금리 기사 - 예시신문",
+      publishedAt: "2026-10-17T01:00:00.000Z",
+      publisher: "예시신문",
+      url: "https://news.google.com/rss/articles/TEST101?oc=5",
+    }]);
+    expect(normalizeArticles(yonhap, "yonhap")).toHaveLength(1);
+    expect(normalizeArticles(hankyung, "hankyung")).toHaveLength(1);
+    expect(normalizeArticles(google, "google")).toHaveLength(1);
+  });
+
   it("세 피드를 파싱하고 기사별 출처·ISO 날짜·직접 링크를 반환한다", async () => {
     const calls = mockFeeds();
     const result = await execute(input);
