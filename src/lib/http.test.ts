@@ -17,6 +17,16 @@ describe("http helpers", () => {
     expect(err.message).toContain("403");
   });
 
+  it("redirect 옵션을 fetch 에 넘기고, 기본값은 follow 다", async () => {
+    const spy = vi.fn(async () => new Response("ok", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    await fetchText("https://x.test/a");
+    await fetchText("https://x.test/b", { redirect: "error" });
+    const calls = spy.mock.calls as unknown as [string, RequestInit][];
+    expect(calls[0][1].redirect).toBe("follow");
+    expect(calls[1][1].redirect).toBe("error");
+  });
+
   it("에러 메시지와 url 에 쿼리(키)가 남지 않는다", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 401 })));
     const err = await fetchJson("https://x.test/api?serviceKey=SECRET123&q=1").catch((e: unknown) => e);

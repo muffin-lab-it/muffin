@@ -30,10 +30,16 @@ export type FetchOptions = {
   headers?: Record<string, string>;
   /** 기본 8초. 넘기면 TimeoutError 로 실패합니다. */
   timeoutMs?: number;
+  /**
+   * 리디렉션 처리. 기본 "follow"(자동으로 따라감).
+   * 허용한 주소만 접근해야 하는 요청(예: 뉴스 기사 본문)은 "error" 로 두면,
+   * 다른 주소로 넘겨질 때 따라가지 않고 실패합니다.
+   */
+  redirect?: "follow" | "error";
 };
 
-async function doFetch(url: string, { headers, timeoutMs = 8_000 }: FetchOptions): Promise<Response> {
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+async function doFetch(url: string, { headers, timeoutMs = 8_000, redirect = "follow" }: FetchOptions): Promise<Response> {
+  const res = await fetch(url, { headers, redirect, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new HttpError(res.status, url, await res.text().catch(() => ""));
   return res;
 }
