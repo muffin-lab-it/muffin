@@ -8,8 +8,8 @@ import { newsSources, normalizeArticles, sourceIds, titleKey, type Article, type
 
 export const parameters = z.object({
   sources: z.array(z.enum(sourceIds)).min(1).max(sourceIds.length).describe("조회할 RSS 소스. yonhap, hankyung, google 중 선택"),
-  query: z.string().trim().min(1).max(100).nullable().describe("검색어. Google News는 RSS 검색에 사용하며, 다른 소스는 받은 기사 제목에서 필터링. 없으면 null"),
-  limit: z.number().int().min(1).max(20).describe("반환할 최대 기사 수 (1~20)"),
+  query: z.string().trim().min(1).max(100).nullable().describe("검색어. Google News는 RSS 검색에 사용하며, 다른 소스는 받은 기사 제목에서 필터링. 없으면 null이고 Google News는 '경제'로 검색"),
+  limit: z.number().int().min(1).max(10).describe("반환할 최대 기사 수 (1~10, 보통 5건)"),
   content: z.enum(["list", "body"]).describe("list는 목록만, body는 공개 기사 본문 추출을 시도하고 기사별 상태를 반환"),
 });
 
@@ -163,7 +163,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
 export const newsTool = defineTool({
   name: "get_korean_economic_news",
   description:
-    "연합뉴스·한국경제 RSS에서 국내 경제 뉴스 목록을 조회하고 공개 기사 본문 추출을 시도한다. Google News는 목록·검색 결과만 제공한다. " +
+    "연합뉴스·한국경제 RSS에서 국내 경제 뉴스 목록을 조회하고 공개 기사 본문 추출을 시도한다. Google News는 목록·검색 결과만 제공하며 검색어가 없으면 '경제'로 검색한다. limit은 최대 10건, 보통 5건을 요청한다. " +
     "content=body면 limit 건의 본문 확보를 목표로 후속 후보를 확인한다. resultStatus, missingCount, failureCounts를 반드시 확인한다. Google News 원문 미확정, 유료 기사, 추출 실패는 본문으로 사용하지 않는다. " +
     "국내 경제 이슈의 최근 보도나 검색어를 찾을 때 사용한다. 사실 검증, 해외 뉴스와 투자 권유는 제공하지 않는다.",
   parameters,

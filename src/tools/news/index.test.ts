@@ -32,7 +32,7 @@ function mockFeeds(overrides: Partial<Record<FeedKey, string | Response | Error>
   return calls;
 }
 
-const input = { sources: ["yonhap", "hankyung", "google"] as FeedKey[], query: null, limit: 20, content: "list" as const };
+const input = { sources: ["yonhap", "hankyung", "google"] as FeedKey[], query: null, limit: 10, content: "list" as const };
 
 function syntheticFeed(count: number, source: "yonhap" | "hankyung" = "yonhap"): string {
   const items = Array.from({ length: count }, (_, i) => `<item><title>합성 경제 기사 ${i}</title><link>${source === "yonhap" ? "https://www.yna.co.kr/view/AKRTEST" : "https://www.hankyung.com/article/TEST"}${String(i).padStart(3, "0")}</link><pubDate>${new Date(Date.UTC(2026, 9, 17, 12, 0, 0) - i * 60_000).toUTCString()}</pubDate></item>`);
@@ -132,6 +132,12 @@ describe("News Tool", () => {
     expect(result.data.articles.map((article) => article.title)).toEqual(["기업 투자 계획 발표", "시장 지표 발표 - 예시신문"]);
   });
 
+  it("Google News 검색어가 null이면 기존처럼 경제로 검색한다", async () => {
+    const calls = mockFeeds();
+    await execute({ ...input, sources: ["google"] });
+    expect(calls[0].searchParams.get("q")).toBe("경제");
+  });
+
   it("최신순으로 정렬한 뒤 limit을 적용한다", async () => {
     mockFeeds();
     const result = await execute({ ...input, limit: 2 });
@@ -147,9 +153,19 @@ describe("News Tool", () => {
   });
 
   it("입력 범위를 검증한다", () => {
-    expect(() => parameters.parse({ ...input, limit: 21 })).toThrow();
+    expect(() => parameters.parse({ ...input, limit: 11 })).toThrow();
+    expect(() => parameters.parse({ ...input, limit: 20 })).toThrow();
+    expect(() => parameters.parse({ ...input, limit: 0 })).toThrow();
+    expect(() => parameters.parse({ sources: input.sources, query: null, content: "list" })).toThrow();
     expect(() => parameters.parse({ ...input, sources: [] })).toThrow();
     expect(() => parameters.parse({ ...input, query: "" })).toThrow();
+  });
+
+  it("list 모드는 최대 10건만 반환한다", async () => {
+    mockFeeds({ yonhap: syntheticFeed(15) });
+    const result = await execute({ ...input, sources: ["yonhap"], limit: 10 });
+    expect(result.data).toMatchObject({ count: 10, requestedCount: 10, collectedCount: 10, resultStatus: "complete" });
+    expect(result.source).toHaveLength(10);
   });
 
   it("빈 RSS는 실패하고 정상 빈 결과로 위장하지 않는다", async () => {
@@ -291,7 +307,7 @@ describe("News Tool", () => {
     expect(result.data.articles.every((article) => article.source !== "google")).toBe(true);
   });
 
-  it.each([5, 10, 20])("본문 목표 %i건을 확보하면 바로 멈춘다", async (limit) => {
+  it.each([1, 5, 10])("본문 목표 %i건을 확보하면 바로 멈춘다", async (limit) => {
     const calls = mockBodyScenario(35);
     const result = await execute({ ...input, sources: ["yonhap"], limit, content: "body" });
     expect(result.data).toMatchObject({ requestedCount: limit, collectedCount: limit, missingCount: 0, inspectedCount: limit, failedCount: 0, resultStatus: "complete", stopReason: "target_reached" });
@@ -375,11 +391,11 @@ describe("News Tool", () => {
 
   it("한 번의 Agent 응답 본문 크기도 제한한다", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
-      if (String(input).includes("/rss/economy.xml")) return new Response(syntheticFeed(20));
-      return new Response(`<div class='story-news article'><p>${"가".repeat(4_990)}</p></div>`);
+      if (String(input).includes("/rss/economy.xml")) return new Response(syntheticFeed(10));
+      return new Response(`<div class='story-news article'><p>${"가".repeat(9_990)}</p></div>`);
     }));
-    const result = await execute({ ...input, sources: ["yonhap"], limit: 20, content: "body" });
-    expect(result.data).toMatchObject({ collectedCount: 16, missingCount: 4, failedCount: 4, resultStatus: "partial" });
-    expect(result.data.failureCounts.output_limit).toBe(4);
+    const result = await execute({ ...input, sources: ["yonhap"], limit: 10, content: "body" });
+    expect(result.data).toMatchObject({ collectedCount: 8, missingCount: 2, failedCount: 2, resultStatus: "partial" });
+    expect(result.data.failureCounts.output_limit).toBe(2);
   });
 });
