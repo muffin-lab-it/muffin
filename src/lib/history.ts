@@ -4,6 +4,7 @@
  * localStorage 는 없거나 막혀 있을 수 있어서(시크릿 창 등) 모든 접근을 try/catch 로 감쌉니다.
  */
 import type { ToolStep } from "../agent/context";
+import { normalizeReport } from "../agent/normalize";
 import type { Area, Depth, Report } from "../agent/schema";
 
 export type ReportRecord = {
@@ -33,12 +34,26 @@ function read(): ReportRecord[] {
   if (raw === cache.raw) return cache.records;
   let records: ReportRecord[] = EMPTY;
   try {
-    records = raw ? (JSON.parse(raw) as ReportRecord[]) : EMPTY;
+    records = raw ? normalizeRecords(JSON.parse(raw)) : EMPTY;
   } catch {
     records = EMPTY;
   }
   cache = { raw, records };
   return records;
+}
+
+/** 0단계 전에 저장된 v1 리포트도 v2 모양으로 읽습니다. 리포트 모양이 아닌 기록은 건너뜁니다. */
+function normalizeRecords(parsed: unknown): ReportRecord[] {
+  if (!Array.isArray(parsed)) return EMPTY;
+  const out: ReportRecord[] = [];
+  for (const r of parsed as ReportRecord[]) {
+    try {
+      out.push({ ...r, report: normalizeReport(r.report) });
+    } catch {
+      // 깨진 기록. 화면에서 보이지 않게 합니다
+    }
+  }
+  return out;
 }
 
 function write(records: ReportRecord[]) {

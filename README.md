@@ -69,7 +69,7 @@ Agent 간 handoff 는 쓰지 않습니다. 금융에서는 "흐름은 고정, �
 | 투자 권유 표현 검사 + 재작성 | ✅ (정규식, SDK output guardrail 로 이전 예정) |
 | 실행 로그 `muffin.run` (모델 · 토큰 · tool 별 시간 · 품질 신호) | ✅ |
 | fixture 테스트 144개 + CI (lint · typecheck · test) | ✅ |
-| **0단계** 형식 고정: 리포트 v2 타입 · 스트리밍 이벤트 · Mock v2 · 모델 교체 · SDK 0.20 | 🔜 ~10/23 (리더) |
+| **0단계** 형식 고정: 리포트 v2 타입 · 스트리밍 이벤트 · 증거 번호 · Mock v2 · 모델 교체 · SDK 0.20 | ✅ 10/21 |
 | **1단계** 증거 장부 · 작성 분리 · 숫자 코드 검증 · 수정 루프 · 평가 v1 로 현재 수치 측정 | 10/24 ~ 10/31 |
 | **2단계** 접수 (의도 · 판단 요청 모드) · 원인 지도 · Calc Tool · 유의성 게이트 | 11/1 ~ 11/6 |
 | **3단계** 근거 판정자 · 모델 비교 · Promptfoo 평가 · 주간 평가 Action + Codex 수정 PR | 11/7 ~ 11/13 |
@@ -163,7 +163,7 @@ Next.js (App Router) · React · TypeScript · OpenAI Agents SDK · Zod · Codex
 | Codex CLI | 최신 | `npm i -g @openai/codex` 후 `codex` 실행해 로그인 |
 | OpenAI API Key | 개인 키 | 발급이 어려우면 리더에게 요청 (사용량 제한 걸린 프로젝트 키 발급) |
 
-모델: 현재 기본값은 `gpt-4.1-mini` (Deep 은 `gpt-4.1`) 입니다. OpenAI 가 2026-10-14 에 이 모델들의 폐기를 공지했고 2027-01-14 에 종료되므로, 0단계에서 `gpt-6-luna` (Deep 은 `gpt-6-sol`) 로 바꾸고 3단계 모델 비교로 확정합니다. `OPENAI_MODEL` / `OPENAI_MODEL_DEEP` 로 바꿀 수 있습니다.
+모델: 기본값은 `gpt-6-luna` (Deep 은 `gpt-6-sol`) 입니다. 처음 쓰던 `gpt-4.1` 계열은 OpenAI 가 2026-10-14 에 폐기를 공지해(2027-01-14 종료) 0단계에서 교체했고, 3단계 모델 비교로 확정합니다. `OPENAI_MODEL` / `OPENAI_MODEL_DEEP` 로 바꿀 수 있습니다.
 
 ---
 
@@ -294,6 +294,8 @@ MUFFIN_MOCK=         # 1 이면 OpenAI·tool 을 부르지 않고 샘플 리포�
 
 `research()` 는 진행 중에 이벤트를 콜백으로 줍니다. 백엔드는 그것을 **NDJSON** (한 줄에 JSON 하나, `Content-Type: application/x-ndjson`) 으로 흘려보내고, 프론트는 `streamReport` 로 받습니다. SSE 대신 NDJSON 을 쓰는 이유는 POST 와 `fetch` 만으로 되고 Vercel 에서 그대로 동작하기 때문입니다.
 
+`research()` 와 `mockResearch()` 는 `stage · plan · step · verify` 를 콜백으로 주고, `report · error` 는 라우트가 요청 id 를 붙여 보냅니다. 0단계의 실제 실행은 `research` · `verify` 단계와 `step` 만 보냅니다 (`plan` 은 2단계, `write` 분리는 1단계에서). Mock 은 처음부터 모든 단계를 보내므로 진행 화면은 Mock 으로 만들면 됩니다.
+
 ```ts
 // src/agent/events.ts (0단계에서 고정)
 type MuffinEvent =
@@ -385,7 +387,7 @@ type Report = {
   };
   movement?: { ref: string; zScore: number; window: 90; level: "normal" | "notable" | "extreme" }; // 2단계
   charts?: { kind: "line" | "bar"; title: string;
-             series: { label: string; ref: string }[];     // 증거 번호에 묶인 시계열
+             series: { label: string; ref: string; points: { t: string; v: number }[] }[];  // 증거 번호에 묶인 시계열
              events?: { ref: string; label: string; at: string }[] }[];                     // 뉴스 이벤트 점
   disclosure: string;                                      // "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아닙니다."
 };
@@ -400,7 +402,7 @@ type Evidence = {
 };
 ```
 
-v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verification · disclosure` 가 추가되고, `sources` 는 모델이 아니라 코드가 만듭니다. 기존 칸은 모두 그대로라 지금 화면 코드는 타입 검사를 그대로 통과합니다. 0단계 직후의 실제 응답은 `check: "unverified"`, `verification.status: "skipped"` 로 나옵니다. 검증기는 1단계에서 붙습니다. Mock 은 처음부터 모든 상태를 보여줍니다.
+v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verification · disclosure` 가 추가되고, `sources` 는 모델이 아니라 코드가 만듭니다. 기존 칸은 모두 그대로라 지금 화면 코드는 타입 검사를 그대로 통과합니다. 0단계의 실제 응답에서 `ref · refs · evidence · sources` 는 이미 실제 증거 번호를 담습니다 (`defineTool` 이 결과마다 번호를 붙여 모델에게 줌). 다만 숫자 대조가 아직 없어서 `check: "unverified"`, `verification.status: "skipped"` 로 나옵니다. 검증기는 1단계에서 붙습니다. Mock 은 처음부터 모든 상태를 보여줍니다.
 
 ### 백엔드 과제
 
