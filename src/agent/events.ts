@@ -16,8 +16,11 @@ export type MuffinEvent =
 
 /** tool 이름 → 진행상황 화면에 보여줄 한국어 라벨. tool 이 추가되면 여기에 한 줄. */
 export const toolLabels: Record<string, string> = {
-  get_sample_fx_rate: "환율 확인",
+  get_fx_krw_rate: "환율 확인",
   get_etf_kr_price: "국내 ETF 시세 확인",
+  get_korean_economic_news: "경제 뉴스 확인",
+  get_macro_indicators: "물가·고용 지표 확인",
+  get_rate_data: "금리 확인",
 };
 
 export function labelFor(toolName: string): string {

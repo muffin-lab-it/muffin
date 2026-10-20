@@ -5,7 +5,7 @@ import type { ToolStep } from "../agent/context";
 import type { Area, Depth, Report } from "../agent/schema";
 
 export type ReportRequest = { question: string; depth: Depth; area?: Area };
-export type ReportResponse = { report: Report; steps: ToolStep[]; rewrites: number };
+export type ReportResponse = { report: Report; steps: ToolStep[]; rewrites: number; /** 서버 로그의 요청 id */ id?: string };
 
 export async function createReport(input: ReportRequest): Promise<ReportResponse> {
   const res = await fetch("/api/report", {
@@ -14,6 +14,9 @@ export async function createReport(input: ReportRequest): Promise<ReportResponse
     body: JSON.stringify(input),
   });
   const json = (await res.json().catch(() => ({}))) as Partial<ReportResponse> & { error?: string };
-  if (!res.ok || !json.report) throw new Error(json.error ?? `HTTP ${res.status}`);
-  return { report: json.report, steps: json.steps ?? [], rewrites: json.rewrites ?? 0 };
+  if (!res.ok || !json.report) {
+    const ref = json.id ? ` (요청 id: ${json.id})` : "";
+    throw new Error(`${json.error ?? `HTTP ${res.status}`}${ref}`);
+  }
+  return { report: json.report, steps: json.steps ?? [], rewrites: json.rewrites ?? 0, id: json.id };
 }

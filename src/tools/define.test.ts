@@ -59,6 +59,26 @@ describe("defineTool", () => {
   });
 });
 
+describe("defineTool 키 가리기", () => {
+  it("execute 의 에러 메시지에 섞인 키를 지운다", async () => {
+    process.env.TEST_SECRET_KEY = "SUPERSECRET123";
+    const t = defineTool({
+      name: "leaky_tool",
+      description: "test",
+      parameters,
+      execute: async () => {
+        throw new Error("https://api.test/SUPERSECRET123/data 실패");
+      },
+    });
+    const ctx = new ResearchContext();
+    const out = JSON.stringify(await invoke(t, ctx, { q: "x" }));
+    delete process.env.TEST_SECRET_KEY;
+
+    expect(out).not.toContain("SUPERSECRET123");
+    expect(ctx.steps[0].error).toContain("[REDACTED]");
+  });
+});
+
 describe("mergeSources", () => {
   it("tool 출처를 우선하고 모델 출처는 URL 이 겹치지 않는 것만 더한다", () => {
     const fromModel = [

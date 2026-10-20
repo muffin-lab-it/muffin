@@ -113,6 +113,8 @@ git switch -c feat/fx-rate-change
 ## 2. 코드 수정하기
 
 - 자기 tool 은 `src/tools/<이름>/` 안에서만 수정합니다. 다른 폴더를 고쳐야 하면 먼저 Discord 에 한 줄 남겨 주세요.
+- **라이브러리 추가(`package.json`)** 는 Discord 에 "OO 추가할게요" 한 줄 남긴 뒤, 본인 PR 에 포함하고 PR 본문에 적습니다.
+- **그 외 공통 설정 파일은 직접 고치지 않고 리더에게 먼저 알립니다.** `pnpm-workspace.yaml`, `tsconfig.json`, `eslint.config.mjs`, `.github/`, `vercel.json`, `src/tools/index.ts`, `src/tools/define.ts`, `src/lib/`, `src/agent/`
 - 수정하면서 수시로 확인:
 
 ```bash
@@ -158,6 +160,15 @@ chore: eslint 경고 정리
 
 ## 4. push 하고 PR 올리기
 
+### push 전에 Codex 리뷰
+
+```bash
+codex review --base main         # main 대비 내 브랜치 변경을 Codex 가 리뷰
+```
+
+맞는 지적은 고치고, 아니라고 판단한 지적은 이유를 메모해 둡니다. 둘 다 PR 본문 "Codex 활용" 칸에 1~3개 옮깁니다. Codex 는 `AGENTS.md` 의 "Code Review Rules" 를 보고 리뷰합니다.
+리뷰 중 Codex 가 테스트를 돌리다 `EPERM: operation not permitted` 로 실패할 수 있습니다. 읽기 전용 환경이라 생기는 것이니 무시하고 `pnpm test` 는 직접 돌립니다.
+
 ```bash
 git push -u origin feat/fx-rate-change
 ```
@@ -167,7 +178,7 @@ git push -u origin feat/fx-rate-change
 ### PR 작성
 
 - **제목**: `[fx] 환율 변동률 계산 추가` 처럼 `[tool이름]` + 한 줄 설명
-- **본문**: 템플릿이 자동으로 채워집니다. 무엇을 / 왜 / 테스트 방법을 적고 체크리스트를 확인합니다
+- **본문**: 템플릿이 자동으로 채워집니다. 무엇을 / 왜 / 테스트 방법 / **Codex 활용** 을 적고 체크리스트를 확인합니다. `(tool)` 항목은 tool PR 일 때만 봅니다
 - **Reviewers**: 리더를 지정합니다
 - `Create pull request` 클릭
 
@@ -175,13 +186,14 @@ git push -u origin feat/fx-rate-change
 
 - CI 가 돌아서 lint · typecheck · test 결과가 PR 아래에 ✅ / ❌ 로 표시됩니다
 - Vercel 이 미리보기 주소를 댓글로 달아 줍니다 (화면 작업일 때 유용)
+- Codex 가 PR 에 리뷰를 남깁니다. 안 달리면 PR 댓글에 `@codex review` 라고 적습니다 (👀 반응이 붙으면 리뷰 중). 반응이 없으면 리더가 대신 요청합니다
 - ❌ 가 뜨면 "Details" 를 눌러 어떤 검사가 실패했는지 보고 고칩니다
 
 ---
 
 ## 5. 리뷰 반영하기
 
-리뷰 댓글을 받으면 **같은 브랜치에서** 고치고 다시 push 하면 PR 에 자동 반영됩니다. PR 을 새로 만들지 않습니다.
+리뷰 댓글을 받으면 **같은 브랜치에서** 고치고 다시 push 하면 PR 에 자동 반영됩니다. PR 을 새로 만들지 않습니다. Codex 리뷰 댓글도 똑같이 반영하고, PR 본문 "Codex 활용" 칸에 추가합니다.
 
 ```bash
 # (feat/fx-rate-change 브랜치에 있는 상태에서)

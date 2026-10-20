@@ -2,6 +2,7 @@
  * 공통 HTTP 헬퍼. 모든 tool 이 같은 방식으로 호출·실패하도록 합니다.
  * 응답을 어떻게 읽고 어떤 값을 뽑을지는 각 tool 이 알아서 합니다.
  */
+import { redactSecrets } from "./redact";
 /** 쿼리 문자열을 떼어냅니다. 키를 쿼리로 보내는 API 가 많아서 에러 메시지·로그에는 경로까지만 남깁니다. */
 export function stripQuery(url: string): string {
   const i = url.indexOf("?");
@@ -18,9 +19,10 @@ export class HttpError extends Error {
     body?: string,
   ) {
     const safeUrl = stripQuery(url);
-    super(`HTTP ${status} ${safeUrl}${body ? ` — ${body.slice(0, 200)}` : ""}`);
+    // 쿼리를 떼고, 경로·본문에 섞인 키 값도 지웁니다 (ECOS 는 키가 경로에 있음).
+    super(redactSecrets(`HTTP ${status} ${safeUrl}${body ? ` — ${body.slice(0, 200)}` : ""}`));
     this.name = "HttpError";
-    this.url = safeUrl;
+    this.url = redactSecrets(safeUrl);
   }
 }
 
@@ -28,10 +30,16 @@ export type FetchOptions = {
   headers?: Record<string, string>;
   /** 기본 8초. 넘기면 TimeoutError 로 실패합니다. */
   timeoutMs?: number;
+  /**
+   * 리디렉션 처리. 기본 "follow"(자동으로 따라감).
+   * 허용한 주소만 접근해야 하는 요청(예: 뉴스 기사 본문)은 "error" 로 두면,
+   * 다른 주소로 넘겨질 때 따라가지 않고 실패합니다.
+   */
+  redirect?: "follow" | "error";
 };
 
-async function doFetch(url: string, { headers, timeoutMs = 8_000 }: FetchOptions): Promise<Response> {
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+async function doFetch(url: string, { headers, timeoutMs = 8_000, redirect = "follow" }: FetchOptions): Promise<Response> {
+  const res = await fetch(url, { headers, redirect, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new HttpError(res.status, url, await res.text().catch(() => ""));
   return res;
 }
