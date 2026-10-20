@@ -190,6 +190,7 @@ ECOS_API_KEY=
 1. 무료이고 키가 즉시 발급되거나 키가 필요 없을 것
 2. 일일 호출 한도가 100회 이상이거나 제한이 없을 것
 3. JSON 또는 RSS로 응답할 것 (HTML 스크래핑 금지)
+   - 예외 (10/19 리더 결정): News Tool 의 공개 기사 본문 추출은 RSS 가 요약만 제공해서 **개발·비상업 범위에서 허용**. 실제 서비스로 공개하기 전 각 언론사 이용 조건을 다시 확인한다.
 4. 배포 서버(Vercel)에서 호출 가능할 것. 약관에 "개발 용도만 허용" 조항이 있으면 탈락
 5. 원화·국내 데이터가 필요한 tool은 그 데이터가 실제로 있을 것
 
@@ -232,9 +233,11 @@ pnpm probe "<URL>" --save src/tools/fx/fixture.json     # 응답을 fixture 로 
 | `src/agent/events.ts` | 스트리밍 이벤트 규격 `step / report / error` 와 tool 한국어 라벨 | 백엔드가 구현, 프론트가 소비 |
 | `app/api/report/route.ts` | POST /api/report. 지금은 완료 후 한 번에 JSON | 백엔드 |
 
-### Mock 모드 (프론트 개발용)
+### 개발할 때 키 (실제 키가 기본)
 
-`.env.local` 에 `MUFFIN_MOCK=1` 을 넣으면 OpenAI 와 tool 을 부르지 않고 저장된 샘플 리포트를 1.2초 뒤에 돌려줍니다. 키도 비용도 필요 없고, 화면을 고칠 때마다 6초씩 기다리지 않아도 됩니다. 샘플은 `src/agent/fixtures/report.sample.json` 입니다.
+화면도 실제 키로 만듭니다. 리더에게 받은 `.env.local` 을 레포 루트에 두면 OpenAI 와 tool 이 실제로 호출됩니다. 리포트 1회에 1센트 안팎이라 부담 없이 눌러도 됩니다.
+
+**Mock 모드 (비상용).** 키가 막혔거나 OpenAI 가 장애일 때만 `.env.local` 에 `MUFFIN_MOCK=1` 을 넣습니다. OpenAI 와 tool 을 부르지 않고 저장된 샘플 리포트를 1.2초 뒤에 돌려줍니다. 샘플은 `src/agent/fixtures/report.sample.json` 입니다. 확인이 끝나면 다시 지워 주세요.
 
 ```
 MUFFIN_MOCK=1
@@ -397,7 +400,7 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 - [ ] 외부 호출은 `fetchJson` / `fetchText` 사용 (타임아웃·에러 처리 포함)
 - [ ] `source.url`이 실제로 열리는 링크
 - [ ] `src/tools/<이름>/README.md`에 데이터 소스·키 발급 방법·제한(rate limit) 기록
-- [ ] Codex 리뷰 1회 이상 반영
+- [ ] `codex review --base main` 으로 리뷰받고, 잡은 것을 PR 본문 "Codex 활용" 칸에 기록
 
 ---
 
@@ -464,7 +467,7 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 **PR**
 - 제목: `[fx] 환율 변동률 계산 추가`
-- 본문: 무엇을 / 왜 / 테스트 방법 / 스크린샷(화면이면)
+- 본문: 무엇을 / 왜 / 테스트 방법 / Codex 활용 / 스크린샷(화면이면)
 - CI(lint + test) 통과 + 리더 리뷰 승인 후 리더가 머지
 
 리뷰에서 보는 것: 읽히는가, 에러 처리가 있는가, `source`가 맞는가. 동작 확인은 CI가 합니다.
@@ -472,7 +475,8 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 **Codex 활용**
 - 구현: "이 tool 규격에 맞춰 ETF 시세 조회 tool을 만들어줘" + `_template` 경로 첨부
 - 테스트: "fixture.json을 사용하는 정상/실패 케이스 테스트 작성해줘"
-- 리뷰: PR 올리기 전 "이 변경에서 에러 처리와 타입 누락 찾아줘"
+- 리뷰: push 전에 `codex review --base main`, PR 에서는 Codex 자동 리뷰 (안 달리면 댓글로 `@codex review`). 기준은 `AGENTS.md` 의 "Code Review Rules"
+- 기록: 맡긴 일과 리뷰가 잡은 것 1~3개를 PR 본문 "Codex 활용" 칸에 적습니다
 - Codex가 만든 코드도 본인이 읽고 이해한 뒤 올립니다
 
 **커밋**
@@ -492,16 +496,16 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 ## 팀
 
-| 역할 | 담당 | GitHub | 후반 파트 |
-|---|---|---|---|
-| 리더 — Orchestrator · 인프라 · 배포 | | | |
-| 💵 FX Tool | | | |
-| 📈 ETF Tool | | | |
-| 📰 News Tool | | | |
-| 🏦 Rate Tool | | | |
-| 📊 Macro Tool | | | |
+| 역할 | GitHub | Muffin Web 파트 |
+|---|---|---|
+| 리더 — Orchestrator · 인프라 · 배포 · 리뷰 | @PlutoJoshua | 품질 · 통합 |
+| 💵 FX Tool | @seoyoung23 | 백엔드 |
+| 📈 ETF Tool | @o3ozzvb | 백엔드 |
+| 📰 News Tool | @Kangsohee | 프론트 |
+| 🏦 Rate Tool | @kani-market | 프론트 |
+| 📊 Macro Tool | @exx-sxx | 프론트 |
 
-3주차(10/23)에 백엔드 2 / 프론트 3으로 Muffin Web을 분담합니다. 자기 tool 유지보수는 끝까지 본인 담당입니다.
+10/16 모임에서 백엔드 2 / 프론트 3으로 분담했습니다. 자기 tool 유지보수는 끝까지 본인 담당이고, 리포트 QA 는 전원이 합니다.
 
 ## 일정
 
