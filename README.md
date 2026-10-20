@@ -24,8 +24,8 @@ Next.js (App Router) · React · TypeScript · OpenAI Agents SDK · Zod · Codex
 
 | 항목 | 버전 | 비고 |
 |---|---|---|
-| Node.js | 20 이상 | `node -v` |
-| pnpm | 10 | `npm i -g pnpm@10` 또는 `corepack enable` |
+| Node.js | 22 이상 | `node -v`. 20 은 지원 종료(2026-04)이고, News tool 의 cheerio 는 20.18.1 이상이 필요 |
+| pnpm | 10.5 이상 | `pnpm -v`. `corepack enable` 하면 레포에 맞는 버전(10.15.1)을 자동으로 씁니다. 10.5 미만은 `packages field missing or empty` 에러 |
 | Codex CLI | 최신 | `npm i -g @openai/codex` 후 `codex` 실행해 로그인 |
 | OpenAI API Key | 개인 키 | 발급이 어려우면 리더에게 요청 (사용량 제한 걸린 프로젝트 키 발급) |
 
@@ -64,9 +64,9 @@ flowchart LR
     Reg --> Macro["📊 Macro"]
 
     FX & ETF & News & Rate & Macro -->|"data + source"| Agent
-    FX -.-> X1[("외부 API<br/>ECOS · Frankfurter")]
-    ETF -.-> X2[("외부 API<br/>Twelve Data · KRX")]
-    News -.-> X3[("RSS<br/>연합뉴스 · 한국경제")]
+    FX -.-> X1[("외부 API<br/>Frankfurter")]
+    ETF -.-> X2[("외부 API<br/>공공데이터포털")]
+    News -.-> X3[("RSS<br/>연합뉴스 · 한국경제 · Google News")]
     Rate -.-> X4[("외부 API<br/>ECOS · FRED")]
     Macro -.-> X5[("외부 API<br/>FRED · ECOS")]
 
@@ -149,14 +149,14 @@ muffin-lab/
 ## 시작하기
 
 ```bash
-git clone https://github.com/<ORG>/muffin-lab.git
-cd muffin-lab
+git clone https://github.com/muffin-lab-it/muffin.git
+cd muffin
 pnpm install
 cp .env.example .env.local   # OPENAI_API_KEY 입력
 pnpm dev                     # http://localhost:3000
 ```
 
-홈 화면에서 질문을 보내면 `/api/report`가 Agent를 실행해 리포트를 돌려줍니다. 처음에는 샘플 tool(`_template`, USD/KRW 환율) 하나만 연결돼 있어서 "오늘 달러 환율이 얼마야?" 같은 질문이 동작합니다.
+홈 화면에서 질문을 보내면 `/api/report`가 Agent를 실행해 리포트를 돌려줍니다. tool 다섯 개(FX · ETF · News · Rate · Macro)가 모두 연결돼 있습니다. 샘플 tool(`_template`)은 새 tool 시작용 템플릿이라 Agent 에는 연결하지 않습니다.
 
 자주 쓰는 명령
 
@@ -410,11 +410,11 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 
 ```ts
 // src/tools/index.ts
-import { sampleTool } from "./_template";
+import { etfTool } from "./etf";
 import { fxTool } from "./fx";
 // ...
 
-export const muffinTools = [sampleTool, fxTool /* , etfTool, newsTool, rateTool, macroTool */];
+export const muffinTools = [fxTool, etfTool, newsTool, rateTool, macroTool];
 ```
 
 ```ts
@@ -422,7 +422,7 @@ export const muffinTools = [sampleTool, fxTool /* , etfTool, newsTool, rateTool,
 export function createMuffinAgent(depth: Depth, area?: Area) {
   return new Agent({
     name: "Muffin Research Agent",
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    model: modelFor(depth),                       // deep 은 OPENAI_MODEL_DEEP(기본 gpt-4.1), 나머지는 OPENAI_MODEL(기본 gpt-4.1-mini)
     instructions: instructionsFor(depth, area),   // 깊이·영역별 instruction
     tools: muffinTools,
     outputType: reportSchema,                     // Structured Output
@@ -430,7 +430,7 @@ export function createMuffinAgent(depth: Depth, area?: Area) {
 }
 
 export async function research({ question, depth, area }: ResearchInput): Promise<ResearchResult>
-// ResearchResult = { report, steps }  — steps: 어떤 tool 을 불렀고 성공했는지
+// ResearchResult = { report, steps, rewrites, model?, usage? }  — steps: 어떤 tool 을 불렀고 성공했는지, rewrites: 권유 표현으로 다시 쓴 횟수
 ```
 
 `research()`는 Agent 실행이 끝난 뒤 tool 이 실제로 반환한 출처를 리포트 `sources`에 병합합니다. 모델이 출처를 빼먹거나 지어내도 실제 호출한 출처는 반드시 들어갑니다.
