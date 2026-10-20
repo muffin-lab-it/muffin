@@ -3,10 +3,15 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { execute, parameters, type Input } from "./index";
-
-try { process.loadEnvFile(".env.local"); } catch { /* 키 누락은 execute에서 안내한다. */ }
-type Fixture = Record<string, { input: Input; capturedAt: string; response: unknown }>;
-
+try {
+  process.loadEnvFile(".env.local");
+} catch { /* 키 누락은 execute에서 안내한다. */
+}
+type Fixture = Record<string, {
+  input: Input;
+  capturedAt: string;
+  response: unknown
+}>;
 function parseArgs(argv: string[]): Map<string, string> {
   const values = new Set(["country", "indicator", "month", "months"]);
   const flags = new Set(["sample", "save-fixture", "check-fixture"]);
@@ -25,11 +30,11 @@ function parseArgs(argv: string[]): Map<string, string> {
   if (args.has("save-fixture") && args.has("check-fixture")) throw new Error("저장과 비교 옵션은 동시에 사용할 수 없습니다.");
   return args;
 }
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const input = parameters.parse({
-    country: args.get("country") ?? "KR", indicator: args.get("indicator") ?? "cpi",
+    country: args.get("country") ?? "KR",
+    indicator: args.get("indicator") ?? "cpi",
     endMonth: !args.has("month") || args.get("month") === "latest" ? null : args.get("month"),
     months: Number(args.get("months") ?? 1),
   });
@@ -52,12 +57,15 @@ async function main() {
     if (!capture) return;
     if (responses.length !== 1) throw new Error("fixture 수집 응답 수가 예상과 다릅니다.");
     updateFixture(input, responses[0], args.has("check-fixture"));
-  } finally { globalThis.fetch = originalFetch; }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 }
 /** 단독 실행에서 원응답을 저장하거나 비교한다. */
 function updateFixture(input: Input, response: unknown, check: boolean) {
   const path = fileURLToPath(new URL("./fixture.json", import.meta.url));
-  const fixture: Fixture = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
+  const fixture: Fixture = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {
+  };
   const caseId = `${input.country}_${input.indicator}`;
   if (check) {
     const expected = fixture[caseId];
@@ -69,7 +77,11 @@ function updateFixture(input: Input, response: unknown, check: boolean) {
     }
     console.log(`${caseId} fixture 일치. 파일은 변경하지 않았습니다.`);
   } else {
-    fixture[caseId] = { input, capturedAt: new Date().toISOString(), response };
+    fixture[caseId] = {
+      input,
+      capturedAt: new Date().toISOString(),
+      response
+    };
     const serialized = JSON.stringify(fixture, null, 2) + "\n";
     // 응답에 인증정보가 반사되는 경우 저장을 중단한다.
     for (const key of [process.env.ECOS_API_KEY, process.env.FRED_API_KEY]) {
@@ -81,7 +93,6 @@ function updateFixture(input: Input, response: unknown, check: boolean) {
     console.log(`${caseId} 실제 원응답을 fixture.json에 저장했습니다.`);
   }
 }
-
 main().catch(error => {
   console.error(error instanceof Error ? error.message : "Macro 실행 실패");
   process.exitCode = 1;
