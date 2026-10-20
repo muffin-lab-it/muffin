@@ -15,7 +15,7 @@
     "eval": "tsx scripts/eval.ts"
   },
   "dependencies": {
-    "@openai/agents": "^0.18.0",
+    "@openai/agents": "^0.20.0",
     "cheerio": "^1.2.0",
     "fast-xml-parser": "^5.11.2",
     "next": "16.3.8",

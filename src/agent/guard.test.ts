@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { findAdvice } from "./guard";
-import type { Report } from "./schema";
+import { findAdvice, type AdviceText } from "./guard";
 
-function report(over: Partial<Report>): Report {
+function report(over: Partial<AdviceText>): AdviceText {
   return {
     summary: "",
-    numbers: [],
     why: [],
     impact: [],
     caveats: [],
-    dataGaps: [],
-    sources: [],
     nextTopics: [],
     ...over,
   };

@@ -4,15 +4,19 @@
  * 래퍼가 하는 일 (tool 마다 똑같이 적용되는 것만):
  *  - 타임아웃: execute 가 timeoutMs(기본 10초) 안에 끝나지 않으면 실패 처리
  *  - 에러: execute 가 throw 하면 Agent 전체를 멈추지 않고, 모델에게 "이 tool 은 실패했다" 고 알립니다
+ *  - 증거 번호: 성공한 결과마다 E1, E2 … 를 붙여 증거 장부에 기록하고, 모델에게도 같은 id 를 돌려줍니다.
+ *    모델은 리포트의 숫자와 원인에 이 id 를 인용하고, 검증은 이 id 로 원본과 대조합니다
  *  - 출처 수집: 반환값의 source 를 ResearchContext 에 쌓아 리포트 sources 에 반드시 들어가게 합니다
- *  - 실행 기록: 어떤 tool 이 몇 ms 걸렸는지, 성공했는지 기록합니다 (진행상황 화면용)
+ *  - 실행 기록: 어떤 tool 이 몇 ms 걸렸는지, 성공했는지 기록하고 진행 화면에 알립니다 (onStep)
  *  - 키 가리기: 에러 메시지에 .env 의 키 값이 섞여 있으면 모델·로그에 닿기 전에 지웁니다
  *
- * 응답 파싱, 값 계산, 데이터 해석은 각 tool 의 execute 가 담당합니다.
+ * 응답 파싱, 데이터 해석은 각 tool 의 execute 가 담당합니다. 값 계산은 Calc tool 이 담당합니다.
  */
 import { tool, type FunctionTool, type RunContext } from "@openai/agents";
 import type { z } from "zod";
 import { ResearchContext } from "../agent/context";
+import { labelFor } from "../agent/events";
+import type { Evidence } from "../agent/schema";
 import { redactSecrets } from "../lib/redact";
 import type { ToolResult } from "./types";
 
@@ -28,6 +32,34 @@ export type ToolSpec<P extends z.ZodObject> = {
   /** 기본 10_000ms */
   timeoutMs?: number;
 };
+
+/**
+ * data 의 최상위 원시값만 뽑아 증거 장부의 "핵심 값" 으로 둡니다. 중첩 객체 · 배열은 뺍니다.
+ * 전체 데이터는 모델에게만 가고, 리포트(History)에는 이 값만 남습니다.
+ */
+export function pickPrimitives(data: unknown): Record<string, string | number> {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  const out: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+    if (typeof v === "string" || typeof v === "number") out[k] = v;
+    else if (typeof v === "boolean") out[k] = String(v);
+  }
+  return out;
+}
+
+/**
+ * 출처가 여러 개(뉴스 기사)면 data 안에서 출처 수와 길이가 같은 객체 배열(articles 등)을 찾아
+ * 기사마다 그 기사의 핵심 값을 둡니다. 그래야 E3-2 를 인용한 원인을 그 기사로 확인할 수 있습니다. 없으면 undefined.
+ */
+export function perSourceValues(data: unknown, count: number): Record<string, string | number>[] | undefined {
+  if (count < 2 || !data || typeof data !== "object" || Array.isArray(data)) return undefined;
+  for (const v of Object.values(data as Record<string, unknown>)) {
+    if (Array.isArray(v) && v.length === count && v.every((x) => x && typeof x === "object" && !Array.isArray(x))) {
+      return v.map(pickPrimitives);
+    }
+  }
+  return undefined;
+}
 
 export function defineTool<P extends z.ZodObject>(
   spec: ToolSpec<P>,
@@ -45,13 +77,28 @@ export function defineTool<P extends z.ZodObject>(
       const started = Date.now();
       try {
         const result = await spec.execute(input as z.infer<P>);
-        ctx?.addSources(result.source);
-        ctx?.steps.push({ tool: spec.name, status: "ok", ms: Date.now() - started });
-        return result;
+        if (!ctx) return result;
+
+        // 출처가 여러 개(뉴스 기사)면 E3-1, E3-2 처럼 나눠서 기사 하나하나를 인용할 수 있게 합니다.
+        const id = ctx.nextCallId();
+        const sources = Array.isArray(result.source) ? result.source : [result.source];
+        const withIds = sources.map((s, k) => ({ id: sources.length > 1 ? `${id}-${k + 1}` : id, ...s }));
+        const aggregate = pickPrimitives(result.data);
+        const perItem = perSourceValues(result.data, sources.length);
+        const entries: Evidence[] = withIds.map((s, k) => ({
+          id: s.id,
+          tool: spec.name,
+          label: `${labelFor(spec.name)} · ${s.name}`,
+          values: perItem?.[k] ?? aggregate,
+          source: { name: s.name, url: s.url, asOf: s.asOf },
+        }));
+        ctx.addEvidence(entries);
+        ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started });
+        return { id, ...result, source: Array.isArray(result.source) ? withIds : withIds[0] };
       } catch (err) {
         // tool 이 직접 만든 에러 메시지에 키가 섞여도 모델과 로그로 새지 않게 합니다.
         const message = redactSecrets(err instanceof Error ? err.message : String(err));
-        ctx?.steps.push({ tool: spec.name, status: "error", ms: Date.now() - started, error: message });
+        ctx?.addStep({ tool: spec.name, status: "error", ms: Date.now() - started, error: message });
         return {
           error: `${spec.name} 호출 실패: ${message}`,
           instruction: "이 tool 의 데이터 없이 리포트를 작성하고, 해당 데이터를 확인하지 못했다고 명시할 것. 값을 추측하지 말 것.",

@@ -1,0 +1,149 @@
+{
+  "input": { "question": "요즘 원달러 환율이 왜 이렇게 올랐어?", "depth": "standard", "area": "fx" },
+  "decisionNotice": "투자 판단을 대신하지 않습니다. 아래는 판단에 필요한 사실만 정리한 것입니다.",
+  "report": {
+    "version": 2,
+    "mode": "research",
+    "summary": "원달러 환율은 최근 30일 동안 2.00% 올라 1,392.40원이 됐습니다. 한국 기준금리는 3.00%로 멈춰 있는데 미국 정책금리가 3.88%로 올라 금리 차이가 0.88%p로 벌어진 것이 가장 큰 배경입니다. 이번 상승 폭은 최근 90일의 평소 움직임보다 큰 편입니다.",
+    "numbers": [
+      { "label": "USD/KRW", "value": "1,392.40원", "change": "30일 +2.00%", "asOf": "2026-10-19", "ref": "E1", "check": "verified" },
+      { "label": "한국 기준금리", "value": "3.00%", "change": "30일 0.00%p", "asOf": "2026-10-16", "ref": "E2", "check": "verified" },
+      { "label": "미국 실효연방기금금리", "value": "3.88%", "change": "30일 +0.25%p", "asOf": "2026-10-16", "ref": "E3", "check": "verified" },
+      { "label": "한미 금리 차이", "value": "0.88%p", "change": "30일 +0.25%p", "asOf": "2026-10-16", "ref": "C1", "check": "derived" },
+      { "label": "외국인 주식 순매도 (보도)", "value": "1조 2,000억 원", "change": "이번 주", "asOf": "2026-10-17", "ref": "E4-2", "check": "unverified" }
+    ],
+    "why": [
+      {
+        "claim": "한국 기준금리는 그대로인데 미국 금리가 올라 두 나라의 금리 차이가 벌어졌습니다. 금리가 높은 쪽 통화가 선호되면서 원화가 약해지는 쪽으로 작용했습니다.",
+        "evidence": "한국 3.00% (30일 변동 없음) vs 미국 3.88% (+0.25%p), 차이 0.88%p",
+        "basis": "data",
+        "refs": ["E2", "E3", "C1"]
+      },
+      {
+        "claim": "외국인이 국내 주식을 팔고 달러로 바꿔 나가는 흐름이 보도됐습니다.",
+        "evidence": "연합뉴스 10/17: 외국인 이번 주 국내 주식 1조 2,000억 원 순매도",
+        "basis": "news",
+        "refs": ["E4-2"]
+      },
+      {
+        "claim": "수입 기업의 달러 결제 수요가 몰렸을 가능성이 있습니다.",
+        "evidence": "데이터로 확인되지 않음",
+        "basis": "none",
+        "refs": []
+      }
+    ],
+    "impact": [
+      "해외 직구나 여행 비용이 한 달 전보다 2% 정도 더 듭니다.",
+      "달러로 된 자산(미국 주식 · 달러 예금)의 원화 환산 가치는 그만큼 올랐습니다.",
+      "수입 물가가 오르면 몇 달 뒤 소비자물가에도 영향이 갈 수 있습니다."
+    ],
+    "caveats": [
+      "환율은 ECB 기준 Frankfurter 데이터라 국내 은행 고시 환율과 소폭 다를 수 있습니다.",
+      "미국 금리는 실효연방기금금리(DFF) 기준이며 정책금리 목표 범위와는 다릅니다."
+    ],
+    "dataGaps": ["수입 결제 수요처럼 환율에 영향을 주는 실수요 데이터는 tool 이 없어 확인하지 못했습니다."],
+    "nextTopics": ["한미 금리 차이와 환율의 관계", "외국인 순매도 추이", "엔화 · 유로 환율 비교", "수입 물가 지수"],
+    "sources": [
+      { "id": "E1", "name": "Frankfurter v2", "url": "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW", "asOf": "2026-10-19" },
+      { "id": "E2", "name": "한국은행 경제통계시스템(ECOS)", "url": "https://ecos.bok.or.kr", "asOf": "2026-10-16" },
+      { "id": "E3", "name": "FRED — DFF", "url": "https://fred.stlouisfed.org/series/DFF", "asOf": "2026-10-16" },
+      { "id": "E4-1", "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0001", "asOf": "2026-10-16" },
+      { "id": "E4-2", "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0002", "asOf": "2026-10-17" }
+    ],
+    "evidence": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": { "pair": "USD/KRW", "rate": 1392.4, "asOf": "2026-10-19", "comparisonRate": 1365.1, "comparisonAsOf": "2026-09-19", "change": 27.3, "changePct": 2.0 },
+        "source": { "name": "Frankfurter v2", "url": "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW", "asOf": "2026-10-19" }
+      },
+      {
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": { "indicator": "한국은행 기준금리", "rate": 3.0, "unit": "%", "asOf": "2026-10-16", "comparisonRate": 3.0, "comparisonDate": "2026-09-16", "changePp": 0 },
+        "source": { "name": "한국은행 경제통계시스템(ECOS)", "url": "https://ecos.bok.or.kr", "asOf": "2026-10-16" }
+      },
+      {
+        "id": "E3",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · FRED — DFF",
+        "values": { "indicator": "미국 실효연방기금금리", "rate": 3.88, "unit": "%", "asOf": "2026-10-16", "comparisonRate": 3.63, "comparisonDate": "2026-09-16", "changePp": 0.25 },
+        "source": { "name": "FRED — DFF", "url": "https://fred.stlouisfed.org/series/DFF", "asOf": "2026-10-16" }
+      },
+      {
+        "id": "E4-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": { "title": "한은, 기준금리 3.00%로 동결… \"환율·가계부채 지켜볼 것\"", "publishedAt": "2026-10-16" },
+        "source": { "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0001", "asOf": "2026-10-16" }
+      },
+      {
+        "id": "E4-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": { "title": "외국인, 이번 주 국내 주식 1조 2천억 원 순매도", "publishedAt": "2026-10-17" },
+        "source": { "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0002", "asOf": "2026-10-17" }
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · 한미 금리 차이",
+        "values": { "op": "spread", "result": 0.88, "unit": "%p", "a": 3.88, "b": 3.0 },
+        "source": { "name": "계산 (E3 − E2)", "url": "", "asOf": "2026-10-16" },
+        "lineage": { "op": "spread", "inputs": ["E3", "E2"] }
+      },
+      {
+        "id": "C2",
+        "tool": "calc_metrics",
+        "label": "계산 · USD/KRW 30일 변동의 z-score (90일 기준)",
+        "values": { "op": "zscore", "result": 2.3, "window": 90 },
+        "source": { "name": "계산 (E1)", "url": "", "asOf": "2026-10-19" },
+        "lineage": { "op": "zscore", "inputs": ["E1"] }
+      }
+    ],
+    "verification": {
+      "status": "partial",
+      "numbers": { "total": 5, "verified": 3, "derived": 1, "unverified": 1 },
+      "why": { "data": 1, "news": 1, "none": 1, "unsupported": 0 },
+      "advice": 0,
+      "revisions": 1,
+      "removed": ["impact: \"달러 자산 비중을 늘리는 것이 좋습니다\" — 권유 표현"]
+    },
+    "movement": { "ref": "E1", "zScore": 2.3, "window": 90, "level": "notable" },
+    "charts": [
+      {
+        "kind": "line",
+        "title": "USD/KRW 최근 30일",
+        "series": [
+          {
+            "label": "USD/KRW",
+            "ref": "E1",
+            "points": [
+              { "t": "2026-09-19", "v": 1365.1 },
+              { "t": "2026-09-24", "v": 1368.4 },
+              { "t": "2026-09-29", "v": 1371.9 },
+              { "t": "2026-10-03", "v": 1377.2 },
+              { "t": "2026-10-08", "v": 1381.6 },
+              { "t": "2026-10-13", "v": 1386.8 },
+              { "t": "2026-10-16", "v": 1389.5 },
+              { "t": "2026-10-19", "v": 1392.4 }
+            ]
+          }
+        ],
+        "events": [{ "ref": "E4-1", "label": "한은 기준금리 동결", "at": "2026-10-16" }]
+      }
+    ],
+    "disclosure": "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다."
+  },
+  "steps": [
+    { "tool": "get_fx_krw_rate", "status": "ok", "ms": 912 },
+    { "tool": "get_rate_data", "status": "ok", "ms": 341 },
+    { "tool": "get_rate_data", "status": "ok", "ms": 1288 },
+    { "tool": "get_korean_economic_news", "status": "ok", "ms": 1530 },
+    { "tool": "calc_metrics", "status": "ok", "ms": 4 },
+    { "tool": "calc_metrics", "status": "ok", "ms": 3 }
+  ],
+  "rewrites": 1
+}

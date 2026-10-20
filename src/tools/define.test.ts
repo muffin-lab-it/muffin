@@ -26,6 +26,67 @@ describe("defineTool", () => {
     expect(ctx.steps).toMatchObject([{ tool: "ok_tool", status: "ok" }]);
   });
 
+  it("성공한 결과에 증거 번호를 붙여 장부에 기록하고, 모델에게도 같은 id 를 돌려준다", async () => {
+    const t = defineTool({
+      name: "ok_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({ data: { v: 1, name: "x", nested: { skip: true }, list: [1] }, source, note: "주의" }),
+    });
+    const ctx = new ResearchContext();
+    const out = await invoke(t, ctx, { q: "x" });
+
+    expect(out).toEqual({ id: "E1", data: { v: 1, name: "x", nested: { skip: true }, list: [1] }, source: { id: "E1", ...source }, note: "주의" });
+    expect(ctx.evidence).toEqual([{ id: "E1", tool: "ok_tool", label: "ok_tool · 테스트 출처", values: { v: 1, name: "x" }, source }]);
+  });
+
+  it("출처가 여러 개면 E1-1, E1-2 로 나누고 실패한 호출은 번호를 쓰지 않는다", async () => {
+    const many = defineTool({
+      name: "news_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({
+        data: { count: 2, articles: [{ title: "기사 1", body: { text: "본문" } }, { title: "기사 2", body: { text: "본문" } }] },
+        source: [source, { ...source, url: "https://example.com/2" }],
+      }),
+    });
+    const bad = defineTool({
+      name: "bad_tool",
+      description: "test",
+      parameters,
+      execute: async () => {
+        throw new Error("x");
+      },
+    });
+    const ctx = new ResearchContext();
+    await invoke(bad, ctx, { q: "x" });
+    const out = (await invoke(many, ctx, { q: "x" })) as { id: string; source: { id: string }[] };
+
+    expect(out.id).toBe("E1");
+    expect(out.source.map((s) => s.id)).toEqual(["E1-1", "E1-2"]);
+    expect(ctx.evidence.map((e) => e.id)).toEqual(["E1-1", "E1-2"]);
+    // 기사마다 그 기사의 값 (본문 같은 중첩 객체는 제외). 출처 수와 길이가 다르면 전체 요약값으로 돌아간다
+    expect(ctx.evidence.map((e) => e.values)).toEqual([{ title: "기사 1" }, { title: "기사 2" }]);
+    expect(ctx.sources).toHaveLength(2);
+  });
+
+  it("tool 이 끝날 때마다 onStep 을 부른다 (성공 · 실패 모두)", async () => {
+    const seen: string[] = [];
+    const ctx = new ResearchContext({ onStep: (s) => seen.push(`${s.tool}:${s.status}`) });
+    const ok = defineTool({ name: "ok_tool", description: "test", parameters, execute: async () => ({ data: 1, source }) });
+    const bad = defineTool({
+      name: "bad_tool",
+      description: "test",
+      parameters,
+      execute: async () => {
+        throw new Error("x");
+      },
+    });
+    await invoke(ok, ctx, { q: "x" });
+    await invoke(bad, ctx, { q: "x" });
+    expect(seen).toEqual(["ok_tool:ok", "bad_tool:error"]);
+  });
+
   it("execute 가 throw 해도 Agent 를 멈추지 않고 실패를 모델에 알린다", async () => {
     const t = defineTool({
       name: "bad_tool",

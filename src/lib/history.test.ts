@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteReport, getReport, listReports, saveReport } from "./history";
-import type { Report } from "../agent/schema";
+import { normalizeReport } from "../agent/normalize";
 
-const report: Report = {
+const report = normalizeReport({
   summary: "테스트",
   numbers: [],
   why: [],
@@ -11,7 +11,7 @@ const report: Report = {
   dataGaps: [],
   sources: [],
   nextTopics: [],
-};
+});
 
 function fakeStorage() {
   const m = new Map<string, string>();
@@ -33,6 +33,25 @@ describe("history (localStorage)", () => {
     expect(getReport(a.id)?.input.question).toBe("a");
     deleteReport(a.id);
     expect(listReports()).toHaveLength(1);
+  });
+
+  it("0단계 전에 저장된 v1 기록도 v2 모양으로 읽고, 깨진 기록은 건너뛴다", () => {
+    const storage = fakeStorage();
+    vi.stubGlobal("window", { localStorage: storage });
+    const v1 = {
+      id: "old",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      input: { question: "old", depth: "easy" },
+      report: { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] },
+      steps: [],
+    };
+    storage.setItem("muffin.history.v1", JSON.stringify([v1, { id: "broken", report: {} }]));
+
+    const list = listReports();
+    expect(list.map((r) => r.id)).toEqual(["old"]);
+    expect(list[0].report.version).toBe(2);
+    expect(list[0].report.verification.status).toBe("skipped");
+    expect(getReport("old")?.report.disclosure).toBeTruthy();
   });
 
   it("localStorage 가 없어도 터지지 않는다", () => {
