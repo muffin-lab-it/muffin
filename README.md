@@ -400,7 +400,7 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 - [ ] 외부 호출은 `fetchJson` / `fetchText` 사용 (타임아웃·에러 처리 포함)
 - [ ] `source.url`이 실제로 열리는 링크
 - [ ] `src/tools/<이름>/README.md`에 데이터 소스·키 발급 방법·제한(rate limit) 기록
-- [ ] Codex 리뷰 1회 이상 반영
+- [ ] `codex review --base main` 으로 리뷰받고, 잡은 것을 PR 본문 "Codex 활용" 칸에 기록
 
 ---
 
@@ -467,7 +467,7 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 
 **PR**
 - 제목: `[fx] 환율 변동률 계산 추가`
-- 본문: 무엇을 / 왜 / 테스트 방법 / 스크린샷(화면이면)
+- 본문: 무엇을 / 왜 / 테스트 방법 / Codex 활용 / 스크린샷(화면이면)
 - CI(lint + test) 통과 + 리더 리뷰 승인 후 리더가 머지
 
 리뷰에서 보는 것: 읽히는가, 에러 처리가 있는가, `source`가 맞는가. 동작 확인은 CI가 합니다.
@@ -475,7 +475,8 @@ export async function research({ question, depth, area }: ResearchInput): Promis
 **Codex 활용**
 - 구현: "이 tool 규격에 맞춰 ETF 시세 조회 tool을 만들어줘" + `_template` 경로 첨부
 - 테스트: "fixture.json을 사용하는 정상/실패 케이스 테스트 작성해줘"
-- 리뷰: PR 올리기 전 "이 변경에서 에러 처리와 타입 누락 찾아줘"
+- 리뷰: push 전에 `codex review --base main`, PR 에서는 Codex 자동 리뷰 (안 달리면 댓글로 `@codex review`). 기준은 `AGENTS.md` 의 "Code Review Rules"
+- 기록: 맡긴 일과 리뷰가 잡은 것 1~3개를 PR 본문 "Codex 활용" 칸에 적습니다
 - Codex가 만든 코드도 본인이 읽고 이해한 뒤 올립니다
 
 **커밋**
