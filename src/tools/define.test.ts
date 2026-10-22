@@ -32,13 +32,21 @@ describe("defineTool", () => {
       name: "ok_tool",
       description: "test",
       parameters,
-      execute: async () => ({ data: { v: 1, name: "x", nested: { skip: true }, list: [1] }, source, note: "주의" }),
+      execute: async () => ({ data: { v: 1, name: "x", latest: { close: 40175, deep: { more: { tooDeep: 1 } } }, list: [1] }, source, note: "주의" }),
     });
     const ctx = new ResearchContext();
     const out = await invoke(t, ctx, { q: "x" });
 
-    expect(out).toEqual({ id: "E1", data: { v: 1, name: "x", nested: { skip: true }, list: [1] }, source: { id: "E1", ...source }, note: "주의" });
-    expect(ctx.evidence).toEqual([{ id: "E1", tool: "ok_tool", label: "ok_tool · 테스트 출처", values: { v: 1, name: "x" }, source }]);
+    expect(out).toEqual({
+      id: "E1",
+      data: { v: 1, name: "x", latest: { close: 40175, deep: { more: { tooDeep: 1 } } }, list: [1] },
+      source: { id: "E1", ...source },
+      note: "주의",
+    });
+    // 중첩 객체는 점으로 이어 3단계까지(latest.deep.more 의 안쪽은 제외), 배열은 제외. tool 의 note 는 장부에도 남습니다
+    expect(ctx.evidence).toEqual([
+      { id: "E1", tool: "ok_tool", label: "ok_tool · 테스트 출처", values: { v: 1, name: "x", "latest.close": 40175 }, source, note: "주의" },
+    ]);
   });
 
   it("출처가 여러 개면 E1-1, E1-2 로 나누고 실패한 호출은 번호를 쓰지 않는다", async () => {
@@ -47,7 +55,13 @@ describe("defineTool", () => {
       description: "test",
       parameters,
       execute: async () => ({
-        data: { count: 2, articles: [{ title: "기사 1", body: { text: "본문" } }, { title: "기사 2", body: { text: "본문" } }] },
+        data: {
+          count: 2,
+          articles: [
+            { title: "기사 1", body: { status: "available", text: "본문 ".repeat(100) } },
+            { title: "기사 2", body: { status: "available", text: "본문 ".repeat(100) } },
+          ],
+        },
         source: [source, { ...source, url: "https://example.com/2" }],
       }),
     });
@@ -66,8 +80,11 @@ describe("defineTool", () => {
     expect(out.id).toBe("E1");
     expect(out.source.map((s) => s.id)).toEqual(["E1-1", "E1-2"]);
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1-1", "E1-2"]);
-    // 기사마다 그 기사의 값 (본문 같은 중첩 객체는 제외). 출처 수와 길이가 다르면 전체 요약값으로 돌아간다
-    expect(ctx.evidence.map((e) => e.values)).toEqual([{ title: "기사 1" }, { title: "기사 2" }]);
+    // 기사마다 그 기사의 값. 긴 본문은 빠지고 짧은 중첩 값(body.status)은 남는다. 출처 수와 길이가 다르면 전체 요약값으로 돌아간다
+    expect(ctx.evidence.map((e) => e.values)).toEqual([
+      { title: "기사 1", "body.status": "available" },
+      { title: "기사 2", "body.status": "available" },
+    ]);
     expect(ctx.sources).toHaveLength(2);
   });
 

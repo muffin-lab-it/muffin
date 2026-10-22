@@ -13,13 +13,15 @@ const ADVICE_PATTERNS: RegExp[] = [
   /지금이\s*(살|팔|들어갈|나올)\s*(때|타이밍|기회)/,
 ];
 
-/** 검사 대상 문장이 들어 있는 부분. 작성 출력과 최종 리포트 둘 다 이 모양을 만족합니다. */
+/** 검사 대상 문장이 들어 있는 부분. 작성 출력과 최종 리포트 둘 다 이 모양을 만족합니다. 사용자가 보는 글 칸은 모두 봅니다. */
 export type AdviceText = {
   summary: string;
   why: { claim: string; evidence: string }[];
   impact: string[];
   caveats: string[];
   nextTopics: string[];
+  dataGaps?: string[];
+  numbers?: { label: string; value?: string; change?: string }[];
 };
 
 function textOf(report: AdviceText): string[] {
@@ -29,10 +31,25 @@ function textOf(report: AdviceText): string[] {
     ...report.impact,
     ...report.caveats,
     ...report.nextTopics,
+    ...(report.dataGaps ?? []),
+    ...(report.numbers ?? []).flatMap((n) => [n.label, n.value ?? "", n.change ?? ""]).filter(Boolean),
   ];
+}
+
+/** 문장 하나에 권유 표현이 있는지. */
+export function hasAdvice(text: string): boolean {
+  return ADVICE_PATTERNS.some((p) => p.test(text));
 }
 
 /** 권유 표현이 들어간 문장 목록. 비어 있으면 통과. */
 export function findAdvice(report: AdviceText): string[] {
-  return textOf(report).filter((t) => ADVICE_PATTERNS.some((p) => p.test(t)));
+  return textOf(report).filter(hasAdvice);
+}
+
+/** 여러 문장으로 된 글(summary)에서 권유 표현이 든 문장만 뺍니다. 남는 문장이 없으면 빈 문자열. */
+export function stripAdvice(text: string): string {
+  return text
+    .split(/(?<=[.!?。])\s+/)
+    .filter((s) => s.trim() && !hasAdvice(s))
+    .join(" ");
 }

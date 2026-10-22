@@ -69,9 +69,11 @@ function checks(report: Report, steps: { status: string }[]) {
   return {
     toolsOk: steps.filter((s) => s.status === "ok").length,
     toolsFailed: steps.filter((s) => s.status === "error").length,
-    numbers: report.numbers.length,
-    /** 증거 번호를 단 숫자 수. 1단계 검증의 전제라 0단계부터 잽니다 */
-    numbersRef: report.numbers.filter((n) => n.ref).length,
+    /** 검증을 통과해 남은 숫자 (✓ 장부 일치 / C 계산) 와 검증 실패로 뺀 숫자 */
+    verified: report.verification.numbers.verified,
+    derived: report.verification.numbers.derived,
+    removedNumbers: report.verification.removed.filter((r) => r.startsWith("숫자 ")).length,
+    status: report.verification.status,
     whyTotal: report.why.length,
     whyBasis: report.verification.why,
     /** 장부에 없는 id 를 인용한 횟수 (지어낸 id) */
@@ -103,8 +105,8 @@ async function main() {
   const runs = questions.reduce((n, q) => n + depthsFor(q).length, 0);
   const out: string[] = [`# 리포트 평가 ${stamp}\n`, `질문 ${questions.length}개, 실행 ${runs}회${opt("set") ? ` (세트: ${opt("set")})` : ""}\n`];
   const summary: string[] = [
-    "| 질문 | 깊이 | tool ok/실패 | tool 선택 | 숫자 (ref) | why 📊/📰/❔ | 지어낸 ref | 빈칸 | 출처 | 권유 | 재작성 | 시간 |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|",
+    "| 질문 | 깊이 | tool ok/실패 | tool 선택 | 숫자 ✓/C/제거 | why 📊/📰/❔ | 지어낸 ref | 빈칸 | 출처 | 권유 | 수정 | 검증 | 시간 |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
   ];
 
   for (const q of questions) {
@@ -117,9 +119,9 @@ async function main() {
         const c = checks(report, steps);
         const match = toolMatch(q, steps);
         const sec = ((Date.now() - started) / 1000).toFixed(1);
-        console.log(`${sec}s, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 권유 ${c.advice}`);
+        console.log(`${sec}s, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}`);
         summary.push(
-          `| ${q.question} | ${depth} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.numbers} (${c.numbersRef}) | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${sec}s |`,
+          `| ${q.question} | ${depth} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.verified}/${c.derived}/${c.removedNumbers} | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${c.status} | ${sec}s |`,
         );
         out.push(
           `\n---\n\n## ${label}\n\n사용한 tool: ${steps.map((s) => `${s.status === "ok" ? "✅" : "❌"} ${s.tool} ${s.ms}ms${s.error ? ` (${s.error})` : ""}`).join(", ") || "(없음)"}\n\n${render(report)}\n`,
@@ -127,7 +129,7 @@ async function main() {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.log(`실패: ${msg}`);
-        summary.push(`| ${q.question} | ${depth} | 실패 | | | | | | | | | |`);
+        summary.push(`| ${q.question} | ${depth} | 실패 | | | | | | | | | | |`);
         out.push(`\n---\n\n## ${label}\n\n실패: ${msg}\n`);
       }
     }

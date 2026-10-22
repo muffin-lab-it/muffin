@@ -74,9 +74,27 @@ export const evidenceSchema = z.object({
   label: z.string().describe("원본 보기 제목. 예: 금리 확인 · 한국은행 경제통계시스템(ECOS)"),
   values: z.record(z.string(), z.union([z.string(), z.number()])).describe("핵심 값만. 전체 데이터는 서버에만"),
   source: sourceSchema,
+  note: z.string().optional().describe("tool 이 붙인 주의점 (기준일 지연, 단위 등). 작성 Agent 와 원본 보기가 봅니다"),
   lineage: z.object({ op: z.string(), inputs: z.array(z.string()) }).optional().describe("계산일 때: 연산과 입력 증거"),
 });
 export type Evidence = z.infer<typeof evidenceSchema>;
+
+/**
+ * ② 조사 Agent 의 출력. Tool 을 부른 뒤 결과(id)마다 리포트에 쓸 만한 내용을 메모합니다.
+ * 숫자의 진실은 증거 장부이고, 메모는 작성 Agent 가 맥락(무슨 일이 있었는지)을 잡는 데 씁니다.
+ */
+export const researchNotesSchema = z.object({
+  notes: z
+    .array(
+      z.object({
+        ref: z.string().describe("tool 결과 id (E1, E3-2)"),
+        summary: z.string().describe("이 결과에서 질문과 관련된 내용 1~3문장. 숫자는 tool 이 준 값 그대로, 기준일과 함께"),
+      }),
+    )
+    .describe("성공한 tool 결과마다 하나. 뉴스는 기사마다"),
+  gaps: z.array(z.string()).describe("실패한 tool, 없는 데이터 등 확인하지 못한 것. 없으면 빈 배열"),
+});
+export type ResearchNotes = z.infer<typeof researchNotesSchema>;
 
 /** ④ 검증 요약. skipped 는 검증기 없이 만든 리포트 (0단계, v1 기록). */
 export const verificationSchema = z.object({

@@ -16,7 +16,8 @@ export type Stage = "plan" | "research" | "write" | "verify";
  *
  * research() 와 mockResearch() 는 stage · plan · step · verify 를 콜백으로 주고,
  * report · error 는 라우트가 요청 id 를 붙여 보냅니다.
- * 0단계의 실제 실행은 research · verify 단계만 보냅니다 (plan 은 2단계, write 분리는 1단계). Mock 은 모든 단계를 보냅니다.
+ * 실제 실행은 research · write · verify 단계를 보냅니다 (plan 은 2단계 접수부터). Mock 은 모든 단계를 보냅니다.
+ * 검증 실패로 작성을 1회 수정할 때는 verify 단계 안에서 처리하고 단계 이벤트를 다시 보내지 않습니다.
  */
 export type MuffinEvent =
   | { type: "stage"; stage: Stage; status: "start" | "done" }
