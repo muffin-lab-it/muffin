@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HttpError, fetchJson, fetchText } from "./http";
+import { HttpError, ResponseFormatError, fetchJson, fetchText } from "./http";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -25,6 +25,31 @@ describe("http helpers", () => {
     const calls = spy.mock.calls as unknown as [string, RequestInit][];
     expect(calls[0][1].redirect).toBe("follow");
     expect(calls[1][1].redirect).toBe("error");
+  });
+
+  it("2xx 인데 JSON 이 아니면(점검 페이지) content-type 과 페이지 제목을 담은 ResponseFormatError 를 던진다", async () => {
+    const html = "<!doctype html><html><head><title>\n  Site Maintenance | St. Louis Fed </title></head><body>…</body></html>";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } })),
+    );
+    const err = await fetchJson("https://api.test/fred/observations?api_key=SECRET123&series_id=DGS10").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ResponseFormatError);
+    const formatErr = err as ResponseFormatError;
+    expect(formatErr.message).toContain("JSON 이 아닌 응답");
+    expect(formatErr.message).toContain("text/html");
+    expect(formatErr.message).toContain("Site Maintenance | St. Louis Fed");
+    expect(formatErr.message).not.toContain("SECRET123");
+    expect(formatErr.url).toBe("https://api.test/fred/observations");
+    expect(formatErr.contentType).toBe("text/html; charset=utf-8");
+  });
+
+  it("JSON 이 아닌 응답에 제목이 없으면 content-type 과 url 만 적는다", async () => {
+    // 문자열 본문은 content-type 이 자동으로 붙으므로, 헤더 없는 경우는 바이트 본문으로 만든다
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array(), { status: 200 })));
+    const err = await fetchJson("https://api.test/empty").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ResponseFormatError);
+    expect((err as Error).message).toBe("JSON 이 아닌 응답 (content-type 없음) https://api.test/empty");
   });
 
   it("에러 메시지와 url 에 쿼리(키)가 남지 않는다", async () => {

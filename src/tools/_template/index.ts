@@ -5,7 +5,8 @@
  *
  * 채울 것은 네 가지입니다: name / description / parameters / execute.
  * execute 는 반드시 ToolResult (data + source) 를 반환하고, 실패하면 throw 합니다.
- * 타임아웃·에러 처리·출처 수집은 defineTool 래퍼가 공통으로 처리합니다.
+ * 타임아웃·에러 처리·출처 수집·증거 번호는 defineTool 래퍼가 공통으로 처리합니다.
+ * (선택) evidence 로 증거 장부에 올릴 핵심 값을 직접 고를 수 있습니다. 아래 4) 참고.
  *
  * 아래는 실제로 동작하는 예시입니다. 키 없이 쓸 수 있는 Frankfurter(ECB 환율) API 로
  * USD→KRW 환율을 조회합니다. 자기 tool 로 바꿀 때 전부 교체하세요.
@@ -27,9 +28,12 @@ export type Input = z.infer<typeof parameters>;
 // 외부 API 응답 모양. 응답을 어떻게 읽을지는 tool 담당자가 정합니다.
 type FrankfurterLatest = { date: string; base: string; rates: Record<string, number> };
 
+// 이 tool 이 돌려주는 data 의 모양. ToolResult<Data> 로 선언하면 아래 evidence 의 data 에 타입이 붙습니다.
+type Data = { pair: string; rate: number; asOf: string };
+
 // 2) 실제 로직. Agent 없이도 호출할 수 있게 defineTool 바깥에 둡니다.
 //    run.ts 와 index.test.ts 가 이 함수를 직접 부릅니다.
-export async function execute({ base, quote }: Input): Promise<ToolResult> {
+export async function execute({ base, quote }: Input): Promise<ToolResult<Data>> {
   const json = await fetchJson<FrankfurterLatest>(
     `https://api.frankfurter.dev/v1/latest?from=${base}&to=${quote}`,
   );
@@ -57,4 +61,7 @@ export const sampleTool = defineTool({
     "과거 추이나 변동률은 제공하지 않음.",
   parameters,
   execute,
+  // 4) (선택) 증거 장부에 올릴 핵심 값. 리포트의 숫자가 이 값을 인용하고(E1…), 검증이 대조합니다.
+  //    생략하면 data 의 짧은 원시값(200자 이하)이 자동으로 올라갑니다. 긴 설명문은 여기 넣지 말고 data 에만 두세요.
+  evidence: (data) => ({ pair: data.pair, rate: data.rate, asOf: data.asOf }),
 });

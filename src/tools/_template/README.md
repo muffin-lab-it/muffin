@@ -15,6 +15,7 @@
 ## 입력 / 출력
 - 입력: `base`(USD/EUR/JPY), `quote`(KRW/USD)
 - 출력: `data.pair`, `data.rate`, `data.asOf` + `source`
+- 증거 장부에 올리는 값: `pair`, `rate`, `asOf` (`evidence` 로 고름. 생략하면 data 의 짧은 값이 자동으로 올라감)
 
 ## 단독 실행
 ```bash

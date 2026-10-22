@@ -26,6 +26,31 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * 2xx 인데 본문이 JSON 이 아닐 때. 점검 페이지 · HTML 에러 페이지가 200 으로 오는 경우입니다
+ * (예: FRED 점검 중 "Site Maintenance" 페이지). 페이지 제목이 있으면 메시지에 담아 원인을 바로 알 수 있게 합니다.
+ */
+export class ResponseFormatError extends Error {
+  /** 쿼리를 뗀 URL. 키가 섞여 들어오지 않습니다. */
+  public readonly url: string;
+
+  constructor(
+    url: string,
+    public readonly contentType: string | null,
+    body: string,
+  ) {
+    const safeUrl = redactSecrets(stripQuery(url));
+    const title = /<title[^>]*>\s*([^<]{1,120}?)\s*<\/title>/i.exec(body)?.[1];
+    super(
+      redactSecrets(
+        `JSON 이 아닌 응답 (${contentType ?? "content-type 없음"}) ${safeUrl}${title ? ` — 페이지 제목: ${title}` : ""}`,
+      ),
+    );
+    this.name = "ResponseFormatError";
+    this.url = safeUrl;
+  }
+}
+
 export type FetchOptions = {
   headers?: Record<string, string>;
   /** 기본 8초. 넘기면 TimeoutError 로 실패합니다. */
@@ -44,10 +69,15 @@ async function doFetch(url: string, { headers, timeoutMs = 8_000, redirect = "fo
   return res;
 }
 
-/** JSON 응답을 받아 파싱합니다. 2xx 가 아니면 HttpError. */
+/** JSON 응답을 받아 파싱합니다. 2xx 가 아니면 HttpError, 2xx 인데 JSON 이 아니면 ResponseFormatError. */
 export async function fetchJson<T = unknown>(url: string, opts: FetchOptions = {}): Promise<T> {
   const res = await doFetch(url, opts);
-  return (await res.json()) as T;
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ResponseFormatError(url, res.headers.get("content-type"), text);
+  }
 }
 
 /** 텍스트(RSS/XML/CSV 등) 응답을 문자열로 받습니다. 파싱은 호출한 쪽에서. */
