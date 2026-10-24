@@ -76,7 +76,7 @@ export async function fetchArticleBody(article: Article, timeoutMs = 2_500): Pro
   url.search = "";
   url.hash = "";
   try {
-    const html = await fetchText(url.toString(), { timeoutMs });
+    const html = await fetchText(url.toString(), { timeoutMs, redirect: "error" });
     if (html.length > MAX_HTML_CHARS) {
       return { status: "unavailable", reason: "response_too_large", detail: "기사 HTML이 허용 크기를 넘었습니다." };
     }

@@ -39,7 +39,7 @@ function syntheticFeed(count: number, source: "yonhap" | "hankyung" = "yonhap"):
   return `<rss><channel>${items.join("")}</channel></rss>`;
 }
 
-function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "missing" | "error"> = {}, source: "yonhap" | "hankyung" = "yonhap") {
+function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "missing" | "error" | "redirect"> = {}, source: "yonhap" | "hankyung" = "yonhap") {
   let active = 0;
   let maxActive = 0;
   const requested: number[] = [];
@@ -54,6 +54,8 @@ function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "m
     maxActive = Math.max(maxActive, active);
     await new Promise((resolve) => setTimeout(resolve, 1));
     active -= 1;
+    // fetch mock은 redirect 정책을 실행하지 않으므로 네이티브 fetch의 실패를 명시적으로 재현합니다.
+    if (unavailable[index] === "redirect") throw new TypeError("fetch failed", { cause: new Error("unexpected redirect") });
     if (unavailable[index] === "paid") return new Response("hk_premium_only: 'y'");
     if (unavailable[index] === "missing") return new Response("<html>본문 구조 없음</html>");
     if (unavailable[index] === "error") return new Response("오류", { status: 503 });
@@ -136,6 +138,7 @@ describe("News Tool", () => {
     const calls = mockFeeds();
     await execute({ ...input, sources: ["google"] });
     expect(calls[0].searchParams.get("q")).toBe("경제");
+    expect(vi.mocked(fetch).mock.calls[0][1]?.redirect).toBe("follow");
   });
 
   it("최신순으로 정렬한 뒤 limit을 적용한다", async () => {
@@ -278,6 +281,39 @@ describe("News Tool", () => {
     expect(result.data.articles).toHaveLength(4);
     expect(result.data.failureCounts.original_url_unresolved).toBe(1);
     expect(result.data.failedArticles[0]).toMatchObject({ source: "google", reason: "original_url_unresolved" });
+  });
+
+  it.each(["yonhap", "hankyung"] as const)("%s 정상 본문은 redirect:error로 요청하고 RSS는 follow를 유지한다", async (source) => {
+    mockFeeds();
+    const result = await execute({ ...input, sources: [source], limit: 1, content: "body" });
+    const requests = vi.mocked(fetch).mock.calls;
+    expect(requests).toHaveLength(2);
+    expect(requests[0][1]?.redirect).toBe("follow");
+    expect(requests[1][1]).toMatchObject({ redirect: "error", signal: expect.any(AbortSignal) });
+    expect(result.data).toMatchObject({ collectedCount: 1, failedCount: 0, resultStatus: "complete" });
+    expect(result.data.articles[0].body.status).toBe("available");
+  });
+
+  it("fetch의 리디렉션 거부 오류를 기존 http_error로 반환한다", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause: new Error("unexpected redirect") }));
+    vi.stubGlobal("fetch", fetchMock);
+    const article: Article = { title: "합성 기사", url: "https://www.yna.co.kr/view/AKRTEST001", publisher: "연합뉴스", publishedAt: "2026-10-17T00:00:00.000Z", source: "yonhap" };
+    expect(await fetchArticleBody(article)).toEqual({ status: "unavailable", reason: "http_error", detail: "fetch failed" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(article.url, expect.objectContaining({ redirect: "error" }));
+  });
+
+  it.each([
+    { candidates: 7, collected: 5, missing: 0, status: "complete", stop: "target_reached" },
+    { candidates: 4, collected: 2, missing: 3, status: "partial", stop: "feed_exhausted" },
+  ])("리디렉션 실패 후 보충하고 후보 $candidates건에서 $status를 반환한다", async ({ candidates, collected, missing, status, stop }) => {
+    const calls = mockBodyScenario(candidates, { 0: "redirect", 1: "redirect" });
+    const result = await execute({ ...input, sources: ["yonhap"], limit: 5, content: "body" });
+    expect(result.data).toMatchObject({ requestedCount: 5, collectedCount: collected, missingCount: missing, inspectedCount: candidates, failedCount: 2, resultStatus: status, stopReason: stop });
+    expect(result.data.failureCounts).toEqual({ http_error: 2 });
+    expect(result.data.failedArticles.map(({ reason }) => reason)).toEqual(["http_error", "http_error"]);
+    expect(calls.requested).toEqual(Array.from({ length: candidates }, (_, i) => i));
+    expect(result.data.articles.every(({ body }) => body.status === "available")).toBe(true);
   });
 
   it("본문 HTTP 오류도 정상 본문으로 위장하지 않는다", async () => {
