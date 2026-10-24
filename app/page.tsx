@@ -48,10 +48,10 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="progress">
+      <div className="progress" role="status" aria-live="polite">
         <h1>🧁 Muffin이 리포트를 만들고 있어요…</h1>
         <p className="sub">데이터를 확인하고 핵심 포인트를 분석 중이에요.</p>
-        <div className="bar"><span /></div>
+        <div className="bar" aria-hidden="true"><span /></div>
         <p className="muted">질문: {question}</p>
       </div>
     );
@@ -63,8 +63,8 @@ export default function Home() {
       <p className="sub">관심 주제를 고르면 Muffin이 출처와 함께 리포트를 만들어 드려요.</p>
 
       <form onSubmit={onSubmit}>
-        <label>
-          관심 영역
+        <fieldset>
+          <legend>관심 영역</legend>
           <div className="row">
             {areaOptions.map((o) => (
               <label className="chip" key={o.value}>
@@ -73,9 +73,9 @@ export default function Home() {
               </label>
             ))}
           </div>
-        </label>
-        <label>
-          설명 깊이
+        </fieldset>
+        <fieldset>
+          <legend>설명 깊이</legend>
           <div className="row">
             {depthOptions.map((o) => (
               <label className="chip depth" key={o.value}>
@@ -84,15 +84,16 @@ export default function Home() {
               </label>
             ))}
           </div>
-        </label>
+        </fieldset>
         <label>
           질문
-          <textarea id="question" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="예: 오늘 환/달러 환율이 왜 내려갔는지 궁금해요." />
+          <textarea id="question" required maxLength={500} aria-describedby="question-limit" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="예: 오늘 원/달러 환율이 왜 내려갔는지 궁금해요." />
+          <small id="question-limit">최대 500자 · {question.length}/500</small>
         </label>
         <button type="submit" disabled={loading || question.trim().length === 0}>✨ 오늘의 Muffin 만들기</button>
       </form>
 
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" role="alert">{error}</div>}
     </>
   );
 }

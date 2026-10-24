@@ -51,9 +51,13 @@ a { color: var(--accent); }
 
 form { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
 label { display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); }
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 6px; font-size: 14px; color: var(--ink-2); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { cursor: pointer; }
-.chip input { display: none; }
+.chip { position: relative; }
+.chip input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.chip input:focus-visible + span, button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .chip span { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 14px; }
 .chip input:checked + span { border-color: var(--accent); background: var(--accent-soft); }
 .chip.depth span { display: grid; gap: 2px; min-width: 150px; }
@@ -95,6 +99,31 @@ button.ghost:hover { color: var(--up); }
 .num i { display: block; font-style: normal; font-size: 12px; color: var(--ink-3); }
 .num i.up { color: var(--up); }
 .num i.down { color: var(--down); }
+.report .report-muted { color: var(--ink-2); font-size: 13px; }
+.report p { overflow-wrap: anywhere; }
+.report-verification p { margin: 8px 0 0; }
+.verification-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.verification-heading h2 { margin-bottom: 0; }
+.report-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); }
+.status-pass, .check-verified, .basis-data { background: #e6f3ed; color: #286047; }
+.status-partial, .basis-none { background: #fff0d8; color: #805319; }
+.check-derived, .basis-news { background: var(--accent-soft); color: #514294; }
+.num > .report-badge { margin-top: 8px; }
+.report .report-disclosure { padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+.report-notice { padding: 10px 12px; border-radius: 6px; background: var(--accent-soft); }
+.report .evidence-missing { margin: 8px 0; color: var(--ink-2); font-size: 12px; }
+.evidence-detail { margin-top: 8px; border-top: 1px solid var(--line); font-size: 13px; }
+.evidence-detail summary { padding: 8px 0; cursor: pointer; color: var(--accent); overflow-wrap: anywhere; }
+.evidence-detail summary:focus-visible, .report a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.evidence-content { min-width: 0; padding: 0 0 8px; }
+.evidence-content p { margin: 4px 0; }
+.evidence-title { font-weight: 600; }
+.evidence-values { margin: 8px 0; }
+.evidence-values > div { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.evidence-values dt { color: var(--ink-2); overflow-wrap: anywhere; }
+.evidence-values dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.evidence-lineage { margin-top: 8px; }
+.num { min-width: 0; overflow-wrap: anywhere; }
 
 /* ---------- 저장함 ---------- */
 .history { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }

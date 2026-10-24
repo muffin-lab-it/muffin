@@ -4,12 +4,13 @@ import { isMockMode, mockResearch } from "@/src/agent/mock";
 import { research, type ResearchResult } from "@/src/agent/muffin";
 import { areas, depths } from "@/src/agent/schema";
 import { clip, logRun, newRunId } from "@/src/lib/log";
+import { redactSecrets } from "@/src/lib/redact";
 
 // tool 여러 개를 호출하므로 기본 10초보다 길게 둡니다.
 export const maxDuration = 60;
 
 const bodySchema = z.object({
-  question: z.string().min(1).max(500),
+  question: z.string().trim().min(1).max(500),
   depth: z.enum(depths).default("standard"),
   area: z.enum(areas).optional(),
 });
@@ -19,7 +20,7 @@ function qualityOf(r: ResearchResult["report"]) {
   return {
     numbers: r.numbers.length,
     why: r.why.length,
-    whyUnsupported: r.why.filter((w) => /확인되지\s*않/.test(w.evidence)).length,
+    whyUnsupported: r.why.filter((w) => w.basis === "none").length,
     dataGaps: r.dataGaps.length,
     sources: r.sources.length,
   };
@@ -37,16 +38,17 @@ export async function POST(req: Request) {
     logRun({ id, at, ok: false, stage: "input", mock, ms: ms(), error: "invalid body" });
     return NextResponse.json({ error: "question(필수), depth, area 를 확인하세요.", id }, { status: 400 });
   }
-  const input = { ...parsed.data, question: clip(parsed.data.question) };
+  const input = { ...parsed.data, question: clip(redactSecrets(parsed.data.question)) };
 
   if (!mock && !process.env.OPENAI_API_KEY) {
     logRun({ id, at, ok: false, stage: "config", mock, input, ms: ms(), error: "OPENAI_API_KEY missing" });
-    return NextResponse.json({ error: "OPENAI_API_KEY 가 설정되지 않았습니다. .env.local 을 확인하세요.", id }, { status: 500 });
+    return NextResponse.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 500 });
   }
 
   try {
     // MUFFIN_MOCK=1 이면 샘플 리포트. 프론트 개발용.
     const result = mock ? await mockResearch(parsed.data) : await research(parsed.data);
+    const steps = result.steps.map((step) => step.error ? { ...step, error: "데이터를 확인하지 못했습니다." } : step);
     logRun({
       id,
       at,
@@ -57,14 +59,15 @@ export async function POST(req: Request) {
       ms: ms(),
       model: result.model,
       usage: result.usage,
-      steps: result.steps,
+      steps: result.steps.map((step) => step.error ? { ...step, error: clip(redactSecrets(step.error), 500) } : step),
       rewrites: result.rewrites,
       quality: qualityOf(result.report),
     });
-    return NextResponse.json({ report: result.report, steps: result.steps, rewrites: result.rewrites, id });
+    return NextResponse.json({ report: result.report, steps, rewrites: result.rewrites, id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "알 수 없는 오류";
-    logRun({ id, at, ok: false, stage: "agent", mock, input, ms: ms(), error: clip(message, 500) });
+    const diagnostic = clip(redactSecrets(err instanceof Error ? err.message : String(err)), 500);
+    const message = "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    logRun({ id, at, ok: false, stage: "agent", mock, input, ms: ms(), error: diagnostic });
     return NextResponse.json({ error: message, id }, { status: 500 });
   }
 }
