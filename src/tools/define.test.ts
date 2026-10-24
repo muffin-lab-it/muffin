@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { RunContext } from "@openai/agents";
 import { z } from "zod";
 import { ResearchContext, mergeSources } from "../agent/context";
-import { defineTool } from "./define";
+import { MAX_VALUE_LENGTH, defineTool } from "./define";
+import type { ToolResult } from "./types";
 
 const parameters = z.object({ q: z.string() });
 const source = { name: "테스트 출처", url: "https://example.com/data", asOf: "2026-10-01" };
@@ -70,6 +71,75 @@ describe("defineTool", () => {
     expect(ctx.sources).toHaveLength(2);
   });
 
+  it("기본 선택은 긴 문자열(정의문 · 본문)을 장부에 올리지 않고, data 는 그대로 모델에 보낸다", async () => {
+    const definition = "From 24 Sep 2026: the BOJ encourages the uncollateralized overnight call rate … ".repeat(20);
+    expect(definition.length).toBeGreaterThan(MAX_VALUE_LENGTH);
+    const t = defineTool({
+      name: "rate_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({ data: { rate: 1.25, asOf: "2026-10-13", stale: false, definition, ratio: Number.NaN }, source }),
+    });
+    const ctx = new ResearchContext();
+    const out = (await invoke(t, ctx, { q: "x" })) as { data: { definition: string } };
+
+    expect(out.data.definition).toBe(definition);
+    expect(ctx.evidence[0].values).toEqual({ rate: 1.25, asOf: "2026-10-13", stale: "false" });
+  });
+
+  it("evidence 로 장부에 올릴 값을 직접 고른다 (객체 하나 → 모든 출처에 같이, 배열 → 출처마다 하나씩)", async () => {
+    const one = defineTool({
+      name: "rate_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({ data: { rate: 1.25, asOf: "2026-10-13", definition: "x".repeat(300), title: "Policy rate" }, source }),
+      // data 의 타입이 execute 반환값에서 추론되므로 여기서 필드 이름을 틀리면 typecheck 가 잡습니다.
+      evidence: (data) => ({ rate: data.rate, asOf: data.asOf, definition: data.definition }),
+    });
+    const many = defineTool({
+      name: "news_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({
+        data: { count: 2, items: [{ headline: "기사 1", score: 0.9 }, { headline: "기사 2", score: 0.4 }] },
+        source: [source, { ...source, url: "https://example.com/2" }],
+      }),
+      evidence: (data) => data.items.map((a) => ({ headline: a.headline })),
+    });
+    const ctx = new ResearchContext();
+    await invoke(one, ctx, { q: "x" });
+    await invoke(many, ctx, { q: "x" });
+
+    // 직접 고른 값은 길이 제한 없이 그대로 올라간다
+    expect(ctx.evidence[0].values).toEqual({ rate: 1.25, asOf: "2026-10-13", definition: "x".repeat(300) });
+    expect(ctx.evidence.slice(1).map((e) => e.values)).toEqual([{ headline: "기사 1" }, { headline: "기사 2" }]);
+  });
+
+  it("evidence 가 throw 하거나 배열 길이가 출처 수와 다르면 기본 선택으로 돌아가고, 호출은 성공으로 남는다", async () => {
+    const throws = defineTool({
+      name: "throws_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({ data: { v: 1 }, source }),
+      evidence: () => {
+        throw new Error("evidence 버그");
+      },
+    });
+    const wrongLength = defineTool({
+      name: "wrong_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({ data: { v: 2 }, source: [source, { ...source, url: "https://example.com/2" }] }),
+      evidence: () => [{ v: 99 }],
+    });
+    const ctx = new ResearchContext();
+    await invoke(throws, ctx, { q: "x" });
+    await invoke(wrongLength, ctx, { q: "x" });
+
+    expect(ctx.evidence.map((e) => e.values)).toEqual([{ v: 1 }, { v: 2 }, { v: 2 }]);
+    expect(ctx.steps.map((s) => s.status)).toEqual(["ok", "ok"]);
+  });
+
   it("tool 이 끝날 때마다 onStep 을 부른다 (성공 · 실패 모두)", async () => {
     const seen: string[] = [];
     const ctx = new ResearchContext({ onStep: (s) => seen.push(`${s.tool}:${s.status}`) });
@@ -111,7 +181,7 @@ describe("defineTool", () => {
       description: "test",
       parameters,
       timeoutMs: 20,
-      execute: () => new Promise((r) => setTimeout(() => r({ data: 1, source }), 200)),
+      execute: () => new Promise<ToolResult>((r) => setTimeout(() => r({ data: 1, source }), 200)),
     });
     const ctx = new ResearchContext();
     const out = JSON.stringify(await invoke(t, ctx, { q: "x" }));

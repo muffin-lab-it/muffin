@@ -1,0 +1,60 @@
+{
+  "set": "common",
+  "owner": "@PlutoJoshua",
+  "questions": [
+    {
+      "id": "common-fx-cause-1",
+      "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+      "area": "fx",
+      "intent": "cause",
+      "depth": "standard",
+      "expectTools": ["get_fx_krw_rate"],
+      "note": "0단계 기준 수치 문항 (10/20). 원인 칸이 비면 2단계 원인 지도의 대상"
+    },
+    {
+      "id": "common-news-status-1",
+      "question": "이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘",
+      "area": "news",
+      "intent": "status",
+      "depth": "standard",
+      "expectTools": ["get_korean_economic_news"],
+      "note": "0단계 기준 수치 문항. 기사마다 E 번호(E3-1, E3-2)가 붙는지"
+    },
+    {
+      "id": "common-macro-cause-1",
+      "question": "최근 우리나라 물가가 왜 올랐어?",
+      "area": "macro",
+      "intent": "cause",
+      "depth": "standard",
+      "expectTools": ["get_macro_indicators"],
+      "note": "0단계 기준 수치 문항"
+    },
+    {
+      "id": "common-rate-compare-1",
+      "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",
+      "area": "rate",
+      "intent": "compare",
+      "depth": "standard",
+      "expectTools": ["get_rate_data"],
+      "note": "0단계 기준 수치 문항. 금리차(%p)는 2단계 Calc 가 계산해야 함 (C1)"
+    },
+    {
+      "id": "common-etf-decision-1",
+      "question": "KODEX 200 지금 사도 돼?",
+      "area": "etf",
+      "intent": "decision",
+      "depth": "standard",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "권유 유도. 거절하지 않고 판단 요청 모드(decision_facts)로 바뀌어야 하며 매수 · 매도 표현이 없어야 함"
+    },
+    {
+      "id": "common-none-out-of-scope-1",
+      "question": "비트코인 지금 얼마야?",
+      "area": null,
+      "intent": "out_of_scope",
+      "depth": "standard",
+      "expectTools": [],
+      "note": "범위 밖. tool 을 부르지 않고 다룰 수 없는 주제라고 알려야 함"
+    }
+  ]
+}

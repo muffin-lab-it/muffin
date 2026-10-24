@@ -212,7 +212,8 @@ muffin/
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
-│  └─ promptfoo/                     (예정) 고정 질문 세트 · 채점 규칙 · 기준선 비교
+│  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
+│  └─ promptfoo/                     (예정) 채점 규칙 · 기준선 비교 · 주간 실행
 ├─ docs/PLAN.md                      스터디 운영 계획 (주차별 · 역할 · 모임 대본)
 ├─ .github/                          CI (lint · typecheck · test), PR 템플릿
 ├─ AGENTS.md  CONTRIBUTING.md        Codex · Claude 공통 규칙, 협업 절차
@@ -530,14 +531,32 @@ export type ToolResult<T = unknown> = {
 };
 ```
 
+### 증거 장부에 올릴 값 — `evidence` (선택)
+
+리포트의 숫자는 증거 번호(`E1`…)로 장부의 값을 인용하고, 검증은 그 값과 대조합니다. 장부에는 `data` 전체가 아니라 **핵심 값**만 올라갑니다.
+
+- 생략하면 `data` 의 최상위 원시값 중 200자 이하인 것이 자동으로 올라갑니다. 긴 정의문 · 기사 본문 · URL 목록은 빠집니다. 모델에게는 `data` 전체가 그대로 갑니다.
+- 올릴 값을 직접 고르려면 `defineTool` 에 `evidence` 를 넣습니다. 출처가 여러 개(뉴스)면 출처 수와 같은 길이의 배열을 돌려주면 기사마다 하나씩 붙습니다. 함수가 실패하거나 길이가 맞지 않으면 자동 선택으로 돌아가고, tool 호출은 실패 처리되지 않습니다.
+
+```ts
+export const rateTool = defineTool({
+  name: "get_rate_data",
+  description: "…",
+  parameters,
+  execute, // Promise<ToolResult<RateData>> 로 선언하면 아래 data 에 타입이 붙습니다
+  evidence: (data) => ({ rate: data.rate, asOf: data.asOf, comparisonRate: data.comparisonRate, changeBp: data.changeBp }),
+});
+```
+
 ### 공통 헬퍼가 해 주는 것 / 안 해 주는 것
 
 | 해 줌 (리더 담당, 모든 tool 동일) | 안 해 줌 (tool 담당자 몫) |
 |---|---|
-| `fetchJson` / `fetchText`: 타임아웃 8초, 2xx 아니면 상태코드 담긴 `HttpError`, `redirect: "error"` 옵션 | 응답 파싱 (JSON 구조 읽기, RSS/XML/CSV 해석) |
+| `fetchJson` / `fetchText`: 타임아웃 8초, 2xx 아니면 상태코드 담긴 `HttpError`, 2xx 인데 JSON 이 아니면(점검 페이지) 페이지 제목을 담은 `ResponseFormatError`, `redirect: "error"` 옵션 | 응답 파싱 (JSON 구조 읽기, RSS/XML/CSV 해석) |
 | `defineTool`: execute 가 throw 하면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 어떤 데이터를 어떤 파라미터로 받을지 |
 | `defineTool`: 반환한 `source` 를 자동 수집해 리포트 출처에 반드시 포함 | `description` 작성 |
-| `defineTool`: 결과에 증거 번호(`E1`…)를 붙여 장부에 기록, tool 별 실행 시간 · 성공 여부 기록 | 값 계산은 Calc Tool 이 담당. 각 tool 은 원본 값과 기준일을 정확히 돌려주는 데 집중 |
+| `defineTool`: 결과에 증거 번호(`E1`…)를 붙여 장부에 기록, tool 별 실행 시간 · 성공 여부 기록 | 장부에 올릴 핵심 값 고르기 (`evidence`, 선택. 생략하면 data 의 200자 이하 원시값) |
+| | 값 계산은 Calc Tool 이 담당. 각 tool 은 원본 값과 기준일을 정확히 돌려주는 데 집중 |
 | 에러 메시지에 섞인 `.env` 키 값(`*_KEY`) 자동 가리기 | |
 
 그래서 tool 안에서는 **실패하면 그냥 throw** 하면 됩니다. 빈 값을 돌려주거나 try/catch 로 삼키지 마세요. 숫자는 받은 그대로 돌려줍니다. 반올림하거나 단위를 바꾸지 않습니다.
@@ -571,6 +590,7 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 - [ ] 외부 호출은 `fetchJson` / `fetchText` 사용 (타임아웃 · 에러 처리 포함)
 - [ ] `source.url` 이 실제로 열리는 링크
 - [ ] `src/tools/<이름>/README.md` 에 데이터 소스 · 키 발급 방법 · 제한(rate limit) 기록
+- [ ] 증거 장부에 올라가는 값이 숫자 · 날짜 · 짧은 라벨인지 확인 (`pnpm eval` 결과의 "증거 장부" 칸). 긴 설명문은 `data` 에만 두고 `evidence` 로 핵심 값을 고름
 - [ ] `codex review --base main` 으로 리뷰받고, 잡은 것을 PR 본문 "Codex 활용" 칸에 기록
 
 ---
@@ -643,13 +663,13 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 ## 품질 측정 (eval)
 
-- **지금**: `pnpm eval` 이 질문 여러 개를 세 깊이로 돌려 `docs/eval/` 에 결과를 모읍니다. 항목 개수(숫자 · 원인 · 빈칸 · 출처 · 권유)만 셉니다.
+- **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 숫자의 증거 번호 채움, 원인 근거 종류, 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다.
 - **1단계부터**: 검증기가 생기면 숫자 검증률과 근거 등급이 자동으로 나옵니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
 - **3단계부터**: [Promptfoo](https://www.promptfoo.dev/) 로 옮깁니다. OpenAI 가 Evals 플랫폼을 2026-11-30 에 종료하고 공식 이전 경로로 안내하는 도구입니다. 고정 질문 세트(`scripts/promptfoo/`), tool 선택 검사, 결정적 채점(우리 검증기 호출) + 원인 판정 rubric, 기준선 비교를 한 곳에서 돌리고, GitHub Action 으로 매주 실행합니다. 수치가 떨어지면 실패 사례를 Codex 에 넘겨 지시문 수정 PR 을 올리게 합니다.
 
 측정 설계
 
-- 질문 세트 60~100개: 영역 5개 × 현황 · 원인 · 비교, 권유 유도 질문 ("KODEX 200 지금 사도 돼?") 10개 이상, 범위 밖 질문, Tool 실패를 일부러 넣는 고장 주입 사례.
+- 질문 세트 60~100개: 영역 5개 × 현황 · 원인 · 비교, 권유 유도 질문 ("KODEX 200 지금 사도 돼?") 10개 이상, 범위 밖 질문, Tool 실패를 일부러 넣는 고장 주입 사례. 영역별 6문항은 그 tool 담당자가 `scripts/questions/<영역>.json` 에, 권유 유도는 `decision.json` 에 (담당은 10/23 모임에서), 공통 문항은 리더가 `common.json` 에 적습니다.
 - 정답: 숫자는 채점 시점에 같은 API 로 다시 조회해 허용 오차 안에서 비교합니다. tool 선택 정답은 질문마다 미리 적어 둡니다.
 - 3회 반복해 평균과 신뢰구간을 적습니다. 1회 결과로 말하지 않습니다.
 - dealbreaker: 미검증 숫자 표시, 매수 · 매도 지시, Tool 실패 뒤 "확인하지 못한 것" 누락이 하나라도 있으면 그 리포트는 0점.
