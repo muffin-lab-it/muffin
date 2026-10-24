@@ -27,6 +27,10 @@ export type EvidenceValues = Record<string, string | number>;
 
 /** 기본 선택에서 이보다 긴 문자열(정의문 · 기사 본문 · URL 목록)은 장부에 올리지 않습니다. */
 export const MAX_VALUE_LENGTH = 200;
+/** 기본 선택이 중첩 객체를 따라 들어가는 깊이 (latest.previousYear.change 까지). 배열은 따라가지 않습니다. */
+export const MAX_VALUE_DEPTH = 3;
+/** 기본 선택이 장부 한 항목에 올리는 값의 최대 개수. */
+export const MAX_VALUES = 40;
 
 export type ToolSpec<P extends z.ZodObject, D = unknown> = {
   /** 모델이 보는 이름. get_<영역>_<무엇> */
@@ -41,8 +45,8 @@ export type ToolSpec<P extends z.ZodObject, D = unknown> = {
   timeoutMs?: number;
   /**
    * 증거 장부에 올릴 핵심 값 (선택). 리포트의 숫자가 인용하고, 검증이 원본과 대조하는 값입니다.
-   *  - 생략하면 data 의 최상위 원시값 중 200자 이하인 것을 올립니다. 출처가 여러 개(뉴스)면
-   *    출처 수와 길이가 같은 배열(articles 등)에서 항목마다 고릅니다.
+   *  - 생략하면 data 안의 원시값 중 200자 이하인 것을 올립니다. 중첩 객체는 `latest.close` 처럼 점으로 이어
+   *    3단계까지 따라가고 배열은 건너뜁니다. 출처가 여러 개(뉴스)면 출처 수와 길이가 같은 배열(articles 등)에서 항목마다 고릅니다.
    *  - 객체 하나를 돌려주면 모든 출처에 같은 값이 붙고, 출처 수와 같은 길이의 배열을 돌려주면
    *    출처마다 하나씩 붙습니다 (E3-1, E3-2).
    *  - 긴 설명문(정의 · 본문)은 data 에만 두세요. 모델은 data 전체를 보고, 장부는 검증과 "원본 보기" 에 씁니다.
@@ -52,17 +56,23 @@ export type ToolSpec<P extends z.ZodObject, D = unknown> = {
 };
 
 /**
- * data 의 최상위 원시값만 뽑아 증거 장부의 "핵심 값" 으로 둡니다. 중첩 객체 · 배열 · 긴 문자열은 뺍니다.
- * 전체 데이터는 모델에게만 가고, 리포트(History)에는 이 값만 남습니다.
+ * data 의 원시값을 뽑아 증거 장부의 "핵심 값" 으로 둡니다. 중첩 객체는 `latest.close` 처럼 점으로 이어 3단계까지,
+ * 배열과 긴 문자열은 뺍니다. 전체 데이터는 모델에게만 가고, 리포트(History)에는 이 값만 남습니다.
  */
 export function pickPrimitives(data: unknown): EvidenceValues {
-  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
   const out: EvidenceValues = {};
-  for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-    else if (typeof v === "boolean") out[k] = String(v);
-    else if (typeof v === "string" && v.length <= MAX_VALUE_LENGTH) out[k] = v;
-  }
+  const walk = (obj: unknown, prefix: string, depth: number) => {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+      if (Object.keys(out).length >= MAX_VALUES) return;
+      const key = prefix ? `${prefix}.${k}` : k;
+      if (typeof v === "number" && Number.isFinite(v)) out[key] = v;
+      else if (typeof v === "boolean") out[key] = String(v);
+      else if (typeof v === "string" && v.length <= MAX_VALUE_LENGTH) out[key] = v;
+      else if (v && typeof v === "object" && !Array.isArray(v) && depth < MAX_VALUE_DEPTH) walk(v, key, depth + 1);
+    }
+  };
+  walk(data, "", 1);
   return out;
 }
 
@@ -141,6 +151,7 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
           label: `${labelFor(spec.name)} · ${s.name}`,
           values: values[k],
           source: { name: s.name, url: s.url, asOf: s.asOf },
+          ...(result.note ? { note: result.note } : {}),
         }));
         ctx.addEvidence(entries);
         ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started });

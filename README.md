@@ -64,13 +64,13 @@ Agent 간 handoff 는 쓰지 않습니다. 금융에서는 "흐름은 고정, �
 | 구성 요소 | 상태 |
 |---|---|
 | Tool 5개 (FX · ETF · News · Rate · Macro) + 레지스트리 + `defineTool` 공통 래퍼 | ✅ 배포됨 |
-| 조사 Agent: Tool 선택 · 호출, 깊이별 instruction, 구조화 리포트 | ✅ (v1, 단일 Agent 가 조사와 작성을 같이 함) |
+| ② 조사 Agent (Tool 호출 + 조사 메모) 와 ③ 작성 Agent (장부 · 메모만 보고 깊이별 리포트) 분리 | ✅ 1단계 |
 | 출처는 Tool 이 실제로 반환한 것만 리포트에 포함 | ✅ |
-| 투자 권유 표현 검사 + 재작성 | ✅ (정규식, SDK output guardrail 로 이전 예정) |
+| 투자 권유 표현 검사: 작성 Agent 의 SDK output guardrail + 코드 검증, 1회 수정 뒤 남으면 문장 삭제 | ✅ 1단계 |
 | 실행 로그 `muffin.run` (모델 · 토큰 · tool 별 시간 · 품질 신호) | ✅ |
-| fixture 테스트 144개 + CI (lint · typecheck · test) | ✅ |
+| fixture 테스트 293개 + CI (lint · typecheck · test) | ✅ |
 | **0단계** 형식 고정: 리포트 v2 타입 · 스트리밍 이벤트 · 증거 번호 · Mock v2 · 모델 교체 · SDK 0.20 | ✅ 10/21 |
-| **1단계** 증거 장부 · 작성 분리 · 숫자 코드 검증 · 수정 루프 · 평가 v1 로 현재 수치 측정 | 10/24 ~ 10/31 |
+| **1단계** 작성 · 검증 분리 · 숫자 코드 검증 (정확 / 반올림 / 단위 / 허용오차) · 1회 수정 루프 · fail-closed · 핵심 값 훅 · 고정 질문 세트 | ✅ 10/22 |
 | **2단계** 접수 (의도 · 판단 요청 모드) · 원인 지도 · Calc Tool · 유의성 게이트 | 11/1 ~ 11/6 |
 | **3단계** 근거 판정자 · 모델 비교 · Promptfoo 평가 · 주간 평가 Action + Codex 수정 PR | 11/7 ~ 11/13 |
 | 스트리밍 라우트 · 호출 제한 · 로그 DB · `/admin` | 백엔드 팀 |
@@ -185,15 +185,16 @@ muffin/
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
 ├─ src/
 │  ├─ agent/                         리더
-│  │  ├─ muffin.ts                   research(): 네 역할을 순서대로 실행, 이벤트 발행
+│  │  ├─ muffin.ts                   research(): 조사 → 작성 → 검증(+1회 수정) 순서로 실행, 이벤트 발행. ② 조사 Agent 정의
 │  │  ├─ intake.ts                   (예정) ① 접수: 의도 분류 · 판단 요청 감지 · 조사 계획
-│  │  ├─ writer.ts                   (예정) ③ 작성: 증거 장부 → 깊이별 리포트
-│  │  ├─ verify.ts                   (예정) ④ 검증: 숫자 대조 · 방향 · 권유 · 근거 판정
+│  │  ├─ writer.ts                   ③ 작성 Agent: 장부 + 조사 메모 → 깊이별 리포트. 권유 가드레일, 수정 요청 입력
+│  │  ├─ verify.ts                   ④ 검증 (코드): 숫자 대조 · 근거 표시 · 권유 → 실패 목록, fail-closed 적용
+│  │  ├─ models.ts                   깊이별 모델 (OPENAI_MODEL · OPENAI_MODEL_DEEP)
 │  │  ├─ context.ts                  실행 컨텍스트: 증거 장부 · tool 실행 기록 · 이벤트 콜백
-│  │  ├─ schema.ts                   리포트 v2 zod 스키마 (작성 출력 / 최종 리포트)
+│  │  ├─ schema.ts                   리포트 v2 zod 스키마 (조사 메모 / 작성 출력 / 최종 리포트)
 │  │  ├─ events.ts                   스트리밍 이벤트 규격 · tool 한국어 라벨
-│  │  ├─ normalize.ts                (예정) 저장된 v1 리포트 → v2 모양
-│  │  ├─ instructions.ts             역할별 · 깊이별 · 영역별 instruction, 원인 지도
+│  │  ├─ normalize.ts                저장된 v1 리포트 → v2 모양
+│  │  ├─ instructions.ts             역할별(조사 · 작성) · 깊이별 · 영역별 instruction. 원인 지도는 2단계
 │  │  ├─ guard.ts                    투자 권유 표현 검사 (output guardrail 로 이전 예정)
 │  │  ├─ mock.ts  fixtures/          MUFFIN_MOCK=1: 샘플 리포트 v2 + 이벤트 순서 재현
 │  ├─ tools/                         팀원 (자기 폴더만)
@@ -535,7 +536,7 @@ export type ToolResult<T = unknown> = {
 
 리포트의 숫자는 증거 번호(`E1`…)로 장부의 값을 인용하고, 검증은 그 값과 대조합니다. 장부에는 `data` 전체가 아니라 **핵심 값**만 올라갑니다.
 
-- 생략하면 `data` 의 최상위 원시값 중 200자 이하인 것이 자동으로 올라갑니다. 긴 정의문 · 기사 본문 · URL 목록은 빠집니다. 모델에게는 `data` 전체가 그대로 갑니다.
+- 생략하면 `data` 안의 원시값 중 200자 이하인 것이 자동으로 올라갑니다. 중첩 객체는 `latest.close` 처럼 점으로 이어 3단계까지 따라가고 배열은 건너뜁니다. 긴 정의문 · 기사 본문 · URL 목록은 빠집니다. 모델에게는 `data` 전체가 그대로 갑니다.
 - 올릴 값을 직접 고르려면 `defineTool` 에 `evidence` 를 넣습니다. 출처가 여러 개(뉴스)면 출처 수와 같은 길이의 배열을 돌려주면 기사마다 하나씩 붙습니다. 함수가 실패하거나 길이가 맞지 않으면 자동 선택으로 돌아가고, tool 호출은 실패 처리되지 않습니다.
 
 ```ts
@@ -555,7 +556,7 @@ export const rateTool = defineTool({
 | `fetchJson` / `fetchText`: 타임아웃 8초, 2xx 아니면 상태코드 담긴 `HttpError`, 2xx 인데 JSON 이 아니면(점검 페이지) 페이지 제목을 담은 `ResponseFormatError`, `redirect: "error"` 옵션 | 응답 파싱 (JSON 구조 읽기, RSS/XML/CSV 해석) |
 | `defineTool`: execute 가 throw 하면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 어떤 데이터를 어떤 파라미터로 받을지 |
 | `defineTool`: 반환한 `source` 를 자동 수집해 리포트 출처에 반드시 포함 | `description` 작성 |
-| `defineTool`: 결과에 증거 번호(`E1`…)를 붙여 장부에 기록, tool 별 실행 시간 · 성공 여부 기록 | 장부에 올릴 핵심 값 고르기 (`evidence`, 선택. 생략하면 data 의 200자 이하 원시값) |
+| `defineTool`: 결과에 증거 번호(`E1`…)를 붙여 장부에 기록, tool 별 실행 시간 · 성공 여부 기록 | 장부에 올릴 핵심 값 고르기 (`evidence`, 선택. 생략하면 data 의 200자 이하 원시값을 중첩 3단계까지) |
 | | 값 계산은 Calc Tool 이 담당. 각 tool 은 원본 값과 기준일을 정확히 돌려주는 데 집중 |
 | 에러 메시지에 섞인 `.env` 키 값(`*_KEY`) 자동 가리기 | |
 
@@ -608,7 +609,7 @@ export const muffinTools = [fxTool, etfTool, newsTool, rateTool, macroTool /* , 
 
 ### research()
 
-백엔드는 이 함수만 호출합니다. 입력 모양은 고정이고, 0단계에서 이벤트 콜백이 추가됩니다.
+백엔드는 이 함수만 호출합니다. 입력 모양은 고정이고, 진행 이벤트는 `onEvent` 로 받습니다.
 
 ```ts
 // src/agent/muffin.ts (요약)
@@ -623,18 +624,20 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 | 역할 | 모델 | 입력 → 출력 | 비고 |
 |---|---|---|---|
 | ① 접수 `intake.ts` | 작은 모델 | 질문 → `{ intent, mode, tools, queries }` | 범위 밖이면 tool 없이 짧은 안내로 끝. 판단 요청이면 `mode: "decision_facts"` |
-| ② 조사 | `OPENAI_MODEL` | 계획 + Tool → 증거 장부 | `defineTool` 이 결과마다 `E` 번호를 붙여 `ResearchContext` 에 기록. 뉴스 검색은 짧은 핵심어로, 없으면 넓혀서 한 번 더 |
-| ③ 작성 `writer.ts` | `OPENAI_MODEL` (Deep 은 `OPENAI_MODEL_DEEP`) | 증거 장부 + 깊이 + 모드 → 작성 출력 | Tool 없음. 수정 요청이 와도 Tool 을 다시 부르지 않음 |
-| ④ 검증 `verify.ts` | 코드 + 작은 모델 | 작성 출력 + 장부 → `verification` | 실패 항목 목록을 들고 ③ 에 1회 수정 요청. 그래도 실패하면 항목을 빼고 `removed` 에 기록 |
+| ② 조사 (`muffin.ts`) | `OPENAI_MODEL` | 질문 + Tool → 증거 장부 + 조사 메모 `{ notes[{ ref, summary }], gaps[] }` | `defineTool` 이 결과마다 `E` 번호를 붙여 `ResearchContext` 에 기록. 메모는 결과 id 마다 1~3문장. 뉴스 검색은 짧은 핵심어로, 없으면 넓혀서 한 번 더 |
+| ③ 작성 `writer.ts` | `OPENAI_MODEL` (Deep 은 `OPENAI_MODEL_DEEP`) | `writerInput()` = 질문 · 장부(values · note) · 조사 메모 · 확인하지 못한 것 → 작성 출력 | Tool 없음. 권유 표현은 SDK output guardrail. 수정 요청(`revisionNote`)이 와도 Tool 을 다시 부르지 않아 증거 번호가 유지됨 |
+| ④ 검증 `verify.ts` | 코드 (원인의 근거 판정 모델은 3단계) | 작성 출력 + 장부 → 실패 목록 → `verification` | 실패 목록을 들고 ③ 에 1회 수정 요청. 그래도 실패하면 숫자는 빼고 원인은 `none` 으로 낮춰 `removed` · `dataGaps` 에 기록 |
 
 ### 증거 장부와 검증 규칙
 
-- **번호**: Tool 호출 성공 1건 = `E{n}`. 뉴스는 기사마다 `E{n}-{k}`. Calc 결과는 `C{n}` 이고 `lineage` 에 연산과 입력 번호가 남습니다.
-- **숫자 정책**: 리포트의 모든 숫자는 `ref` 가 가리키는 증거의 값과 대조합니다. 정확 일치 / 표기 반올림 / 허용오차 (환율 소수점, 비율 0.01%p) / 단위 (% 와 %p 구분) 를 정책으로 두고, 정책에 없는 차이는 실패입니다. `C` 번호는 계산 입력값이 장부 원본과 같은지도 봅니다.
-- **방향**: "환율이 올랐다" 같은 원인 문장의 방향이 인용한 데이터의 부호와 맞는지 코드로 봅니다.
-- **권유**: `guard.ts` 의 표현 목록. 1단계에서 SDK output guardrail 로 옮겨 Traces 에 남깁니다.
-- **근거 판정** (모델): 원인 `claim` 이 `refs` 의 증거로 뒷받침되는지 → `supported / unsupported / contradicted`. 숫자에는 쓰지 않습니다. 처음에는 평가에서만 돌리고, 한국어 150~200쌍으로 보정한 뒤 실행 중에도 켭니다.
-- **표시 원칙 (fail-closed)**: 검증을 통과하지 못한 숫자는 화면에 회색으로만 보이고, 통과한 것만 ✓ 를 받습니다.
+- **번호**: Tool 호출 성공 1건 = `E{n}`. 뉴스는 기사마다 `E{n}-{k}`. Calc 결과는 `C{n}` 이고 `lineage` 에 연산과 입력 번호가 남습니다. 장부의 `values` 는 tool 이 `evidence` 로 고른 핵심 값(없으면 200자 이하 원시값), `note` 는 tool 의 주의점입니다.
+- **숫자 정책** (1단계 ✅ `verify.ts`): 리포트의 모든 숫자는 `ref` 가 가리키는 장부 항목의 숫자 값과 대조합니다. 엄격한 것부터 정확 일치 → 표기 자릿수 반올림 (`2.878866` → `2.88%`) → 단위 환산 (비율 `0.02` ↔ `2%`, `0.25%p` ↔ `25bp`) → 상대 오차 0.1%. 표기 단위와 장부 키의 단위가 호환돼야 합니다 (`changeBp` 25 는 `25%` 가 아니고, `%p` 는 `changePp` · `spread` 같은 차이 값과만 맞춤. 그래서 tool 의 `evidence` 값 키에 단위를 담아 주세요: `changePct` · `changePp` · `changeBp`). 본문(summary · why · impact · caveats)의 금융 숫자(단위 · 소수점 · 쉼표가 있는 것)도 장부 어딘가에 있어야 하고, 없으면 그 문장(summary) 또는 항목을 뺍니다. 정책에 없는 차이는 실패입니다. `value` 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목을 뺌), `change` 의 숫자만 틀리면 `change` 를 비웁니다. 비교 기간(`30일`) · 연도 · 횟수는 데이터 숫자로 보지 않습니다. `ref` 가 없거나 장부에 없는 id 면 실패입니다. `C` 번호의 계보 검사는 2단계 Calc 와 함께 붙입니다.
+- **근거 표시** (1단계 ✅): `why.refs` 는 장부에 있는 id 만, `basis` 는 refs 와 맞아야 합니다 (`data` 는 숫자 데이터 증거, `news` 는 뉴스 tool 증거, `none` 은 refs 없음 + "데이터로 확인되지 않음"). 어긋나면 수정 요청 뒤 `none` 으로 낮춥니다. 주장이 맞는지는 보지 않습니다 (아래 근거 판정).
+- **수정 루프** (1단계 ✅): 실패 목록(`failures`)을 붙여 작성 Agent 를 1회 다시 실행합니다. Tool 은 다시 부르지 않아 증거 번호와 실행 기록이 그대로이고, `verification.revisions` 에 횟수가 남습니다.
+- **권유** (1단계 ✅): `guard.ts` 의 표현 목록을 작성 Agent 의 SDK output guardrail 로 걸어 Traces 에 남기고, 코드 검증도 같은 목록을 씁니다. 수정 뒤에도 남으면 그 항목(why · impact · caveats · nextTopics · dataGaps · numbers 의 label)을 빼고 `removed` 에 적습니다 (문장 원문은 `removed` 에도 남기지 않음). summary 는 권유 문장만 지우고, 전부 권유면 안내 문장으로 바꿉니다. `advice` 는 처리 뒤에도 남은 수(목표 0)입니다.
+- **표시 원칙 (fail-closed)** (1단계 ✅): 검증을 통과하지 못한 숫자는 리포트에 나가지 않고 `verification.removed` 와 `dataGaps` ("검증을 통과하지 못해 뺀 숫자 N개") 에 기록됩니다. 남은 숫자는 `verified`(✓) 또는 `derived`(계산) 입니다. `unverified` 회색은 0단계 · v1 기록에만 남습니다.
+- **방향** (2단계): "환율이 올랐다" 같은 원인 문장의 방향이 인용한 데이터의 부호와 맞는지 코드로 봅니다.
+- **근거 판정** (3단계, 모델): 원인 `claim` 이 `refs` 의 증거로 뒷받침되는지 → `supported / unsupported / contradicted`. 숫자에는 쓰지 않습니다. 처음에는 평가에서만 돌리고, 한국어 150~200쌍으로 보정한 뒤 실행 중에도 켭니다.
 - **유의성 게이트** (2단계): "왜 움직였나" 질문은 Calc 가 90일 기준 z-score 를 내고, 평소 범위면 "평소 범위 안의 움직임입니다" 라고 말하고 억지 원인을 만들지 않습니다. 이례적이면 원인 후보마다 찬반 증거를 붙입니다.
 
 ### 설명 깊이 정의
@@ -664,7 +667,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 ## 품질 측정 (eval)
 
 - **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 숫자의 증거 번호 채움, 원인 근거 종류, 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다.
-- **1단계부터**: 검증기가 생기면 숫자 검증률과 근거 등급이 자동으로 나옵니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
+- **1단계 (✅)**: 검증기가 숫자 검증 결과(✓ 장부 일치 / C 계산 / 제거)와 근거 종류를 자동으로 냅니다. 요약 표의 `숫자 ✓/C/제거` · `수정` · `검증` 열입니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
 - **3단계부터**: [Promptfoo](https://www.promptfoo.dev/) 로 옮깁니다. OpenAI 가 Evals 플랫폼을 2026-11-30 에 종료하고 공식 이전 경로로 안내하는 도구입니다. 고정 질문 세트(`scripts/promptfoo/`), tool 선택 검사, 결정적 채점(우리 검증기 호출) + 원인 판정 rubric, 기준선 비교를 한 곳에서 돌리고, GitHub Action 으로 매주 실행합니다. 수치가 떨어지면 실패 사례를 Codex 에 넘겨 지시문 수정 PR 을 올리게 합니다.
 
 측정 설계
