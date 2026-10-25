@@ -62,6 +62,16 @@
 
 부분 실패는 `data.failedSources`와 `note`에 명시합니다. 요청한 모든 소스가 실패하거나 결과가 없으면 `execute`가 throw합니다. 유효한 피드에서 검색어와 일치하는 제목이 없는 경우도 결과 없음 오류로 처리합니다.
 
+## 증거 장부와 평가 질문
+
+`newsTool`의 `evidence` 훅은 반환한 `data.articles`와 같은 순서·개수로 기사별 메타데이터를 만듭니다. `source`도 같은 기사 배열에서 생성하므로 각 기사의 제목·언론사·발행일·출처가 대응합니다. 기사 1건은 공통 래퍼가 `E1`, 여러 건은 `E1-1`, `E1-2`처럼 번호를 붙입니다 (숫자는 해당 조사에서의 호출 순서에 따라 달라집니다).
+
+- 장부 값은 `title`, `publisher`, `publishedAt`, `body` 네 필드입니다. `body`에는 본문 텍스트 대신 상태만 기록합니다. `list`는 `not_requested`, `body` 모드에서 반환한 성공 기사는 `available`입니다.
+- 본문은 짧더라도 장부에 넣지 않고 기존 `data`에만 유지합니다. 본문 실패 후보는 장부 성공 항목에 포함하지 않습니다. Google News는 목록의 메타데이터·중계 출처만 기록하며 본문 미지원 정책은 그대로입니다.
+- evidence는 보도 내용의 출처를 추적하는 기록이며, 기사 속 숫자나 보도된 원인을 독립적으로 검증한 경제 통계·인과관계로 바꾸지 않습니다. 기존의 “기사 속 수치는 별도 검증이 필요합니다” 주의 문구도 장부에 유지됩니다. 다만 현재 공통 숫자 검증기는 제목 안의 금융 숫자도 대조 후보로 읽으므로, **제목과의 숫자 일치와 공식 통계 검증을 구분하는 정책은 리더와 확인해야 합니다.** 이번 변경은 공통 검증기 동작을 바꾸지 않습니다.
+
+평가 질문은 [`scripts/questions/news.json`](../../../scripts/questions/news.json)에 `@Kangsohee` 담당으로 현황 2개·원인 2개·비교 2개를 기록합니다. 현재 RSS의 기사와 실제 확보한 본문 안에서 답하도록 범위를 정하고, 원인 질문은 보도된 주장과 검증된 인과관계를 구분하며 자료 부족을 명시하는지 평가합니다. `common.json`의 주간 금리 현황 요약과는 범위를 구분합니다.
+
 ## 기사 수량·기간·성능 정책
 
 - `run.ts`의 기본 `limit`는 **5**입니다. Agent 입력은 기존 Tool 규칙에 따라 모든 필드가 필수라 기본값 없이 `limit`를 명시합니다. 리더는 출처 수와 AI 처리 시간·비용을 고려해 **보통 5건**, 최대 **10건**을 요청하도록 안내했습니다.
@@ -76,6 +86,7 @@
 pnpm tool src/tools/news/run.ts --sources yonhap,hankyung --limit 5 --content body --summary
 pnpm tool src/tools/news/run.ts --sources google --query 환율 --limit 5 --content list --summary
 pnpm test src/tools/news
+pnpm test scripts/questions
 pnpm lint
 pnpm typecheck
 pnpm test
