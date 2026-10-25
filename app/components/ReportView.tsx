@@ -1,6 +1,7 @@
 import type { ToolStep } from "@/src/agent/context";
 import { labelFor } from "@/src/agent/events";
 import type { Area, Report } from "@/src/agent/schema";
+import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 
 export const areaLabels: Record<Area, string> = {
   fx: "환율",
@@ -22,8 +23,11 @@ function direction(change: string): "up" | "down" | "flat" {
  * 프론트 팀은 이 컴포넌트를 기준으로 디자인을 올리면 됩니다. 데이터 모양은 src/agent/schema.ts.
  */
 export function ReportView({ report, steps, area }: { report: Report; steps?: ToolStep[]; area?: Area }) {
+  const checkLabels = { verified: "값 대조", derived: "계산값", unverified: "미검증" };
+  const basisLabels = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
   return (
     <div className="report">
+      <ReportVerification report={report} />
       <section>
         <h2>한입 요약</h2>
         <p>{report.summary}</p>
@@ -32,14 +36,20 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
       <section>
         <h2>오늘의 숫자</h2>
         <div className="numbers">
-          {report.numbers.map((n, i) => (
-            <div className="num" key={i}>
-              <small>{n.label}</small>
-              <b>{n.value}</b>
-              <i className={direction(n.change)}>{n.change}{n.asOf ? ` · ${n.asOf}` : ""}</i>
-            </div>
-          ))}
+          {report.numbers.map((n, i) => {
+            const check = report.verification.status === "skipped" ? "unverified" : n.check;
+            return (
+              <div className="num" key={i}>
+                <small>{n.label}</small>
+                <b>{n.value}</b>
+                <i className={direction(n.change)}>{n.change}{n.asOf ? ` · ${n.asOf}` : ""}</i>
+                <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                <EvidenceReference evidenceId={n.ref} evidence={report.evidence} />
+              </div>
+            );
+          })}
         </div>
+        {report.numbers.length === 0 && <p className="report-muted">표시할 숫자를 확보하지 못했습니다.</p>}
       </section>
 
       <section>
@@ -50,9 +60,15 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
           <ul>
             {report.why.map((w, i) => (
               <li key={i}>
+                <span className={`report-badge basis-${w.basis}`}>{basisLabels[w.basis]}</span>{" "}
                 {w.claim}
                 <br />
                 <small className="evidence">근거: {w.evidence}</small>
+                {w.refs.length === 0 ? (
+                  <p className="evidence-missing">인용한 근거 번호가 없습니다.</p>
+                ) : w.refs.map((ref, index) => (
+                  <EvidenceReference key={`${ref}-${index}`} evidenceId={ref} evidence={report.evidence} />
+                ))}
               </li>
             ))}
           </ul>
@@ -69,10 +85,11 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
         <ul>
           {report.sources.map((s, i) => (
             <li key={i}>
-              <a href={s.url} target="_blank" rel="noreferrer">{s.name}</a> · {s.asOf}
+              <SourceLink url={s.url} name={s.name} /> · {s.asOf || "기준일 미제공"}
             </li>
           ))}
         </ul>
+        {report.sources.length === 0 && <p className="report-muted">확보한 출처가 없습니다.</p>}
       </section>
 
       <section>
@@ -80,7 +97,7 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
         <div className="chips">{report.nextTopics.map((t, i) => <span className="chip-static" key={i}>{t}</span>)}</div>
       </section>
 
-      {(report.caveats.length > 0 || report.dataGaps.length > 0) && (
+      {(report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0) && (
         <section className="fine">
           {report.caveats.length > 0 && (
             <>
@@ -92,6 +109,12 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
             <>
               <h2>확인하지 못한 것</h2>
               <ul>{report.dataGaps.map((w, i) => <li key={i}>{w}</li>)}</ul>
+            </>
+          )}
+          {report.verification.removed.length > 0 && (
+            <>
+              <h2>검사 후 제외한 항목</h2>
+              <ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul>
             </>
           )}
         </section>
