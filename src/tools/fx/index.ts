@@ -6,6 +6,7 @@ import type { ToolResult } from "../types";
 
 const API_BASE_URL = "https://api.frankfurter.dev/v2/rates";
 const QUOTE_CURRENCY = "KRW";
+const COMPARISON_LOOKBACK_DAYS = 14;
 
 export const parameters = z.object({
   currency: z
@@ -31,6 +32,8 @@ export type Input = z.infer<typeof parameters>;
 /** ToolResult.data에 담기는 JSON 직렬화 가능 응답 형식입니다. */
 export type FxResultData = {
   pair: string;
+  /** rate와 comparison.rate의 단위. JPY는 국내 관행에 따라 100엔 기준입니다. */
+  unit: string;
   rate: number;
   asOf: string;
   comparison: {
@@ -79,14 +82,15 @@ function buildSourceUrl(currency: Input["currency"], days: number): string {
   const url = new URL(API_BASE_URL);
   url.searchParams.set("base", currency.toLowerCase());
   url.searchParams.set("quotes", QUOTE_CURRENCY.toLowerCase());
-  url.searchParams.set("from", subtractDays(to, days));
+  // 주말·공휴일 또는 당일 집계 전에도 비교값을 찾을 수 있도록 여유를 둡니다.
+  url.searchParams.set("from", subtractDays(to, days + COMPARISON_LOOKBACK_DAYS));
   url.searchParams.set("to", to);
   return url.toString();
 }
 
 function validateRates(rates: FxRate[], currency: Input["currency"]): FxRate[] {
-  if (!Array.isArray(rates) || rates.length < 2) {
-    throw new Error("비교할 환율 데이터가 충분하지 않습니다.");
+  if (!Array.isArray(rates) || rates.length === 0) {
+    throw new Error("환율 데이터가 없습니다.");
   }
 
   const dates = new Set<string>();
@@ -111,21 +115,49 @@ function validateRates(rates: FxRate[], currency: Input["currency"]): FxRate[] {
   return validated.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** 최신 기준일에서 days일 전 이하인 값 중 가장 최근 값을 고릅니다. */
+function comparisonRate(rates: FxRate[], days: number): FxRate {
+  const latest = rates[rates.length - 1];
+  const targetDate = subtractDays(latest.date, days);
+  const comparison = rates.filter((rate) => rate.date <= targetDate).at(-1);
+
+  if (!comparison) {
+    throw new Error("비교 기준일 이전의 환율 데이터가 충분하지 않습니다.");
+  }
+
+  return comparison;
+}
+
+function displayValue(currency: Input["currency"], value: number): number {
+  return round(currency === "JPY" ? value * 100 : value, 6);
+}
+
+function displayPair(currency: Input["currency"]): string {
+  return currency === "JPY" ? "JPY(100)/KRW" : `${currency}/${QUOTE_CURRENCY}`;
+}
+
+function displayUnit(currency: Input["currency"]): string {
+  return currency === "JPY" ? "KRW per 100 JPY" : `KRW per 1 ${currency}`;
+}
+
 export async function execute({ currency, days }: Input): Promise<ToolResult<FxResultData>> {
   const sourceUrl = buildSourceUrl(currency, days);
   const rates = validateRates(await fetchJson<FxRate[]>(sourceUrl), currency);
-  const comparison = rates[0];
   const latest = rates[rates.length - 1];
-  const change = latest.rate - comparison.rate;
-  const changePct = (change / comparison.rate) * 100;
+  const comparison = comparisonRate(rates, days);
+  const rate = displayValue(currency, latest.rate);
+  const comparisonValue = displayValue(currency, comparison.rate);
+  const change = rate - comparisonValue;
+  const changePct = (change / comparisonValue) * 100;
 
   const result: ToolResult<FxResultData> = {
     data: {
-      pair: `${currency}/${QUOTE_CURRENCY}`,
-      rate: latest.rate,
+      pair: displayPair(currency),
+      unit: displayUnit(currency),
+      rate,
       asOf: latest.date,
       comparison: {
-        rate: comparison.rate,
+        rate: comparisonValue,
         asOf: comparison.date,
       },
       change: round(change, 6),
@@ -136,7 +168,7 @@ export async function execute({ currency, days }: Input): Promise<ToolResult<FxR
       url: sourceUrl,
       asOf: latest.date,
     },
-    note: "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 조회 구간에서 API가 반환한 최초·최신 데이터의 차이입니다.",
+    note: `일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 ${days}일 전 이하인 가장 가까운 데이터와의 차이입니다.${currency === "JPY" ? " JPY는 국내 관행에 따라 100엔 기준으로 표시합니다." : ""}`,
   };
 
   return result;
