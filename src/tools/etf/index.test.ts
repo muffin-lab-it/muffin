@@ -3,8 +3,10 @@
  * fixture.json 은 KODEX 200(069500) 2026-09-14 ~ 2026-10-12 실제 응답입니다.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Evidence } from "../../agent/schema";
+import { extractNumbers, matchValue, numericCandidates, roleConflict } from "../../agent/verify";
 import fixture from "./fixture.json";
-import { execute } from "./index";
+import { evidenceOf, execute } from "./index";
 
 type Row = (typeof fixture.response.body.items.item)[number];
 
@@ -52,35 +54,37 @@ describe("get_etf_kr_price", () => {
 
     const result = await execute({ query: "069500", days: 30 });
 
-    expect(result.data).toEqual({
-      etf: { code: "069500", isin: "KR7069500007", name: "KODEX 200", baseIndex: "코스피 200" },
-      latest: {
-        date: "2026-10-12",
-        close: 101605,
-        change: -4045,
-        changePct: -3.83,
-        nav: 101609.53,
-        premiumPct: -0.004,
-        open: 104360,
-        high: 105000,
-        low: 101275,
-        volume: 29236913,
-        tradeValue: 3005764846817,
-        netAssets: 23695343489304,
-        listedShares: 232750000,
-        indexClose: 1004.92,
-      },
-      period: {
-        from: "2026-09-14",
-        to: "2026-10-12",
-        tradingDays: 17,
-        returnPct: -3.61,
-        high: 114635,
-        low: 101275,
-        indexReturnPct: -4.37,
-        trackingDiffPct: 0.76,
-      },
+    const { etf, latest, period } = result.data;
+    expect(etf).toEqual({ code: "069500", isin: "KR7069500007", name: "KODEX 200", baseIndex: "코스피 200" });
+    expect(latest).toMatchObject({
+      date: "2026-10-12",
+      close: 101605,
+      change: -4045,
+      changePct: -3.83,
+      nav: 101609.53,
+      open: 104360,
+      high: 105000,
+      low: 101275,
+      volume: 29236913,
+      tradeValue: 3005764846817,
+      netAssets: 23695343489304,
+      listedShares: 232750000,
+      indexClose: 1004.92,
     });
+    expect(period).toMatchObject({
+      from: "2026-09-14",
+      to: "2026-10-12",
+      tradingDays: 17,
+      closeFrom: 105410,
+      indexCloseFrom: 1050.83,
+      high: 114635,
+      low: 101275,
+    });
+    // 계산값은 반올림하지 않고 그대로 돌려준다 (반올림은 리포트 표기와 검증기가 한다)
+    expect(latest.premiumPct).toBeCloseTo(-0.0044582, 6);
+    expect(period.returnPct).toBeCloseTo(-3.6097144, 6);
+    expect(period.indexReturnPct).toBeCloseTo(-4.3689274, 6);
+    expect(period.trackingDiffPp).toBeCloseTo(0.7592130, 6);
     expect(result.source).toEqual({
       name: "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
       url: "https://www.data.go.kr/data/15094806/openapi.do",
@@ -116,9 +120,11 @@ describe("get_etf_kr_price", () => {
         from: "2026-10-12",
         to: "2026-10-12",
         tradingDays: 1,
+        closeFrom: null,
+        indexCloseFrom: null,
         returnPct: null,
         indexReturnPct: null,
-        trackingDiffPct: null,
+        trackingDiffPp: null,
         high: 105000,
         low: 101275,
       },
@@ -131,7 +137,7 @@ describe("get_etf_kr_price", () => {
     const result = await execute({ query: "069500", days: 7 });
 
     expect(result.data).toMatchObject({
-      period: { tradingDays: 2, returnPct: 0, indexReturnPct: 0, trackingDiffPct: 0 },
+      period: { tradingDays: 2, returnPct: 0, indexReturnPct: 0, trackingDiffPp: 0 },
     });
   });
 
@@ -204,5 +210,63 @@ describe("get_etf_kr_price", () => {
     const calls = mockApi(() => fixture);
     await expect(execute({ query: "069500", days: 30 })).rejects.toThrow("DATA_GO_KR_KEY");
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("증거 장부 핵심 값 (evidence)", () => {
+  async function ledger(days = 30): Promise<Evidence> {
+    mockApi(() => fixture);
+    const { data, source } = await execute({ query: "069500", days });
+    return { id: "E1", tool: "get_etf_kr_price", label: "국내 ETF 시세 확인", values: evidenceOf(data), source: source as Evidence["source"] };
+  }
+
+  /** 리포트에 적힌 표기 하나가 장부의 어느 키와 맞는지. 검증기(verify.ts)를 그대로 씁니다. */
+  function matchedKey(ev: Evidence, text: string): string | null {
+    const [n] = extractNumbers(text);
+    return matchValue(n, numericCandidates(ev))?.key ?? null;
+  }
+
+  it("종목코드 · ISIN · 빈 값은 올리지 않고, 단위가 드러나는 키로 올린다", async () => {
+    const { values } = await ledger();
+
+    expect(values).toMatchObject({
+      name: "KODEX 200",
+      baseIndex: "코스피 200",
+      "latest.date": "2026-10-12",
+      "latest.close": 101605,
+      "period.from": "2026-09-14",
+      "period.closeFrom": 105410,
+      "period.indexCloseFrom": 1050.83,
+    });
+    expect(values).toHaveProperty("period.trackingDiffPp");
+    expect(Object.keys(values).some((k) => /code|isin|trackingDiffPct/i.test(k))).toBe(false);
+    expect(Object.values(values)).not.toContain("069500");
+
+    const short = await ledger(1); // 관측값 1개 → 비교 값은 null 이라 빠진다
+    expect(Object.keys(short.values).filter((k) => /From$|returnPct|DiffPp/.test(k))).toEqual([]);
+  });
+
+  it("리포트 표기가 검증기에서 맞는 키로 대조된다", async () => {
+    const ev = await ledger();
+
+    expect(matchedKey(ev, "-3.61%")).toBe("period.returnPct");
+    expect(matchedKey(ev, "-4.37%")).toBe("period.indexReturnPct");
+    expect(matchedKey(ev, "+0.76%p")).toBe("period.trackingDiffPp");
+    expect(matchedKey(ev, "101,605원")).toBe("latest.close");
+    expect(matchedKey(ev, "105,410원")).toBe("period.closeFrom");
+    expect(matchedKey(ev, "약 23.7조 원")).toBe("latest.netAssets");
+    // 추적 차이를 % 로 잘못 적으면 걸린다
+    expect(matchedKey(ev, "0.76%")).toBeNull();
+    // 종목코드는 숫자 후보에 섞이지 않는다
+    expect(numericCandidates(ev).some((c) => c.value === 69500)).toBe(false);
+  });
+
+  it("기간 시작값은 시작일 기준으로 인용해야 역할 검사를 통과한다", async () => {
+    const ev = await ledger();
+
+    expect(roleConflict("period.closeFrom", "2026-09-14", ev)).toBeNull();
+    expect(roleConflict("latest.close", "2026-10-12", ev)).toBeNull();
+    // 최신 종가에 시작일 날짜를 붙이면 걸린다
+    expect(roleConflict("latest.close", "2026-09-14", ev)).not.toBeNull();
   });
 });
