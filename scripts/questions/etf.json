@@ -1,0 +1,69 @@
+{
+  "set": "etf",
+  "owner": "@o3ozzvb",
+  "questions": [
+    {
+      "id": "etf-status-1",
+      "question": "KODEX 200 요즘 어때? 한 달 동안 얼마나 움직였어?",
+      "area": "etf",
+      "intent": "status",
+      "depth": "standard",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "현황. 최신 종가와 한 달 수익률 두 숫자에 E 번호가 붙고, 기준일이 직전 영업일(T+1 공개)로 적히는지"
+    },
+    {
+      "id": "etf-status-2",
+      "question": "TIGER 미국S&P500 괴리율이랑 순자산 규모 알려줘",
+      "area": "etf",
+      "intent": "status",
+      "depth": "easy",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "현황. 괴리율(%)과 순자산(조 · 억 원) 표기가 검증을 통과하는지. Easy 라 괴리율을 쉬운 말로 풀어 쓰는지"
+    },
+    {
+      "id": "etf-status-3",
+      "question": "SPY랑 QQQ 요즘 수익률 어때?",
+      "area": "etf",
+      "intent": "status",
+      "depth": "standard",
+      "expectTools": [],
+      "note": "tool 이 못 하는 것. 미국 거래소 상장 ETF 는 데이터가 없으므로 확인하지 못한 것(dataGaps)에 솔직하게 적어야 함. 국내 상장 S&P500 ETF 숫자로 바꿔치기하지 않는지"
+    },
+    {
+      "id": "etf-cause-1",
+      "question": "KODEX 200이 최근 석 달 동안 왜 이렇게 움직였어?",
+      "area": "etf",
+      "intent": "cause",
+      "depth": "standard",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "원인. 기초지수(코스피 200) 흐름은 데이터 근거(📊), 그 너머의 원인은 뉴스 근거(📰) 또는 확인 못함(❔)으로. 근거 없는 원인을 지어내지 않는지. 2단계 유의성 게이트 대상"
+    },
+    {
+      "id": "etf-cause-2",
+      "question": "TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?",
+      "area": "etf",
+      "intent": "cause",
+      "depth": "deep",
+      "expectTools": ["get_etf_kr_price", "get_fx_krw_rate"],
+      "note": "원인. 환헤지 없는 상품이라 추적 차이에 원/달러 환율 변동이 섞임(tool note). 환율 tool 을 함께 불러 근거로 쓰는지"
+    },
+    {
+      "id": "etf-compare-1",
+      "question": "KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘",
+      "area": "etf",
+      "intent": "compare",
+      "depth": "standard",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "비교. 같은 지수를 따르는 두 상품. tool 을 상품마다 불러 각 숫자가 자기 E 번호를 인용하는지. 두 수익률의 차이(%p)는 ✂️ 정제가 calc_metrics(pp_diff)로 만든 C 번호를 인용하는지"
+    },
+    {
+      "id": "etf-compare-2",
+      "question": "KODEX 200은 코스피 200 지수를 잘 따라가고 있어?",
+      "area": "etf",
+      "intent": "compare",
+      "depth": "standard",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "비교(ETF 대 기초지수). 추적 차이를 %p 로 적고 괴리율(NAV 대비)과 섞어 쓰지 않는지"
+    }
+  ]
+}
