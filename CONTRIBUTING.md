@@ -112,14 +112,16 @@ git switch -c feat/fx-rate-change
 
 ## 2. 코드 수정하기
 
-- 자기 tool 은 `src/tools/<이름>/` 안에서만, 평가 질문은 `scripts/questions/<영역>.json` 에서만 수정합니다. 다른 폴더를 고쳐야 하면 먼저 Discord 에 한 줄 남겨 주세요.
+- 자기 tool 은 `src/tools/<이름>/` 안에서만, 평가 질문은 `scripts/questions/<영역>.json` 에서만 수정합니다. 자기 에이전트 단계 파일(`src/agent/plan.ts` 처럼 파일 머리에 담당이 적힌 것)과 그 테스트도 자기 몫입니다. 다른 폴더를 고쳐야 하면 먼저 Discord 에 한 줄 남겨 주세요.
 - **라이브러리 추가(`package.json`)** 는 Discord 에 "OO 추가할게요" 한 줄 남긴 뒤, 본인 PR 에 포함하고 PR 본문에 적습니다.
-- **그 외 공통 설정 파일은 직접 고치지 않고 리더에게 먼저 알립니다.** `pnpm-workspace.yaml`, `tsconfig.json`, `eslint.config.mjs`, `.github/`, `vercel.json`, `src/tools/index.ts`, `src/tools/define.ts`, `src/lib/`, `src/agent/`
+- **그 외 공통 설정 파일은 직접 고치지 않고 리더에게 먼저 알립니다.** `pnpm-workspace.yaml`, `tsconfig.json`, `eslint.config.mjs`, `.github/`, `vercel.json`, `src/tools/index.ts`, `src/tools/define.ts`, `src/tools/calc/`, `src/lib/`, `src/agent/` 의 단계 파일이 아닌 것(`muffin.ts` · `schema.ts` · `verify.ts` 등)
 - 수정하면서 수시로 확인:
 
 ```bash
-pnpm test src/tools/<이름>        # 테스트
+pnpm test src/tools/<이름>        # tool 테스트
 pnpm tool src/tools/<이름>/run.ts  # 실제 API 호출해 보기
+pnpm test src/agent/<단계>        # 에이전트 단계 테스트 (모델을 부르지 않음)
+pnpm eval --set <영역>            # 실제 실행 결과 (리더 키 필요) → docs/eval/
 pnpm lint                         # 문법·스타일 검사
 ```
 
