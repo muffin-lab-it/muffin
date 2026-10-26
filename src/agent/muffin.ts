@@ -1,26 +1,14 @@
-import { Agent, RunContext, run } from "@openai/agents";
-import { muffinTools } from "../tools";
+import { RunContext } from "@openai/agents";
 import { ResearchContext, type ToolStep } from "./context";
 import type { MuffinEvent } from "./events";
-import { researcherInstructions } from "./instructions";
 import { modelFor } from "./models";
 import { assembleReport } from "./report";
-import { researchNotesSchema, type Area, type Depth, type Report, type ResearchNotes } from "./schema";
+import { createResearcherAgent, runResearch } from "./research";
+import type { Area, Depth, Report } from "./schema";
 import { applyVerification, summarizeVerification, verify } from "./verify";
-import { createWriterAgent, revisionNote, runWriter, writerInput } from "./writer";
+import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
 
 export { modelFor } from "./models";
-
-/** ② 조사 Agent. tool 을 부르고 결과마다 조사 메모를 남깁니다. 리포트는 쓰지 않습니다. */
-export function createResearcherAgent(depth: Depth, area?: Area) {
-  return new Agent<ResearchContext, typeof researchNotesSchema>({
-    name: "Muffin Researcher",
-    model: modelFor(depth),
-    instructions: researcherInstructions(area),
-    tools: muffinTools,
-    outputType: researchNotesSchema,
-  });
-}
 
 export type ResearchInput = { question: string; depth: Depth; area?: Area };
 export type ResearchOptions = {
@@ -61,9 +49,8 @@ export async function research(
   emit({ type: "stage", stage: "research", status: "start" });
   const ctx = new ResearchContext({ onStep: (step) => emit({ type: "step", step }) });
   const researchCtx = new RunContext(ctx);
-  const researched = await run(createResearcherAgent(depth, area), question, { context: researchCtx });
+  const notes = await runResearch(createResearcherAgent(depth, area), question, researchCtx);
   addUsage(researchCtx);
-  const notes: ResearchNotes = researched.finalOutput ?? { notes: [], gaps: ["조사 Agent 가 조사 메모를 남기지 못했습니다."] };
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ③ 작성. tool 없이 장부와 메모만 봅니다.
