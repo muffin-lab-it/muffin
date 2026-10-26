@@ -37,7 +37,7 @@
 | `id` | 질문 고유 이름 | 소문자 · 숫자 · 하이픈. `<세트>-<의도>-<번호>` 권장 (예: `fx-cause-2`) |
 | `question` | 사용자가 실제로 칠 법한 문장 | 5자 이상. 구어체 그대로 |
 | `area` | 관심 영역 | `fx` `etf` `news` `rate` `macro`. 영역이 없으면 `null` |
-| `intent` | 질문 의도 | `status`(현황) `cause`(원인) `compare`(비교) `decision`(판단 요청) `out_of_scope`(범위 밖) |
+| `intent` | 질문 의도. 📋 분류 Agent 의 정답이기도 해서 `pnpm eval` 의 "의도" 열이 이것과 비교합니다 | `status`(현황) `cause`(원인) `compare`(비교) `decision`(판단 요청) `out_of_scope`(범위 밖) |
 | `depth` | 설명 깊이 | `easy` `standard` `deep`. 생략하면 `standard` |
 | `expectTools` | 조사가 꼭 불러야 하는 tool 이름 | `src/tools/<이름>/index.ts` 의 `name`. 없으면 `[]` |
 | `note` | 채점할 때 눈여겨볼 것 (선택) | 자유 문장 |

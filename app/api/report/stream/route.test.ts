@@ -19,6 +19,8 @@ const fixture: ResearchResult = {
   report: reportSchema.parse(sample.report),
   steps: [{ tool: "get_fx_krw_rate", status: "ok", ms: 12 }],
   rewrites: 0,
+  plan: { intent: "cause", mode: "research", tools: ["get_fx_krw_rate"], reason: "fixture" },
+  facts: null,
   model: "fixture-model",
   usage: { requests: 1, inputTokens: 10, outputTokens: 20 },
 };

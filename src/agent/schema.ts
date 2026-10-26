@@ -4,8 +4,13 @@ import { z } from "zod";
  * 리포트 구조 v2. 화면의 칸과 1:1 로 대응합니다.
  * 품질 원칙: 숫자와 원인은 tool 데이터에 근거해야 하고(증거 번호 인용), 근거가 없으면 없다고 드러나야 합니다.
  *
- *  writerSchema  ③ 작성 Agent 가 내는 것 (Structured Output). 출처 목록은 쓰지 않습니다.
- *  reportSchema  최종 리포트. 작성 출력에 코드가 검증 결과 · 출처 · 증거 장부를 붙인 것. 화면 · History · API 가 보는 모양.
+ * 다섯 단계가 주고받는 모양이 모두 여기 있습니다. 단계 파일(plan · research · edit · write)은 이 모양을 바꾸지 않고 채웁니다.
+ *  planSchema           📋 분류 Agent 가 내는 것: 의도 · 부를 tool
+ *  researchNotesSchema  🔍 조사 Agent 가 내는 것: 결과 id 마다 메모
+ *  factsSchema          ✂️ 정제 Agent 가 내는 것: 작성이 쓸 사실 목록 · 뺀 것 · 확인 못 한 것
+ *  writerSchema         ✍️ 작성 Agent 가 내는 것 (Structured Output). 출처 목록은 쓰지 않습니다.
+ *  verificationSchema   ✅ 검증(코드)이 붙이는 요약
+ *  reportSchema         최종 리포트. 작성 출력에 코드가 검증 결과 · 출처 · 증거 장부를 붙인 것. 화면 · History · API 가 보는 모양.
  */
 
 export const depths = ["easy", "standard", "deep"] as const;
@@ -14,13 +19,35 @@ export type Depth = (typeof depths)[number];
 export const areas = ["fx", "etf", "news", "rate", "macro"] as const;
 export type Area = (typeof areas)[number];
 
-/** ① 접수가 분류하는 질문 의도 (2단계). 현황 / 원인 / 비교 / 판단 요청 / 범위 밖 */
+/** 📋 분류가 정하는 질문 의도. 현황 / 원인 / 비교 / 판단 요청 / 범위 밖 */
 export const intents = ["status", "cause", "compare", "decision", "out_of_scope"] as const;
 export type Intent = (typeof intents)[number];
 
 /** 리포트 모드. decision_facts 는 "사도 돼?" 같은 판단 요청에 거절 대신 판단에 필요한 사실만 정리해 답하는 모드. */
 export const reportModes = ["research", "decision_facts", "out_of_scope"] as const;
 export type ReportMode = (typeof reportModes)[number];
+
+/** 의도 → 리포트 모드. 모델에게 따로 묻지 않고 코드가 정하므로 둘이 어긋나지 않습니다. */
+export function modeFor(intent: Intent): ReportMode {
+  if (intent === "decision") return "decision_facts";
+  if (intent === "out_of_scope") return "out_of_scope";
+  return "research";
+}
+
+/**
+ * 📋 분류 Agent 의 출력 (src/agent/plan.ts). 질문을 읽고 의도와 조사가 부를 tool 을 정합니다.
+ * tools 의 이름은 레지스트리(src/tools/index.ts)에 있는 것만 유효하고, 없는 이름은 코드가 버립니다.
+ */
+export const planSchema = z.object({
+  intent: z
+    .enum(intents)
+    .describe("질문 의도. status 현황 / cause 원인(왜) / compare 비교 / decision 판단 요청(사도 돼?) / out_of_scope 금융 정보 범위 밖"),
+  tools: z
+    .array(z.string())
+    .describe("조사가 부를 tool 이름. 관심 영역의 tool 을 먼저, 원인 설명에 필요한 tool 을 더한다. 범위 밖이면 빈 배열"),
+  reason: z.string().describe("이렇게 분류한 이유 한 문장. 로그 · 평가용"),
+});
+export type PlanOutput = z.infer<typeof planSchema>;
 
 export const sourceSchema = z.object({ name: z.string(), url: z.string(), asOf: z.string() });
 
@@ -49,7 +76,7 @@ const whyItem = z.object({
   refs: z.array(z.string()).describe('근거로 쓴 tool 결과 id 목록. 예: ["E1", "E3-2"]. none 이면 빈 배열'),
 });
 
-/** ③ 작성 Agent 의 출력. Structured Output 이라 모든 필드가 required 이고, 없으면 null 이나 빈 배열을 씁니다. */
+/** ✍️ 작성 Agent 의 출력 (src/agent/write.ts). Structured Output 이라 모든 필드가 required 이고, 없으면 null 이나 빈 배열을 씁니다. */
 export const writerSchema = z.object({
   summary: z.string().describe("한입 요약. 질문에 대한 답을 먼저, 그다음 핵심 숫자 하나"),
   numbers: z.array(numberItem).describe("오늘의 숫자. tool 이 반환한 값만 넣는다"),
@@ -80,8 +107,8 @@ export const evidenceSchema = z.object({
 export type Evidence = z.infer<typeof evidenceSchema>;
 
 /**
- * ② 조사 Agent 의 출력. Tool 을 부른 뒤 결과(id)마다 리포트에 쓸 만한 내용을 메모합니다.
- * 숫자의 진실은 증거 장부이고, 메모는 작성 Agent 가 맥락(무슨 일이 있었는지)을 잡는 데 씁니다.
+ * 🔍 조사 Agent 의 출력 (src/agent/research.ts). Tool 을 부른 뒤 결과(id)마다 리포트에 쓸 만한 내용을 메모합니다.
+ * 숫자의 진실은 증거 장부이고, 메모는 정제 · 작성 Agent 가 맥락(무슨 일이 있었는지)을 잡는 데 씁니다.
  */
 export const researchNotesSchema = z.object({
   notes: z
@@ -96,7 +123,29 @@ export const researchNotesSchema = z.object({
 });
 export type ResearchNotes = z.infer<typeof researchNotesSchema>;
 
-/** ④ 검증 요약. skipped 는 검증기 없이 만든 리포트 (0단계, v1 기록). */
+/**
+ * ✂️ 정제 Agent 의 출력 (src/agent/edit.ts). 장부와 메모에서 질문에 답하는 데 필요한 사실만 고르고,
+ * 차이 · 변동률은 계산 도구(C 번호)로 만들어 넣습니다. 작성은 이 목록(+ 인용된 장부 항목)만 봅니다.
+ * 정제가 실패하면 작성은 장부 전체를 봅니다 (muffin.ts).
+ */
+export const factSchema = z.object({
+  ref: z.string().describe("장부 id (E1, E3-2, C1). 받은 적 없는 id 금지"),
+  fact: z
+    .string()
+    .describe("한 문장. 숫자는 장부 값 그대로 + 단위 + 기준일. 예: 'USD/KRW 1,392.40원 (2026-10-19), 30일 전보다 +2.00%'"),
+});
+export const factsSchema = z.object({
+  facts: z.array(factSchema).describe("작성에 넘길 사실. 질문과 관련 있는 것만, 중요한 순서로. 계산 결과(C 번호)도 여기에"),
+  dropped: z
+    .array(z.object({ ref: z.string(), reason: z.string() }))
+    .describe("질문과 무관해 뺀 장부 항목과 이유. 작성은 보지 않고, 리포트 평가 · 원본 보기에 남는다"),
+  unverified: z
+    .array(z.string())
+    .describe("기사가 보도한 숫자처럼 장부로 확인하지 못한 주장. 작성은 caveats · dataGaps 로 옮긴다. 없으면 빈 배열"),
+});
+export type FactsOutput = z.infer<typeof factsSchema>;
+
+/** ✅ 검증 요약. skipped 는 검증기 없이 만든 리포트 (0단계, v1 기록). */
 export const verificationSchema = z.object({
   status: z.enum(["pass", "partial", "skipped"]),
   numbers: z.object({ total: z.number(), verified: z.number(), derived: z.number(), unverified: z.number() }),

@@ -1,0 +1,135 @@
+/**
+ * ✍️ 작성 테스트 (@exx-sxx). 모델을 부르지 않고 "모델이 받는 입력" 과 "지시문" 의 모양을 확인합니다.
+ * 입력 순서나 문구를 바꾸면 기대값도 같이 고치세요. 실제 리포트는 `pnpm eval --set common` 으로 봅니다 (리더 키).
+ */
+import { describe, expect, it } from "vitest";
+import type { Evidence, FactsOutput, ResearchNotes, WriterOutput } from "./schema";
+import { adviceGuardrail, revisionNote, writerInput, writerInstructions } from "./write";
+
+const evidence: Evidence[] = [
+  {
+    id: "E1",
+    tool: "get_fx_krw_rate",
+    label: "환율 확인 · Frankfurter v2",
+    values: { rate: 1392.4, changePct: 2.0 },
+    source: { name: "Frankfurter v2", url: "https://api.frankfurter.dev", asOf: "2026-10-19" },
+    note: "주말은 직전 영업일 값",
+  },
+  {
+    id: "E2-1",
+    tool: "get_korean_economic_news",
+    label: "경제 뉴스 확인 · 연합뉴스",
+    values: { title: "환율 1,390원대" },
+    source: { name: "연합뉴스", url: "https://www.yna.co.kr/1", asOf: "2026-10-19" },
+  },
+  {
+    id: "C1",
+    tool: "calc_metrics",
+    label: "계산 · 한미 금리 차이",
+    values: { changePp: 0.88, from: 3, to: 3.88, unit: "%" },
+    source: { name: "Muffin 계산", url: "", asOf: "2026-10-16" },
+    lineage: { op: "pp_diff", inputs: ["E3", "E4"] },
+  },
+];
+const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
+
+describe("writerInstructions", () => {
+  it("깊이별 규칙과 공통 규칙(증거 번호 인용 · 근거 종류 · 권유 금지)이 들어간다", () => {
+    const easy = writerInstructions("easy");
+    const deep = writerInstructions("deep", "etf");
+    expect(easy).toContain("Easy");
+    expect(easy).not.toContain("Deep Dive");
+    expect(deep).toContain("Deep Dive");
+    expect(deep).toContain("관심 영역: ETF");
+    for (const s of [easy, deep]) {
+      expect(s).toContain("tool 을 부르지 않습니다");
+      expect(s).toContain("권유 표현");
+      expect(s).toContain("데이터로 확인되지 않음");
+      expect(s).toContain("numbers 의 ref");
+      expect(s).toContain("why 의 refs");
+      expect(s).toContain("basis");
+      expect(s).toContain("출처 목록은 시스템이");
+      expect(s).not.toContain("tool 을 최소 1개 호출");
+    }
+  });
+
+  it("판단 요청 모드면 모드 규칙이 붙는다", () => {
+    expect(writerInstructions("standard", "fx", "decision_facts")).toContain("[모드: 판단 요청]");
+    expect(writerInstructions("standard", "fx")).not.toContain("[모드: 판단 요청]");
+  });
+});
+
+describe("writerInput", () => {
+  it("정제가 없으면(1단계 입력) 질문 · 장부 전체(값 · note) · 조사 메모 · 확인하지 못한 것을 묶는다", () => {
+    const text = writerInput("환율 왜 올랐어?", evidence, notes);
+    expect(text).toContain("[질문]\n환율 왜 올랐어?");
+    expect(text).toContain("- E1 · 환율 확인 · Frankfurter v2 · 기준일 2026-10-19");
+    expect(text).toContain('values: {"rate":1392.4,"changePct":2}');
+    expect(text).toContain("note: 주말은 직전 영업일 값");
+    expect(text).toContain("- E2-1 · 경제 뉴스 확인 · 연합뉴스");
+    expect(text).toContain("계산: pp_diff ← E3, E4");
+    expect(text).toContain("[조사 메모]\n- E1: 달러가 30일 2% 올랐습니다.");
+    expect(text).toContain("[확인하지 못한 것]");
+    expect(text).toContain("- 금리 tool 실패");
+    expect(text).not.toContain("[사실 목록]");
+  });
+
+  it("정제가 있으면 사실 목록과 인용된 장부 항목만 보이고, 뺀 항목과 조사 메모는 보이지 않는다", () => {
+    const facts: FactsOutput = {
+      facts: [
+        { ref: "E1", fact: "USD/KRW 1,392.40원 (2026-10-19), 30일 전보다 +2.00%" },
+        { ref: "C1", fact: "한미 기준금리 차이 0.88%p (2026-10-16)" },
+      ],
+      dropped: [{ ref: "E2-1", reason: "환율 수준만 전하는 기사" }],
+      unverified: ["기사 속 외국인 순매도 규모는 장부에 없음"],
+    };
+    const text = writerInput("환율 왜 올랐어?", evidence, notes, facts);
+    expect(text).toContain("[사실 목록]");
+    expect(text).toContain("- E1: USD/KRW 1,392.40원");
+    expect(text).toContain("- C1: 한미 기준금리 차이 0.88%p");
+    expect(text).toContain("- E1 · 환율 확인 · Frankfurter v2");
+    expect(text).toContain("- C1 · 계산 · 한미 금리 차이");
+    expect(text).not.toContain("E2-1");
+    expect(text).not.toContain("[조사 메모]");
+    // 조사의 gaps 와 정제의 unverified 가 함께 "확인하지 못한 것" 으로 간다
+    expect(text).toContain("- 금리 tool 실패");
+    expect(text).toContain("- 기사 속 외국인 순매도 규모는 장부에 없음");
+  });
+
+  it("정제가 사실을 하나도 고르지 못했으면 장부 전체 입력으로 돌아간다", () => {
+    const text = writerInput("q", evidence, notes, { facts: [], dropped: [], unverified: [] });
+    expect(text).not.toContain("[사실 목록]");
+    expect(text).toContain("[조사 메모]");
+  });
+
+  it("장부가 비면 numbers 를 비우라고 알린다", () => {
+    const text = writerInput("q", [], { notes: [], gaps: [] });
+    expect(text).toContain("tool 이 모두 실패");
+    expect(text).toContain("[조사 메모]\n- (없음)");
+  });
+});
+
+describe("revisionNote", () => {
+  it("실패 목록을 그대로 담은 수정 요청", () => {
+    const text = revisionNote(['numbers "USD/KRW": value 1,400원 가 E1 의 값과 다름', "투자 권유 표현: \"지금 사세요\""]);
+    expect(text).toMatch(/^\[수정 요청\]/);
+    expect(text).toContain("- numbers \"USD/KRW\"");
+    expect(text).toContain("- 투자 권유 표현");
+  });
+});
+
+describe("adviceGuardrail", () => {
+  const base: WriterOutput = { summary: "환율이 올랐습니다.", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
+  const args = (agentOutput: WriterOutput) => ({ agent: {}, agentOutput, context: {} }) as never;
+
+  it("권유 표현이 있으면 tripwire 를 울리고 문장을 알려 준다", async () => {
+    const out = await adviceGuardrail.execute(args({ ...base, impact: ["지금 달러를 매수하세요."] }));
+    expect(out.tripwireTriggered).toBe(true);
+    expect(out.outputInfo).toEqual({ flagged: ["지금 달러를 매수하세요."] });
+  });
+
+  it("없으면 통과", async () => {
+    const out = await adviceGuardrail.execute(args(base));
+    expect(out.tripwireTriggered).toBe(false);
+  });
+});

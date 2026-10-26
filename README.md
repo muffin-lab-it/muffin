@@ -14,64 +14,70 @@
 
 ### 구조
 
-한 번의 질문은 네 역할을 지나갑니다. 순서는 코드가 고정하고, 모델은 각 역할 안에서만 판단합니다. 역할 사이를 잇는 것은 **증거 장부**입니다. Tool 결과마다 번호(`E1`, `E2`…)가 붙고, 리포트의 숫자와 원인은 이 번호를 인용해야 하며, 검증은 이 번호로 원본과 대조합니다.
+한 번의 질문은 다섯 단계를 지나갑니다. 에이전트 넷과 코드 하나입니다. 순서는 코드가 고정하고, 모델은 각 단계 안에서만 판단합니다. 단계 사이를 잇는 것은 **증거 장부**입니다. Tool 결과마다 번호(`E1`, `E2`…)가 붙고 계산 결과는 `C1`…, 리포트의 숫자와 원인은 이 번호를 인용해야 하며, 검증은 이 번호로 원본과 대조합니다.
 
 ```mermaid
 flowchart TB
-    U(["👤 질문 · 관심 영역 · 깊이"]) --> IN
+    U(["👤 질문 · 관심 영역 · 깊이"]) --> PL
 
-    subgraph P["🧁 Muffin Agent — src/agent (리더)"]
+    subgraph P["🧁 Muffin Agent — src/agent"]
         direction TB
-        IN["① 접수<br/>의도 분류 · 판단 요청 감지 · 조사 계획"]
-        RS["② 조사 Agent<br/>Tool 선택 · 호출 · 실패 보완"]
-        WR["③ 작성 Agent<br/>증거 번호만 인용 · 깊이별 문체"]
-        VF["④ 검증<br/>숫자 대조(코드) · 권유 검사 · 근거 판정"]
-        IN --> RS --> WR --> VF
+        PL["📋 분류 Agent · plan.ts<br/>의도 · 부를 Tool · 모드"]
+        RS["🔍 조사 Agent · research.ts<br/>Tool 호출 · 조사 메모 · 실패 보완"]
+        ED["✂️ 정제 Agent · edit.ts<br/>사실 고르기 · 계산(C 번호) · 뺀 것 기록"]
+        WR["✍️ 작성 Agent · write.ts + depth.ts<br/>사실 목록만 보고 · 깊이별 문체"]
+        VF["✅ 검증 · verify.ts (코드)<br/>숫자 대조 · 근거 표시 · 권유 검사"]
+        PL --> RS --> ED --> WR --> VF
         VF -- "실패 항목만 1회 수정, Tool 재호출 없음" --> WR
     end
 
-    subgraph T["Tools — src/tools (팀원)"]
+    subgraph T["데이터 Tools — src/tools (팀원)"]
         direction LR
         FX["💵 FX"]
         ETF["📈 ETF"]
         NEWS["📰 News"]
         RATE["🏦 Rate"]
         MACRO["📊 Macro"]
-        CALC["🧮 Calc<br/>변동률 · 차이 · z-score (예정)"]
     end
+    CALC["🧮 Calc · src/tools/calc (리더)<br/>변동률 · 차이 · %p"]
 
     RS <--> T
-    T -. "결과마다 번호 E1…En" .-> L[("증거 장부")]
+    ED <--> CALC
+    T -. "결과마다 E1…En" .-> L[("증거 장부")]
+    CALC -. "C1…Cn + lineage" .-> L
+    L --> ED
     L --> WR
     L --> VF
 
-    VF --> R["리포트 v2<br/>숫자마다 ✓ · 원인마다 📊 📰 ❔ · 출처 · AI 고지"]
+    VF --> R["리포트 v2<br/>숫자마다 ✓ 🧮 · 원인마다 📊 📰 ❔ · 출처 · AI 고지"]
     R --> UI["화면 · History"]
     P -. "stage · plan · step · verify 이벤트 (스트리밍)" .-> UI
 ```
 
-| 역할 | 하는 일 | 구현 |
-|---|---|---|
-| ① 접수 | 질문 의도를 분류합니다 (현황 / 원인 / 비교 / 판단 요청 / 범위 밖). "사도 돼?" 는 거절하지 않고 **판단에 필요한 사실** 모드로 바꿉니다. 원인 질문이면 원인 지도로 부를 Tool 을 정합니다 | 작은 모델, 구조화 출력 |
-| ② 조사 | 계획대로 Tool 을 부르고, 실패하면 보완합니다 (뉴스 검색어 넓히기). 계산이 필요하면 Calc Tool 을 씁니다. **모델은 산술을 하지 않습니다** | Agents SDK Agent + Tool 6개 |
-| ③ 작성 | 증거 장부만 보고 깊이별 리포트를 씁니다. 숫자와 원인마다 증거 번호를 답니다 | Tool 없는 Agent, 구조화 출력 |
-| ④ 검증 | 코드: 모든 숫자를 장부와 대조하고(정확 / 반올림 / 허용오차 / 단위 정책), 계산 숫자는 수식 계보까지, 원인의 방향이 데이터와 맞는지, 권유 표현을 검사합니다. 모델: 원인 주장이 인용한 증거로 뒷받침되는지 판정합니다 (원인에만, 숫자에는 쓰지 않음). 실패하면 작성에게 1회 수정을 시키고, 그래도 실패한 항목은 뺀 뒤 기록합니다 | 코드 + SDK output guardrail |
+| 단계 | 하는 일 | 구현 | 담당 · 파일 |
+|---|---|---|---|
+| 📋 분류 | 질문 의도를 분류합니다 (현황 / 원인 / 비교 / 판단 요청 / 범위 밖). "사도 돼?" 는 거절하지 않고 **판단에 필요한 사실** 모드로, 범위 밖은 조사 없이 안내로 끝냅니다. 조사가 부를 Tool 을 정합니다 | 작은 모델, 구조화 출력 (`planSchema`). 실패하면 규칙 기반 기본 계획 | 서영 `plan.ts` |
+| 🔍 조사 | 분류가 고른 Tool 을 부르고, 실패하면 보완합니다 (뉴스 검색어 넓히기). 결과(E 번호)마다 조사 메모를 남깁니다. **모델은 산술을 하지 않습니다** | Agent + 데이터 Tool 5개, 구조화 출력 (`researchNotesSchema`) | 소희 `research.ts` |
+| ✂️ 정제 | 장부와 메모에서 질문에 답하는 데 필요한 사실만 고르고, 차이 · 변동률은 계산 Tool 로 C 번호를 받습니다. 뺀 항목과 확인되지 않은 주장을 기록합니다. 작성은 이 사실 목록만 봅니다 | 작은 모델 + 계산 Tool, 구조화 출력 (`factsSchema`). 실패하면 작성이 장부 전체를 봄 | 은경 `edit.ts` |
+| ✍️ 작성 | 사실 목록(과 인용된 장부 항목)만 보고 깊이별 리포트를 씁니다. 숫자와 원인마다 증거 번호를 답니다 | Tool 없는 Agent, 구조화 출력 (`writerSchema`), 권유 가드레일 | 은선 `write.ts` (구성 · 문장) · 하니 `depth.ts` (깊이별 금융 규칙) |
+| ✅ 검증 | 코드: 모든 숫자를 장부와 대조하고(정확 / 반올림 / 단위 / 허용오차), 근거 표시가 규칙대로인지, 권유 표현을 검사합니다. 실패하면 작성에게 1회 수정을 시키고, 그래도 실패한 항목은 뺀 뒤 기록합니다. 조사 · 정제로는 되돌아가지 않습니다. 원인 주장의 근거 판정(모델)은 3단계 | 코드 + SDK output guardrail | 리더 `verify.ts` · `guard.ts` |
 
-Agent 간 handoff 는 쓰지 않습니다. 금융에서는 "흐름은 고정, 모델은 판단이 필요한 곳에만" 이 추적하기 쉽고 설명하기도 쉽습니다. 역할별 실행은 OpenAI Traces 에 남습니다.
+Agent 간 handoff 는 쓰지 않습니다. 금융에서는 "흐름은 고정, 모델은 판단이 필요한 곳에만" 이 추적하기 쉽고 설명하기도 쉽습니다. 네 Agent 실행은 `withTrace` 로 묶여 OpenAI Traces 에 한 요청으로 남습니다. 단계 파일은 담당자가, 단계 사이의 모양(`schema.ts`)과 순서(`muffin.ts`)는 리더가 관리합니다.
 
 ### 지금 어디까지 왔나
 
 | 구성 요소 | 상태 |
 |---|---|
 | Tool 5개 (FX · ETF · News · Rate · Macro) + 레지스트리 + `defineTool` 공통 래퍼 | ✅ 배포됨 |
-| ② 조사 Agent (Tool 호출 + 조사 메모) 와 ③ 작성 Agent (장부 · 메모만 보고 깊이별 리포트) 분리 | ✅ 1단계 |
+| 🔍 조사 Agent (Tool 호출 + 조사 메모) 와 ✍️ 작성 Agent (장부 · 메모만 보고 깊이별 리포트) 분리 | ✅ 1단계 |
+| **다섯 단계 뼈대**: 📋 분류 · ✂️ 정제 Agent 파일(지시문 초안 + 기본값 + 테스트 틀), 🧮 계산 Tool(C 번호 · lineage), 다섯 단계 오케스트레이션 · 범위 밖 · 판단 요청 분기, 담당자별 단계 파일 | ✅ 10/27 |
 | 출처는 Tool 이 실제로 반환한 것만 리포트에 포함 | ✅ |
 | 투자 권유 표현 검사: 작성 Agent 의 SDK output guardrail + 코드 검증, 1회 수정 뒤 남으면 문장 삭제 | ✅ 1단계 |
 | 실행 로그 `muffin.run` (모델 · 토큰 · tool 별 시간 · 품질 신호) | ✅ |
 | fixture 테스트 293개 + CI (lint · typecheck · test) | ✅ |
 | **0단계** 형식 고정: 리포트 v2 타입 · 스트리밍 이벤트 · 증거 번호 · Mock v2 · 모델 교체 · SDK 0.20 | ✅ 10/21 |
 | **1단계** 작성 · 검증 분리 · 숫자 코드 검증 (정확 / 반올림 / 단위 / 허용오차) · 1회 수정 루프 · fail-closed · 핵심 값 훅 · 고정 질문 세트 | ✅ 10/22 |
-| **2단계** 접수 (의도 · 판단 요청 모드) · 원인 지도 · Calc Tool · 유의성 게이트 | 11/1 ~ 11/6 |
+| **2단계** 담당자별 단계 지시문 · 테스트 (분류 정확도, 정제의 사실 선택, 작성 깊이 규칙) · 원인 지도 · 유의성 게이트 | 10/28 ~ 11/6 |
 | **3단계** 근거 판정자 · 모델 비교 · Promptfoo 평가 · 주간 평가 Action + Codex 수정 PR | 11/7 ~ 11/13 |
 | 스트리밍 라우트 · 호출 제한 · 로그 DB · `/admin` | 백엔드 팀 |
 | 진행 화면 · 검증 배지 · 원본 보기 · 차트 · AI 고지 | 프론트 팀 |
@@ -107,15 +113,17 @@ sequenceDiagram
     H->>R: POST { question, depth, area }
     R->>A: research(input, { onEvent })
     Note over R,H: 이벤트는 NDJSON 한 줄씩 그대로 전달
-    A-->>H: plan · 의도 "원인", Tool [fx, rate, news]
+    A-->>H: plan · 📋 의도 "원인", Tool [fx, rate, news]
     A->>T: get_fx_krw_rate
     T->>L: E1
     A-->>H: step ✅ 환율 확인 0.9s
     A->>T: get_rate_data · get_korean_economic_news
     T->>L: E2 · E3-1 · E3-2
     A-->>H: step ✅ 금리 확인 · step ✅ 경제 뉴스 확인
-    A->>A: 작성 (E 번호 인용, Easy 문체)
-    A->>L: 검증 · 숫자 8/8 일치 · 원인 📊2 📰1 · 권유 0
+    A->>L: ✂️ 정제 · 사실 고르기 · calc_metrics(E2, E3) → C1 한미 금리차
+    A-->>H: step ✅ 계산
+    A->>A: ✍️ 작성 (사실 목록만, E · C 번호 인용, Easy 문체)
+    A->>L: ✅ 검증 · 숫자 8/8 일치 · 원인 📊2 📰1 · 권유 0
     A-->>H: verify
     A-->>H: report (v2)
     H-->>U: 검증 배지 · 📊📰❔ · 출처 · 차트
@@ -127,7 +135,7 @@ sequenceDiagram
 
 | 역할 | 지표 | 목표 |
 |---|---|---|
-| 접수 | 의도 분류 정확도 / 판단 요청 감지율 | 95% 이상 / 100% |
+| 분류 | 의도 분류 정확도 (`pnpm eval` 의 "의도" 열) / 판단 요청 감지율 | 95% 이상 / 100% |
 | 조사 | Tool 선택 정확도 / Tool 성공률 | 90% 이상 |
 | 작성 | 원인 질문에서 원인 칸 채움률 / Easy 와 Deep 의 용어 수 · 문장 길이 차이 | 기준선 대비 상승 |
 | 검증 | 숫자 검증률 / 근거 없는 원인 검출률 / 권유 위반률 | 100% / 판정자 보정값 공개 / 0% |
@@ -184,26 +192,29 @@ muffin/
 │     ├─ route.ts                    POST /api/report — 완료 후 JSON 한 번에 (백엔드)
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
 ├─ src/
-│  ├─ agent/                         리더
-│  │  ├─ muffin.ts                   research(): 조사 → 작성 → 검증(+1회 수정) 순서로 실행, 이벤트 발행. ② 조사 Agent 정의
-│  │  ├─ intake.ts                   (예정) ① 접수: 의도 분류 · 판단 요청 감지 · 조사 계획
-│  │  ├─ writer.ts                   ③ 작성 Agent: 장부 + 조사 메모 → 깊이별 리포트. 권유 가드레일, 수정 요청 입력
-│  │  ├─ verify.ts                   ④ 검증 (코드): 숫자 대조 · 근거 표시 · 권유 → 실패 목록, fail-closed 적용
-│  │  ├─ models.ts                   깊이별 모델 (OPENAI_MODEL · OPENAI_MODEL_DEEP)
-│  │  ├─ context.ts                  실행 컨텍스트: 증거 장부 · tool 실행 기록 · 이벤트 콜백
-│  │  ├─ schema.ts                   리포트 v2 zod 스키마 (조사 메모 / 작성 출력 / 최종 리포트)
-│  │  ├─ events.ts                   스트리밍 이벤트 규격 · tool 한국어 라벨
+│  ├─ agent/                         단계 파일은 담당자, 나머지는 리더
+│  │  ├─ muffin.ts                   research(): 📋 분류 → 🔍 조사 → ✂️ 정제 → ✍️ 작성 → ✅ 검증(+1회 수정) 순서, 이벤트 발행 (리더)
+│  │  ├─ plan.ts                     📋 분류 Agent: 의도 · 부를 tool. 실패 시 기본 계획 (서영)
+│  │  ├─ research.ts                 🔍 조사 Agent: tool 호출 + 조사 메모 (소희)
+│  │  ├─ edit.ts                     ✂️ 정제 Agent: 사실 고르기 · 계산 tool 호출 · 뺀 것 기록 (은경)
+│  │  ├─ write.ts                    ✍️ 작성 Agent: 사실 목록 → 깊이별 리포트. 구성 · 문장 규칙, 권유 가드레일, 수정 요청 입력 (은선)
+│  │  ├─ depth.ts                    ✍️ 깊이별 금융 규칙 (Easy · Standard · Deep) · 판단 요청 모드 문구 (하니)
+│  │  ├─ verify.ts  guard.ts         ✅ 검증 (코드): 숫자 대조 · 근거 표시 · 권유 → 실패 목록, fail-closed 적용 (리더)
+│  │  ├─ instructions.ts             네 Agent 공통 persona · 공통 규칙 (리더)
+│  │  ├─ models.ts                   단계 · 깊이별 모델 (OPENAI_MODEL_SMALL · OPENAI_MODEL · OPENAI_MODEL_DEEP)
+│  │  ├─ context.ts                  실행 컨텍스트: 증거 장부 (E · C 번호) · tool 실행 기록 · 이벤트 콜백
+│  │  ├─ schema.ts                   다섯 단계가 주고받는 zod 스키마 (분류 / 조사 메모 / 사실 목록 / 작성 출력 / 최종 리포트)
+│  │  ├─ events.ts                   스트리밍 이벤트 규격 (단계 5개) · tool 한국어 라벨
+│  │  ├─ report.ts                   최종 리포트 조립 · AI 고지 · 모드 안내 문구
 │  │  ├─ normalize.ts                저장된 v1 리포트 → v2 모양
-│  │  ├─ instructions.ts             역할별(조사 · 작성) · 깊이별 · 영역별 instruction. 원인 지도는 2단계
-│  │  ├─ guard.ts                    투자 권유 표현 검사 (output guardrail 로 이전 예정)
-│  │  ├─ mock.ts  fixtures/          MUFFIN_MOCK=1: 샘플 리포트 v2 + 이벤트 순서 재현
+│  │  ├─ mock.ts  fixtures/          MUFFIN_MOCK=1: 샘플 리포트 v2 + 다섯 단계 이벤트 순서 재현
 │  ├─ tools/                         팀원 (자기 폴더만)
 │  │  ├─ index.ts                    레지스트리 (리더)
 │  │  ├─ define.ts                   defineTool 공통 래퍼: 타임아웃 · 에러 · 출처 · 증거 번호 · 실행 기록 (리더)
 │  │  ├─ types.ts                    ToolResult / Source
 │  │  ├─ _template/                  새 tool 시작용 템플릿 (index · run · fixture · test · README)
 │  │  ├─ fx/ etf/ news/ rate/ macro/ 같은 구성
-│  │  └─ calc/                       (예정, 팀원) 변동률 · 차이 · %p · z-score. 순수 함수
+│  │  └─ calc/                       🧮 계산 tool (리더): 장부의 두 값으로 변동률 · 차이 · %p → C 번호 + lineage. 정제만 사용
 │  └─ lib/
 │     ├─ http.ts                     fetchJson / fetchText (타임아웃 · HttpError · redirect 옵션)
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
@@ -268,7 +279,7 @@ MUFFIN_MOCK=         # 1 이면 OpenAI·tool 을 부르지 않고 샘플 리포�
 | 📰 News | 연합뉴스 · 한국경제 RSS, Google News RSS, 공개 기사 본문 | 불필요 | 본문 추출은 **개발 · 비상업 범위에서만 허용** (10/19 리더 결정). 서비스 공개 전 각 언론사 이용 조건 재확인 |
 | 🏦 Rate | 한국은행 ECOS (기준금리), FRED (DFF · DGS10) | `ECOS_API_KEY` `FRED_API_KEY` | 30 · 90 · 365일 |
 | 📊 Macro | ECOS · FRED (CPI, 실업률) | 같음 | 한국 · 미국 |
-| 🧮 Calc (예정) | 없음. 위 Tool 의 값을 받아 계산 | 불필요 | 변동률 · 차이 · %p · z-score. 입력값과 결과를 함께 반환 |
+| 🧮 Calc | 없음. 장부(위 Tool 의 결과)의 두 값을 가리켜 계산 | 불필요 | 변동률 · 차이 · %p. 결과는 C 번호로 장부에, 입력 번호는 lineage 에 (`src/tools/calc/README.md`) |
 
 선정 기준: 무료이고 키가 즉시 발급되거나 필요 없을 것, 일일 100회 이상 또는 무제한, JSON 또는 RSS (HTML 스크래핑은 News 본문만 예외), Vercel 에서 호출 가능할 것, 원화 · 국내 데이터가 실제로 있을 것. 각 tool 의 세부 조건과 키 발급 방법은 `src/tools/<이름>/README.md` 에 있습니다.
 
@@ -276,7 +287,7 @@ MUFFIN_MOCK=         # 1 이면 OpenAI·tool 을 부르지 않고 샘플 리포�
 
 ## Muffin Web 만들기 가이드 (백엔드 · 프론트 팀)
 
-화면과 API 의 뼈대는 리더가 만들어 두었습니다. 팀은 그 위에서 각 화면의 안쪽과 API 의 안쪽을 채웁니다. **0단계(~10/23)가 끝나면 아래 규격이 고정됩니다.** 그 전에는 설계안으로 읽어 주세요.
+화면과 API 의 뼈대는 리더가 만들어 두었습니다 (PR #24). 팀은 그 위에서 각 화면의 안쪽과 API 의 안쪽을 채웁니다. 아래 규격(리포트 v2 · 스트리밍 이벤트)은 고정이고, 바꿀 일이 생기면 리더가 먼저 공유합니다.
 
 ### 역할과 파일
 
@@ -292,16 +303,30 @@ MUFFIN_MOCK=         # 1 이면 OpenAI·tool 을 부르지 않고 샘플 리포�
 | `app/api/report/route.ts` | POST /api/report. 완료 후 JSON 한 번에 (유지) | 백엔드 |
 | `app/api/report/stream/route.ts` | POST /api/report/stream. NDJSON 이벤트 스트림 (아래 참고 코드) | 백엔드 |
 
+### 최소 범위와 연결 순서 (10/25 모임)
+
+각자 생각하는 최종 화면이 다를 수 있어서 최소 범위를 먼저 맞춥니다. 이 목록이 11/13 시연의 기준이고, 그 밖의 것은 고도화 기간에 합니다.
+
+| 파트 | 최소 범위 | 담당 |
+|---|---|---|
+| 프론트 | 홈(영역 · 깊이 · 질문), 판단 요청 배너 · AI 고지, 저장함 | 하니 |
+| 프론트 | 다섯 단계 진행 화면 (`stage` 5개 · `plan` · `step` · `verify`), 리포트 구성(칸의 순서와 정보 배치) | 은선 |
+| 프론트 | 리포트 화면(숫자 배지 · 📊📰❔), 원본 보기(`evidence` 를 `ref` 로 찾기, 계산 계보) | 소희 |
+| 백엔드 | 실시간 통로 `/api/report/stream`, 호출 제한 | 서영 |
+| 백엔드 | 리포트 서버 저장 · History API, API 보호(출처 · 키 · 입력 검증), 실행 로그 | 은경 |
+
+연결 순서는 셋입니다. ① 백엔드가 진행 이벤트를 그대로 흘려보내고(Mock 으로 먼저) → ② 프론트가 단계 · tool 진행 상태를 표시하고 → ③ 완성 리포트(`report` 이벤트)를 리포트 화면으로 넘깁니다. API 명세는 코드가 곧 명세입니다: 이벤트 모양은 `src/agent/events.ts`, 리포트 모양은 `src/agent/schema.ts`, 호출은 `src/lib/api.ts`. 화면별로 필요한 데이터가 더 있으면 Discord 에 "어느 화면에 어떤 필드" 로 적고 리더가 모양을 바꿉니다. 같은 파일을 두 사람이 고치게 되면 먼저 말하고 작업 순서를 정합니다.
+
 ### 스트리밍 규격
 
 `research()` 는 진행 중에 이벤트를 콜백으로 줍니다. 백엔드는 그것을 **NDJSON** (한 줄에 JSON 하나, `Content-Type: application/x-ndjson`) 으로 흘려보내고, 프론트는 `streamReport` 로 받습니다. SSE 대신 NDJSON 을 쓰는 이유는 POST 와 `fetch` 만으로 되고 Vercel 에서 그대로 동작하기 때문입니다.
 
-`research()` 와 `mockResearch()` 는 `stage · plan · step · verify` 를 콜백으로 주고, `report · error` 는 라우트가 요청 id 를 붙여 보냅니다. 0단계의 실제 실행은 `research` · `verify` 단계와 `step` 만 보냅니다 (`plan` 은 2단계, `write` 분리는 1단계에서). Mock 은 처음부터 모든 단계를 보내므로 진행 화면은 Mock 으로 만들면 됩니다.
+`research()` 와 `mockResearch()` 는 `stage · plan · step · verify` 를 콜백으로 주고, `report · error` 는 라우트가 요청 id 를 붙여 보냅니다. 실제 실행도 Mock 도 다섯 단계(`plan → research → edit → write → verify`)를 모두 보냅니다. 계산 tool 의 `step` 은 `edit` 단계 안에서 옵니다. 범위 밖 질문이면 `plan` 뒤에 `research · edit · write` 없이 `verify → report` 로 끝납니다. 진행 화면은 Mock 으로 만들면 됩니다.
 
 ```ts
 // src/agent/events.ts (0단계에서 고정)
 type MuffinEvent =
-  | { type: "stage"; stage: "plan" | "research" | "write" | "verify"; status: "start" | "done" }
+  | { type: "stage"; stage: "plan" | "research" | "edit" | "write" | "verify"; status: "start" | "done" }
   | { type: "plan"; intent: Intent; mode: ReportMode; tools: string[] }   // "이렇게 조사할게요"
   | { type: "step"; step: ToolStep }                                       // tool 하나 끝날 때마다
   | { type: "verify"; verification: Verification }                         // 숫자 8/8 · 원인 등급 · 권유 0
@@ -311,7 +336,7 @@ type MuffinEvent =
 
 | 이벤트 | 화면 |
 |---|---|
-| `stage` | "조사 중 → 작성 중 → 검증 중" 단계 표시 |
+| `stage` | "질문 파악 → 데이터 조사 → 사실 정리 → 리포트 작성 → 검증" 단계 표시 (`stageLabels`) |
 | `plan` | "이렇게 조사할게요: 환율 · 한미 금리 · 관련 뉴스". 판단 요청 모드면 안내 배너 |
 | `step` | tool 한 줄씩 (`labelFor(step.tool)` 로 한국어 라벨, 성공 · 실패 · 시간) |
 | `verify` | "숫자 8개 모두 원본과 일치 · 권유 0" |
@@ -404,7 +429,7 @@ type Evidence = {
 };
 ```
 
-v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verification · disclosure` 가 추가되고, `sources` 는 모델이 아니라 코드가 만듭니다. 기존 칸은 모두 그대로라 지금 화면 코드는 타입 검사를 그대로 통과합니다. 0단계의 실제 응답에서 `ref · refs · evidence · sources` 는 이미 실제 증거 번호를 담습니다 (`defineTool` 이 결과마다 번호를 붙여 모델에게 줌). 다만 숫자 대조가 아직 없어서 `check: "unverified"`, `verification.status: "skipped"` 로 나옵니다. 검증기는 1단계에서 붙습니다. Mock 은 처음부터 모든 상태를 보여줍니다.
+v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verification · disclosure` 가 추가되고, `sources` 는 모델이 아니라 코드가 만듭니다. 기존 칸은 모두 그대로라 지금 화면 코드는 타입 검사를 그대로 통과합니다. 실제 응답의 `ref · refs · evidence · sources` 는 실제 증거 번호를 담고(`defineTool` 이 결과마다 번호를 붙여 모델에게 줌), 검증기가 숫자마다 `check` 를 `verified`(장부 일치) 또는 `derived`(계산 결과 인용)로 정합니다. 통과하지 못한 숫자는 리포트에 나가지 않고 `verification.removed` 에 남습니다. `unverified` · `skipped` 는 검증기 전에 저장된 v1 기록에만 있습니다. Mock 은 처음부터 모든 상태를 보여줍니다.
 
 ### 백엔드 과제
 
@@ -415,7 +440,7 @@ v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verifi
 
 ### 프론트 과제
 
-- 진행 화면: `stage · plan · step · verify` 를 순서대로. 스트리밍 전에는 Mock 으로 만듭니다.
+- 진행 화면: 다섯 단계 `stage`(라벨은 `stageLabels`) · `plan` · `step` · `verify` 를 순서대로. 범위 밖이면 조사 · 정제 · 작성 단계가 오지 않으니 건너뛴 단계도 표시할 수 있어야 합니다. 스트리밍 전에는 Mock 으로 만듭니다.
 - 리포트: 숫자 배지와 원본 보기(`evidence` 에서 `ref` 로 찾기), 원인 아이콘(`basis`), 상단 검증 한 줄(`verification`), 판단 요청 배너(`mode` · `notice`), AI 고지(`disclosure`).
 - 차트: `charts` 가 있으면 Recharts 등으로 그립니다. 라이브러리 추가는 Discord 공유 후 PR 에 포함합니다.
 - 접근성: 영역 · 깊이 선택을 키보드로 고를 수 있게 (`globals.css` 의 숨긴 radio).
@@ -424,7 +449,7 @@ v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verifi
 
 화면도 실제 키로 만듭니다. 리더에게 받은 `.env.local` 을 레포 루트에 두면 OpenAI 와 tool 이 실제로 호출됩니다. 리포트 1회에 1센트 안팎입니다.
 
-**Mock 모드 (비상용).** 키가 막혔거나 OpenAI 가 장애일 때만 `.env.local` 에 `MUFFIN_MOCK=1` 을 넣습니다. OpenAI 와 tool 을 부르지 않고 샘플 리포트 v2 를 돌려주며, 스트림 라우트에서는 `stage → plan → step → verify → report` 이벤트를 지연을 두고 순서대로 보냅니다. 샘플은 검증됨 · 계산됨 · 미검증, 📊📰❔, 판단 요청 모드를 모두 담고 있어 화면의 모든 상태를 만들 수 있습니다. 확인이 끝나면 다시 지워 주세요.
+**Mock 모드 (비상용).** 키가 막혔거나 OpenAI 가 장애일 때만 `.env.local` 에 `MUFFIN_MOCK=1` 을 넣습니다. OpenAI 와 tool 을 부르지 않고 샘플 리포트 v2 를 돌려주며, 스트림 라우트에서는 `plan → research(step) → edit(계산 step) → write → verify → report` 이벤트를 지연을 두고 순서대로 보냅니다. 샘플은 검증됨 · 계산됨 · 미검증, 📊📰❔, 판단 요청 모드를 모두 담고 있어 화면의 모든 상태를 만들 수 있습니다. 확인이 끝나면 다시 지워 주세요.
 
 ### 실행 로그
 
@@ -604,7 +629,8 @@ pnpm test src/tools/fx                                    # fixture 테스트 (C
 
 ```ts
 // src/tools/index.ts
-export const muffinTools = [fxTool, etfTool, newsTool, rateTool, macroTool /* , calcTool */];
+export const muffinTools = [fxTool, etfTool, newsTool, rateTool, macroTool]; // 🔍 조사가 쓰는 데이터 tool. 📋 분류가 이 중에서 고름
+export const calcTools = [calcTool]; // ✂️ 정제만 쓰는 계산 tool
 ```
 
 ### research()
@@ -614,26 +640,32 @@ export const muffinTools = [fxTool, etfTool, newsTool, rateTool, macroTool /* , 
 ```ts
 // src/agent/muffin.ts (요약)
 export type ResearchInput = { question: string; depth: Depth; area?: Area };
-export type ResearchResult = { report: Report; steps: ToolStep[]; rewrites: number; model?: string; usage?: Usage };
+export type ResearchResult = {
+  report: Report; steps: ToolStep[]; rewrites: number;
+  plan: PlanOutput & { mode: ReportMode };   // 📋 분류 결과 (평가 · 로그용)
+  facts: FactsOutput | null;                 // ✂️ 정제 결과. 실패하면 null (리포트에는 안 들어감)
+  model?: string; usage?: Usage;
+};
 
 export async function research(input: ResearchInput, opts?: { onEvent?: (e: MuffinEvent) => void }): Promise<ResearchResult>
 ```
 
-안에서 네 역할이 순서대로 실행됩니다.
+안에서 다섯 단계가 순서대로 실행됩니다. 단계 파일 머리에 담당과 "이 파일에서 고치는 것" 이 적혀 있습니다. 모양(zod)은 `schema.ts` 에 있고 담당자가 바꾸지 않습니다.
 
-| 역할 | 모델 | 입력 → 출력 | 비고 |
+| 단계 · 파일 | 모델 | 입력 → 출력 | 비고 |
 |---|---|---|---|
-| ① 접수 `intake.ts` | 작은 모델 | 질문 → `{ intent, mode, tools, queries }` | 범위 밖이면 tool 없이 짧은 안내로 끝. 판단 요청이면 `mode: "decision_facts"` |
-| ② 조사 (`muffin.ts`) | `OPENAI_MODEL` | 질문 + Tool → 증거 장부 + 조사 메모 `{ notes[{ ref, summary }], gaps[] }` | `defineTool` 이 결과마다 `E` 번호를 붙여 `ResearchContext` 에 기록. 메모는 결과 id 마다 1~3문장. 뉴스 검색은 짧은 핵심어로, 없으면 넓혀서 한 번 더 |
-| ③ 작성 `writer.ts` | `OPENAI_MODEL` (Deep 은 `OPENAI_MODEL_DEEP`) | `writerInput()` = 질문 · 장부(values · note) · 조사 메모 · 확인하지 못한 것 → 작성 출력 | Tool 없음. 권유 표현은 SDK output guardrail. 수정 요청(`revisionNote`)이 와도 Tool 을 다시 부르지 않아 증거 번호가 유지됨 |
-| ④ 검증 `verify.ts` | 코드 (원인의 근거 판정 모델은 3단계) | 작성 출력 + 장부 → 실패 목록 → `verification` | 실패 목록을 들고 ③ 에 1회 수정 요청. 그래도 실패하면 숫자는 빼고 원인은 `none` 으로 낮춰 `removed` · `dataGaps` 에 기록 |
+| 📋 분류 `plan.ts` (서영) | `OPENAI_MODEL_SMALL` | `planInput()` = 질문 · 영역 · 깊이 · tool 목록 → `planSchema` `{ intent, tools, reason }` | 모드는 `modeFor(intent)` 로 코드가 정함. 범위 밖이면 조사 없이 고정 안내 리포트. 모델이 실패하면 `defaultPlan()`(규칙) |
+| 🔍 조사 `research.ts` (소희) | `OPENAI_MODEL` | 질문 + 분류가 고른 Tool → 증거 장부 + 조사 메모 `{ notes[{ ref, summary }], gaps[] }` | `defineTool` 이 결과마다 `E` 번호를 붙여 `ResearchContext` 에 기록. 메모는 결과 id 마다 1~3문장. 뉴스 검색은 짧은 핵심어로, 없으면 넓혀서 한 번 더 |
+| ✂️ 정제 `edit.ts` (은경) | `OPENAI_MODEL_SMALL` + `calc_metrics` | `editInput()` = 질문 · 의도 · 장부 전체 · 메모 → `factsSchema` `{ facts[{ ref, fact }], dropped[{ ref, reason }], unverified[] }` | 차이 · 변동률은 계산 tool 로 `C` 번호를 받아 사실에 넣음. 실패하면 `null` 이고 작성이 장부 전체를 봄 |
+| ✍️ 작성 `write.ts` (은선) + `depth.ts` (하니) | `OPENAI_MODEL` (Deep 은 `OPENAI_MODEL_DEEP`) | `writerInput()` = 질문 · 사실 목록 · 인용된 장부 항목(values · note) · 확인하지 못한 것 → 작성 출력 | Tool 없음. 권유 표현은 SDK output guardrail. 판단 요청이면 `depth.ts` 의 모드 규칙이 붙음. 수정 요청(`revisionNote`)이 와도 Tool 을 다시 부르지 않아 증거 번호가 유지됨 |
+| ✅ 검증 `verify.ts` (리더) | 코드 (원인의 근거 판정 모델은 3단계) | 작성 출력 + 장부 → 실패 목록 → `verification` | 실패 목록을 들고 작성에 1회 수정 요청. 그래도 실패하면 숫자는 빼고 원인은 `none` 으로 낮춰 `removed` · `dataGaps` 에 기록 |
 
 ### 증거 장부와 검증 규칙
 
 - **번호**: Tool 호출 성공 1건 = `E{n}`. 뉴스는 기사마다 `E{n}-{k}`. Calc 결과는 `C{n}` 이고 `lineage` 에 연산과 입력 번호가 남습니다. 장부의 `values` 는 tool 이 `evidence` 로 고른 핵심 값(없으면 200자 이하 원시값), `note` 는 tool 의 주의점입니다.
-- **숫자 정책** (1단계 ✅ `verify.ts`): 리포트의 모든 숫자는 `ref` 가 가리키는 장부 항목의 숫자 값과 대조합니다. 엄격한 것부터 정확 일치 → 표기 자릿수 반올림 (`2.878866` → `2.88%`) → 단위 환산 (비율 `0.02` ↔ `2%`, `0.25%p` ↔ `25bp`) → 상대 오차 0.1%. 표기 단위와 장부 키의 단위가 호환돼야 합니다 (`changeBp` 25 는 `25%` 가 아니고, `%p` 는 `changePp` · `spread` 같은 차이 값과만 맞춤. 그래서 tool 의 `evidence` 값 키에 단위를 담아 주세요: `changePct` · `changePp` · `changeBp`). 본문(summary · why · impact · caveats)의 금융 숫자(단위 · 소수점 · 쉼표가 있는 것)도 장부 어딘가에 있어야 하고, 없으면 그 문장(summary) 또는 항목을 뺍니다. 정책에 없는 차이는 실패입니다. `value` 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목을 뺌), `change` 의 숫자만 틀리면 `change` 를 비웁니다. 비교 기간(`30일`) · 연도 · 횟수는 데이터 숫자로 보지 않습니다. `ref` 가 없거나 장부에 없는 id 면 실패입니다. `C` 번호의 계보 검사는 2단계 Calc 와 함께 붙입니다.
+- **숫자 정책** (1단계 ✅ `verify.ts`): 리포트의 모든 숫자는 `ref` 가 가리키는 장부 항목의 숫자 값과 대조합니다. 엄격한 것부터 정확 일치 → 표기 자릿수 반올림 (`2.878866` → `2.88%`) → 단위 환산 (비율 `0.02` ↔ `2%`, `0.25%p` ↔ `25bp`) → 상대 오차 0.1%. 표기 단위와 장부 키의 단위가 호환돼야 합니다 (`changeBp` 25 는 `25%` 가 아니고, `%p` 는 `changePp` · `spread` 같은 차이 값과만 맞춤. 그래서 tool 의 `evidence` 값 키에 단위를 담아 주세요: `changePct` · `changePp` · `changeBp`). 본문(summary · why · impact · caveats)의 금융 숫자(단위 · 소수점 · 쉼표가 있는 것)도 장부 어딘가에 있어야 하고, 없으면 그 문장(summary) 또는 항목을 뺍니다. 정책에 없는 차이는 실패입니다. `value` 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목을 뺌), `change` 의 숫자만 틀리면 `change` 를 비웁니다. 비교 기간(`30일`) · 연도 · 횟수는 데이터 숫자로 보지 않습니다. `ref` 가 없거나 장부에 없는 id 면 실패입니다. `C` 번호를 인용한 숫자는 같은 정책으로 대조한 뒤 `derived` 로 표시합니다. 계보(`lineage`)를 따라 다시 계산해 보는 검사는 다음에 붙입니다.
 - **근거 표시** (1단계 ✅): `why.refs` 는 장부에 있는 id 만, `basis` 는 refs 와 맞아야 합니다 (`data` 는 숫자 데이터 증거, `news` 는 뉴스 tool 증거, `none` 은 refs 없음 + "데이터로 확인되지 않음"). 어긋나면 수정 요청 뒤 `none` 으로 낮춥니다. 주장이 맞는지는 보지 않습니다 (아래 근거 판정).
-- **수정 루프** (1단계 ✅): 실패 목록(`failures`)을 붙여 작성 Agent 를 1회 다시 실행합니다. Tool 은 다시 부르지 않아 증거 번호와 실행 기록이 그대로이고, `verification.revisions` 에 횟수가 남습니다.
+- **수정 루프** (1단계 ✅): 실패 목록(`failures`)을 붙여 작성 Agent 를 1회 다시 실행합니다. Tool 은 다시 부르지 않아 증거 번호와 실행 기록이 그대로이고, `verification.revisions` 에 횟수가 남습니다. 조사 · 정제로는 되돌아가지 않습니다 (10/25 결정: 순환 구조는 시간과 복잡도를 늘리고, 숫자가 틀린 것은 작성의 문제이기 때문).
 - **권유** (1단계 ✅): `guard.ts` 의 표현 목록을 작성 Agent 의 SDK output guardrail 로 걸어 Traces 에 남기고, 코드 검증도 같은 목록을 씁니다. 수정 뒤에도 남으면 그 항목(why · impact · caveats · nextTopics · dataGaps · numbers 의 label)을 빼고 `removed` 에 적습니다 (문장 원문은 `removed` 에도 남기지 않음). summary 는 권유 문장만 지우고, 전부 권유면 안내 문장으로 바꿉니다. `advice` 는 처리 뒤에도 남은 수(목표 0)입니다.
 - **표시 원칙 (fail-closed)** (1단계 ✅): 검증을 통과하지 못한 숫자는 리포트에 나가지 않고 `verification.removed` 와 `dataGaps` ("검증을 통과하지 못해 뺀 숫자 N개") 에 기록됩니다. 남은 숫자는 `verified`(✓) 또는 `derived`(계산) 입니다. `unverified` 회색은 0단계 · v1 기록에만 남습니다.
 - **방향** (2단계): "환율이 올랐다" 같은 원인 문장의 방향이 인용한 데이터의 부호와 맞는지 코드로 봅니다.
@@ -642,7 +674,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 ### 설명 깊이 정의
 
-같은 데이터를 쓰되 아래가 달라집니다. "형용사만 다른 리포트" 가 되지 않도록 항목 수와 용어 처리를 고정하고, 평가에서 용어 수와 문장 길이를 잽니다.
+같은 데이터를 쓰되 아래가 달라집니다. "형용사만 다른 리포트" 가 되지 않도록 항목 수와 용어 처리를 고정하고, 평가에서 용어 수와 문장 길이를 잽니다. 코드는 `src/agent/depth.ts` 의 `byDepth` (하니 담당) 이고, 바꾸면 이 표도 같이 고칩니다.
 
 | 항목 | Easy | Standard | Deep Dive |
 |---|---|---|---|
@@ -656,7 +688,8 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 | 역할 | 기본 (0단계부터) | 환경 변수 |
 |---|---|---|
-| 접수 · 근거 판정 | `gpt-6-luna` | `OPENAI_MODEL_SMALL` (예정) |
+| 분류 · 정제 | `gpt-6-luna` | `OPENAI_MODEL_SMALL` (없으면 `OPENAI_MODEL`) |
+| 근거 판정 (3단계) | `gpt-6-luna` | `OPENAI_MODEL_SMALL` |
 | 조사 · 작성 (Easy / Standard) | `gpt-6-luna` | `OPENAI_MODEL` |
 | 작성 (Deep Dive) | `gpt-6-sol` | `OPENAI_MODEL_DEEP` |
 
@@ -666,7 +699,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 ## 품질 측정 (eval)
 
-- **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 숫자의 증거 번호 채움, 원인 근거 종류, 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다.
+- **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 의도 일치(`intent`, 분류의 점수), 숫자의 증거 번호 채움, 원인 근거 종류, 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문마다 분류 결과와 정제가 고른 사실 · 뺀 항목도 적어 두므로 담당자는 자기 단계가 무엇을 했는지 볼 수 있습니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다.
 - **1단계 (✅)**: 검증기가 숫자 검증 결과(✓ 장부 일치 / C 계산 / 제거)와 근거 종류를 자동으로 냅니다. 요약 표의 `숫자 ✓/C/제거` · `수정` · `검증` 열입니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
 - **3단계부터**: [Promptfoo](https://www.promptfoo.dev/) 로 옮깁니다. OpenAI 가 Evals 플랫폼을 2026-11-30 에 종료하고 공식 이전 경로로 안내하는 도구입니다. 고정 질문 세트(`scripts/promptfoo/`), tool 선택 검사, 결정적 채점(우리 검증기 호출) + 원인 판정 rubric, 기준선 비교를 한 곳에서 돌리고, GitHub Action 으로 매주 실행합니다. 수치가 떨어지면 실패 사례를 Codex 에 넘겨 지시문 수정 PR 을 올리게 합니다.
 
@@ -723,16 +756,16 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 ## 팀
 
-| 역할 | GitHub | Muffin Web 파트 |
-|---|---|---|
-| 리더 — Agent · 인프라 · 배포 · 리뷰 | @PlutoJoshua | 품질 · 통합 |
-| 💵 FX Tool | @seoyoung23 | 백엔드 |
-| 📈 ETF Tool | @o3ozzvb | 백엔드 |
-| 📰 News Tool | @Kangsohee | 프론트 |
-| 🏦 Rate Tool | @kani-market | 프론트 |
-| 📊 Macro Tool | @exx-sxx | 프론트 |
+| 이름 | GitHub | Tool | 에이전트 단계 | Muffin Web 파트 |
+|---|---|---|---|---|
+| 리더 | @PlutoJoshua | 🧮 Calc | 뼈대 · ✅ 검증 코드 · 단계 연결 · 리뷰 · 머지 | 품질 · 통합 · 실행 로그 DB · `/admin` |
+| 서영 | @seoyoung23 | 💵 FX | 📋 분류 `plan.ts` | 백엔드: 실시간 통로 · 호출 제한 |
+| 은경 | @o3ozzvb | 📈 ETF | ✂️ 정제 `edit.ts` | 백엔드: 저장 · API 보호 |
+| 소희 | @Kangsohee | 📰 News | 🔍 조사 `research.ts` | 프론트: 리포트 화면 · 원본 보기 |
+| 하니 | @kani-market | 🏦 Rate | ✍️ 작성 `depth.ts` (깊이별 금융 규칙 · 출력 QA) | 프론트: 홈 · 판단 요청 배너 · AI 고지 · 저장함 |
+| 은선 | @exx-sxx | 📊 Macro | ✍️ 작성 `write.ts` (구성 · 문장 · 코드) | 프론트: 다섯 단계 진행 화면 · 리포트 구성 |
 
-10/16 모임에서 백엔드 2 / 프론트 3 으로 분담했습니다. 자기 tool 유지보수는 끝까지 본인 담당이고, 리포트 QA 는 전원이 합니다. Calc Tool 과 권유 유도 질문 세트는 2단계에서 담당을 정합니다.
+10/16 모임에서 백엔드 2 / 프론트 3 으로, 10/25 모임에서 에이전트 단계를 한 사람 한 단계씩 나눴습니다 (작성은 두 사람이 파일을 나눠 맡음). 자기 tool 과 단계 파일 유지보수는 끝까지 본인 담당이고, 리포트 QA 는 전원이 합니다. 권유 유도 질문 세트(`decision.json`)는 하니가 시작합니다.
 
 ## 일정
 
@@ -742,8 +775,8 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 | 1 | 10/9 | 문제 정의 & Muffin 설계 | Research Question, 데이터 소스 확정, tool 스펙 |
 | 2 | 10/16 | 금융 데이터 & Tools | 5개 Tool MVP + 첫 PR |
 | 3 | 10/23 | OpenAI Research Agent | Tool 5개 연결 ✅, 리포트 v2 · 스트리밍 규격 고정, 백 · 프론트 착수 |
-| 4 | 10/30 | Personalized Report | 증거 장부 · 검증기, 화면 · API 1차 |
-| 5 | 11/6 | Muffin Web 통합 | 접수 · 원인 지도 · Calc, React UI + 스트리밍 + History |
+| 4 | 10/30 | Personalized Report | 다섯 단계 뼈대 ✅ · 담당 에이전트 첫 구현(성공 1 · 개선 1 사례), 화면 · API 1차 |
+| 5 | 11/6 | Muffin Web 통합 | 단계 지시문 완성 · 원인 지도 · 유의성 게이트, React UI + 스트리밍 + History |
 | 6 | 11/13 오프라인 20:00~21:30 | Integration & Ship | 근거 판정 · 모델 비교 · Promptfoo, 배포 / Demo / 회고 |
 | 고도화 | 11/14~11/30 | 기능 보완, README, 발표 준비 | 차트 · 리플레이 모드 · 사용자 테스트, 최종 배포 |
 | 발표 | 12/16 | 성과공유회 | 발표 + 라이브 데모 |
@@ -765,7 +798,7 @@ gantt
     tool MVP · fixture · 첫 PR         :b1, 2026-10-17, 2026-10-23
     3주 Tool 5개 연결 · v2 규격 고정    :milestone, w3, 2026-10-23, 0d
     1단계 증거 장부 · 검증기            :b2, 2026-10-24, 2026-10-31
-    2단계 접수 · 원인 지도 · Calc       :b3, 2026-11-01, 2026-11-06
+    다섯 단계 뼈대 · 담당 에이전트 구현   :b3, 2026-10-27, 2026-11-06
     3단계 근거 판정 · 모델 비교 · eval  :b4, 2026-11-07, 2026-11-13
 
     section Web

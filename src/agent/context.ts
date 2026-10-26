@@ -10,7 +10,7 @@ export type ToolStep = {
 };
 
 /**
- * research() 한 번에 하나씩 만들어 Agent 실행에 넘깁니다.
+ * research() 한 번에 하나씩 만들어 다섯 단계가 같은 것을 봅니다 (조사가 쌓고, 정제 · 작성 · 검증이 읽습니다).
  * defineTool 래퍼가 여기에 증거 장부 · 출처 · 실행 기록을 쌓고, tool 이 끝날 때마다 onStep 을 부릅니다.
  */
 export class ResearchContext {
@@ -19,19 +19,32 @@ export class ResearchContext {
   /** 증거 장부. tool 결과(출처 단위)마다 한 줄. 리포트의 ref / refs 가 가리키는 대상. */
   readonly evidence: Evidence[] = [];
   private calls = 0;
+  private calcs = 0;
 
   constructor(private readonly opts: { onStep?: (step: ToolStep) => void } = {}) {}
 
-  /** 성공한 tool 호출마다 E1, E2 … 를 발급합니다. 실패한 호출은 번호를 쓰지 않습니다. */
+  /** 성공한 데이터 tool 호출마다 E1, E2 … 를 발급합니다. 실패한 호출은 번호를 쓰지 않습니다. */
   nextCallId(): string {
     this.calls += 1;
     return `E${this.calls}`;
   }
 
+  /** 성공한 계산(calc_metrics)마다 C1, C2 … 를 발급합니다. 장부 항목의 lineage 에 어느 E 번호로 계산했는지 남습니다. */
+  nextCalcId(): string {
+    this.calcs += 1;
+    return `C${this.calcs}`;
+  }
+
+  /** 장부 항목을 찾습니다. 계산 도구가 입력(E 번호)을 읽을 때 씁니다. */
+  findEvidence(id: string): Evidence | undefined {
+    return this.evidence.find((e) => e.id === id);
+  }
+
   addEvidence(entries: Evidence[]) {
     for (const e of entries) {
       this.evidence.push(e);
-      this.addSources(e.source);
+      // 계산 결과처럼 url 이 없는 증거는 사용자가 열어볼 출처가 아니므로 sources 에 넣지 않습니다.
+      if (e.source.url) this.addSources(e.source);
     }
   }
 
