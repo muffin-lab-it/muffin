@@ -4,7 +4,7 @@
   "questions": [
     {
       "id": "news-status-1",
-      "question": "지금 연합뉴스와 한국경제 RSS에 올라온 국내 경제 기사에서 주요 이슈를 3가지 이내로 묶어 설명해줘. 본문을 확인한 기사에 근거하고, 관련 기사나 본문이 부족하면 알려줘.",
+      "question": "요즘 경제 뉴스에서는 어떤 얘기가 많이 나와?",
       "area": "news",
       "intent": "status",
       "depth": "standard",
@@ -15,7 +15,7 @@
     },
     {
       "id": "news-status-2",
-      "question": "지금 Google News 경제 검색 RSS에서 최신 기사 5개까지 제목, 매체, 발행 시각, 제공 링크를 보여줘. 본문 요약은 필요 없어.",
+      "question": "최신 경제 뉴스 5개만 제목이랑 링크로 보여줘.",
       "area": "news",
       "intent": "status",
       "depth": "standard",
@@ -26,7 +26,7 @@
     },
     {
       "id": "news-cause-1",
-      "question": "현재 연합뉴스와 한국경제 RSS에서 찾을 수 있는 물가 기사들은 왜 물가가 변했다고 설명해? 본문에서 확인한 배경과 누구의 설명인지 알려주고, 확인할 기사가 없으면 없다고 말해줘.",
+      "question": "요즘 물가가 변하는 이유를 뉴스에서는 뭐라고 해?",
       "area": "news",
       "intent": "cause",
       "depth": "standard",
@@ -37,7 +37,7 @@
     },
     {
       "id": "news-cause-2",
-      "question": "현재 연합뉴스와 한국경제 RSS에 있는 환율 기사에서는 왜 환율이 움직였다고 설명해? 기사에서 언급한 배경을 출처와 함께 정리하고, 기사만으로 확정하기 어려운 부분도 알려줘.",
+      "question": "환율이 움직이는 이유를 뉴스에서는 뭐라고 해?",
       "area": "news",
       "intent": "cause",
       "depth": "standard",
@@ -48,7 +48,7 @@
     },
     {
       "id": "news-compare-1",
-      "question": "지금 연합뉴스와 한국경제 RSS에 올라온 경제 기사들은 어떤 주제를 다루고 있어? 각 매체에서 확인되는 최신 기사 3개까지 제목을 기준으로 공통점과 차이를 비교해줘.",
+      "question": "연합뉴스랑 한국경제는 요즘 다루는 경제 뉴스가 달라?",
       "area": "news",
       "intent": "compare",
       "depth": "standard",
@@ -59,7 +59,7 @@
     },
     {
       "id": "news-compare-2",
-      "question": "현재 연합뉴스와 한국경제 RSS에서 찾은 금리 기사와 물가 기사는 각각 어떤 쟁점을 설명해? 본문을 확인한 기사끼리 비교하고, 어느 쪽 자료가 부족하면 그 점도 알려줘.",
+      "question": "금리 뉴스랑 물가 뉴스는 어떤 차이가 있어?",
       "area": "news",
       "intent": "compare",
       "depth": "standard",
