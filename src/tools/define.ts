@@ -5,14 +5,14 @@
  *  - 타임아웃: execute 가 timeoutMs(기본 10초) 안에 끝나지 않으면 실패 처리
  *  - 에러: execute 가 throw 하면 Agent 전체를 멈추지 않고, 모델에게 "이 tool 은 실패했다" 고 알립니다
  *  - 증거 번호: 성공한 결과마다 E1, E2 … 를 붙여 증거 장부에 기록하고, 모델에게도 같은 id 를 돌려줍니다.
- *    모델은 리포트의 숫자와 원인에 이 id 를 인용하고, 검증은 이 id 로 원본과 대조합니다
+ *    모델은 리포트의 숫자와 원인에 이 id 를 인용하고, 검증은 이 id 로 원본과 대조합니다. 계산 tool(kind: calc)은 C1, C2 … 와 lineage
  *  - 핵심 값: 장부에는 data 전체가 아니라 핵심 값만 남깁니다. 기본은 data 의 짧은 원시값이고,
  *    tool 이 `evidence` 로 직접 고를 수 있습니다 (아래 ToolSpec 참고)
  *  - 출처 수집: 반환값의 source 를 ResearchContext 에 쌓아 리포트 sources 에 반드시 들어가게 합니다
  *  - 실행 기록: 어떤 tool 이 몇 ms 걸렸는지, 성공했는지 기록하고 진행 화면에 알립니다 (onStep)
  *  - 키 가리기: 에러 메시지에 .env 의 키 값이 섞여 있으면 모델·로그에 닿기 전에 지웁니다
  *
- * 응답 파싱, 데이터 해석은 각 tool 의 execute 가 담당합니다. 값 계산은 Calc tool 이 담당합니다.
+ * 응답 파싱, 데이터 해석은 각 tool 의 execute 가 담당합니다. 값 계산은 계산 tool(src/tools/calc)이 담당합니다.
  */
 import { tool, type FunctionTool, type RunContext } from "@openai/agents";
 import type { z } from "zod";
@@ -39,10 +39,18 @@ export type ToolSpec<P extends z.ZodObject, D = unknown> = {
   description: string;
   /** 입력 스키마. 모든 필드 required (optional 대신 nullable) */
   parameters: P;
-  /** 실제 로직. 실패하면 throw. 빈 값을 돌려주지 않습니다 */
-  execute: (input: z.infer<P>) => Promise<ToolResult<D>>;
+  /**
+   * 실제 로직. 실패하면 throw. 빈 값을 돌려주지 않습니다.
+   * 두 번째 인자로 실행 컨텍스트(장부)가 오지만 데이터 tool 은 쓰지 않습니다. 계산 tool 만 장부의 값을 읽습니다.
+   */
+  execute: (input: z.infer<P>, ctx?: ResearchContext) => Promise<ToolResult<D>>;
   /** 기본 10_000ms */
   timeoutMs?: number;
+  /**
+   * data(기본): 외부 데이터를 가져오는 tool. 성공마다 E 번호.
+   * calc: 장부의 값으로 계산하는 tool. 성공마다 C 번호를 쓰고 반환값의 lineage 를 장부에 남깁니다. src/tools/calc 하나뿐입니다.
+   */
+  kind?: "data" | "calc";
   /**
    * 증거 장부에 올릴 핵심 값 (선택). 리포트의 숫자가 인용하고, 검증이 원본과 대조하는 값입니다.
    *  - 생략하면 data 안의 원시값 중 200자 이하인 것을 올립니다. 중첩 객체는 `latest.close` 처럼 점으로 이어
@@ -137,11 +145,11 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
       const ctx = runContext?.context instanceof ResearchContext ? runContext.context : undefined;
       const started = Date.now();
       try {
-        const result = await spec.execute(input as z.infer<P>);
+        const result = await spec.execute(input as z.infer<P>, ctx);
         if (!ctx) return result;
 
-        // 출처가 여러 개(뉴스 기사)면 E3-1, E3-2 처럼 나눠서 기사 하나하나를 인용할 수 있게 합니다.
-        const id = ctx.nextCallId();
+        // 출처가 여러 개(뉴스 기사)면 E3-1, E3-2 처럼 나눠서 기사 하나하나를 인용할 수 있게 합니다. 계산은 C 번호입니다.
+        const id = spec.kind === "calc" ? ctx.nextCalcId() : ctx.nextCallId();
         const sources = Array.isArray(result.source) ? result.source : [result.source];
         const withIds = sources.map((s, k) => ({ id: sources.length > 1 ? `${id}-${k + 1}` : id, ...s }));
         const values = evidenceValues(spec, result.data, sources.length);
@@ -152,6 +160,7 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
           values: values[k],
           source: { name: s.name, url: s.url, asOf: s.asOf },
           ...(result.note ? { note: result.note } : {}),
+          ...(result.lineage ? { lineage: result.lineage } : {}),
         }));
         ctx.addEvidence(entries);
         ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started });
