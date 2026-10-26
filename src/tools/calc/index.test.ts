@@ -90,7 +90,10 @@ describe("calc_metrics tool", () => {
     const [c1, c2] = [ctx.findEvidence("C1")!, ctx.findEvidence("C2")!];
     expect(c1.values).toEqual({ changePct: 1.999853, from: 1365.1, to: 1392.4 });
     expect(c1.lineage).toEqual({ op: "pct_change", inputs: ["E1"] });
+    // 변동률 식은 과거 → 현재 순서. 거꾸로 적으면 오른 것을 내린 것처럼 읽힌다
+    expect(c1.note).toContain("E1.comparison.rate 1365.1 → E1.rate 1392.4 = 1.999853%");
     expect(c2.values).toEqual({ change: 27.3, from: 1365.1, to: 1392.4, unit: "KRW per USD" });
+    expect(c2.note).toContain("E1.rate 1392.4 − E1.comparison.rate 1365.1 = 27.3KRW per USD");
     // 검증기 단위 추정: 변동률은 pct, 차이는 delta(통화 표기와 맞춤), 입력값은 plain
     expect(numericCandidates(c1).find((c) => c.key === "changePct")?.unit).toBe("pct");
     expect(numericCandidates(c2).find((c) => c.key === "change")?.unit).toBe("delta");
@@ -114,6 +117,28 @@ describe("calc_metrics tool", () => {
     // 다음 성공은 C1 부터
     const ok = (await invoke(ctx, { op: "pp_diff", a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "차이" })) as { id: string };
     expect(ok.id).toBe("C1");
+  });
+
+  it("단위를 둘 다 아는데 다르면 어떤 op 도 실패하고, pp_diff 는 양쪽이 모두 % 여야 한다", async () => {
+    const ctx = ledger();
+    // 단위 메타가 없는 항목 (tool 이 unit 을 안 올린 경우)
+    ctx.addEvidence([{ id: "E4", tool: "get_macro_indicators", label: "지표 · ECOS", values: { value: 2.1 }, source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2026-09-30" } }]);
+    const fail = async (input: unknown) => JSON.stringify(await invoke(ctx, input));
+
+    // 환율(KRW per USD) 과 금리(%) 는 어떤 계산도 안 된다. 예전엔 pp_diff 가 통과해 -1389.4%p 가 장부에 올라갔다
+    expect(await fail({ op: "pp_diff", a: { ref: "E1", key: "rate" }, b: { ref: "E2", key: "rate" }, label: "x" })).toContain("단위가 다른 값은 계산하지 않습니다: E1.rate(KRW per USD) · E2.rate(%)");
+    expect(await fail({ op: "diff", a: { ref: "E2", key: "rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("단위가 다른 값");
+    expect(await fail({ op: "pct_change", a: { ref: "E2", key: "rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("단위가 다른 값");
+    // 한쪽 단위를 몰라도, 아는 쪽이 % 가 아니면 pp_diff 는 안 된다
+    expect(await fail({ op: "pp_diff", a: { ref: "E1", key: "rate" }, b: { ref: "E4", key: "value" }, label: "x" })).toContain("pp_diff 는 % 값 사이에서만 씁니다: E1.rate(KRW per USD) · E4.value(단위 없음)");
+    expect(ctx.evidence.map((e) => e.id)).toEqual(["E1", "E2", "E3", "E4"]);
+    expect(ctx.steps.every((s) => s.status === "error")).toBe(true);
+
+    // 한쪽 단위를 모르면 막지 않는다 (아는 쪽이 % 이면 pp_diff 도 가능). diff 결과 단위는 비워 둔다
+    const pp = (await invoke(ctx, { op: "pp_diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "물가 − 금리" })) as { id: string; data: { value: number; unit: string } };
+    expect(pp).toMatchObject({ id: "C1", data: { value: 0.9, unit: "%p" } });
+    const d = (await invoke(ctx, { op: "diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })) as { id: string; data: { unit: string } };
+    expect(d).toMatchObject({ id: "C2", data: { unit: "" } });
   });
 
   it("장부 없이 단독으로 부르면 throw (Agent 밖에서는 ResearchContext 를 만들어 넘긴다)", async () => {

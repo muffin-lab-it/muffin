@@ -46,7 +46,7 @@ export type CalcData = {
   unit: string;
   a: { ref: string; key: string; value: number };
   b: { ref: string; key: string; value: number };
-  /** 사람이 읽는 식. 예: "E3.rate 3.88 − E2.rate 3 = 0.88%p" */
+  /** 사람이 읽는 식. 예: "E3.rate 3.88 − E2.rate 3 = 0.88%p", "E1.comparison.rate 1365.1 → E1.rate 1392.4 = 1.999853%" */
   formula: string;
 };
 
@@ -62,19 +62,20 @@ function readValue(ctx: ResearchContext, { ref, key }: Operand): { value: number
   return { value, evidence };
 }
 
-/** 두 입력의 unit 메타가 같으면 그 단위 (금리 tool 의 "%" 등). 다르거나 없으면 빈 문자열. */
-function sharedUnit(a: Evidence, b: Evidence): string {
-  const ua = typeof a.values.unit === "string" ? a.values.unit : "";
-  const ub = typeof b.values.unit === "string" ? b.values.unit : "";
-  return ua && ua === ub ? ua : "";
+/** 장부 항목의 unit 메타 (금리 tool 의 "%", 환율의 "KRW per USD", 물가지수의 "2020=100" 등). 없으면 빈 문자열. */
+function unitOf(e: Evidence): string {
+  return typeof e.values.unit === "string" ? e.values.unit : "";
+}
+
+/** 오류 메시지용. 예: "E1.rate(KRW per USD) · E2.rate(%)" */
+function describeUnits(a: Operand, ua: string, b: Operand, ub: string): string {
+  return `${a.ref}.${a.key}(${ua || "단위 없음"}) · ${b.ref}.${b.key}(${ub || "단위 없음"})`;
 }
 
 /** 두 입력 중 더 최근 기준일. 계산 결과의 asOf 가 됩니다. */
 function laterAsOf(a: Evidence, b: Evidence): string {
   return a.source.asOf > b.source.asOf ? a.source.asOf : b.source.asOf;
 }
-
-const SIGN: Record<Op, string> = { pct_change: "→", diff: "−", pp_diff: "−" };
 
 /**
  * 장부에서 두 값을 읽어 계산합니다. defineTool 이 두 번째 인자로 장부(ctx)를 넘겨 줍니다.
@@ -84,7 +85,10 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
   if (!ctx) throw new Error("계산 도구는 장부(ResearchContext) 안에서만 쓸 수 있습니다");
   const a = readValue(ctx, input.a);
   const b = readValue(ctx, input.b);
-  const inputUnit = sharedUnit(a.evidence, b.evidence);
+  const [ua, ub] = [unitOf(a.evidence), unitOf(b.evidence)];
+  const units = describeUnits(input.a, ua, input.b, ub);
+  // 단위를 둘 다 아는데 서로 다르면(환율 − 금리, 지수 − %) 어떤 계산도 뜻이 없습니다. 한쪽을 모를 때는 막지 않습니다.
+  if (ua && ub && ua !== ub) throw new Error(`단위가 다른 값은 계산하지 않습니다: ${units}`);
 
   let value: number;
   let unit: string;
@@ -92,15 +96,20 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     value = pctChange(a.value, b.value);
     unit = "%";
   } else if (input.op === "pp_diff") {
-    if (inputUnit && !inputUnit.includes("%")) throw new Error(`pp_diff 는 % 값 사이에서만 씁니다 (입력 단위: ${inputUnit}). diff 를 쓰세요`);
+    // 양쪽을 각각 봅니다. 한쪽만 % 여도 %p 차이는 뜻이 없습니다.
+    if ([ua, ub].some((u) => u && !u.includes("%"))) throw new Error(`pp_diff 는 % 값 사이에서만 씁니다: ${units}. diff 를 쓰세요`);
     value = ppDiff(a.value, b.value);
     unit = "%p";
   } else {
     value = diff(a.value, b.value);
-    unit = inputUnit;
+    unit = ua === ub ? ua : "";
   }
 
-  const formula = `${input.b.ref}.${input.b.key} ${b.value} ${SIGN[input.op]} ${input.a.ref}.${input.a.key} ${a.value} = ${value}${unit}`;
+  // 변동률은 a → b (과거 → 현재) 순서로, 차이는 b − a 로 적습니다. 이 식이 note 를 거쳐 작성 · 원본 보기에 그대로 보입니다.
+  const formula =
+    input.op === "pct_change"
+      ? `${input.a.ref}.${input.a.key} ${a.value} → ${input.b.ref}.${input.b.key} ${b.value} = ${value}%`
+      : `${input.b.ref}.${input.b.key} ${b.value} − ${input.a.ref}.${input.a.key} ${a.value} = ${value}${unit}`;
   const inputs = [...new Set([input.a.ref, input.b.ref])];
   return {
     data: { op: input.op, label: input.label, value, unit, a: { ...input.a, value: a.value }, b: { ...input.b, value: b.value }, formula },
