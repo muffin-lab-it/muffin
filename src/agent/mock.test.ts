@@ -20,13 +20,19 @@ describe("mockResearch", () => {
     const events: MuffinEvent[] = [];
     const r = await mockResearch({ question: "환율 왜 올랐어?", depth: "easy" }, { onEvent: (e) => events.push(e) });
 
+    const dataSteps = r.steps.filter((s) => s.tool !== "calc_metrics");
+    const calcSteps = r.steps.filter((s) => s.tool === "calc_metrics");
+    expect(calcSteps.length).toBeGreaterThan(0);
     expect(trace(events)).toEqual([
       "plan:start",
       "plan",
       "plan:done",
       "research:start",
-      ...r.steps.map(() => "step"),
+      ...dataSteps.map(() => "step"),
       "research:done",
+      "edit:start",
+      ...calcSteps.map(() => "step"),
+      "edit:done",
       "write:start",
       "write:done",
       "verify:start",
@@ -38,13 +44,15 @@ describe("mockResearch", () => {
     expect(r.report.mode).toBe("research");
     expect(r.report.notice).toBeUndefined();
     expect(r.model).toBe("mock");
-    // step 이벤트는 돌려준 steps 와 같은 순서
+    // step 이벤트는 돌려준 steps 와 같은 순서 (데이터 tool 은 research, 계산은 edit 단계)
     const stepEvents = events.filter((e) => e.type === "step").map((e) => e.step);
     expect(stepEvents).toEqual(r.steps);
-    // plan 은 부를 tool 목록을 담는다
+    // plan 은 부를 데이터 tool 목록을 담는다 (계산 tool 은 정제의 것이라 들어가지 않음)
     const plan = events.find((e) => e.type === "plan");
     expect(plan).toMatchObject({ intent: "cause", mode: "research" });
     expect(plan && "tools" in plan ? plan.tools : []).toContain("get_fx_krw_rate");
+    expect(plan && "tools" in plan ? plan.tools : []).not.toContain("calc_metrics");
+    expect(r.plan).toMatchObject({ intent: "cause", mode: "research" });
   });
 
   it("'사도 돼?' 류 질문이면 판단 요청 모드와 안내를 붙인다", async () => {

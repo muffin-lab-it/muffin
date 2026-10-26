@@ -15,6 +15,7 @@ vi.mock("@/src/lib/log", async (importOriginal) => ({
 }));
 const fixture: ResearchResult = {
   report: reportSchema.parse(sample.report), steps: [], rewrites: 0,
+  plan: { intent: "cause", mode: "research", tools: ["get_fx_krw_rate"], reason: "fixture" }, facts: null,
   model: "fixture-model", usage: { requests: 1, inputTokens: 10, outputTokens: 20 },
 };
 const request = (body: unknown) => new Request("http://localhost/api/report", {

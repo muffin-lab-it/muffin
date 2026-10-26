@@ -13,7 +13,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findAdvice } from "../src/agent/guard";
-import { research } from "../src/agent/muffin";
+import { research, type ResearchResult } from "../src/agent/muffin";
 import { depths, type Area, type Depth, type Report, type intents } from "../src/agent/schema";
 import { QUESTIONS_DIR, loadAllQuestionSets, loadQuestionSet } from "./questions/schema";
 
@@ -62,6 +62,12 @@ function toolMatch(q: Q, steps: { tool: string }[]): string {
   return missing.length === 0 ? "✅" : `❌ ${missing.join(",")} 없음`;
 }
 
+/** 📋 분류가 질문 세트에 적힌 의도와 같은지. 분류 담당(서영)의 점수입니다. 세트에 intent 가 없으면 -. */
+function intentMatch(q: Q, plan: ResearchResult["plan"]): string {
+  if (!q.intent) return "-";
+  return plan.intent === q.intent ? "✅" : `❌ ${plan.intent}`;
+}
+
 /** 사람이 볼 때 같이 보는 자동 점검. 점수가 아니라 "눈여겨볼 것" 표시입니다. */
 function checks(report: Report, steps: { status: string }[]) {
   const ids = new Set(report.evidence.map((e) => e.id));
@@ -82,6 +88,21 @@ function checks(report: Report, steps: { status: string }[]) {
     sources: report.sources.length,
     advice: findAdvice(report).length,
   };
+}
+
+/** 📋 분류와 ✂️ 정제가 무엇을 했는지. 리포트에는 없지만 담당자가 자기 단계를 고칠 때 봐야 하는 것입니다. */
+function renderStages({ plan, facts }: Pick<ResearchResult, "plan" | "facts">): string {
+  const factLines = facts
+    ? [
+        ...facts.facts.map((f) => `- ${f.ref}: ${f.fact}`),
+        ...facts.dropped.map((d) => `- (뺌) ${d.ref}: ${d.reason}`),
+        ...facts.unverified.map((u) => `- (확인 못 함) ${u}`),
+      ].join("\n") || "- (사실 없음)"
+    : "- (정제 실패 · 작성이 장부 전체를 봄)";
+  return [
+    `**분류**\n- 의도 ${plan.intent} · 모드 ${plan.mode} · tool ${plan.tools.join(", ") || "(없음)"}\n- ${plan.reason}`,
+    `**정제**\n${factLines}`,
+  ].join("\n\n");
 }
 
 function render(report: Report): string {
@@ -105,8 +126,8 @@ async function main() {
   const runs = questions.reduce((n, q) => n + depthsFor(q).length, 0);
   const out: string[] = [`# 리포트 평가 ${stamp}\n`, `질문 ${questions.length}개, 실행 ${runs}회${opt("set") ? ` (세트: ${opt("set")})` : ""}\n`];
   const summary: string[] = [
-    "| 질문 | 깊이 | tool ok/실패 | tool 선택 | 숫자 ✓/C/제거 | why 📊/📰/❔ | 지어낸 ref | 빈칸 | 출처 | 권유 | 수정 | 검증 | 시간 |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    "| 질문 | 깊이 | 의도 | tool ok/실패 | tool 선택 | 숫자 ✓/C/제거 | why 📊/📰/❔ | 지어낸 ref | 빈칸 | 출처 | 권유 | 수정 | 검증 | 시간 |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
   ];
 
   for (const q of questions) {
@@ -115,21 +136,25 @@ async function main() {
       process.stdout.write(`▶ ${label} … `);
       const started = Date.now();
       try {
-        const { report, steps, rewrites } = await research({ question: q.question, depth, area: q.area ?? undefined });
+        const result = await research({ question: q.question, depth, area: q.area ?? undefined });
+        const { report, steps, rewrites } = result;
         const c = checks(report, steps);
         const match = toolMatch(q, steps);
+        const intent = intentMatch(q, result.plan);
         const sec = ((Date.now() - started) / 1000).toFixed(1);
-        console.log(`${sec}s, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}`);
+        console.log(
+          `${sec}s, 의도 ${result.plan.intent} ${intent}, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}`,
+        );
         summary.push(
-          `| ${q.question} | ${depth} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.verified}/${c.derived}/${c.removedNumbers} | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${c.status} | ${sec}s |`,
+          `| ${q.question} | ${depth} | ${intent} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.verified}/${c.derived}/${c.removedNumbers} | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${c.status} | ${sec}s |`,
         );
         out.push(
-          `\n---\n\n## ${label}\n\n사용한 tool: ${steps.map((s) => `${s.status === "ok" ? "✅" : "❌"} ${s.tool} ${s.ms}ms${s.error ? ` (${s.error})` : ""}`).join(", ") || "(없음)"}\n\n${render(report)}\n`,
+          `\n---\n\n## ${label}\n\n사용한 tool: ${steps.map((s) => `${s.status === "ok" ? "✅" : "❌"} ${s.tool} ${s.ms}ms${s.error ? ` (${s.error})` : ""}`).join(", ") || "(없음)"}\n\n${renderStages(result)}\n\n${render(report)}\n`,
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.log(`실패: ${msg}`);
-        summary.push(`| ${q.question} | ${depth} | 실패 | | | | | | | | | | |`);
+        summary.push(`| ${q.question} | ${depth} | 실패 | | | | | | | | | | | |`);
         out.push(`\n---\n\n## ${label}\n\n실패: ${msg}\n`);
       }
     }
