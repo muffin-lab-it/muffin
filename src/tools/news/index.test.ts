@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { RunContext } from "@openai/agents";
+import { ResearchContext } from "../../agent/context";
+import type { Source, ToolResult } from "../types";
 import fixture from "./fixture.json";
-import { execute, parameters } from "./index";
+import { execute, newsTool, parameters, type Input, type NewsData } from "./index";
 import { extractHankyung, extractYonhap } from "./body";
 import { fetchArticleBody } from "./body";
 import { parseRss } from "./rss";
@@ -33,6 +36,11 @@ function mockFeeds(overrides: Partial<Record<FeedKey, string | Response | Error>
 }
 
 const input = { sources: ["yonhap", "hankyung", "google"] as FeedKey[], query: null, limit: 10, content: "list" as const };
+
+async function invokeNews(input: Input, context = new ResearchContext()) {
+  const result = await newsTool.invoke(new RunContext(context), JSON.stringify(input));
+  return { context, result: result as ToolResult<NewsData> & { id: string; source: (Source & { id: string })[] } };
+}
 
 function syntheticFeed(count: number, source: "yonhap" | "hankyung" = "yonhap"): string {
   const items = Array.from({ length: count }, (_, i) => `<item><title>합성 경제 기사 ${i}</title><link>${source === "yonhap" ? "https://www.yna.co.kr/view/AKRTEST" : "https://www.hankyung.com/article/TEST"}${String(i).padStart(3, "0")}</link><pubDate>${new Date(Date.UTC(2026, 9, 17, 12, 0, 0) - i * 60_000).toUTCString()}</pubDate></item>`);
@@ -67,6 +75,69 @@ function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "m
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("News Tool", () => {
+  it.each([
+    { content: "list" as const, limit: 1, count: 1 },
+    { content: "list" as const, limit: 5, count: 5 },
+    { content: "body" as const, limit: 1, count: 1 },
+    { content: "body" as const, limit: 5, count: 4 },
+  ])("$content 모드의 기사 $count건을 출처와 같은 순서로 장부에 기록한다 (limit=$limit)", async ({ content, limit, count }) => {
+    mockFeeds();
+    const { context, result } = await invokeNews({ ...input, content, limit });
+    expect(result.data.articles).toHaveLength(count);
+    expect(result.source).toHaveLength(count);
+    expect(context.evidence).toHaveLength(count);
+    expect(context.sources).toHaveLength(count);
+    expect(result.data.resultStatus).toBe(count === limit ? "complete" : "partial");
+    result.data.articles.forEach((article, i) => {
+      const id = count === 1 ? "E1" : `E1-${i + 1}`;
+      const source = { name: article.publisher, url: article.url, asOf: article.publishedAt };
+      expect(result.source[i]).toEqual({ id, ...source });
+      expect(context.sources[i]).toEqual(source);
+      expect(context.evidence[i]).toMatchObject({ id, tool: newsTool.name, source });
+      // 정확히 이 네 필드만 허용: 기본 자동 선택으로 돌아가거나 본문이 추가되면 실패합니다.
+      expect(context.evidence[i].values).toEqual({
+        title: article.title,
+        publisher: article.publisher,
+        publishedAt: article.publishedAt,
+        body: content === "list" ? "not_requested" : "available",
+      });
+      expect(context.evidence[i].note).toContain("기사 속 수치는 별도 검증이 필요합니다.");
+    });
+    if (content === "body" && count < limit) {
+      expect(result.data.failureCounts).toEqual({ original_url_unresolved: 1 });
+      expect(context.evidence.every((entry) => !entry.source.url.startsWith("https://news.google.com/"))).toBe(true);
+    }
+  });
+
+  it("짧은 본문과 그 안의 수치도 evidence에 넣지 않고 원래 data에만 남긴다", async () => {
+    const text = "합성 보도에서는 물가가 2.7% 변했다고 설명합니다. 이 수치는 별도 통계 검증을 거치지 않은 테스트 문장입니다.";
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => new Response(
+      String(url).includes("/rss/") ? fixture.yonhap : `<div class="story-news article"><p>${text}</p></div>`,
+    )));
+    const { context, result } = await invokeNews({ ...input, sources: ["yonhap"], limit: 1, content: "body" });
+    expect(result.data.articles[0].body).toEqual({ status: "available", text });
+    expect(context.evidence[0].values).toEqual({
+      title: "수출 & 물가 동향 발표", publisher: "연합뉴스", publishedAt: "2026-10-17T00:00:00.000Z", body: "available",
+    });
+    expect(JSON.stringify(context.evidence)).not.toContain(text);
+    expect(JSON.stringify(context.evidence)).not.toContain("2.7");
+  });
+
+  it("Google 목록의 메타데이터를 기록하고 본문 실패 호출에는 evidence를 추가하지 않는다", async () => {
+    const calls = mockFeeds();
+    const googleInput = { ...input, sources: ["google"] as FeedKey[], limit: 1 };
+    const { context, result } = await invokeNews(googleInput);
+    expect(result.source[0].url).toMatch(/^https:\/\/news\.google\.com\/rss\/articles\//);
+    expect(context.evidence[0].values).toMatchObject({ publisher: "한국경제", body: "not_requested" });
+    const before = structuredClone(context.evidence);
+    const failed = await newsTool.invoke(new RunContext(context), JSON.stringify({ ...googleInput, content: "body" }));
+    expect(failed).toMatchObject({ error: expect.stringContaining("original_url_unresolved") });
+    expect(context.evidence).toEqual(before);
+    expect(context.steps.map(({ status }) => status)).toEqual(["ok", "error"]);
+    expect(calls).toHaveLength(2);
+    expect(calls.every((url) => url.pathname === "/rss/search")).toBe(true);
+  });
+
   it("실제 세 피드에서 확인한 XML 필드 구조를 합성 fixture로 파싱한다", () => {
     const yonhap = parseRss(fixture.yonhapObservedShape);
     const hankyung = parseRss(fixture.hankyungObservedShape);

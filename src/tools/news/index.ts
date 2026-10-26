@@ -168,5 +168,11 @@ export const newsTool = defineTool({
     "국내 경제 이슈의 최근 보도나 검색어를 찾을 때 사용한다. 사실 검증, 해외 뉴스와 투자 권유는 제공하지 않는다.",
   parameters,
   execute,
+  evidence: (data) => data.articles.map((article) => ({
+    title: article.title,
+    publisher: article.publisher,
+    publishedAt: article.publishedAt,
+    body: article.body.status,
+  })),
   timeoutMs: 10_000,
 });
