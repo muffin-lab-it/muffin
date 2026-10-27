@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence, FactsOutput, ResearchNotes, WriterOutput } from "./schema";
 import { adviceGuardrail, revisionNote, writerInput, writerInstructions } from "./write";
+import { depthInstructions } from "./depth";
 
 const evidence: Evidence[] = [
   {
@@ -34,6 +35,24 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
+  it("영역별 힌트가 여행 목적과 미보유 사용자의 맥락을 존중한다", () => {
+    const fx = writerInstructions("easy", "fx");
+    const etf = writerInstructions("standard", "etf", "decision_facts");
+    expect(fx).toContain("수입품·해외자산은 질문과 관련 있을 때만");
+    expect(etf).toContain("아직 사지 않았다고 하면 보유자 관점으로 쓰지 않습니다");
+    expect(etf).toContain(depthInstructions("standard", "decision_facts"));
+  });
+
+  it.each(["easy", "standard", "deep"] as const)("%s 에서 읽기 규칙과 기존 금융 깊이 · 판단 요청 규칙을 함께 전달한다", (depth) => {
+    const text = writerInstructions(depth, "macro", "decision_facts");
+    expect(text).toContain("[읽는 사람을 위한 구성]");
+    expect(text).toContain("핵심 개념의 뜻과 질문에 연결되는 의미를 본문에서 설명");
+    expect(text).toContain("자료 없음은 값이 0이거나 변화가 없다는 뜻이 아닙니다");
+    expect(text).toContain("다음 조회의 성공을 약속하지 않습니다");
+    expect(text).toContain(depthInstructions(depth, "decision_facts"));
+    expect(text).toContain("관심 영역: 물가·경제지표");
+  });
+
   it("깊이별 규칙과 공통 규칙(증거 번호 인용 · 근거 종류 · 권유 금지)이 들어간다", () => {
     const easy = writerInstructions("easy");
     const deep = writerInstructions("deep", "etf");
@@ -107,6 +126,17 @@ describe("writerInput", () => {
     expect(text).toContain("tool 이 모두 실패");
     expect(text).toContain("[조사 메모]\n- (없음)");
   });
+
+  it("자료가 없을 때도 질문과 실패 이유를 보존하고 성공이나 접수를 만들어 전달하지 않는다", () => {
+    const text = writerInput("ETF 규모가 궁금해", [], { notes: [], gaps: ["ETF 조회 실패"] }, {
+      facts: [], dropped: [], unverified: ["순자산총액 확인 불가"],
+    });
+    expect(text).toContain("[질문]\nETF 규모가 궁금해");
+    expect(text).toContain("- ETF 조회 실패");
+    expect(text).toContain("- 순자산총액 확인 불가");
+    expect(text).not.toContain("접수했습니다");
+    expect(text).not.toContain("준비 중입니다");
+  });
 });
 
 describe("revisionNote", () => {
@@ -115,6 +145,7 @@ describe("revisionNote", () => {
     expect(text).toMatch(/^\[수정 요청\]/);
     expect(text).toContain("- numbers \"USD/KRW\"");
     expect(text).toContain("- 투자 권유 표현");
+    expect(text).toContain("관련 요약과 설명도 일치시키고");
   });
 });
 
