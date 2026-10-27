@@ -90,12 +90,15 @@ describe("extractNumbers", () => {
     expect(isDataNumber({ value: 1392.4, unit: "원", text: "1,392.40" })).toBe(true);
   });
 
-  it("환율 기준 단위(1달러당 · 100엔당 · 같은 1달러)와 연월(2026-08)은 숫자로 보지 않는다", () => {
+  it("환율 기준 단위(1달러당 · 100엔당 · 1달러에 · 같은 1달러를 사는)와 연월(2026-08)은 숫자로 보지 않는다", () => {
     expect(extractNumbers("2026-10-27 기준 1달러당 1,324.72원")).toEqual([{ value: 1324.72, unit: "원", text: "1,324.72" }]);
     expect(extractNumbers("100엔당 912.30원")).toEqual([{ value: 912.3, unit: "원", text: "912.30" }]);
+    expect(extractNumbers("1달러에 1,324.72원")).toEqual([{ value: 1324.72, unit: "원", text: "1,324.72" }]);
     expect(extractNumbers("같은 1달러를 사는 데 필요한 원화")).toEqual([]);
-    // 기준 단위가 아닌 외화 금액은 그대로 숫자다
+    // 기준 단위 문맥이 없는 외화 금액은 1달러 · 100엔이라도 숫자다 ("유가가 1달러 하락" 이 검사를 건너뛰면 안 됨)
     expect(extractNumbers("5달러")).toEqual([{ value: 5, unit: "달러", text: "5" }]);
+    expect(extractNumbers("유가가 1달러 하락했습니다").map((p) => p.value)).toEqual([1]);
+    expect(extractNumbers("100엔 올랐습니다").map((p) => p.value)).toEqual([100]);
     expect(extractNumbers("2026-08 대비 상승")).toEqual([]);
   });
 
@@ -110,6 +113,8 @@ describe("extractNumbers", () => {
       { value: 2.55, unit: "%", text: "2.55", falling: true },
     ]);
     expect(extractNumbers("34.69원 올랐습니다")).toEqual([{ value: 34.69, unit: "원", text: "34.69" }]);
+    // 로 · 으로가 붙으면 하락폭이 아니라 도착한 수준이다
+    expect(extractNumbers("기간 수익률은 21.47%로 하락했습니다")).toEqual([{ value: 21.47, unit: "%", text: "21.47" }]);
   });
 });
 
@@ -193,6 +198,10 @@ describe("matchValue 정책", () => {
     expect(matchValue(pct, numericCandidates(down))).toEqual({ key: "changePct", policy: "exact" });
     expect(matchValue(extractNumbers("34.69원 올랐습니다")[0], numericCandidates(down))).toBeNull();
     expect(matchValue(extractNumbers("1,324.72원으로 낮아졌습니다")[0], numericCandidates(down))).toEqual({ key: "rate", policy: "exact" });
+    // 수익률이 -21.47% 인데 "21.47%로 하락" 이라고 쓰면 틀린 수준이라 맞지 않는다
+    const etf: Evidence = { ...fx, values: { "period.returnPct": -21.47 } };
+    expect(matchValue(extractNumbers("기간 수익률은 21.47%로 하락했습니다")[0], numericCandidates(etf))).toBeNull();
+    expect(matchValue(extractNumbers("기간 수익률은 -21.47%로 하락했습니다")[0], numericCandidates(etf))).toEqual({ key: "period.returnPct", policy: "exact" });
   });
 
   it("두 퍼센트의 차이를 Pct 이름으로 저장한 키(trackingDiffPct)는 % 와 %p 표기를 둘 다 받는다", () => {

@@ -45,16 +45,21 @@ export type ParsedNumber = {
 };
 
 const TOKEN = /([-+−]?)(\d[\d,]*(?:\.\d+)?)\s*([조억만천백]+|%p|%|bp|원|달러|엔|유로|위안|파운드|포인트|개월|분기|일|년|주|월|회|건|개|번)?/g;
-/** 숫자 바로 뒤(15자 안, 다음 숫자 전)에 오면 부호 대신 하락을 뜻하는 낱말. */
-const FALLING = /낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소/;
+/**
+ * 숫자 바로 뒤에 붙어 부호 대신 하락폭을 뜻하는 말. "34.69원 낮아" · "2.55% 하락" · "1,080원가량 떨어져" · "(2.55%) 낮아".
+ * "21.47%로 하락" 처럼 로 · 으로 · 까지가 붙은 숫자는 하락폭이 아니라 도착한 수준이라 해당하지 않습니다.
+ */
+const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소)/;
 
 /**
- * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "같은 1달러를 사는 데" 의 1달러 · 100엔은 데이터 숫자가 아닙니다.
- * 기준 단위는 1(엔은 100) 이거나 바로 뒤에 "당" 이 붙습니다.
+ * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "1달러에 1,324원" · "같은 1달러를 사는 데" 의 외화 금액은 데이터 숫자가 아닙니다.
+ * 뒤에 "당" 이 붙거나, 기준 금액(1달러 · 100엔) 뒤에 "에 <숫자>" · "를 사다 · 바꾸다 · 환전" 이 올 때만 기준 단위로 봅니다. "유가가 1달러 하락" 은 숫자입니다.
  */
 function isQuoteBasis(value: number, unit: string, rest: string): boolean {
   if (unit === "원" || !CURRENCY_UNITS.has(unit)) return false;
-  return /^\s*당/.test(rest) || value === 1 || (unit === "엔" && value === 100);
+  if (/^\s*당/.test(rest)) return true;
+  const unitAmount = value === 1 || (unit === "엔" && value === 100);
+  return unitAmount && /^\s*(?:에\s*\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest);
 }
 
 /**
@@ -105,9 +110,8 @@ export function extractNumbers(text: string): ParsedNumber[] {
     }
     const rest = cleaned.slice((m.index ?? 0) + m[0].length);
     if (isQuoteBasis(value, unit, rest)) continue;
-    // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뛰고, 다음 숫자나 구절 끝에서 멈춥니다.
-    const after = rest.replace(/^\s*\([^)]*\)/, "").split(/[\d.!?,;\n]/)[0].slice(0, 15);
-    const falling = m[1] === "" && !PERIOD_UNITS.has(unit) && FALLING.test(after);
+    // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뜁니다.
+    const falling = m[1] === "" && !PERIOD_UNITS.has(unit) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
     out.push(falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] });
   }
   if (group) out.push(group);
