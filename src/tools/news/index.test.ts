@@ -42,8 +42,10 @@ async function invokeNews(input: Input, context = new ResearchContext()) {
   return { context, result: result as ToolResult<NewsData> & { id: string; source: (Source & { id: string })[] } };
 }
 
-function syntheticFeed(count: number, source: "yonhap" | "hankyung" = "yonhap"): string {
-  const items = Array.from({ length: count }, (_, i) => `<item><title>합성 경제 기사 ${i}</title><link>${source === "yonhap" ? "https://www.yna.co.kr/view/AKRTEST" : "https://www.hankyung.com/article/TEST"}${String(i).padStart(3, "0")}</link><pubDate>${new Date(Date.UTC(2026, 9, 17, 12, 0, 0) - i * 60_000).toUTCString()}</pubDate></item>`);
+function syntheticFeed(count: number, source: FeedKey = "yonhap"): string {
+  const prefix = source === "yonhap" ? "https://www.yna.co.kr/view/AKRTEST"
+    : source === "hankyung" ? "https://www.hankyung.com/article/TEST" : "https://news.google.com/rss/articles/TEST";
+  const items = Array.from({ length: count }, (_, i) => `<item><title>합성 경제 기사 ${i}</title><link>${prefix}${String(i).padStart(3, "0")}</link><pubDate>${new Date(Date.UTC(2026, 9, 17, 12, 0, 0) - i * 60_000).toUTCString()}</pubDate>${source === "google" ? "<source>합성신문</source>" : ""}</item>`);
   return `<rss><channel>${items.join("")}</channel></rss>`;
 }
 
@@ -123,19 +125,25 @@ describe("News Tool", () => {
     expect(JSON.stringify(context.evidence)).not.toContain("2.7");
   });
 
-  it("Google 목록의 메타데이터를 기록하고 본문 실패 호출에는 evidence를 추가하지 않는다", async () => {
+  it("Google 목록과 제목 fallback의 증거 번호를 구분하고 실제 RSS 실패에는 evidence를 추가하지 않는다", async () => {
     const calls = mockFeeds();
     const googleInput = { ...input, sources: ["google"] as FeedKey[], limit: 1 };
     const { context, result } = await invokeNews(googleInput);
     expect(result.source[0].url).toMatch(/^https:\/\/news\.google\.com\/rss\/articles\//);
     expect(context.evidence[0].values).toMatchObject({ publisher: "한국경제", body: "not_requested" });
-    const before = structuredClone(context.evidence);
-    const failed = await newsTool.invoke(new RunContext(context), JSON.stringify({ ...googleInput, content: "body" }));
-    expect(failed).toMatchObject({ error: expect.stringContaining("original_url_unresolved") });
-    expect(context.evidence).toEqual(before);
-    expect(context.steps.map(({ status }) => status)).toEqual(["ok", "error"]);
+    const fallback = await invokeNews({ ...googleInput, content: "body" }, context);
+    expect(fallback.result.data).toMatchObject({ count: 1, collectedCount: 0, missingCount: 1, bodyStatus: "partial" });
+    expect(context.evidence.map(({ id }) => id)).toEqual(["E1", "E2"]);
+    expect(context.evidence[1].values).toMatchObject({ publisher: "한국경제", body: "unavailable" });
+    expect(context.steps.map(({ status }) => status)).toEqual(["ok", "ok"]);
     expect(calls).toHaveLength(2);
     expect(calls.every((url) => url.pathname === "/rss/search")).toBe(true);
+    const before = structuredClone(context.evidence);
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("RSS 연결 실패"));
+    const failed = await newsTool.invoke(new RunContext(context), JSON.stringify(googleInput));
+    expect(failed).toMatchObject({ error: expect.stringContaining("RSS 연결 실패") });
+    expect(context.evidence).toEqual(before);
+    expect(context.steps.map(({ status }) => status)).toEqual(["ok", "ok", "error"]);
   });
 
   it("실제 세 피드에서 확인한 XML 필드 구조를 합성 fixture로 파싱한다", () => {
@@ -400,11 +408,115 @@ describe("News Tool", () => {
     await expect(execute({ ...input, sources: ["yonhap"], limit: 1, content: "body" })).rejects.toThrow("timeout");
   });
 
-  it("Google 목록은 조회하지만 본문 필수 호출은 명시적으로 실패한다", async () => {
+  it("Google 목록은 유지하고 body 요청은 본문 미확보를 명시한 제목 fallback을 반환한다", async () => {
     mockFeeds();
     const result = await execute({ ...input, sources: ["google"] });
     expect(result.data.bodyStatus).toBe("not_requested");
-    await expect(execute({ ...input, sources: ["google"], content: "body" })).rejects.toThrow("original_url_unresolved");
+    const fallback = await execute({ ...input, sources: ["google"], content: "body" });
+    expect(fallback.data).toMatchObject({ count: 2, collectedCount: 0, missingCount: 10, inspectedCount: 2, failedCount: 2, resultStatus: "partial", bodyStatus: "partial" });
+    expect(fallback.data.failureCounts).toEqual({ original_url_unresolved: 2 });
+    expect(fallback.data.articles.map(({ title, url, publisher, publishedAt }) => ({ title, url, publisher, publishedAt })))
+      .toEqual(result.data.articles.map(({ title, url, publisher, publishedAt }) => ({ title, url, publisher, publishedAt })));
+    expect(fallback.data.articles.every(({ body }) => body.status === "unavailable" && body.reason === "original_url_unresolved" && !("text" in body))).toBe(true);
+    expect(fallback.note).toContain("본문은 0건");
+    expect(fallback.note).toContain("제목에 없는 원인·인과관계를 추정하지 마세요");
+    expect(fallback.note).toContain("Google News 중계 링크");
+  });
+
+  it.each([1, 2, 10])("제목 fallback %i건과 본문 0건을 구분하고 Source·Evidence 순서를 유지한다", async (limit) => {
+    const calls = mockFeeds({ google: syntheticFeed(12, "google") });
+    const { context, result } = await invokeNews({ ...input, sources: ["google"], content: "body", limit });
+    expect(result.data).toMatchObject({ count: limit, requestedCount: limit, collectedCount: 0, missingCount: limit, inspectedCount: 12, failedCount: 12, resultStatus: "complete", bodyStatus: "partial", stopReason: "feed_exhausted" });
+    expect(result.data.failureCounts).toEqual({ original_url_unresolved: 12 });
+    expect(result.data.failedArticles).toHaveLength(10);
+    expect(result.source).toHaveLength(limit);
+    expect(context.evidence).toHaveLength(limit);
+    expect(context.sources).toHaveLength(limit);
+    expect(new Set(context.evidence.map(({ id }) => id)).size).toBe(limit);
+    result.data.articles.forEach((article, i) => {
+      const source = { name: article.publisher, url: article.url, asOf: article.publishedAt };
+      const id = limit === 1 ? "E1" : `E1-${i + 1}`;
+      expect(article.body).toMatchObject({ status: "unavailable", reason: "original_url_unresolved" });
+      expect(article.body).not.toHaveProperty("text");
+      expect(result.source[i]).toEqual({ id, ...source });
+      expect(context.sources[i]).toEqual(source);
+      expect(context.evidence[i]).toMatchObject({ id, source, values: {
+        title: article.title, publisher: article.publisher, publishedAt: article.publishedAt, body: "unavailable",
+      } });
+      expect(context.evidence[i].note).toContain("본문은 0건");
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].hostname).toBe("news.google.com");
+  });
+
+  it("제목 fallback도 URL·매체별 제목 중복을 제거하고 최신순 limit을 적용한다", async () => {
+    const items = syntheticFeed(5, "google").match(/<item>.*?<\/item>/g)!;
+    const duplicateUrl = items[0].replace("TEST000", "TEST000?utm_source=test");
+    const duplicateTitle = items[0].replace("TEST000", "OTHER000");
+    mockFeeds({ google: `<rss><channel>${[...items, duplicateUrl, duplicateTitle].reverse().join("")}</channel></rss>` });
+    const { data } = await execute({ ...input, sources: ["google"], content: "body", limit: 3 });
+    expect(data.articles.map(({ title }) => title)).toEqual(["합성 경제 기사 0", "합성 경제 기사 1", "합성 경제 기사 2"]);
+    expect(data).toMatchObject({ count: 3, collectedCount: 0, missingCount: 3, inspectedCount: 5, failedCount: 5 });
+  });
+
+  it("직접 기사 본문이 모두 실패하면 중복으로 가려졌던 Google 제목도 보존한다", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input));
+      calls.push(url.pathname);
+      if (url.pathname === "/rss/economy.xml") return new Response(fixture.yonhap);
+      if (url.pathname === "/feed/economy") return new Response(fixture.hankyung);
+      if (url.pathname === "/rss/search") return new Response(fixture.google);
+      return url.hostname === "www.yna.co.kr" ? new Response("오류", { status: 503 }) : new Response("hk_premium_only: 'y'");
+    }));
+    const { data } = await execute({ ...input, content: "body", limit: 3 });
+    expect(data.articles.map(({ source }) => source)).toEqual(["google", "google"]);
+    expect(data).toMatchObject({ count: 2, collectedCount: 0, missingCount: 3, inspectedCount: 5, failedCount: 5, resultStatus: "partial", bodyStatus: "partial" });
+    expect(data.failureCounts).toEqual({ http_error: 2, access_restricted: 2, original_url_unresolved: 1 });
+    expect(data.failedArticles).toHaveLength(5);
+    expect(calls).toHaveLength(7);
+    expect(calls.filter((path) => path === "/rss/search")).toHaveLength(1);
+  });
+
+  it("일부 RSS 장애와 검색 결과 부족을 숨기지 않고 이미 받은 Google 목록을 반환한다", async () => {
+    mockFeeds({ yonhap: new Response("Unavailable", { status: 503 }) });
+    const { data, note } = await execute({ ...input, query: "없는 직접 제목", content: "body", limit: 3 });
+    expect(data).toMatchObject({ count: 2, collectedCount: 0, missingCount: 3, failedCount: 2, resultStatus: "partial" });
+    expect(data.failedSources).toEqual([{ source: "yonhap", error: expect.stringContaining("503") }]);
+    expect(note).toContain("조회 실패 소스: yonhap");
+  });
+
+  it("모든 RSS가 실패하면 제목 fallback도 만들지 않는다", async () => {
+    mockFeeds({ yonhap: new Error("offline"), hankyung: new Error("offline"), google: new Error("offline") });
+    await expect(execute({ ...input, content: "body" })).rejects.toThrow("모든 뉴스 RSS 조회가 실패");
+  });
+
+  it.each(["<rss><channel></channel></rss>", "<rss><channel><item><title>링크 없는 합성 기사</title></item></channel></rss>"])("Google 목록이 유효하지 않고 직접 기사도 없으면 기존 오류를 유지한다", async (google) => {
+    mockFeeds({ google });
+    await expect(execute({ ...input, query: "없는 직접 제목", content: "body" })).rejects.toThrow("조건에 맞는 뉴스 기사");
+  });
+
+  it("Google이 선택되지 않으면 추가 소스를 요청하거나 제목 fallback을 만들지 않는다", async () => {
+    const calls = mockBodyScenario(2, { 0: "missing", 1: "error" });
+    await expect(execute({ ...input, sources: ["yonhap"], content: "body" })).rejects.toThrow('failures={"structure_changed":1,"http_error":1}');
+    expect(calls.requested).toEqual([0, 1]);
+    expect(vi.mocked(fetch).mock.calls.every(([url]) => new URL(String(url)).hostname === "www.yna.co.kr")).toBe(true);
+  });
+
+  it.each(["deadline", "candidate_limit"])("본문 검사가 %s에서 멈춰도 제목 fallback이 검사 수를 늘리지 않는다", async (stop) => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/rss/economy.xml") return new Response(syntheticFeed(20));
+      if (path === "/rss/search") return new Response(fixture.google);
+      return new Response("<html>본문 없음</html>");
+    }));
+    if (stop === "deadline") vi.spyOn(Date, "now").mockReturnValueOnce(0).mockReturnValue(8_501);
+    const { data } = await execute({ ...input, sources: ["yonhap", "google"], content: "body", limit: 3 });
+    const inspected = stop === "deadline" ? 0 : 15;
+    expect(data).toMatchObject({ count: 2, collectedCount: 0, missingCount: 3, inspectedCount: inspected, failedCount: inspected, stopReason: stop });
+    expect(data.failureCounts).toEqual(inspected ? { structure_changed: inspected } : {});
+    expect(data.articles.every(({ body }) => body.status === "unavailable")).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2 + inspected);
   });
 
   it("Google와 직접 언론사를 함께 선택하면 본문 가능 후보를 우선 사용한다", async () => {
