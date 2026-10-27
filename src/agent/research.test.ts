@@ -37,8 +37,8 @@ describe("researchInstructions", () => {
   });
 
   // 프롬프트 전달 계약만 검사합니다. 비교·재검색·근거 판별의 실제 모델 행동을 증명하지 않습니다.
-  it("모든 영역에 비교 대상별 확보·실패 기록·근거 범위 규칙과 기존 공통 제약을 전달한다", () => {
-    for (const area of areas) {
+  it("모든 영역과 영역 미지정에 원인 질문 뉴스 조사·재검색·근거 메모 규칙과 기존 공통 제약을 전달한다", () => {
+    for (const area of [...areas, undefined]) {
       const text = createResearcherAgent("standard", area).instructions;
       expect(text).toContain(commonRules);
       expect(text).toContain("각 대상의 자료 확보 여부");
@@ -47,7 +47,8 @@ describe("researchInstructions", () => {
       expect(text).toContain("해당 결과가 실제로 뒷받침하는 사실");
       expect(text).toContain("일반 지식이나 추정 원인을 그 번호에 연결하지 않습니다");
       expect(text).toContain("실패한 요청에는 메모용 번호를 만들지 말고");
-      expect(text).not.toContain("여러 개면 모두 호출");
+      expect(text).toContain("원인·이유·배경 질문이면 제공된 뉴스 tool 도 호출해 근거를 확인합니다.");
+      expect(text).toContain("뉴스 검색 결과가 없으면 검색어를 더 짧고 넓게 바꿔 한 번만 재시도하고, 그래도 결과가 없으면 자료 부족을 gaps 에 적습니다.");
     }
   });
 
