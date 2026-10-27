@@ -105,7 +105,7 @@ flowchart LR
 | `report` | `report`, `steps`, `rewrites`, `id` | 끝 | 저장 후 상세로 이동 (은선 → 하니 저장) |
 | `error` | `message`, `id?` | 실패 · 시간 초과 | 메시지 + 요청 id, 다시 시도 버튼 (은선) |
 
-흐름: `plan` 단계 → `plan` 이벤트 → `research`(step 들) → `edit`(계산 step) → `write` → `verify`(verify 이벤트) → `report`. 검증 실패 시 `write` 가 한 번 더 돕니다(`stage write start/done` 이 두 번). **범위 밖 질문**이면 `plan` 뒤에 `research · edit · write` 없이 `verify → report` 로 끝나므로 건너뛴 단계를 표시할 수 있어야 합니다.
+흐름: `plan` 단계 → `plan` 이벤트 → `research`(step 들) → `edit`(계산 step) → `write` → `verify`(verify 이벤트) → `report`. 단계 이벤트는 다섯 단계가 각각 한 번씩만 옵니다. 검증에 실패해 작성을 1회 다시 돌릴 때는 **`verify` 단계 안에서** 처리하고 `write` 단계 이벤트를 다시 보내지 않습니다(`src/agent/events.ts` 머리 주석). 그래서 `verify` 단계가 10~15초 길어질 수 있고, 수정 여부는 `report` 이벤트의 `rewrites` 와 `verification.revisions` 로만 알 수 있습니다. **범위 밖 질문**이면 `plan` 뒤에 `research · edit · write` 없이 `verify → report` 로 끝나므로 건너뛴 단계를 표시할 수 있어야 합니다.
 
 ### 2.4 Mock
 
