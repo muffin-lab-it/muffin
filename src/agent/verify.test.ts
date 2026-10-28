@@ -202,6 +202,9 @@ describe("matchValue 정책", () => {
     const etf: Evidence = { ...fx, values: { "period.returnPct": -21.47 } };
     expect(matchValue(extractNumbers("기간 수익률은 21.47%로 하락했습니다")[0], numericCandidates(etf))).toBeNull();
     expect(matchValue(extractNumbers("기간 수익률은 -21.47%로 하락했습니다")[0], numericCandidates(etf))).toEqual({ key: "period.returnPct", policy: "exact" });
+    // 장부는 2.55% 상승인데 "2.55% 하락" 이라고 쓰면 방향이 틀려 맞지 않는다 (양수 값으로 다시 맞추지 않음)
+    const up: Evidence = { ...fx, values: { rate: 1392.4, changePct: 2.55 } };
+    expect(matchValue(extractNumbers("2.55% 하락했습니다")[0], numericCandidates(up))).toBeNull();
   });
 
   it("두 퍼센트의 차이를 Pct 이름으로 저장한 키(trackingDiffPct)는 % 와 %p 표기를 둘 다 받는다", () => {

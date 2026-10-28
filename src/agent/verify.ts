@@ -228,14 +228,11 @@ function scalesFor(display: string, candidate: CandidateUnit): number[] {
 
 /**
  * 표기된 숫자 하나가 후보 값 중 하나와 정책 안에서 맞는지. 가장 엄격한 정책부터 봅니다.
- * 부호 대신 하락 낱말로 쓴 숫자("34.69원 낮아")는 장부의 음수 값(change -34.69)과 먼저 맞춰 보고, 안 맞으면 쓴 그대로 봅니다.
- * 반대로 "34.69원 올라" 는 -34.69 와 맞지 않습니다.
+ * 부호 대신 하락 낱말로 쓴 숫자("34.69원 낮아")는 장부의 음수 값(change -34.69)과만 맞춥니다. 양수 값(changePct 2.55)과만 맞으면
+ * 방향이 틀린 것이라 실패입니다. 반대로 "34.69원 올라" 는 -34.69 와 맞지 않습니다.
  */
 export function matchValue(n: ParsedNumber, candidates: Candidate[]): { key: string; policy: MatchPolicy } | null {
-  if (n.falling && n.value > 0) {
-    const signed = matchByPolicy({ ...n, value: -n.value }, candidates);
-    if (signed) return signed;
-  }
+  if (n.falling && n.value > 0) return matchByPolicy({ ...n, value: -n.value }, candidates);
   return matchByPolicy(n, candidates);
 }
 
