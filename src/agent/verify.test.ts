@@ -459,6 +459,17 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(invented.status === "unverified" && invented.reason).toContain("1,380.00");
   });
 
+  it("뉴스 기사(제목)의 숫자와 맞으면 기사 보도(reported)로 남기고, 실패가 아니라 pass 다", () => {
+    const report: WriterOutput = { ...output, summary: "외국인이 이번 주 국내 주식을 팔았다는 보도가 있습니다.", numbers: [num("외국인 순매도 (보도)", "1조 2,000억 원", "이번 주", "E4-1", "2026-10-17")], why: [], impact: [], caveats: [] };
+    const [finding] = verifyNumbers(report.numbers, ledger);
+    expect(finding).toMatchObject({ status: "reported", key: "title#text" });
+    const result = verify(report, ledger);
+    expect(result.ok).toBe(true);
+    const applied = applyVerification(report, result);
+    expect(applied.checks).toEqual(["reported"]);
+    expect(summarizeVerification(applied, 0)).toMatchObject({ status: "pass", numbers: { total: 1, verified: 0, derived: 0, reported: 1, unverified: 0 } });
+  });
+
   it("basis 가 data 인데 숫자가 없는 증거만 인용하면 none 으로 낮춘다", () => {
     const textOnly: Evidence = { ...fx, id: "E7", tool: "get_sample_text", values: { label: "설명만" } };
     const [bad, good] = verifyWhy([why("data", ["E7"]), why("data", ["E7", "E1"])], [...ledger, textOnly]);
