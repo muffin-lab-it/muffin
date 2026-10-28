@@ -4,6 +4,7 @@
  *  - 숫자: numbers 의 모든 숫자를 ref 가 가리키는 증거 장부 항목의 값과 대조합니다.
  *    정책은 엄격한 순서로 정확 일치 / 표기 반올림 / 단위 환산(비율 ↔ %, %p ↔ bp) / 허용오차(상대 0.1%) 이고,
  *    표기 단위와 장부 키의 단위가 호환돼야 합니다 (25bp 는 25% 가 아닙니다). 정책에 없는 차이는 실패입니다.
+ *    부호 대신 하락 낱말로 쓴 변화량("34.69원 낮아")은 장부의 음수 값과 맞춰 보고, 환율 기준 단위("1달러당")는 숫자로 보지 않습니다.
  *  - 본문: summary · why · impact · caveats 에 쓴 금융 숫자(단위 · 소수점 · 천 단위 쉼표가 있는 것)도 장부 어딘가에 있어야 합니다.
  *  - 원인: refs 가 장부에 있는 id 인지, basis(data · news · none)가 refs 와 맞는지 봅니다.
  *  - 권유: guard.ts 의 표현 목록.
@@ -39,16 +40,38 @@ export type ParsedNumber = {
   unit: string;
   /** 원문 표기 ("1,392.40", "-0.5"). 반올림 자릿수를 세는 데 씁니다 */
   text: string;
+  /** 부호 없이 쓰고 바로 뒤에 하락 낱말이 붙은 숫자 ("34.69원 낮아졌습니다"). 장부의 음수 값과도 맞춰 봅니다 */
+  falling?: true;
 };
 
 const TOKEN = /([-+−]?)(\d[\d,]*(?:\.\d+)?)\s*([조억만천백]+|%p|%|bp|원|달러|엔|유로|위안|파운드|포인트|개월|분기|일|년|주|월|회|건|개|번)?/g;
+/**
+ * 숫자 바로 뒤에 붙어 부호 대신 하락폭을 뜻하는 말. "34.69원 낮아" · "2.55% 하락" · "1,080원가량 떨어져" · "(2.55%) 낮아".
+ * "21.47%로 하락" 처럼 로 · 으로 · 까지가 붙은 숫자는 하락폭이 아니라 도착한 수준이라 해당하지 않습니다.
+ */
+const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소)/;
+
+/**
+ * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "1달러에 1,324원" · "같은 1달러를 사는 데" 의 외화 금액은 데이터 숫자가 아닙니다.
+ * 뒤에 "당" 이 붙거나, 기준 금액(1달러 · 100엔) 뒤에 "에 <숫자>" · "를 사다 · 바꾸다 · 환전" 이 올 때만 기준 단위로 봅니다. "유가가 1달러 하락" 은 숫자입니다.
+ */
+function isQuoteBasis(value: number, unit: string, rest: string): boolean {
+  if (unit === "원" || !CURRENCY_UNITS.has(unit)) return false;
+  if (/^\s*당/.test(rest)) return true;
+  const unitAmount = value === 1 || (unit === "엔" && value === 100);
+  return unitAmount && /^\s*(?:에\s*\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest);
+}
 
 /**
  * 문자열에서 숫자를 모두 뽑습니다. "1,392.40원" → 1392.4 원 / "-38.1원 (-2.79%)" → -38.1 원, -2.79 % /
- * "1조 2,000억 원" → 1.2e12 원 / "0.88%p" → 0.88 %p / "30일 +2.00%" → 30 일, 2 %. 날짜(2026-10-22)와 지수 기준 "(2020=100)" 은 뺍니다.
+ * "1조 2,000억 원" → 1.2e12 원 / "0.88%p" → 0.88 %p / "30일 +2.00%" → 30 일, 2 % / "34.69원 낮아" → 34.69 원 (falling).
+ * 날짜(2026-10-22) · 연월(2026-08) · 지수 기준 "(2020=100)" · 환율 기준 단위("1달러당")는 뺍니다.
  */
 export function extractNumbers(text: string): ParsedNumber[] {
-  const cleaned = text.replace(/\d{4}-\d{2}-\d{2}/g, " ").replace(/\(\s*\d{4}\s*(?:년)?\s*=\s*100\s*\)/g, " ");
+  const cleaned = text
+    .replace(/\d{4}-\d{2}-\d{2}/g, " ")
+    .replace(/\b\d{4}-(?:0[1-9]|1[0-2])\b/g, " ")
+    .replace(/\(\s*\d{4}\s*(?:년)?\s*=\s*100\s*\)/g, " ");
   const out: ParsedNumber[] = [];
   let group: ParsedNumber | null = null;
   let groupSign = 1;
@@ -85,7 +108,11 @@ export function extractNumbers(text: string): ParsedNumber[] {
       out.push(group);
       group = null;
     }
-    out.push({ value, unit, text: m[2] });
+    const rest = cleaned.slice((m.index ?? 0) + m[0].length);
+    if (isQuoteBasis(value, unit, rest)) continue;
+    // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뜁니다.
+    const falling = m[1] === "" && !PERIOD_UNITS.has(unit) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
+    out.push(falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] });
   }
   if (group) out.push(group);
   return out;
@@ -159,12 +186,18 @@ function unitOfText(unit: string): CandidateUnit {
  */
 export function numericCandidates(evidence: Evidence): Candidate[] {
   const out: Candidate[] = [];
+  const push = (key: string, value: number) => {
+    const unit = unitOfKey(key, evidence.values);
+    out.push({ key, value, unit });
+    // "trackingDiffPct" 처럼 두 퍼센트의 차이(%p)를 Pct 이름으로 저장한 키는 "0.36%" 와 "0.36%p" 를 둘 다 받습니다.
+    if (unit === "pp" && /pct$/i.test(key)) out.push({ key, value, unit: "pct" });
+  };
   for (const [key, v] of Object.entries(evidence.values)) {
     if (META_KEY.test(key.split(".").at(-1) ?? key)) continue;
-    if (typeof v === "number" && Number.isFinite(v)) out.push({ key, value: v, unit: unitOfKey(key, evidence.values) });
+    if (typeof v === "number" && Number.isFinite(v)) push(key, v);
     else if (typeof v === "string") {
       const t = v.trim();
-      if (/^[-+]?\d[\d,]*(\.\d+)?$/.test(t) && !/^\d{4}$/.test(t)) out.push({ key, value: Number(t.replace(/,/g, "")), unit: unitOfKey(key, evidence.values) });
+      if (/^[-+]?\d[\d,]*(\.\d+)?$/.test(t) && !/^\d{4}$/.test(t)) push(key, Number(t.replace(/,/g, "")));
       else if (/^\d{4}-\d{2}-\d{2}/.test(t)) continue;
       else for (const n of extractNumbers(t).filter(isStrictNumber)) out.push({ key: `${key}#text`, value: n.value, unit: unitOfText(n.unit) });
     }
@@ -193,8 +226,17 @@ function scalesFor(display: string, candidate: CandidateUnit): number[] {
   return [];
 }
 
-/** 표기된 숫자 하나가 후보 값 중 하나와 정책 안에서 맞는지. 가장 엄격한 정책부터 봅니다. */
+/**
+ * 표기된 숫자 하나가 후보 값 중 하나와 정책 안에서 맞는지. 가장 엄격한 정책부터 봅니다.
+ * 부호 대신 하락 낱말로 쓴 숫자("34.69원 낮아")는 장부의 음수 값(change -34.69)과만 맞춥니다. 양수 값(changePct 2.55)과만 맞으면
+ * 방향이 틀린 것이라 실패입니다. 반대로 "34.69원 올라" 는 -34.69 와 맞지 않습니다.
+ */
 export function matchValue(n: ParsedNumber, candidates: Candidate[]): { key: string; policy: MatchPolicy } | null {
+  if (n.falling && n.value > 0) return matchByPolicy({ ...n, value: -n.value }, candidates);
+  return matchByPolicy(n, candidates);
+}
+
+function matchByPolicy(n: ParsedNumber, candidates: Candidate[]): { key: string; policy: MatchPolicy } | null {
   const decimals = decimalsOf(n.text);
   const compatible = candidates.flatMap((c) => scalesFor(n.unit, c.unit).map((scale) => ({ c, scale })));
 
@@ -218,7 +260,8 @@ export type NumberFinding =
   | { index: number; label: string; status: "unverified"; reason: string };
 
 function describe(candidates: Candidate[]): string {
-  return candidates.filter((c) => !c.key.endsWith("#text")).map((c) => `${c.key}=${c.value}`).join(", ") || "숫자 없음";
+  const shown = new Set(candidates.filter((c) => !c.key.endsWith("#text")).map((c) => `${c.key}=${c.value}`));
+  return [...shown].join(", ") || "숫자 없음";
 }
 
 /** 비교 시점 값을 가리키는 키 (comparisonRate, latest.previousMonth.value …). */

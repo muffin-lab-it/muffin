@@ -89,6 +89,33 @@ describe("extractNumbers", () => {
     expect(extractNumbers("120.43 (2020=100)").filter(isDataNumber).map((p) => p.value)).toEqual([120.43]);
     expect(isDataNumber({ value: 1392.4, unit: "원", text: "1,392.40" })).toBe(true);
   });
+
+  it("환율 기준 단위(1달러당 · 100엔당 · 1달러에 · 같은 1달러를 사는)와 연월(2026-08)은 숫자로 보지 않는다", () => {
+    expect(extractNumbers("2026-10-27 기준 1달러당 1,324.72원")).toEqual([{ value: 1324.72, unit: "원", text: "1,324.72" }]);
+    expect(extractNumbers("100엔당 912.30원")).toEqual([{ value: 912.3, unit: "원", text: "912.30" }]);
+    expect(extractNumbers("1달러에 1,324.72원")).toEqual([{ value: 1324.72, unit: "원", text: "1,324.72" }]);
+    expect(extractNumbers("같은 1달러를 사는 데 필요한 원화")).toEqual([]);
+    // 기준 단위 문맥이 없는 외화 금액은 1달러 · 100엔이라도 숫자다 ("유가가 1달러 하락" 이 검사를 건너뛰면 안 됨)
+    expect(extractNumbers("5달러")).toEqual([{ value: 5, unit: "달러", text: "5" }]);
+    expect(extractNumbers("유가가 1달러 하락했습니다").map((p) => p.value)).toEqual([1]);
+    expect(extractNumbers("100엔 올랐습니다").map((p) => p.value)).toEqual([100]);
+    expect(extractNumbers("2026-08 대비 상승")).toEqual([]);
+  });
+
+  it("부호 없이 쓰고 바로 뒤에 하락 낱말이 붙은 숫자는 falling 이다. 붙은 괄호는 건너뛰고, 다음 숫자의 낱말은 가져오지 않는다", () => {
+    expect(extractNumbers("2026-09-27보다 34.69원(-2.55%) 낮습니다")).toEqual([
+      { value: 34.69, unit: "원", text: "34.69", falling: true },
+      { value: -2.55, unit: "%", text: "2.55" },
+    ]);
+    expect(extractNumbers("1,324.72원으로 30일 전보다 2.55% 하락했습니다")).toEqual([
+      { value: 1324.72, unit: "원", text: "1,324.72" },
+      { value: 30, unit: "일", text: "30" },
+      { value: 2.55, unit: "%", text: "2.55", falling: true },
+    ]);
+    expect(extractNumbers("34.69원 올랐습니다")).toEqual([{ value: 34.69, unit: "원", text: "34.69" }]);
+    // 로 · 으로가 붙으면 하락폭이 아니라 도착한 수준이다
+    expect(extractNumbers("기간 수익률은 21.47%로 하락했습니다")).toEqual([{ value: 21.47, unit: "%", text: "21.47" }]);
+  });
 });
 
 describe("matchValue 정책", () => {
@@ -162,6 +189,28 @@ describe("matchValue 정책", () => {
     expect(matchValue(n("27.3"), numericCandidates(unknown))).toEqual({ key: "change", policy: "exact" });
     expect(matchValue(n("27.3", "%"), numericCandidates(unknown))).toBeNull();
     expect(matchValue(n("27.3", "%p"), numericCandidates(unknown))).toBeNull();
+  });
+
+  it("하락 낱말로 쓴 변화량은 장부의 음수 값과 맞는다. 상승으로 쓰면 맞지 않고, 수준 값은 쓴 그대로 맞춘다", () => {
+    const down: Evidence = { ...fx, values: { rate: 1324.72, change: -34.69, changePct: -2.55 } };
+    const [amount, pct] = extractNumbers("34.69원(2.55%) 낮아졌습니다");
+    expect(matchValue(amount, numericCandidates(down))).toEqual({ key: "change", policy: "exact" });
+    expect(matchValue(pct, numericCandidates(down))).toEqual({ key: "changePct", policy: "exact" });
+    expect(matchValue(extractNumbers("34.69원 올랐습니다")[0], numericCandidates(down))).toBeNull();
+    expect(matchValue(extractNumbers("1,324.72원으로 낮아졌습니다")[0], numericCandidates(down))).toEqual({ key: "rate", policy: "exact" });
+    // 수익률이 -21.47% 인데 "21.47%로 하락" 이라고 쓰면 틀린 수준이라 맞지 않는다
+    const etf: Evidence = { ...fx, values: { "period.returnPct": -21.47 } };
+    expect(matchValue(extractNumbers("기간 수익률은 21.47%로 하락했습니다")[0], numericCandidates(etf))).toBeNull();
+    expect(matchValue(extractNumbers("기간 수익률은 -21.47%로 하락했습니다")[0], numericCandidates(etf))).toEqual({ key: "period.returnPct", policy: "exact" });
+    // 장부는 2.55% 상승인데 "2.55% 하락" 이라고 쓰면 방향이 틀려 맞지 않는다 (양수 값으로 다시 맞추지 않음)
+    const up: Evidence = { ...fx, values: { rate: 1392.4, changePct: 2.55 } };
+    expect(matchValue(extractNumbers("2.55% 하락했습니다")[0], numericCandidates(up))).toBeNull();
+  });
+
+  it("두 퍼센트의 차이를 Pct 이름으로 저장한 키(trackingDiffPct)는 % 와 %p 표기를 둘 다 받는다", () => {
+    const etf: Evidence = { ...fx, values: { "period.returnPct": -21.47, "period.indexReturnPct": -21.83, "period.trackingDiffPct": 0.36 } };
+    expect(matchValue(n("0.36", "%"), numericCandidates(etf))).toEqual({ key: "period.trackingDiffPct", policy: "exact" });
+    expect(matchValue(n("0.36", "%p"), numericCandidates(etf))).toEqual({ key: "period.trackingDiffPct", policy: "exact" });
   });
 });
 
@@ -413,5 +462,24 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(bad.ok).toBe(false);
     expect(bad.fix.basis).toBe("none");
     expect(good.ok).toBe(true);
+  });
+
+  it("1달러당 기준 단위와 하락 낱말로 쓴 변화량은 통과하고, 방향을 거꾸로 쓰면 걸린다 (2026-10-27 실측 문장)", () => {
+    const usd: Evidence = {
+      ...fx,
+      values: { pair: "USD/KRW", unit: "KRW per 1 USD", rate: 1324.72, asOf: "2026-10-27", "comparison.rate": 1359.41, "comparison.asOf": "2026-09-27", change: -34.69, changePct: -2.55 },
+      source: src("Frankfurter v2", "2026-10-27"),
+    };
+    const report: WriterOutput = {
+      ...output,
+      summary: "2026-10-27 기준 1달러당 1,324.72원입니다. 2026-09-27보다 34.69원(-2.55%) 낮습니다.",
+      numbers: [num("USD/KRW 기준환율", "1달러당 1,324.72원", "30일 -34.69원 (-2.55%)", "E1", "2026-10-27")],
+      why: [],
+      impact: ["같은 1달러를 사는 데 필요한 원화가 한 달 전보다 줄었습니다."],
+      caveats: [],
+    };
+    expect(verify(report, [usd]).failures).toEqual([]);
+    const wrongWay = { ...report, summary: "2026-09-27보다 34.69원 올랐습니다." };
+    expect(verify(wrongWay, [usd]).failures).toEqual([expect.stringContaining("summary 의 숫자 34.69원")]);
   });
 });
