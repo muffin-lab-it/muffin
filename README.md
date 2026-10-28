@@ -171,7 +171,7 @@ Next.js (App Router) · React · TypeScript · OpenAI Agents SDK · Zod · Codex
 | Codex CLI | 최신 | `npm i -g @openai/codex` 후 `codex` 실행해 로그인 |
 | OpenAI API Key | 개인 키 | 발급이 어려우면 리더에게 요청 (사용량 제한 걸린 프로젝트 키 발급) |
 
-모델: 기본값은 `gpt-6-luna` (Deep 은 `gpt-6-sol`) 입니다. 처음 쓰던 `gpt-4.1` 계열은 OpenAI 가 2026-10-14 에 폐기를 공지해(2027-01-14 종료) 0단계에서 교체했고, 3단계 모델 비교로 확정합니다. `OPENAI_MODEL` / `OPENAI_MODEL_DEEP` 로 바꿀 수 있습니다.
+모델: 기본값은 `gpt-6-luna` (Deep 은 `gpt-6-sol`), 분류 · 정제는 응답 시간 때문에 `gpt-5.4-mini` 입니다. 처음 쓰던 `gpt-4.1` 계열은 OpenAI 가 2026-10-14 에 폐기를 공지해(2027-01-14 종료) 0단계에서 교체했고, 3단계 모델 비교로 확정합니다. `OPENAI_MODEL` / `OPENAI_MODEL_DEEP` / `OPENAI_MODEL_SMALL` 로 바꿀 수 있습니다.
 
 ---
 
@@ -688,8 +688,8 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 | 역할 | 기본 (0단계부터) | 환경 변수 |
 |---|---|---|
-| 분류 · 정제 | `gpt-6-luna` | `OPENAI_MODEL_SMALL` (없으면 `OPENAI_MODEL`) |
-| 근거 판정 (3단계) | `gpt-6-luna` | `OPENAI_MODEL_SMALL` |
+| 분류 · 정제 | `gpt-5.4-mini` | `OPENAI_MODEL_SMALL` |
+| 근거 판정 (3단계) | `gpt-5.4-mini` | `OPENAI_MODEL_SMALL` |
 | 조사 · 작성 (Easy / Standard) | `gpt-6-luna` | `OPENAI_MODEL` |
 | 작성 (Deep Dive) | `gpt-6-sol` | `OPENAI_MODEL_DEEP` |
 

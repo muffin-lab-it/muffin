@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { modelFor } from "./models";
+import { SMALL_MODEL, modelFor } from "./models";
 
 afterEach(() => {
   delete process.env.OPENAI_MODEL;
@@ -22,12 +22,14 @@ describe("modelFor", () => {
     expect(modelFor("deep", "plan")).not.toBe(modelFor("deep", "write"));
   });
 
-  it(".env 로 바꿀 수 있다 (OPENAI_MODEL_SMALL 이 없으면 OPENAI_MODEL 을 따른다)", () => {
+  it(".env 로 바꿀 수 있다. 분류 · 정제는 OPENAI_MODEL 을 따르지 않고, OPENAI_MODEL_SMALL 이 없으면 gpt-5.4-mini", () => {
+    expect(modelFor("standard", "plan")).toBe(SMALL_MODEL);
+    expect(SMALL_MODEL).toBe("gpt-5.4-mini");
     process.env.OPENAI_MODEL = "test-main";
     process.env.OPENAI_MODEL_DEEP = "test-deep";
     expect(modelFor("standard")).toBe("test-main");
     expect(modelFor("deep")).toBe("test-deep");
-    expect(modelFor("deep", "plan")).toBe("test-main");
+    expect(modelFor("deep", "plan")).toBe(SMALL_MODEL);
     process.env.OPENAI_MODEL_SMALL = "test-small";
     expect(modelFor("deep", "edit")).toBe("test-small");
   });
