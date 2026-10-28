@@ -13,7 +13,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findAdvice } from "../src/agent/guard";
-import { research, type ResearchResult } from "../src/agent/muffin";
+import { research, type ResearchResult, TIME_BUDGET_MS } from "../src/agent/muffin";
 import { depths, type Area, type Depth, type Report, type intents } from "../src/agent/schema";
 import { QUESTIONS_DIR, loadAllQuestionSets, loadQuestionSet } from "./questions/schema";
 
@@ -136,14 +136,15 @@ async function main() {
       process.stdout.write(`▶ ${label} … `);
       const started = Date.now();
       try {
-        const result = await research({ question: q.question, depth, area: q.area ?? undefined });
+        // 평가는 품질을 보려는 것이라 마감 없이 돌립니다 (다시 쓰기를 건너뛰지 않음). 걸린 시간은 아래에 적습니다.
+        const result = await research({ question: q.question, depth, area: q.area ?? undefined }, { deadline: Number.POSITIVE_INFINITY });
         const { report, steps, rewrites } = result;
         const c = checks(report, steps);
         const match = toolMatch(q, steps);
         const intent = intentMatch(q, result.plan);
         const sec = ((Date.now() - started) / 1000).toFixed(1);
         console.log(
-          `${sec}s, 의도 ${result.plan.intent} ${intent}, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}`,
+          `${sec}s${Number(sec) * 1000 > TIME_BUDGET_MS ? " (서비스 마감 55초 초과)" : ""}, 의도 ${result.plan.intent} ${intent}, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}`,
         );
         summary.push(
           `| ${q.question} | ${depth} | ${intent} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.verified}/${c.derived}/${c.removedNumbers} | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${c.status} | ${sec}s |`,

@@ -140,6 +140,26 @@ describe("research() 다섯 단계", () => {
     expect(result.report.numbers[0].check).toBe("verified");
   });
 
+  it("마감이 가까우면 다시 쓰지 않고 검증에 걸린 숫자를 바로 뺀다 (시간 초과로 리포트가 안 나가는 것보다 낫다)", async () => {
+    mockRuns({ writer: [bad, good] });
+    // 남은 시간이 다시 쓰기에 필요한 15초보다 적다
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard" }, { deadline: Date.now() + 5_000 });
+
+    expect(runMock).toHaveBeenCalledTimes(4);
+    expect(result.rewrites).toBe(0);
+    expect(result.report.numbers).toEqual([]);
+    expect(result.report.verification).toMatchObject({ status: "partial", revisions: 0, revisionSkipped: true });
+    expect(result.report.verification.removed[0]).toContain("1,400");
+  });
+
+  it("시간이 넉넉하면 다시 쓰기를 건너뛰지 않는다 (기본 예산 55초)", async () => {
+    mockRuns({ writer: [bad, good] });
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
+
+    expect(result.rewrites).toBe(1);
+    expect(result.report.verification).not.toHaveProperty("revisionSkipped");
+  });
+
   it("수정 뒤에도 틀리면 그 숫자를 빼고 dataGaps 와 removed 에 기록한다 (fail-closed). 조사 · 정제는 다시 돌지 않는다", async () => {
     mockRuns({ writer: [bad, bad] });
     const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
