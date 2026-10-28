@@ -57,9 +57,11 @@ describe("defineTool", () => {
       execute: async () => ({ data: { count: 1, articles: [{ title: "기사 1" }] }, source: [source] }),
     });
     const ctx = new ResearchContext();
-    const out = (await invoke(one, ctx, { q: "x" })) as { id: string; source: { id: string }[] };
+    const out = (await invoke(one, ctx, { q: "x" })) as { id?: string; ids: string[]; source: { id: string }[] };
 
-    expect(out.id).toBe("E1");
+    // 모델이 보는 번호는 장부에 있는 것뿐이다. 호출 번호(E1)는 돌려주지 않는다
+    expect(out).not.toHaveProperty("id");
+    expect(out.ids).toEqual(["E1-1"]);
     expect(out.source).toEqual([{ id: "E1-1", ...source }]);
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1-1"]);
   });
@@ -90,9 +92,10 @@ describe("defineTool", () => {
     });
     const ctx = new ResearchContext();
     await invoke(bad, ctx, { q: "x" });
-    const out = (await invoke(many, ctx, { q: "x" })) as { id: string; source: { id: string }[] };
+    const out = (await invoke(many, ctx, { q: "x" })) as { id?: string; ids: string[]; source: { id: string }[] };
 
-    expect(out.id).toBe("E1");
+    expect(out).not.toHaveProperty("id");
+    expect(out.ids).toEqual(["E1-1", "E1-2"]);
     expect(out.source.map((s) => s.id)).toEqual(["E1-1", "E1-2"]);
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1-1", "E1-2"]);
     // 기사마다 그 기사의 값. 긴 본문은 빠지고 짧은 중첩 값(body.status)은 남는다. 출처 수와 길이가 다르면 전체 요약값으로 돌아간다

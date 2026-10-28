@@ -167,7 +167,8 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         }));
         ctx.addEvidence(entries);
         ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started });
-        return { id, ...result, source: listed ? withIds : withIds[0] };
+        // 목록이면 인용할 수 있는 번호 목록(ids: E3-1 …)만 돌려줍니다. 호출 번호(E3)는 장부에 없어서 모델에게 보여 주지 않습니다.
+        return listed ? { ids: withIds.map((s) => s.id), ...result, source: withIds } : { id, ...result, source: withIds[0] };
       } catch (err) {
         // tool 이 직접 만든 에러 메시지에 키가 섞여도 모델과 로그로 새지 않게 합니다.
         const message = redactSecrets(err instanceof Error ? err.message : String(err));
