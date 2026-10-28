@@ -144,7 +144,7 @@ subscribeHistory(listener: () => void): () => void                    // 그대�
 
 로그인은 넣지 않습니다(맨 뒤 순위). 나중에 붙여도 표에 `user_id` 열만 더하면 되게 둡니다. 한계: 브라우저 id 를 아는 사람은 그 브라우저의 기록을 볼 수 있습니다.
 
-### 4.3 DB: Supabase Postgres (리더 소유 조직, 무료 플랜, 리전 서울, 프로젝트 `muffin`)
+### 4.3 DB: Supabase Postgres (리더 소유 조직, 무료 플랜, 리전 도쿄 `ap-northeast-1`, 프로젝트 `muffin`)
 
 - 서버 전용 환경 변수: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`(`sb_secret_` 로 시작). `NEXT_PUBLIC_` 를 붙이지 않고, 브라우저용 publishable 키는 쓰지 않습니다.
 - 라이브러리는 `@supabase/supabase-js` 하나입니다. RLS 는 켜고 정책은 만들지 않습니다 (secret 키만 표에 닿음).
