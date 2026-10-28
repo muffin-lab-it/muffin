@@ -1,7 +1,7 @@
 /**
  * ④ 검증 (코드). 모델을 쓰지 않습니다 (원인의 근거 판정은 3단계).
  *
- *  - 숫자: numbers 의 모든 숫자를 ref 가 가리키는 증거 장부 항목의 값과 대조합니다.
+ *  - 숫자: numbers 의 모든 숫자를 ref 가 가리키는 증거 장부 항목의 값과 대조합니다. 뉴스 기사(제목)와 맞으면 verified 가 아니라 reported(기사 보도).
  *    정책은 엄격한 순서로 정확 일치 / 표기 반올림 / 단위 환산(비율 ↔ %, %p ↔ bp) / 허용오차(상대 0.1%) 이고,
  *    표기 단위와 장부 키의 단위가 호환돼야 합니다 (25bp 는 25% 가 아닙니다). 정책에 없는 차이는 실패입니다.
  *    부호 대신 하락 낱말로 쓴 변화량("34.69원 낮아")은 장부의 음수 값과 맞춰 보고, 환율 기준 단위("1달러당")는 숫자로 보지 않습니다.
@@ -256,7 +256,7 @@ function matchByPolicy(n: ParsedNumber, candidates: Candidate[]): { key: string;
 }
 
 export type NumberFinding =
-  | { index: number; label: string; status: "verified" | "derived"; key: string; policy: MatchPolicy; changeOk: boolean; changeProblem?: string }
+  | { index: number; label: string; status: "verified" | "derived" | "reported"; key: string; policy: MatchPolicy; changeOk: boolean; changeProblem?: string }
   | { index: number; label: string; status: "unverified"; reason: string };
 
 function describe(candidates: Candidate[]): string {
@@ -320,7 +320,8 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
     return {
       index,
       label,
-      status: n.ref.startsWith("C") ? "derived" : "verified",
+      // 뉴스 기사(제목)와 맞은 숫자는 공식 데이터가 아니라 기사 보도라서 따로 표시합니다.
+      status: n.ref.startsWith("C") ? "derived" : /news/i.test(e.tool) ? "reported" : "verified",
       key: m.key,
       policy: m.policy,
       changeOk: !bad,
@@ -564,10 +565,11 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
 export function summarizeVerification(applied: Applied, revisions: number, revisionSkipped = false): Verification {
   const verified = applied.checks.filter((c) => c === "verified").length;
   const derived = applied.checks.filter((c) => c === "derived").length;
+  const reported = applied.checks.filter((c) => c === "reported").length;
   const advice = findAdvice(applied.output).length;
   return {
     status: applied.removed.length === 0 && advice === 0 ? "pass" : "partial",
-    numbers: { total: applied.checks.length, verified, derived, unverified: applied.checks.length - verified - derived },
+    numbers: { total: applied.checks.length, verified, derived, reported, unverified: applied.checks.length - verified - derived - reported },
     why: summarizeWhy(applied.output.why),
     advice,
     revisions,

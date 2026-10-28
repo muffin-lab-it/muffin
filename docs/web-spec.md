@@ -100,7 +100,7 @@ flowchart LR
 | `mode` (research · decision_facts · out_of_scope), `notice` | 상단 배너. 문구는 서버가 준 것을 그대로 | 하니 |
 | `disclosure` | AI 생성 고지, 리포트 하단 고정 | 하니 |
 | `summary`, `impact[]`, `caveats[]`, `dataGaps[]`, `nextTopics[]` | 각 칸 | 은선 |
-| `numbers[]` (`check`: verified · derived · unverified, `ref`) | 숫자 카드, 배지, 원본 보기 | 소희 |
+| `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`) | 숫자 카드, 배지, 원본 보기. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |
 | `why[]` (`basis`: data 📊 · news 📰 · none ❔, `refs`) | 원인, 아이콘, 원본 보기 | 소희 |
 | `evidence[]` (E1 · E3-1 · C1, `lineage`), `sources[]` | 원본 보기, 계산 계보, 출처 목록 | 소희 |
 | `verification` | 검증 한 줄, 검사 후 제외한 항목. `revisionSkipped` 면 "시간이 부족해 한 번 더 검토하지 못했어요" 를 보여 줄 수 있음 | 소희(내용) · 은선(위치) |
@@ -242,9 +242,9 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 | 하니 | 배너 · AI 고지 `ReportNotice.tsx`: mode 별 배너, disclosure 하단 고정. `ReportEvidence.tsx` 의 `ReportVerification` 안에 있는 고지 글자를 이리로 옮김(소희와 순서 조율) | `mode` `notice` `disclosure` | "KODEX 200 지금 사도 돼?" 에서 배너, 모든 리포트에 고지 |
 | 하니 | 홈 폼: 영역 · 깊이 · 질문, 키보드 조작, 오류 표시(429 메시지 포함) | 3.1 | 키보드만으로 제출 가능 |
 | 하니 | 저장함 · 상세 화면: 목록 · 삭제 · 빈 상태 · 불러오는 중, 상세의 없음 처리 | 4.1 | 세 상태가 보임 |
-| 소희 | 숫자 배지 · 원인 아이콘: `check` 3종, `basis` 3종 디자인 | 3.3 | Mock 에서 세 상태 모두 확인 |
+| 소희 | 숫자 배지 · 원인 아이콘: `check` 4종(기사 보도 포함), `basis` 3종 디자인 | 3.3 | Mock 샘플에서 값 대조 · 계산값 · 기사 보도("외국인 주식 순매도 (보도)") 확인, 미검증은 v1 기록으로 확인 |
 | 소희 | 원본 보기 · 계산 계보: ref → evidence 항목(라벨 · 값 · 출처 · 기준일 · note), lineage 면 입력 E 번호로 이동, 뉴스 기사별 항목, 출처 목록 | 3.3 | C1 을 누르면 계산식과 E1 · E2 로 이동 |
-| 소희 | 검증 한 줄 내용 | `verification` | "숫자 3개 중 2개 값 대조 · 1개 계산값 · 권유 0" 형태 |
+| 소희 | 검증 한 줄 내용 | `verification` | "숫자 4개 중 2개 값 대조 · 1개 계산값 · 1개 기사 보도 · 권유 0" 형태 (`numbers.reported` 는 예전 기록에 없으면 0) |
 
 프론트 공통: fetch 는 `src/lib/api.ts` 만, 저장은 `src/lib/history.ts` 만 씁니다. 화면 테스트는 `app/components/ReportView.test.tsx` 와 같은 방식(vitest)입니다.
 

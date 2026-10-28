@@ -10,7 +10,7 @@
       { "label": "한국 기준금리", "value": "3.00%", "change": "30일 0.00%p", "asOf": "2026-10-16", "ref": "E2", "check": "verified" },
       { "label": "미국 실효연방기금금리", "value": "3.88%", "change": "30일 +0.25%p", "asOf": "2026-10-16", "ref": "E3", "check": "verified" },
       { "label": "한미 금리 차이", "value": "0.88%p", "change": "30일 +0.25%p", "asOf": "2026-10-16", "ref": "C1", "check": "derived" },
-      { "label": "외국인 주식 순매도 (보도)", "value": "1조 2,000억 원", "change": "이번 주", "asOf": "2026-10-17", "ref": "E4-2", "check": "unverified" }
+      { "label": "외국인 주식 순매도 (보도)", "value": "1조 2,000억 원", "change": "이번 주", "asOf": "2026-10-17", "ref": "E4-2", "check": "reported" }
     ],
     "why": [
       {
@@ -105,7 +105,7 @@
     ],
     "verification": {
       "status": "partial",
-      "numbers": { "total": 5, "verified": 3, "derived": 1, "unverified": 1 },
+      "numbers": { "total": 5, "verified": 3, "derived": 1, "reported": 1, "unverified": 0 },
       "why": { "data": 1, "news": 1, "none": 1, "unsupported": 0 },
       "advice": 0,
       "revisions": 1,
