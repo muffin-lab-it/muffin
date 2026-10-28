@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RunContext } from "@openai/agents";
 import { ResearchContext } from "../../agent/context";
 import type { Source, ToolResult } from "../types";
@@ -11,6 +11,8 @@ import { normalizeArticles } from "./sources";
 import type { Article } from "./sources";
 
 type FeedKey = "yonhap" | "hankyung" | "google";
+const TEST_NOW = Date.UTC(2026, 9, 18, 12);
+const DAY_MS = 24 * 60 * 60 * 1_000;
 
 const feeds: Record<FeedKey, string> = {
   yonhap: fixture.yonhap,
@@ -49,6 +51,10 @@ function syntheticFeed(count: number, source: FeedKey = "yonhap"): string {
   return `<rss><channel>${items.join("")}</channel></rss>`;
 }
 
+function datedGoogleFeed(agesMs: number[]): string {
+  return `<rss><channel>${agesMs.map((age, i) => `<item><title>합성 날짜 기사 ${i}</title><link>https://news.google.com/rss/articles/DATE${i}</link><pubDate>${new Date(TEST_NOW - age).toISOString()}</pubDate><source>합성신문</source></item>`).join("")}</channel></rss>`;
+}
+
 function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "missing" | "error" | "redirect"> = {}, source: "yonhap" | "hankyung" = "yonhap") {
   let active = 0;
   let maxActive = 0;
@@ -74,6 +80,8 @@ function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "m
   return { requested, maxActive: () => maxActive };
 }
 
+// RSS fixture의 기준 시각만 고정합니다. 요청 타임아웃과 비동기 타이머는 실제로 동작합니다.
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(TEST_NOW); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("News Tool", () => {
@@ -459,6 +467,77 @@ describe("News Tool", () => {
     expect(data).toMatchObject({ count: 3, collectedCount: 0, missingCount: 3, inspectedCount: 5, failedCount: 5 });
   });
 
+  it.each([
+    { label: "실행 시점", age: 0, included: true },
+    { label: "1일 전", age: DAY_MS, included: true },
+    { label: "29일 전", age: 29 * DAY_MS, included: true },
+    { label: "정확히 30일 전", age: 30 * DAY_MS, included: true },
+    { label: "30일 + 1ms 전", age: 30 * DAY_MS + 1, included: false },
+    { label: "168일 전", age: 168 * DAY_MS, included: false },
+    { label: "175일 전", age: 175 * DAY_MS, included: false },
+    { label: "1ms 미래", age: -1, included: false },
+  ])("제목 fallback의 $label 기사 포함 여부는 $included이다", async ({ age, included }) => {
+    const calls = mockFeeds({ google: datedGoogleFeed([age]) });
+    const request = execute({ ...input, sources: ["google"], content: "body", limit: 1 });
+    if (included) {
+      const { data, source } = await request;
+      expect(data).toMatchObject({ count: 1, collectedCount: 0, missingCount: 1, inspectedCount: 1, failedCount: 1, resultStatus: "complete", bodyStatus: "partial" });
+      expect(data.articles[0].publishedAt).toBe(new Date(TEST_NOW - age).toISOString());
+      expect(data.articles[0].body).toMatchObject({ status: "unavailable", reason: "original_url_unresolved" });
+      expect(source).toEqual([{ name: "합성신문", url: data.articles[0].url, asOf: data.articles[0].publishedAt }]);
+    } else {
+      await expect(request).rejects.toThrow('기사 본문을 확보하지 못했습니다: inspected=1, failures={"original_url_unresolved":1}, stop=feed_exhausted');
+    }
+    expect(calls).toHaveLength(1);
+  });
+
+  it.each([2, 5])("최근 Google 제목만 중복 제거·정렬 후 limit=%i를 적용하고 부족분은 채우지 않는다", async (limit) => {
+    const items = datedGoogleFeed([175 * DAY_MS, DAY_MS, 29 * DAY_MS, 30 * DAY_MS, -DAY_MS]).match(/<item>.*?<\/item>/g)!;
+    // 오래된 같은 제목이 먼저 있어도 최근 후보를 잃지 않습니다.
+    items[0] = items[0].replace("합성 날짜 기사 0", "합성 날짜 기사 1");
+    const duplicate = items[1].replace("DATE1", "DATE1?utm_source=test");
+    const calls = mockFeeds({ google: `<rss><channel>${[...items, duplicate].join("")}</channel></rss>` });
+    const { context, result } = await invokeNews({ ...input, sources: ["google"], content: "body", limit });
+    const count = Math.min(3, limit);
+    expect(result.data.articles.map(({ title }) => title)).toEqual(["합성 날짜 기사 1", "합성 날짜 기사 2", "합성 날짜 기사 3"].slice(0, limit));
+    expect(result.data).toMatchObject({ count, requestedCount: limit, collectedCount: 0, missingCount: limit, inspectedCount: 4, failedCount: 4, failureCounts: { original_url_unresolved: 4 }, resultStatus: count === limit ? "complete" : "partial", bodyStatus: "partial" });
+    expect(result.source).toHaveLength(count);
+    expect(context.sources).toHaveLength(count);
+    expect(context.evidence).toHaveLength(count);
+    expect(new Set(context.evidence.map(({ id }) => id)).size).toBe(count);
+    result.data.articles.forEach((article, i) => {
+      const source = { name: article.publisher, url: article.url, asOf: article.publishedAt };
+      expect(result.source[i]).toEqual({ id: `E1-${i + 1}`, ...source });
+      expect(context.sources[i]).toEqual(source);
+      expect(context.evidence[i]).toMatchObject({ id: `E1-${i + 1}`, source, values: { title: article.title, publisher: article.publisher, publishedAt: article.publishedAt, body: "unavailable" } });
+      expect(article.body).not.toHaveProperty("text");
+    });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("제목 fallback 날짜 경계는 수집 완료 시각이 아닌 실행 시작 시각을 기준으로 한다", async () => {
+    mockFeeds({ google: datedGoogleFeed([30 * DAY_MS, -1]) });
+    vi.mocked(Date.now).mockReturnValueOnce(TEST_NOW).mockReturnValue(TEST_NOW + 1);
+    const { data } = await execute({ ...input, sources: ["google"], content: "body", limit: 2 });
+    expect(data.articles.map(({ publishedAt }) => publishedAt)).toEqual([new Date(TEST_NOW - 30 * DAY_MS).toISOString()]);
+  });
+
+  it("list는 Google의 오래된 기사와 미래 기사를 기존처럼 유지한다", async () => {
+    mockFeeds({ google: datedGoogleFeed([175 * DAY_MS, -DAY_MS]) });
+    const { data } = await execute({ ...input, sources: ["google"], limit: 2 });
+    expect(data.articles.map(({ publishedAt }) => publishedAt)).toEqual([TEST_NOW + DAY_MS, TEST_NOW - 175 * DAY_MS].map((date) => new Date(date).toISOString()));
+    expect(data).toMatchObject({ count: 2, collectedCount: 2, missingCount: 0, bodyStatus: "not_requested", resultStatus: "complete" });
+  });
+
+  it("30일 넘은 직접 기사도 본문이 확보되면 유지하고 Google 제목으로 대체하지 않는다", async () => {
+    vi.mocked(Date.now).mockReturnValue(TEST_NOW + 175 * DAY_MS);
+    const calls = mockFeeds();
+    const { data } = await execute({ ...input, sources: ["yonhap", "google"], content: "body", limit: 3 });
+    expect(data).toMatchObject({ count: 2, collectedCount: 2, missingCount: 1, resultStatus: "partial", bodyStatus: "partial", failureCounts: { original_url_unresolved: 2 } });
+    expect(data.articles.every((article) => article.source === "yonhap" && article.body.status === "available")).toBe(true);
+    expect(calls).toHaveLength(4);
+  });
+
   it("직접 기사 본문이 모두 실패하면 중복으로 가려졌던 Google 제목도 보존한다", async () => {
     const calls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
@@ -510,7 +589,7 @@ describe("News Tool", () => {
       if (path === "/rss/search") return new Response(fixture.google);
       return new Response("<html>본문 없음</html>");
     }));
-    if (stop === "deadline") vi.spyOn(Date, "now").mockReturnValueOnce(0).mockReturnValue(8_501);
+    if (stop === "deadline") vi.mocked(Date.now).mockReturnValueOnce(TEST_NOW).mockReturnValue(TEST_NOW + 8_501);
     const { data } = await execute({ ...input, sources: ["yonhap", "google"], content: "body", limit: 3 });
     const inspected = stop === "deadline" ? 0 : 15;
     expect(data).toMatchObject({ count: 2, collectedCount: 0, missingCount: 3, inspectedCount: inspected, failedCount: inspected, stopReason: stop });
