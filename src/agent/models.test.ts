@@ -37,13 +37,16 @@ describe("modelFor", () => {
 });
 
 describe("modelSettingsFor", () => {
-  it("모든 단계에 호출 한 번의 시간 제한을 두고(작성만 길게), 조사만 추론 강도를 low 로 둔다", () => {
-    expect(modelSettingsFor("plan")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS, retry: { maxRetries: 1 } });
-    expect(modelSettingsFor("edit")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS });
-    expect(modelSettingsFor("research")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS, reasoning: { effort: "low" } });
-    expect(modelSettingsFor("write")).toMatchObject({ timeoutMs: WRITE_TIMEOUT_MS });
-    expect(modelSettingsFor("write")).not.toHaveProperty("reasoning");
-    expect(modelSettingsFor("plan")).not.toHaveProperty("reasoning");
+  it("모든 단계에 호출 한 번의 시간 제한을 두고(작성만 길게), 조사 · 작성(Deep 제외)은 추론 강도를 low 로 둔다", () => {
+    expect(modelSettingsFor("plan", "standard")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS, retry: { maxRetries: 1 } });
+    expect(modelSettingsFor("edit", "standard")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS });
+    expect(modelSettingsFor("research", "deep")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS, reasoning: { effort: "low" } });
+    expect(modelSettingsFor("write", "easy")).toMatchObject({ timeoutMs: WRITE_TIMEOUT_MS, reasoning: { effort: "low" } });
+    expect(modelSettingsFor("write", "standard")).toMatchObject({ reasoning: { effort: "low" } });
+    // Deep 은 숫자 카드가 줄어 "4개 이상" 규칙을 못 지켜서 작성 추론 강도는 기본값
+    expect(modelSettingsFor("write", "deep")).toMatchObject({ timeoutMs: WRITE_TIMEOUT_MS });
+    expect(modelSettingsFor("write", "deep")).not.toHaveProperty("reasoning");
+    expect(modelSettingsFor("plan", "standard")).not.toHaveProperty("reasoning");
   });
 
   it("시간 초과만 한 번 다시 부르고(재전송 허락), 다른 오류는 다시 부르지 않는다", () => {

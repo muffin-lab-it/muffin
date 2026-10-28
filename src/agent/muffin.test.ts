@@ -129,7 +129,7 @@ describe("research() 다섯 단계", () => {
     expect(agentOf(0).modelSettings).toMatchObject({ timeoutMs: 15_000, retry: { maxRetries: 1 } });
     expect(agentOf(1).modelSettings).toMatchObject({ timeoutMs: 15_000, reasoning: { effort: "low" } });
     expect(agentOf(2).modelSettings).toMatchObject({ timeoutMs: 15_000 });
-    expect(agentOf(3).modelSettings).toMatchObject({ timeoutMs: 30_000 });
+    expect(agentOf(3).modelSettings).toMatchObject({ timeoutMs: 30_000, reasoning: { effort: "low" } });
   });
 
   it("숫자가 장부와 다르면 작성에게 1회 수정 요청하고, 고쳐 오면 pass", async () => {

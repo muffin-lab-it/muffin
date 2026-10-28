@@ -38,13 +38,15 @@ export const retryTimeoutOnce: RetryPolicy = ({ normalized }) =>
 
 /**
  * 단계별 호출 설정 (시간 제한 · 시간 초과 재시도 · 추론 강도). 단계 파일은 그대로 두고 muffin.ts 가 Agent 에 덧씌웁니다.
- * 조사는 tool 을 고르고 짧은 메모를 쓰는 일이라 추론 강도를 low 로 둡니다: 평균 12.8초 → 8.6초, 뉴스 근거 수는 그대로 (39회).
+ *  - 조사: tool 을 고르고 짧은 메모를 쓰는 일이라 low. 평균 12.8초 → 8.6초, 뉴스 근거 수는 그대로 (39회).
+ *  - 작성: Easy · Standard 만 low. 작성 1회 13.4초 → 6.5초, 요약의 숫자 · 원인 수 · 권유 0 은 같았습니다.
+ *    Deep 은 숫자 카드가 5개 → 3.3개로 줄어 "4개 이상" 규칙을 못 지켜 기본값을 둡니다 (2026-10-28, 질문 7개 × 3회).
  */
-export function modelSettingsFor(stage: ModelStage): ModelSettings {
+export function modelSettingsFor(stage: ModelStage, depth: Depth): ModelSettings {
   const settings: ModelSettings = {
     timeoutMs: stage === "write" ? WRITE_TIMEOUT_MS : CALL_TIMEOUT_MS,
     retry: { maxRetries: 1, policy: retryTimeoutOnce },
   };
-  if (stage === "research") settings.reasoning = { effort: "low" };
+  if (stage === "research" || (stage === "write" && depth !== "deep")) settings.reasoning = { effort: "low" };
   return settings;
 }

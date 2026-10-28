@@ -31,8 +31,8 @@ export const REVISION_RESERVE_MS = 15_000;
  * 단계별 호출 설정(시간 제한 · 시간 초과 재시도 · 추론 강도)을 Agent 에 덧씌웁니다. 값은 models.ts 의 modelSettingsFor 가 정하고,
  * 담당자의 단계 파일은 바꾸지 않습니다.
  */
-function tuned<TOutput extends AgentOutputType>(agent: Agent<ResearchContext, TOutput>, stage: ModelStage): Agent<ResearchContext, TOutput> {
-  return agent.clone({ modelSettings: { ...agent.modelSettings, ...modelSettingsFor(stage) } });
+function tuned<TOutput extends AgentOutputType>(agent: Agent<ResearchContext, TOutput>, stage: ModelStage, depth: Depth): Agent<ResearchContext, TOutput> {
+  return agent.clone({ modelSettings: { ...agent.modelSettings, ...modelSettingsFor(stage, depth) } });
 }
 
 export type ResearchInput = { question: string; depth: Depth; area?: Area };
@@ -83,7 +83,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 📋 분류. 실패하면 규칙 기반 기본 계획. 모드는 의도로 코드가 정합니다.
   emit({ type: "stage", stage: "plan", status: "start" });
   const planCtx = new RunContext(ctx);
-  const planned = await runPlan(tuned(createPlannerAgent(depth), "plan"), planInput(question, area, depth), planCtx, defaultPlan(question, area));
+  const planned = await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(question, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx);
   const plan = { ...normalizePlan(planned, question, area), mode: modeFor(planned.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
@@ -111,20 +111,20 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   emit({ type: "stage", stage: "research", status: "start" });
   const tools = muffinTools.filter((t) => plan.tools.includes(t.name));
   const researchCtx = new RunContext(ctx);
-  const notes = await runResearch(tuned(createResearcherAgent(depth, area, tools), "research"), question, researchCtx);
+  const notes = await runResearch(tuned(createResearcherAgent(depth, area, tools), "research", depth), question, researchCtx);
   addUsage(researchCtx);
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
   emit({ type: "stage", stage: "edit", status: "start" });
   const editCtx = new RunContext(ctx);
-  const facts = await runEdit(tuned(createEditorAgent(depth), "edit"), editInput(question, plan, ctx.evidence, notes), editCtx);
+  const facts = await runEdit(tuned(createEditorAgent(depth), "edit", depth), editInput(question, plan, ctx.evidence, notes), editCtx);
   addUsage(editCtx);
   emit({ type: "stage", stage: "edit", status: "done" });
 
   // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다.
   emit({ type: "stage", stage: "write", status: "start" });
-  const writer = tuned(createWriterAgent(depth, area, plan.mode), "write");
+  const writer = tuned(createWriterAgent(depth, area, plan.mode), "write", depth);
   const input = writerInput(question, ctx.evidence, notes, facts);
   const writeCtx = new RunContext(ctx);
   let output = await runWriter(writer, input, writeCtx);
