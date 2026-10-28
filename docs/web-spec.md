@@ -63,7 +63,7 @@ flowchart LR
 | --- | --- |
 | 경로 | `POST /api/report/stream` (진행 화면용 NDJSON). `POST /api/report` (JSON 한 번에. 스트림이 안 될 때 대체 · curl 확인용) |
 | 요청 바디 | `{ question: string, depth?: "easy" \| "standard" \| "deep", area?: "fx" \| "etf" \| "news" \| "rate" \| "macro" }`. question 은 trim 후 1~500자, depth 기본 standard |
-| 요청 헤더 ✚ | `X-Muffin-Client: <uuid v4>` 브라우저 익명 id. `api.ts` 가 자동으로 붙임. 서버는 형식만 보고, 없으면 IP 로 처리 |
+| 요청 헤더 ✚ | `X-Muffin-Client: <uuid v4>` 브라우저 익명 id. `api.ts` 가 자동으로 붙임. 서버는 `readClientId(req.headers)`(`src/lib/client.ts`)로 읽고, 없거나 uuid v4 가 아니면 undefined → IP 로 처리 |
 | 요청 id | `newRunId()`. 응답의 `id`, 스트림 헤더 `X-Request-Id`, 로그, 저장 기록 id 가 모두 같은 값 |
 | 200 (JSON) | `{ report: Report, steps: ToolStep[], rewrites: number, id: string }` |
 | 400 | `{ error: "question(필수), depth, area 를 확인하세요.", id }` |
@@ -74,7 +74,7 @@ flowchart LR
 | 500 | `{ error: "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", id }` 실행 중 실패 |
 
 - 라우트 처리 순서: 출처 검사(403) → 호출 제한(429, 헤더만 봄) → 바디 크기(413) · 형식(400) → 키 확인(503) → `research()`.
-- 스트림 라우트도 400 · 403 · 413 · 429 · 503 은 스트림을 열기 전에 JSON 으로 돌려줍니다. `streamReport` 가 `!res.ok` 로 잡아 `Error("<error> (요청 id: <id>)")` 를 throw 합니다.
+- 스트림 라우트도 400 · 403 · 413 · 429 · 503 은 스트림을 열기 전에 JSON 으로 돌려줍니다. `streamReport` 가 `!res.ok` 로 잡아 `ApiError`(`status` · `id` · `retryAfterSec`, message 는 `"<error> (요청 id: <id>)"`)를 throw 합니다.
 - 55초 제한(`STREAM_TIMEOUT_MS`): 넘으면 `error` 이벤트 "조사 시간이 초과되었습니다…" 를 보내고 닫습니다. 실제 소요는 30~60초입니다.
 - 에러 · 이벤트 · 로그는 `redactSecrets` 를 거칩니다 (이미 있음).
 - `MUFFIN_MOCK=1` 이면 같은 라우트가 키 없이 샘플 리포트와 다섯 단계 이벤트를 지연을 두고 보냅니다. 질문에 "사도 돼" 가 있으면 판단 요청 샘플입니다.
@@ -140,7 +140,7 @@ subscribeHistory(listener: () => void): () => void                    // 그대�
 | `GET /api/history/:id` | 200 `{ record }` · 404 `{ error, id }` (다른 브라우저의 기록도 404) |
 | `POST /api/history`, 바디 `{ id?, input, report, steps }` | 201 `{ record }`. report 는 `reportSchema.parse`, steps 100개 이하, 바디 512KB 이하. 같은 브라우저가 같은 id 를 다시 보내면 200 으로 기존 것, 다른 브라우저의 id 면 409 |
 | `DELETE /api/history/:id` | 204 · 404 |
-| 공통 | 헤더 `X-Muffin-Client` 가 없거나 uuid 가 아니면 400. 출처 검사(4.6) 적용. 브라우저당 100개를 넘으면 오래된 것부터 삭제. 호출 제한은 없음 |
+| 공통 | 헤더 `X-Muffin-Client` 가 없거나 uuid 가 아니면 400 (`readClientId` 가 undefined). 출처 검사(4.6) 적용. 브라우저당 100개를 넘으면 오래된 것부터 삭제. 호출 제한은 없음 |
 
 로그인은 넣지 않습니다(맨 뒤 순위). 나중에 붙여도 표에 `user_id` 열만 더하면 되게 둡니다. 한계: 브라우저 id 를 아는 사람은 그 브라우저의 기록을 볼 수 있습니다.
 
@@ -196,7 +196,7 @@ alter table runs enable row level security;
 
 ### 4.5 호출 제한 (서영)
 
-- 키 두 개를 함께 셉니다. 브라우저 키는 `X-Muffin-Client` 값, IP 키는 `x-forwarded-for` 의 첫 IP 를 `RATE_LIMIT_SALT` 와 함께 sha256 한 값입니다. 원문 IP 는 저장 · 로그하지 않습니다.
+- 키 두 개를 함께 셉니다. 브라우저 키는 `readClientId(req.headers)` 값(없으면 IP 키만), IP 키는 `x-forwarded-for` 의 첫 IP 를 `RATE_LIMIT_SALT` 와 함께 sha256 한 값입니다. 원문 IP 는 저장 · 로그하지 않습니다.
 - 한도는 환경 변수에서만 읽습니다(비우면 기본값): 브라우저 키 `RATE_LIMIT_10M=10`(10분 10회) · `RATE_LIMIT_DAY=60`(하루 60회), IP 키 `RATE_LIMIT_IP_10M=30`(10분 30회). 숫자를 코드 곳곳에 쓰지 않고 기본값은 `ratelimit.ts` 한 곳에 둡니다. 상한은 Vercel 환경 변수만 바꿔 올립니다.
 - 리포트 생성 두 라우트에만, 바디를 읽기 전에 적용합니다(출처 검사 바로 뒤). 넘으면 429 와 `Retry-After`, 로그는 `stage: "limited"` 입니다.
 - v1 은 메모리 `Map` 입니다. 인스턴스마다 따로 세는 한계를 파일 머리에 적습니다.
@@ -279,6 +279,6 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 
 - **키 없이 화면을 만들 수 있나?** `MUFFIN_MOCK=1` 로 모든 이벤트와 리포트 상태를 볼 수 있습니다. 마무리 확인은 실제 키로 합니다.
 - **History 가 비동기가 되면 지금 화면이 깨지나?** 은경의 전환 PR 이 세 화면의 호출부를 같이 고치므로 머지 직후에도 동작합니다.
-- **429 가 오면 화면은?** `streamReport` · `createReport` 가 `Error("요청이 많아요… (요청 id: …)")` 를 throw 합니다. 홈은 그 메시지를 보여 주면 됩니다.
+- **429 가 오면 화면은?** `streamReport` · `createReport` 가 `ApiError` 를 throw 합니다. 홈은 `message`("요청이 많아요… (요청 id: …)")를 그대로 보여 주고, `retryAfterSec` 동안 다시 시도 버튼을 막을 수 있습니다.
 - **리포트에 필드를 더하고 싶다.** 코드에서 바꾸지 말고 Discord 에 "어느 화면에 어떤 필드" 로 적습니다. 리더가 `schema.ts` 와 이 문서를 고칩니다.
 - **테스트는 어디까지?** 백엔드는 라우트 · 헬퍼 단위 테스트(외부는 모킹), 프론트는 컴포넌트 테스트입니다. 실제 키로 확인한 것은 PR 본문 "테스트 방법" 에 적습니다.
