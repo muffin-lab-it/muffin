@@ -1,3 +1,4 @@
+import type { ModelSettings, RetryPolicy } from "@openai/agents";
 import type { Depth } from "./schema";
 
 /** 모델을 쓰는 네 단계. 검증은 코드라 모델이 없습니다. */
@@ -18,4 +19,32 @@ export function modelFor(depth: Depth, stage: ModelStage = "write"): string {
   if (stage === "plan" || stage === "edit") return process.env.OPENAI_MODEL_SMALL || SMALL_MODEL;
   if (depth === "deep") return process.env.OPENAI_MODEL_DEEP || process.env.OPENAI_MODEL || "gpt-6-sol";
   return process.env.OPENAI_MODEL || "gpt-6-luna";
+}
+
+/**
+ * 모델 호출 한 번의 시간 제한. SDK 기본은 사실상 제한이 없어서(10분) 멈춘 호출 하나가 55초 마감을 다 쓸 수 있습니다.
+ * 분류 · 조사 · 정제의 정상 호출은 가장 길어도 11.3초(2026-10-28, 조사 단계 39회 측정)라 15초면 멈춘 호출만 끊깁니다.
+ */
+export const CALL_TIMEOUT_MS = 15_000;
+/** 작성은 출력이 길어 정상 호출이 20초까지 나와서 따로 잡습니다. */
+export const WRITE_TIMEOUT_MS = 30_000;
+
+/**
+ * 시간 초과(멈춘 호출)만 한 번 다시 부릅니다. SDK 는 시간 초과 뒤 "요청이 이미 처리됐을 수 있다" 며 재시도를 막으므로
+ * approveUnsafeReplay 로 허락합니다. 매 호출이 입력 전체를 다시 보내는 방식이라 대화 상태가 꼬이지 않고, 비용만 한 번 더 듭니다.
+ */
+export const retryTimeoutOnce: RetryPolicy = ({ normalized }) =>
+  normalized.errorCode === "ETIMEDOUT" ? { retry: true, approveUnsafeReplay: true, delayMs: 0 } : false;
+
+/**
+ * 단계별 호출 설정 (시간 제한 · 시간 초과 재시도 · 추론 강도). 단계 파일은 그대로 두고 muffin.ts 가 Agent 에 덧씌웁니다.
+ * 조사는 tool 을 고르고 짧은 메모를 쓰는 일이라 추론 강도를 low 로 둡니다: 평균 12.8초 → 8.6초, 뉴스 근거 수는 그대로 (39회).
+ */
+export function modelSettingsFor(stage: ModelStage): ModelSettings {
+  const settings: ModelSettings = {
+    timeoutMs: stage === "write" ? WRITE_TIMEOUT_MS : CALL_TIMEOUT_MS,
+    retry: { maxRetries: 1, policy: retryTimeoutOnce },
+  };
+  if (stage === "research") settings.reasoning = { effort: "low" };
+  return settings;
 }

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { SMALL_MODEL, modelFor } from "./models";
+import type { RetryPolicyContext } from "@openai/agents";
+import { CALL_TIMEOUT_MS, SMALL_MODEL, WRITE_TIMEOUT_MS, modelFor, modelSettingsFor, retryTimeoutOnce } from "./models";
 
 afterEach(() => {
   delete process.env.OPENAI_MODEL;
@@ -32,5 +33,23 @@ describe("modelFor", () => {
     expect(modelFor("deep", "plan")).toBe(SMALL_MODEL);
     process.env.OPENAI_MODEL_SMALL = "test-small";
     expect(modelFor("deep", "edit")).toBe("test-small");
+  });
+});
+
+describe("modelSettingsFor", () => {
+  it("모든 단계에 호출 한 번의 시간 제한을 두고(작성만 길게), 조사만 추론 강도를 low 로 둔다", () => {
+    expect(modelSettingsFor("plan")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS, retry: { maxRetries: 1 } });
+    expect(modelSettingsFor("edit")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS });
+    expect(modelSettingsFor("research")).toMatchObject({ timeoutMs: CALL_TIMEOUT_MS, reasoning: { effort: "low" } });
+    expect(modelSettingsFor("write")).toMatchObject({ timeoutMs: WRITE_TIMEOUT_MS });
+    expect(modelSettingsFor("write")).not.toHaveProperty("reasoning");
+    expect(modelSettingsFor("plan")).not.toHaveProperty("reasoning");
+  });
+
+  it("시간 초과만 한 번 다시 부르고(재전송 허락), 다른 오류는 다시 부르지 않는다", () => {
+    const ctx = (errorCode?: string) => ({ normalized: { errorCode, isNetworkError: false, isAbort: false } }) as unknown as RetryPolicyContext;
+    expect(retryTimeoutOnce(ctx("ETIMEDOUT"))).toEqual({ retry: true, approveUnsafeReplay: true, delayMs: 0 });
+    expect(retryTimeoutOnce(ctx("rate_limit_exceeded"))).toBe(false);
+    expect(retryTimeoutOnce(ctx(undefined))).toBe(false);
   });
 });
