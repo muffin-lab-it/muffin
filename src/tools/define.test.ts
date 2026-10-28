@@ -49,6 +49,21 @@ describe("defineTool", () => {
     ]);
   });
 
+  it("출처를 목록으로 돌려주면 1건이어도 E1-1 로 번호를 붙인다 (건수에 따라 모양이 바뀌지 않게)", async () => {
+    const one = defineTool({
+      name: "news_tool",
+      description: "test",
+      parameters,
+      execute: async () => ({ data: { count: 1, articles: [{ title: "기사 1" }] }, source: [source] }),
+    });
+    const ctx = new ResearchContext();
+    const out = (await invoke(one, ctx, { q: "x" })) as { id: string; source: { id: string }[] };
+
+    expect(out.id).toBe("E1");
+    expect(out.source).toEqual([{ id: "E1-1", ...source }]);
+    expect(ctx.evidence.map((e) => e.id)).toEqual(["E1-1"]);
+  });
+
   it("출처가 여러 개면 E1-1, E1-2 로 나누고 실패한 호출은 번호를 쓰지 않는다", async () => {
     const many = defineTool({
       name: "news_tool",

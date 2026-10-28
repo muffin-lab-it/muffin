@@ -99,7 +99,7 @@ describe("News Tool", () => {
     expect(context.sources).toHaveLength(count);
     expect(result.data.resultStatus).toBe(count === limit ? "complete" : "partial");
     result.data.articles.forEach((article, i) => {
-      const id = count === 1 ? "E1" : `E1-${i + 1}`;
+      const id = `E1-${i + 1}`;
       const source = { name: article.publisher, url: article.url, asOf: article.publishedAt };
       expect(result.source[i]).toEqual({ id, ...source });
       expect(context.sources[i]).toEqual(source);
@@ -141,7 +141,7 @@ describe("News Tool", () => {
     expect(context.evidence[0].values).toMatchObject({ publisher: "한국경제", body: "not_requested" });
     const fallback = await invokeNews({ ...googleInput, content: "body" }, context);
     expect(fallback.result.data).toMatchObject({ count: 1, collectedCount: 0, missingCount: 1, bodyStatus: "partial" });
-    expect(context.evidence.map(({ id }) => id)).toEqual(["E1", "E2"]);
+    expect(context.evidence.map(({ id }) => id)).toEqual(["E1-1", "E2-1"]);
     expect(context.evidence[1].values).toMatchObject({ publisher: "한국경제", body: "unavailable" });
     expect(context.steps.map(({ status }) => status)).toEqual(["ok", "ok"]);
     expect(calls).toHaveLength(2);
@@ -443,7 +443,7 @@ describe("News Tool", () => {
     expect(new Set(context.evidence.map(({ id }) => id)).size).toBe(limit);
     result.data.articles.forEach((article, i) => {
       const source = { name: article.publisher, url: article.url, asOf: article.publishedAt };
-      const id = limit === 1 ? "E1" : `E1-${i + 1}`;
+      const id = `E1-${i + 1}`;
       expect(article.body).toMatchObject({ status: "unavailable", reason: "original_url_unresolved" });
       expect(article.body).not.toHaveProperty("text");
       expect(result.source[i]).toEqual({ id, ...source });

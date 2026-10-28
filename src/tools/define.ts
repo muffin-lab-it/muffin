@@ -5,7 +5,8 @@
  *  - 타임아웃: execute 가 timeoutMs(기본 10초) 안에 끝나지 않으면 실패 처리
  *  - 에러: execute 가 throw 하면 Agent 전체를 멈추지 않고, 모델에게 "이 tool 은 실패했다" 고 알립니다
  *  - 증거 번호: 성공한 결과마다 E1, E2 … 를 붙여 증거 장부에 기록하고, 모델에게도 같은 id 를 돌려줍니다.
- *    모델은 리포트의 숫자와 원인에 이 id 를 인용하고, 검증은 이 id 로 원본과 대조합니다. 계산 tool(kind: calc)은 C1, C2 … 와 lineage
+ *    모델은 리포트의 숫자와 원인에 이 id 를 인용하고, 검증은 이 id 로 원본과 대조합니다. 계산 tool(kind: calc)은 C1, C2 … 와 lineage.
+ *    출처를 목록으로 돌려주는 tool(뉴스)은 항목마다 E3-1, E3-2 … (1건이어도 E3-1)
  *  - 핵심 값: 장부에는 data 전체가 아니라 핵심 값만 남깁니다. 기본은 data 의 짧은 원시값이고,
  *    tool 이 `evidence` 로 직접 고를 수 있습니다 (아래 ToolSpec 참고)
  *  - 출처 수집: 반환값의 source 를 ResearchContext 에 쌓아 리포트 sources 에 반드시 들어가게 합니다
@@ -148,10 +149,12 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         const result = await spec.execute(input as z.infer<P>, ctx);
         if (!ctx) return result;
 
-        // 출처가 여러 개(뉴스 기사)면 E3-1, E3-2 처럼 나눠서 기사 하나하나를 인용할 수 있게 합니다. 계산은 C 번호입니다.
+        // 출처를 목록으로 돌려주는 tool(뉴스 기사)은 E3-1, E3-2 처럼 나눠서 기사 하나하나를 인용할 수 있게 합니다.
+        // 기사가 1건이어도 E3-1 입니다. 건수에 따라 E3 · E3-1 로 모양이 바뀌면 모델이 없는 번호를 인용합니다. 계산은 C 번호입니다.
         const id = spec.kind === "calc" ? ctx.nextCalcId() : ctx.nextCallId();
+        const listed = Array.isArray(result.source);
         const sources = Array.isArray(result.source) ? result.source : [result.source];
-        const withIds = sources.map((s, k) => ({ id: sources.length > 1 ? `${id}-${k + 1}` : id, ...s }));
+        const withIds = sources.map((s, k) => ({ id: listed ? `${id}-${k + 1}` : id, ...s }));
         const values = evidenceValues(spec, result.data, sources.length);
         const entries: Evidence[] = withIds.map((s, k) => ({
           id: s.id,
@@ -164,7 +167,7 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         }));
         ctx.addEvidence(entries);
         ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started });
-        return { id, ...result, source: Array.isArray(result.source) ? withIds : withIds[0] };
+        return { id, ...result, source: listed ? withIds : withIds[0] };
       } catch (err) {
         // tool 이 직접 만든 에러 메시지에 키가 섞여도 모델과 로그로 새지 않게 합니다.
         const message = redactSecrets(err instanceof Error ? err.message : String(err));
