@@ -430,6 +430,9 @@ describe("verify · applyVerification · summarizeVerification", () => {
     const applied = applyVerification(clean, verify(clean, ledger));
     expect(applied.removed).toEqual([]);
     expect(summarizeVerification(applied, 0)).toMatchObject({ status: "pass", numbers: { total: 2, verified: 1, derived: 1 }, revisions: 0 });
+    // 마감 때문에 다시 쓰기를 건너뛰었을 때만 revisionSkipped 가 붙는다
+    expect(summarizeVerification(applied, 0)).not.toHaveProperty("revisionSkipped");
+    expect(summarizeVerification(applied, 0, true)).toMatchObject({ revisions: 0, revisionSkipped: true });
   });
 
   it("summary 의 권유 문장은 그 문장만 지우고, 전부 권유면 안내 문장으로 바꾼다", () => {

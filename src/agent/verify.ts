@@ -561,7 +561,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
 }
 
 /** 리포트에 붙는 검증 요약. pass 는 뺀 것도 낮춘 것도 없고 권유 표현도 0 일 때. advice 는 처리 뒤에도 남은 권유 문장 수(목표 0). */
-export function summarizeVerification(applied: Applied, revisions: number): Verification {
+export function summarizeVerification(applied: Applied, revisions: number, revisionSkipped = false): Verification {
   const verified = applied.checks.filter((c) => c === "verified").length;
   const derived = applied.checks.filter((c) => c === "derived").length;
   const advice = findAdvice(applied.output).length;
@@ -572,5 +572,6 @@ export function summarizeVerification(applied: Applied, revisions: number): Veri
     advice,
     revisions,
     removed: applied.removed,
+    ...(revisionSkipped ? { revisionSkipped: true } : {}),
   };
 }

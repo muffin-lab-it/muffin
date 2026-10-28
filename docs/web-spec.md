@@ -90,7 +90,7 @@ flowchart LR
 | `report` | `report`, `steps`, `rewrites`, `id` | 마지막 줄 | 저장 후 상세로 이동 |
 | `error` | `message`, `id?` | 실패 · 시간 초과 (마지막 줄) | 메시지 + 요청 id + 다시 시도 |
 
-- 단계 이벤트는 단계마다 한 번만 옵니다. 검증 실패로 작성을 1회 다시 돌리면 verify 단계 안에서 처리하고 write 이벤트를 다시 보내지 않습니다. 그래서 verify 가 10~15초 길어질 수 있습니다.
+- 단계 이벤트는 단계마다 한 번만 옵니다. 검증 실패로 작성을 1회 다시 돌리면 verify 단계 안에서 처리하고 write 이벤트를 다시 보내지 않습니다. 그래서 verify 가 10~15초 길어질 수 있습니다. 남은 시간이 15초보다 적으면 다시 쓰지 않고 검증에 걸린 부분만 뺍니다(`REVISION_RESERVE_MS`).
 - 범위 밖 질문은 plan 뒤에 research · edit · write 없이 verify → report 로 끝납니다. 건너뛴 단계를 표시해야 합니다.
 
 ### 3.3 리포트 필드 → 화면 (`src/agent/schema.ts` 의 `reportSchema`)
@@ -103,7 +103,7 @@ flowchart LR
 | `numbers[]` (`check`: verified · derived · unverified, `ref`) | 숫자 카드, 배지, 원본 보기 | 소희 |
 | `why[]` (`basis`: data 📊 · news 📰 · none ❔, `refs`) | 원인, 아이콘, 원본 보기 | 소희 |
 | `evidence[]` (E1 · E3-1 · C1, `lineage`), `sources[]` | 원본 보기, 계산 계보, 출처 목록 | 소희 |
-| `verification` | 검증 한 줄, 검사 후 제외한 항목 | 소희(내용) · 은선(위치) |
+| `verification` | 검증 한 줄, 검사 후 제외한 항목. `revisionSkipped` 면 "시간이 부족해 한 번 더 검토하지 못했어요" 를 보여 줄 수 있음 | 소희(내용) · 은선(위치) |
 
 정제 단계의 사실 목록(facts)은 리포트에 들어 있지 않습니다.
 

@@ -153,6 +153,7 @@ export const verificationSchema = z.object({
   advice: z.number().describe("남은 권유 표현 수. 목표 0"),
   revisions: z.number().describe("검증 실패로 다시 쓴 횟수"),
   removed: z.array(z.string()).describe("검증 실패로 뺀 항목"),
+  revisionSkipped: z.boolean().optional().describe("검증에 실패했지만 마감이 가까워 다시 쓰지 않고 바로 뺐으면 true"),
 });
 export type Verification = z.infer<typeof verificationSchema>;
 
