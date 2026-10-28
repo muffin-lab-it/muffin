@@ -3,27 +3,58 @@
  *
  *  createReport  POST /api/report        완료 후 JSON 한 번에
  *  streamReport  POST /api/report/stream NDJSON 이벤트 스트림. 진행 화면용
+ *
+ * 모든 요청에 브라우저 익명 id(X-Muffin-Client)를 붙입니다. 실패하면 ApiError 를 throw 하고, message 는 화면에 그대로 보여 줄 문장입니다.
  */
 import type { ToolStep } from "../agent/context";
 import type { MuffinEvent } from "../agent/events";
 import type { Area, Depth, Report } from "../agent/schema";
+import { CLIENT_HEADER, getClientId } from "./client";
 
 export type ReportRequest = { question: string; depth: Depth; area?: Area };
 export type ReportResponse = { report: Report; steps: ToolStep[]; rewrites: number; /** 서버 로그의 요청 id */ id?: string };
 
-function failure(json: { error?: string; id?: string }, status: number): Error {
+/** API 실패. 429(호출 제한)면 retryAfterSec 로 다시 시도할 수 있을 때까지 남은 초를 알 수 있습니다. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly id?: string;
+  readonly retryAfterSec?: number;
+
+  constructor(message: string, status: number, id?: string, retryAfterSec?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.id = id;
+    this.retryAfterSec = retryAfterSec;
+  }
+}
+
+type ErrorBody = { error?: string; id?: string; retryAfterSec?: number };
+
+const positive = (n: unknown): number | undefined => (typeof n === "number" && Number.isFinite(n) && n > 0 ? n : undefined);
+
+/** 서버 문장을 그대로 쓰고 요청 id 를 붙입니다. 429 인데 문장이 없으면 남은 시간으로 만듭니다 (바디의 retryAfterSec, 없으면 Retry-After 헤더). */
+function failure(json: ErrorBody, status: number, retryAfterHeader?: string | null): ApiError {
+  const retryAfterSec = status === 429 ? (positive(json.retryAfterSec) ?? positive(Number(retryAfterHeader))) : undefined;
+  const fallback = status === 429 ? `요청이 많아요. ${Math.max(1, Math.ceil((retryAfterSec ?? 60) / 60))}분 뒤 다시 시도해 주세요.` : `HTTP ${status}`;
   const ref = json.id ? ` (요청 id: ${json.id})` : "";
-  return new Error(`${json.error ?? `HTTP ${status}`}${ref}`);
+  return new ApiError(`${json.error ?? fallback}${ref}`, status, json.id, retryAfterSec);
+}
+
+/** 브라우저 익명 id 는 서버 렌더링에서는 비어 있어서 그때는 붙이지 않습니다. */
+function headers(extra: Record<string, string> = {}): Record<string, string> {
+  const clientId = getClientId();
+  return { "Content-Type": "application/json", ...(clientId ? { [CLIENT_HEADER]: clientId } : {}), ...extra };
 }
 
 export async function createReport(input: ReportRequest): Promise<ReportResponse> {
   const res = await fetch("/api/report", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify(input),
   });
-  const json = (await res.json().catch(() => ({}))) as Partial<ReportResponse> & { error?: string };
-  if (!res.ok || !json.report) throw failure(json, res.status);
+  const json = (await res.json().catch(() => ({}))) as Partial<ReportResponse> & ErrorBody;
+  if (!res.ok || !json.report) throw failure(json, res.status, res.headers.get("Retry-After"));
   return { report: json.report, steps: json.steps ?? [], rewrites: json.rewrites ?? 0, id: json.id };
 }
 
@@ -34,12 +65,12 @@ export async function createReport(input: ReportRequest): Promise<ReportResponse
 export async function streamReport(input: ReportRequest, onEvent: (event: MuffinEvent) => void): Promise<ReportResponse> {
   const res = await fetch("/api/report/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
+    headers: headers({ Accept: "application/x-ndjson" }),
     body: JSON.stringify(input),
   });
   if (!res.ok || !res.body) {
-    const json = (await res.json().catch(() => ({}))) as { error?: string; id?: string };
-    throw failure(json, res.status);
+    const json = (await res.json().catch(() => ({}))) as ErrorBody;
+    throw failure(json, res.status, res.headers.get("Retry-After"));
   }
 
   let final: ReportResponse | undefined;
