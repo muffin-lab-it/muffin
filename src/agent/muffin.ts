@@ -7,12 +7,12 @@
  * 작성은 그 번호를 인용하고, 검증은 번호로 원본과 대조합니다. 검증 실패는 작성에게만 1회 되돌립니다 (조사 · 정제로 되돌아가지 않음).
  * 네 Agent 실행은 withTrace 로 한 묶음이라 OpenAI Traces 에서 한 요청으로 보입니다.
  */
-import { RunContext, withTrace } from "@openai/agents";
+import { RunContext, withTrace, type Agent, type AgentOutputType } from "@openai/agents";
 import { muffinTools } from "../tools";
 import { ResearchContext, type ToolStep } from "./context";
 import { createEditorAgent, editInput, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
-import { modelFor } from "./models";
+import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, outOfScopeOutput } from "./report";
 import { createResearcherAgent, runResearch } from "./research";
@@ -26,6 +26,14 @@ export { modelFor } from "./models";
 export const TIME_BUDGET_MS = 55_000;
 /** 다시 쓰기(작성 1회 + 검증)에 드는 시간. 실측 9.6~11.6초 (2026-10-26 · 28). 남은 시간이 이보다 적으면 다시 쓰지 않습니다. */
 export const REVISION_RESERVE_MS = 15_000;
+
+/**
+ * 단계별 호출 설정(시간 제한 · 시간 초과 재시도 · 추론 강도)을 Agent 에 덧씌웁니다. 값은 models.ts 의 modelSettingsFor 가 정하고,
+ * 담당자의 단계 파일은 바꾸지 않습니다.
+ */
+function tuned<TOutput extends AgentOutputType>(agent: Agent<ResearchContext, TOutput>, stage: ModelStage): Agent<ResearchContext, TOutput> {
+  return agent.clone({ modelSettings: { ...agent.modelSettings, ...modelSettingsFor(stage) } });
+}
 
 export type ResearchInput = { question: string; depth: Depth; area?: Area };
 export type ResearchOptions = {
@@ -75,7 +83,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 📋 분류. 실패하면 규칙 기반 기본 계획. 모드는 의도로 코드가 정합니다.
   emit({ type: "stage", stage: "plan", status: "start" });
   const planCtx = new RunContext(ctx);
-  const planned = await runPlan(createPlannerAgent(depth), planInput(question, area, depth), planCtx, defaultPlan(question, area));
+  const planned = await runPlan(tuned(createPlannerAgent(depth), "plan"), planInput(question, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx);
   const plan = { ...normalizePlan(planned, question, area), mode: modeFor(planned.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
@@ -103,20 +111,20 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   emit({ type: "stage", stage: "research", status: "start" });
   const tools = muffinTools.filter((t) => plan.tools.includes(t.name));
   const researchCtx = new RunContext(ctx);
-  const notes = await runResearch(createResearcherAgent(depth, area, tools), question, researchCtx);
+  const notes = await runResearch(tuned(createResearcherAgent(depth, area, tools), "research"), question, researchCtx);
   addUsage(researchCtx);
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
   emit({ type: "stage", stage: "edit", status: "start" });
   const editCtx = new RunContext(ctx);
-  const facts = await runEdit(createEditorAgent(depth), editInput(question, plan, ctx.evidence, notes), editCtx);
+  const facts = await runEdit(tuned(createEditorAgent(depth), "edit"), editInput(question, plan, ctx.evidence, notes), editCtx);
   addUsage(editCtx);
   emit({ type: "stage", stage: "edit", status: "done" });
 
   // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다.
   emit({ type: "stage", stage: "write", status: "start" });
-  const writer = createWriterAgent(depth, area, plan.mode);
+  const writer = tuned(createWriterAgent(depth, area, plan.mode), "write");
   const input = writerInput(question, ctx.evidence, notes, facts);
   const writeCtx = new RunContext(ctx);
   let output = await runWriter(writer, input, writeCtx);
