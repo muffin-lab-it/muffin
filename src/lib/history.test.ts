@@ -26,16 +26,17 @@ describe("history (localStorage)", () => {
   beforeEach(() => vi.stubGlobal("window", { localStorage: fakeStorage() }));
   afterEach(() => vi.unstubAllGlobals());
 
-  it("저장하면 최신순으로 목록에 나오고 id 로 조회·삭제된다", () => {
-    const a = saveReport({ question: "a", depth: "easy" }, report, []);
-    const b = saveReport({ question: "b", depth: "deep", area: "etf" }, report, []);
-    expect(listReports().map((r) => r.id)).toEqual([b.id, a.id]);
-    expect(getReport(a.id)?.input.question).toBe("a");
-    deleteReport(a.id);
-    expect(listReports()).toHaveLength(1);
+  it("저장하면 최신순으로 목록에 나오고 id 로 조회·삭제된다", async () => {
+    const a = await saveReport({ question: "a", depth: "easy" }, report, []);
+    const b = await saveReport({ question: "b", depth: "deep", area: "etf" }, report, []);
+    expect((await listReports()).map((r) => r.id)).toEqual([b.id, a.id]);
+    expect((await getReport(a.id))?.input.question).toBe("a");
+    await deleteReport(a.id);
+    expect(await listReports()).toHaveLength(1);
+    expect(await getReport(a.id)).toBeNull();
   });
 
-  it("0단계 전에 저장된 v1 기록도 v2 모양으로 읽고, 깨진 기록은 건너뛴다", () => {
+  it("0단계 전에 저장된 v1 기록도 v2 모양으로 읽고, 깨진 기록은 건너뛴다", async () => {
     const storage = fakeStorage();
     vi.stubGlobal("window", { localStorage: storage });
     const v1 = {
@@ -47,14 +48,20 @@ describe("history (localStorage)", () => {
     };
     storage.setItem("muffin.history.v1", JSON.stringify([v1, { id: "broken", report: {} }]));
 
-    const list = listReports();
+    const list = await listReports();
     expect(list.map((r) => r.id)).toEqual(["old"]);
     expect(list[0].report.version).toBe(2);
     expect(list[0].report.verification.status).toBe("skipped");
-    expect(getReport("old")?.report.disclosure).toBeTruthy();
+    expect((await getReport("old"))?.report.disclosure).toBeTruthy();
   });
 
-  it("localStorage 가 없어도 터지지 않는다", () => {
+  it("서버 렌더링(window 없음)에서는 빈 목록이다", async () => {
+    vi.unstubAllGlobals();
+    expect(await listReports()).toEqual([]);
+    expect(await getReport("a")).toBeNull();
+  });
+
+  it("localStorage 가 없어도 터지지 않는다", async () => {
     vi.stubGlobal("window", {
       localStorage: {
         getItem: () => {
@@ -65,7 +72,8 @@ describe("history (localStorage)", () => {
         },
       },
     });
-    expect(() => saveReport({ question: "x", depth: "easy" }, report, [])).not.toThrow();
-    expect(listReports()).toEqual([]);
+    await expect(saveReport({ question: "x", depth: "easy" }, report, [])).resolves.toMatchObject({ input: { question: "x" } });
+    expect(await listReports()).toEqual([]);
+    expect(await getReport("x")).toBeNull();
   });
 });
