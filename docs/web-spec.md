@@ -166,10 +166,11 @@ create table runs (                    -- src/lib/log.ts 의 RunLog 와 같은 �
   id text primary key,
   at timestamptz not null,
   ok boolean not null,
-  stage text not null,                 -- input | config | limited | agent | ok
+  stage text not null,                 -- started | input | config | limited | agent | ok
   mock boolean not null default false,
   client_id uuid,
   ip_hash text,                        -- sha256(ip + RATE_LIMIT_SALT) 앞 16자. 원문 IP 는 저장하지 않음
+  input jsonb,                         -- { question, depth, area }
   ms integer not null,
   model text,
   usage jsonb,                         -- { requests, inputTokens, outputTokens }
@@ -182,18 +183,24 @@ create table runs (                    -- src/lib/log.ts 의 RunLog 와 같은 �
 );
 create index runs_at on runs (at desc);
 create index runs_client_at on runs (client_id, at desc);
+create index runs_ip_at on runs (ip_hash, at desc);
+
+-- RLS 는 켜고 정책은 만들지 않습니다. secret 키만 표에 닿습니다.
+alter table reports enable row level security;
+alter table runs enable row level security;
 ```
 
 ### 4.4 실행 로그 (서영)
 
-`logRun` 은 지금처럼 콘솔(Vercel Logs, `muffin.run`)에 남기고, 2차부터 `runs` 에도 넣습니다. 응답을 늦추지 않게 `next/server` 의 `after()` 로 쓰고, 실패해도 응답은 그대로 나가게 try/catch 후 콘솔에만 남깁니다. `db.ts` 는 은경의 것을 씁니다.
+`logRun` 은 지금처럼 콘솔(Vercel Logs, `muffin.run`)에 남기고, 2차부터 `runs` 에도 남깁니다. 요청의 줄은 호출 제한 v2 가 시작할 때 먼저 넣고(4.5), 끝나면 `logRun` 이 같은 id 의 줄을 갱신합니다. 갱신은 응답을 늦추지 않게 `next/server` 의 `after()` 로 하고, 실패해도 응답은 그대로 나가게 try/catch 후 콘솔에만 남깁니다. `db.ts` 는 은경의 것을 씁니다.
 
 ### 4.5 호출 제한 (서영)
 
 - 키 두 개를 함께 셉니다. 브라우저 키는 `X-Muffin-Client` 값, IP 키는 `x-forwarded-for` 의 첫 IP 를 `RATE_LIMIT_SALT` 와 함께 sha256 한 값입니다. 원문 IP 는 저장 · 로그하지 않습니다.
 - 한도는 환경 변수에서만 읽습니다(비우면 기본값): 브라우저 키 `RATE_LIMIT_10M=10`(10분 10회) · `RATE_LIMIT_DAY=60`(하루 60회), IP 키 `RATE_LIMIT_IP_10M=30`(10분 30회). 숫자를 코드 곳곳에 쓰지 않고 기본값은 `ratelimit.ts` 한 곳에 둡니다. 상한은 Vercel 환경 변수만 바꿔 올립니다.
 - 리포트 생성 두 라우트에만, 바디를 읽기 전에 적용합니다(출처 검사 바로 뒤). 넘으면 429 와 `Retry-After`, 로그는 `stage: "limited"` 입니다.
-- v1 은 메모리 `Map` 입니다. 인스턴스마다 따로 세는 한계를 파일 머리에 적습니다. v2 는 `runs` 표를 count 하는 방식으로 바꿉니다 (2차).
+- v1 은 메모리 `Map` 입니다. 인스턴스마다 따로 세는 한계를 파일 머리에 적습니다.
+- v2(2차)는 요청을 받자마자 `runs` 에 그 요청의 줄을 먼저 넣고(`stage: "started"`), 그 줄까지 포함해 셉니다. 한도를 넘으면 그 줄을 `limited` 로 바꾸고 429 를 돌려줍니다. 끝난 요청만 세면 동시에 들어온 요청이 모두 통과하기 때문입니다.
 
 ```ts
 // src/lib/ratelimit.ts (모양 고정. 구현을 바꿔도 라우트는 그대로)
@@ -223,7 +230,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 | 은경 | 출처 검사 · 바디 크기: `src/lib/guard.ts` + 테스트, 두 라우트에 적용 | 허용 Origin 통과, 다른 Origin 403, 큰 바디 413 |
 | 은경 | DB · History API: `db.ts`, 마이그레이션 SQL, 엔드포인트 4개 + 테스트(Supabase 클라이언트는 모킹), `history.ts` 2차 구현 | 같은 브라우저에서만 보이고 다른 브라우저에서는 안 보임, 삭제 동작 |
 | 서영 | 실행 로그 DB: `logRun` 이 `runs` 에도 insert | Supabase 표에 한 줄, 쓰기가 실패해도 응답은 그대로 |
-| 서영 | 호출 제한 v2: `runs` count 로 교체 | 인스턴스가 달라도 같은 수로 셈 |
+| 서영 | 호출 제한 v2: 요청 시작 때 `runs` 에 먼저 넣고 세기 | 인스턴스가 달라도 같은 수로 셈, 같은 브라우저에서 동시에 11건이 와도 10건만 통과 |
 
 ### 프론트
 
