@@ -55,16 +55,25 @@ describe("writerInstructions", () => {
     expect(text).toContain("관심 영역: 물가·경제지표");
   });
 
-  it.each(["research", "decision_facts"] as const)("%s 모드에서 Deep에만 용어 설명 금지의 적용 범위를 전달한다", (mode) => {
-    const deep = writerInstructions("deep", "etf", mode);
-    expect(deep).toContain("용어는 설명 없이 쓴다는 규칙을 리포트의 모든 항목에 적용합니다");
-    expect(deep).toContain("용어의 정의·동의어 풀이·괄호 해설을 덧붙이지 않습니다");
-    for (const depth of ["easy", "standard"] as const) {
+  it.each(["research", "decision_facts"] as const)("%s 모드에서 깊이별 규칙을 전달하고 별도의 깊이 정책을 덧붙이지 않는다", (mode) => {
+    for (const depth of ["easy", "standard", "deep"] as const) {
       const text = writerInstructions(depth, "etf", mode);
       expect(text).not.toContain("[깊이별 용어 규칙 적용]");
       expect(text).not.toContain("용어의 정의·동의어 풀이·괄호 해설을 덧붙이지 않습니다");
+      expect(text).not.toContain("개수는 상한이지 채워야 할 수가 아닙니다");
+      expect(text).toContain("항목 수는 깊이별 규칙을 따릅니다");
       expect(text).toContain(depthInstructions(depth, mode));
     }
+  });
+
+  it.each([
+    ["rate", "대출·예금·채권 관점"],
+    ["macro", "생활 물가와 실질 소득 관점"],
+  ] as const)("%s 기본 관점은 목적이 없을 때 적용하고 무관한 항목을 채우지 않는다", (area, fallback) => {
+    const text = writerInstructions("deep", area);
+    expect(text).toContain("질문에 명시된 목적과 비교 대상을 우선합니다");
+    expect(text).toContain(`목적이 드러나지 않으면 ${fallback}`);
+    expect(text).toContain("항목을 채우기 위해 질문과 무관한 정보나 근거 없는 내용을 추가하지 않습니다");
   });
 
   it("깊이별 규칙과 공통 규칙(증거 번호 인용 · 근거 종류 · 권유 금지)이 들어간다", () => {
