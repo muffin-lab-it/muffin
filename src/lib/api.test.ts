@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import v2 from "../agent/fixtures/report.v2.sample.json";
 import type { MuffinEvent } from "../agent/events";
-import { createReport, streamReport } from "./api";
+import { ApiError, createReport, streamReport } from "./api";
+import { CLIENT_HEADER, isClientId } from "./client";
 
 const report = v2.report;
 
@@ -67,5 +68,53 @@ describe("createReport", () => {
   it("실패하면 에러 메시지에 요청 id 를 붙인다", async () => {
     vi.stubGlobal("fetch", async () => Response.json({ error: "키 없음", id: "run-4" }, { status: 500 }));
     await expect(createReport({ question: "q", depth: "easy" })).rejects.toThrow("키 없음 (요청 id: run-4)");
+  });
+});
+
+describe("브라우저 익명 id 헤더 · 429", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const memoryStorage = () => {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+  };
+  const headerOf = (init: RequestInit | undefined) => (init?.headers as Record<string, string>)[CLIENT_HEADER];
+
+  it("두 함수 모두 같은 브라우저 id 를 X-Muffin-Client 로 붙인다", async () => {
+    vi.stubGlobal("window", { localStorage: memoryStorage() });
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) =>
+      url.endsWith("/stream")
+        ? streamed(ndjson([{ type: "report", report, steps: [], rewrites: 0, id: "run-5" }]), 1000)
+        : Response.json({ report, steps: [], rewrites: 0, id: "run-6" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createReport({ question: "q", depth: "easy" });
+    await streamReport({ question: "q", depth: "easy" }, () => {});
+    const [first, second] = fetchMock.mock.calls.map(([, init]) => headerOf(init));
+    expect(isClientId(first)).toBe(true);
+    expect(second).toBe(first);
+  });
+
+  it("서버 렌더링(window 없음)에서는 헤더를 붙이지 않는다", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ report, steps: [], rewrites: 0 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createReport({ question: "q", depth: "easy" });
+    expect(headerOf(fetchMock.mock.calls[0][1])).toBeUndefined();
+  });
+
+  it("429 면 서버 문장과 요청 id 로 ApiError 를 던지고, retryAfterSec 를 담는다", async () => {
+    vi.stubGlobal("fetch", async () =>
+      Response.json({ error: "요청이 많아요. 2분 뒤 다시 시도해 주세요.", id: "run-7", retryAfterSec: 120 }, { status: 429, headers: { "Retry-After": "120" } }),
+    );
+    const err = await streamReport({ question: "q", depth: "easy" }, () => {}).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ status: 429, id: "run-7", retryAfterSec: 120, message: "요청이 많아요. 2분 뒤 다시 시도해 주세요. (요청 id: run-7)" });
+  });
+
+  it("429 인데 문장이 없으면 Retry-After 헤더로 남은 분을 적는다", async () => {
+    vi.stubGlobal("fetch", async () => new Response("", { status: 429, headers: { "Retry-After": "61" } }));
+    const err = await createReport({ question: "q", depth: "easy" }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 429, retryAfterSec: 61, message: "요청이 많아요. 2분 뒤 다시 시도해 주세요." });
   });
 });

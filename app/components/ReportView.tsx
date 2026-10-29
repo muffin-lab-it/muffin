@@ -23,7 +23,7 @@ function direction(change: string): "up" | "down" | "flat" {
  * 프론트 팀은 이 컴포넌트를 기준으로 디자인을 올리면 됩니다. 데이터 모양은 src/agent/schema.ts.
  */
 export function ReportView({ report, steps, area }: { report: Report; steps?: ToolStep[]; area?: Area }) {
-  const checkLabels = { verified: "값 대조", derived: "계산값", unverified: "미검증" };
+  const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" };
   const basisLabels = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
   return (
     <div className="report">

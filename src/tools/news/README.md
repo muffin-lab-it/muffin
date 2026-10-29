@@ -1,6 +1,6 @@
 # News Tool — 국내 경제 뉴스 RSS
 
-국내 경제 뉴스의 제목·발행 시각·언론사·링크를 RSS에서 조회합니다. `content=body`에서는 연합뉴스·한국경제 **공개 기사 페이지**의 본문 추출도 시도합니다. Google News는 목록·검색 결과만 제공하며, 본문을 확보한 것으로 표시하지 않습니다.
+국내 경제 뉴스의 제목·발행 시각·언론사·링크를 RSS에서 조회합니다. `content=body`에서는 연합뉴스·한국경제 **공개 기사 페이지**의 본문 추출도 시도합니다. Google News는 목록·검색 결과만 제공합니다. `body` 요청에서 본문을 한 건도 확보하지 못하면, 이미 수집한 Google 목록을 **제목 수준의 근거**로 반환합니다. 본문을 확보한 것으로 표시하지 않습니다.
 
 ## 주요 기능
 
@@ -10,6 +10,7 @@
 - 일부 소스 실패 시 성공한 기사와 `failedSources`를 함께 반환. 전부 실패하거나 반환할 기사가 없으면 오류 발생
 - 기사마다 클릭 가능한 `source` 기록
 - RSS 수집(`rss.ts`, `sources.ts`)과 본문 추출(`body.ts`) 분리. `body` 모드는 실패 후보를 제외하고 다음 RSS 후보로 보충
+- 본문 0건일 때만 선택된 Google 소스의 기존 목록을 제목 fallback으로 반환. 새 소스나 기사 페이지를 추가 호출하지 않음
 - 유료 기사 표시를 확인하면 본문 수집을 중단하고 `access_restricted` 반환
 
 ## 데이터 소스와 이용 조건
@@ -39,9 +40,22 @@
 | `sources` | `yonhap`, `hankyung`, `google` 중 1~3개. 중복 입력은 한 번만 조회 |
 | `query` | 검색어 또는 `null`. Google News는 RSS 검색 질의로 사용하며 `null`이면 **경제**로 검색. 다른 피드는 받은 최신 기사 **제목만** 필터링 |
 | `limit` | `list`에서는 반환 목록 상한, `body`에서는 본문 확보 목표. 1~10, Agent 호출 시 필수. 보통 5건 권장 |
-| `content` | `list` 또는 `body`. `body`는 공개 기사 본문 추출을 시도 |
+| `content` | `list` 또는 `body`. `body`는 본문 추출을 시도하고, 0건이면 이미 받은 Google 목록을 제목 근거로 반환 |
 
-`data.articles[]`에는 `title`, `url`, `publisher`, `publishedAt`(ISO 8601), `source`(소스 ID), `body`가 있습니다. `list`에서는 `{status:"not_requested"}`, `body`에서는 **확보에 성공한 기사만** `{status:"available",text}`로 들어갑니다. 실패는 `failedCount`, `failureCounts`, `failedArticles`(최대 10건 예시)에 집계됩니다. `requestedCount`, `collectedCount`, `missingCount`, `inspectedCount`, `resultStatus`(`complete`/`partial`), `stopReason`도 반환합니다. `count`는 `articles.length`와 같습니다. RSS 소스 장애는 별도 `failedSources`에 기록합니다. `source[]`는 실제 반환 기사와 같은 순서의 `{ name, url, asOf }`입니다.
+`data.articles[]`에는 `title`, `url`, `publisher`, `publishedAt`(ISO 8601), `source`(소스 ID), `body`가 있습니다. `list`에서는 `{status:"not_requested"}`, 본문 확보 시에는 `{status:"available",text}`, 제목 fallback은 `{status:"unavailable",reason:"original_url_unresolved",detail}`입니다. fallback에는 `text`가 없습니다. `source[]`는 실제 반환 기사와 같은 순서·개수의 `{ name, url, asOf }`입니다.
+
+| 필드 | 의미 |
+|---|---|
+| `count` / `resultStatus` | **반환 기사 목록** 개수 / `limit` 충족 여부(`complete` 또는 `partial`). 제목 fallback도 목록 개수에는 포함 |
+| `requestedCount` | 요청한 `limit`. `body`에서는 본문 확보 목표 |
+| `collectedCount` / `missingCount` | `list`에서는 목록 확보·부족 수. `body`에서는 **본문** 확보·부족 수. 제목 fallback은 0 / `limit` |
+| `bodyStatus` | `list`는 `not_requested`. `body`에서 본문 목표 충족 시 `complete`, 미달 시 `partial`. **0건도 partial**이며 기사별 상태와 `collectedCount`로 구분 |
+| `inspectedCount` / `failedCount` | 실제 검사한 본문 후보 / 그중 실패 수. 제목 fallback을 만들면서 늘리거나 줄이지 않음 |
+| `failureCounts` / `failedArticles` | 본문 실패 이유별 집계 / 실패 예시 최대 10건. fallback 기사 수와 같을 필요는 없음 |
+| `stopReason` | 본문 후보 검사 또는 목록 조회가 멈춘 기존 이유. 제목 fallback으로 덮어쓰지 않음 |
+| `failedSources` | RSS 소스별 조회 실패 |
+
+따라서 `resultStatus=complete`만으로 본문 확보를 판단하면 안 됩니다. 예를 들어 제목 3건을 반환해도 `collectedCount=0`, `missingCount=3`, `bodyStatus=partial`일 수 있습니다. 기한·후보 상한 때문에 검사하지 못했거나 직접 기사와 중복되어 검사에서 제외된 Google 항목도 제목으로 반환할 수 있습니다. 이때 본문 미지원 상태는 표시하지만 새 본문 검사·실패 건수로 집계하지 않습니다.
 
 ```json
 {
@@ -56,7 +70,32 @@
 }
 ```
 
-예시는 실제 기사가 아닌 합성 데이터입니다. Google News의 `url`은 중계 링크이며 원문 링크가 아닙니다. Google만 선택한 `body` 요청처럼 본문 확보가 0건이면 실패 이유 집계와 함께 `execute`가 throw합니다. 일부 확보했다면 `partial` 결과로 성공 기사만 사용할 수 있습니다.
+예시는 실제 기사가 아닌 합성 데이터입니다. Google News의 `url`은 중계 링크이며 원문 링크가 아닙니다.
+
+### 본문 0건일 때의 제목 fallback
+
+- 본문이 한 건이라도 있으면 기존처럼 본문 확보 기사만 반환합니다. 부족한 자리를 제목 기사로 섞어 채우지 않습니다.
+- **본문 0건의 Google 제목 fallback에만 최근 30일 제한을 적용합니다.** ISO 8601로 정규화한 `publishedAt`이 Tool 실행 시작 시각 기준 최근 **30×24시간 이내**인 후보만 남긴 뒤, 기존 중복 제거·최신순 정렬·`limit`을 적용합니다. 정확히 30일 전은 포함하고, 30일 초과 및 미래 발행일은 제외합니다. 직접 기사와 중복되어 본문 후보에서 제외됐던 Google 목록도 이 조건을 만족하면 제목으로 사용할 수 있습니다.
+- 최근 후보가 `limit`보다 적으면 있는 만큼만 반환하고 `resultStatus=partial`로 표시합니다. 오래된 기사로 부족분을 채우지 않습니다. 최근 후보가 0건이면 본문도 없는 상태이므로 기존 오류를 유지합니다. 날짜 필터는 추가 요청이나 본문 검사·실패 집계 변경을 만들지 않습니다.
+- Google 미선택·RSS 실패·유효 목록 없음이면 새 소스를 조회하지 않으며, 본문도 없을 때 기존 오류를 유지합니다. 모든 RSS 실패와 빈 결과 역시 throw합니다.
+- `note`와 Tool description은 제목에 직접 드러난 사실만 사용하도록 안내합니다. 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하면 안 됩니다. 제목의 “금리 상승”은 그 원인이 검증됐다는 뜻이 아닙니다.
+
+다음은 Google 후보 1건의 본문을 확보하지 못한 **합성** 반환 예시입니다.
+
+```json
+{
+  "data": {
+    "articles": [{ "title": "[합성] 금리 동향 발표", "url": "https://news.google.com/rss/articles/TEST001", "publisher": "합성신문", "publishedAt": "2026-10-17T00:00:00.000Z", "source": "google", "body": { "status": "unavailable", "reason": "original_url_unresolved", "detail": "Google News 중계 링크에서 원문 URL을 확정할 수 없습니다. 제목만 확인했습니다." } }],
+    "count": 1, "requestedCount": 1, "collectedCount": 0, "missingCount": 1,
+    "inspectedCount": 1, "failedCount": 1, "failureCounts": { "original_url_unresolved": 1 },
+    "failedArticles": [{ "source": "google", "url": "https://news.google.com/rss/articles/TEST001", "reason": "original_url_unresolved" }],
+    "resultStatus": "complete", "stopReason": "feed_exhausted", "bodyStatus": "partial", "failedSources": []
+  },
+  "source": [{ "name": "합성신문", "url": "https://news.google.com/rss/articles/TEST001", "asOf": "2026-10-17T00:00:00.000Z" }]
+}
+```
+
+위 예시는 `data`와 `source`이며 실제 반환에는 본문 0건·제목 한정 근거·Google 중계 링크라는 `note`도 붙습니다. 제목 fallback은 기술적인 반환 정책이며, 실제 제목의 AI 입력·저장·재배포 허락을 의미하지 않습니다. 위 이용 조건을 그대로 적용합니다.
 
 `body.status=available`은 현재 공개 HTML의 지정 본문 영역에서 텍스트를 읽었다는 뜻입니다. 원고 전체와 문장별로 대조해 전문의 완전성을 보증하는 표시는 아닙니다. 사진·표의 정보는 텍스트 본문에서 빠질 수 있습니다.
 
@@ -66,8 +105,8 @@
 
 `newsTool`의 `evidence` 훅은 반환한 `data.articles`와 같은 순서·개수로 기사별 메타데이터를 만듭니다. `source`도 같은 기사 배열에서 생성하므로 각 기사의 제목·언론사·발행일·출처가 대응합니다. 기사 1건은 공통 래퍼가 `E1`, 여러 건은 `E1-1`, `E1-2`처럼 번호를 붙입니다 (숫자는 해당 조사에서의 호출 순서에 따라 달라집니다).
 
-- 장부 값은 `title`, `publisher`, `publishedAt`, `body` 네 필드입니다. `body`에는 본문 텍스트 대신 상태만 기록합니다. `list`는 `not_requested`, `body` 모드에서 반환한 성공 기사는 `available`입니다.
-- 본문은 짧더라도 장부에 넣지 않고 기존 `data`에만 유지합니다. 본문 실패 후보는 장부 성공 항목에 포함하지 않습니다. Google News는 목록의 메타데이터·중계 출처만 기록하며 본문 미지원 정책은 그대로입니다.
+- 장부 값은 `title`, `publisher`, `publishedAt`, `body` 네 필드입니다. `body`에는 본문 텍스트 대신 상태만 기록합니다. `list`는 `not_requested`, 본문 확보 기사는 `available`, 제목 fallback은 `unavailable`입니다.
+- 본문은 짧더라도 장부에 넣지 않고 기존 `data`에만 유지합니다. 일반 본문 실패 후보는 장부에 넣지 않습니다. 단, 제목 fallback으로 실제 반환한 Google 기사는 제목 메타데이터·중계 출처·`body=unavailable`을 기록합니다. Tool 호출의 `ok`는 제한된 제목 결과 반환 성공이며 본문 추출 성공이 아닙니다. 본문 미지원 정책은 그대로입니다.
 - evidence는 보도 내용의 출처를 추적하는 기록이며, 기사 속 숫자나 보도된 원인을 독립적으로 검증한 경제 통계·인과관계로 바꾸지 않습니다. 기존의 “기사 속 수치는 별도 검증이 필요합니다” 주의 문구도 장부에 유지됩니다. 다만 현재 공통 숫자 검증기는 제목 안의 금융 숫자도 대조 후보로 읽으므로, **제목과의 숫자 일치와 공식 통계 검증을 구분하는 정책은 리더와 확인해야 합니다.** 이번 변경은 공통 검증기 동작을 바꾸지 않습니다.
 
 평가 질문은 [`scripts/questions/news.json`](../../../scripts/questions/news.json)에 `@Kangsohee` 담당으로 현황 2개·원인 2개·비교 2개를 기록합니다. 현재 RSS의 기사와 실제 확보한 본문 안에서 답하도록 범위를 정하고, 원인 질문은 보도된 주장과 검증된 인과관계를 구분하며 자료 부족을 명시하는지 평가합니다. `common.json`의 주간 금리 현황 요약과는 범위를 구분합니다.
@@ -75,8 +114,8 @@
 ## 기사 수량·기간·성능 정책
 
 - `run.ts`의 기본 `limit`는 **5**입니다. Agent 입력은 기존 Tool 규칙에 따라 모든 필드가 필수라 기본값 없이 `limit`를 명시합니다. 리더는 출처 수와 AI 처리 시간·비용을 고려해 **보통 5건**, 최대 **10건**을 요청하도록 안내했습니다.
-- 별도 날짜 필터나 고정 조회 기간은 없습니다. 선택한 RSS의 **현재 제공 항목**만 대상으로 발행일 내림차순 정렬합니다. 피드가 제공하지 않는 과거 기사까지 찾지 않습니다.
-- `body`는 직접 언론사 후보를 Google보다 먼저 검사하고, 성공한 본문이 `limit`에 닿으면 멈춥니다. 후보는 최대 `min(60, max(15, limit×3))`건 검사합니다. 후보 부족·기한 도달·후보 상한 도달 시 가능한 본문만 `partial`로 반환합니다. 같은 URL은 한 건으로 취급합니다. Google 중계 기사가 같은 언론사의 직접 기사와 제목이 같으면 직접 기사를 우선합니다. 서로 다른 URL의 직접 기사는 제목이 같아도 유지합니다.
+- `content=list`와 본문 확보 성공 결과에는 기존처럼 별도 날짜 제한이 없습니다. **본문 0건의 Google 제목 fallback에만 최근 30일 제한**을 적용합니다. 선택한 RSS의 **현재 제공 항목**만 대상으로 발행일 내림차순 정렬하며, 피드가 제공하지 않는 과거 기사까지 찾지 않습니다.
+- `body`는 직접 언론사 후보를 Google보다 먼저 검사하고, 성공한 본문이 `limit`에 닿으면 멈춥니다. 후보는 최대 `min(60, max(15, limit×3))`건 검사합니다. 후보 부족·기한 도달·후보 상한 도달 시 일부 본문이 있으면 기존 `partial`로 반환합니다. 본문 0건이면 위 제목 fallback 조건을 적용합니다. 같은 URL은 한 건으로 취급합니다. Google 중계 기사가 같은 언론사의 직접 기사와 제목이 같으면 직접 기사를 우선합니다. 서로 다른 URL의 직접 기사는 제목이 같아도 유지합니다.
 - RSS 요청은 각각 3초, 본문 요청은 각각 최대 2.5초, 본문 동시 요청은 최대 4개입니다. Tool 내부 처리 예산은 8.5초, 공통 `defineTool` 제한은 10초입니다. RSS XML과 기사 HTML은 각각 100만 자, 기사 본문은 1건 1.2만 자·전체 응답 8만 자를 넘으면 실패 후보로 집계합니다. HTML/XML 크기는 `fetchText`가 문자열로 읽은 **뒤** 검사하므로 전송 중 바이트 상한은 아닙니다.
 - RSS별 기사 수 배분은 고정하지 않습니다. 성공한 소스의 현재 피드 항목을 합쳐 후보를 구성하며, 특정 소스가 실패하면 다른 소스의 후보를 계속 사용합니다. 언론사 호출 제한과 RSS 갱신 주기는 **미확인**입니다.
 
@@ -85,6 +124,7 @@
 ```bash
 pnpm tool src/tools/news/run.ts --sources yonhap,hankyung --limit 5 --content body --summary
 pnpm tool src/tools/news/run.ts --sources google --query 환율 --limit 5 --content list --summary
+pnpm tool src/tools/news/run.ts --sources google --query 물가 --limit 3 --content body --summary
 pnpm test src/tools/news
 pnpm test scripts/questions
 pnpm lint
@@ -106,7 +146,7 @@ pnpm test
 - 한국경제 RSS에는 유료 기사가 포함됩니다. HTTP 200이나 일부 문장이 보여도 유료 표시가 있으면 `access_restricted`로 처리합니다.
 - HTML 구조 변경 시 `structure_changed`, HTTP 오류 시 `http_error`, 타임아웃 시 `timeout`으로 집계합니다. 현재 본문 추출기는 자동 구조 감지 기능이 없습니다.
 - 공통 `fetchText`는 `redirect` 옵션을 제공합니다. News Tool의 **기사 본문 요청**에는 `redirect: "error"`를 적용해 리디렉션을 따라가지 않고 실패시킵니다. 이는 목적지를 검사하는 기능이 아니라 리디렉션 자체를 거부하는 기능입니다. 기존 HTTPS 호스트·경로 허용 목록 검사와 요청 전 쿼리·fragment 제거는 유지하며, RSS 수집은 공통 헬퍼의 기본값 `"follow"`를 유지합니다.
-- 정상 기사라도 다른 주소로 리디렉션되면 본문을 확보하지 못합니다. fetch의 거부 오류는 기존 `http_error`로 집계하며 다른 후보로 보충합니다. 부족하면 `partial`, 본문 확보가 0건이면 오류를 반환합니다. 리디렉션 오류를 일반 네트워크 오류와 별도 사유로 구분하지는 않습니다.
+- 정상 기사라도 다른 주소로 리디렉션되면 본문을 확보하지 못합니다. fetch의 거부 오류는 기존 `http_error`로 집계하며 다른 후보로 보충합니다. 본문이 일부 있으면 `partial`, 본문 0건이면 Google 제목 fallback 조건에 따라 목록 또는 오류를 반환합니다. 리디렉션 오류를 일반 네트워크 오류와 별도 사유로 구분하지는 않습니다.
 - 기사 URL이 달라도 같은 내용이 재발행되면 중복으로 남을 수 있습니다. 정확한 원문 ID가 없는 Google 중계 기사는 같은 언론사·제목의 직접 RSS 기사와 비교해 제외합니다.
 - RSS 제목은 기사 본문이나 수치의 정확성을 보증하지 않습니다. Agent 리포트에서 수치는 다른 신뢰 가능한 데이터와 대조해야 합니다.
 - 호출 제한, 갱신 주기, 운영 배포 허용 여부는 **미확인**입니다.
@@ -117,5 +157,5 @@ pnpm test
 - 소영 리더 담당: PR 최종 리뷰·Merge, Agent 연결과 공통 HTTP 헬퍼 유지보수를 담당합니다. 공통 헬퍼의 `redirect: "error"` 옵션은 제공된 상태입니다.
 - News Tool 담당: 해당 옵션을 기사 **본문 요청**에 적용했습니다. 합성 fixture 테스트에서는 정상 요청의 옵션 전달, 리디렉션 거부 오류의 실패 집계·자동 보충·부분 성공을 검증합니다. fetch mock이 실제 리디렉션을 수행하는 것은 아니므로 거부 오류를 명시적으로 재현합니다. 향후 언론사의 정상 리디렉션 증가와 본문 확보율 변화도 점검해야 합니다.
 - 다운로드 중 응답 크기 제한도 미해결 보안 문제입니다. 현재 제한은 `fetchText`가 응답 전체를 받은 뒤 적용됩니다. 공통 헬퍼 개선의 담당·방식은 아직 확정되지 않았으며 운영 연결 전에 결정해야 합니다.
-- Agent 연결 뒤에는 `resultStatus`, `missingCount`, `failureCounts`를 드러내고 성공 기사만 분석에 사용하며, 기사별 출처와 리포트 수치·설명을 QA해야 합니다. 팀 내부 개발 허용은 언론사의 AI 서비스 이용 허락을 대신하지 않습니다.
+- Agent 연결 뒤에는 `resultStatus`, `missingCount`, `failureCounts`를 드러내고 기사별 `body.status`에 맞게 본문 근거와 제목 근거를 구분하며, 기사별 출처와 리포트 수치·설명을 QA해야 합니다. `resultStatus=complete`를 본문 성공으로 해석하지 않습니다. 팀 내부 개발 허용은 언론사의 AI 서비스 이용 허락을 대신하지 않습니다.
 - News Tool 밖의 파일·공통 설정·새 라이브러리·공통 HTTP 또는 Agent 코드 변경, 팀 규칙과 충돌하는 구현, 보안·이용 조건 문제나 리더 결정이 필요한 사항은 작업 전에 담당자에게 알리고 사용자가 Discord 공유를 완료했는지 확인합니다. `cheerio`·`fast-xml-parser` 추가와 현재 pnpm 설치 오류는 이미 리더에게 공유됐습니다. 향후 새 의존성은 이유와 영향 범위를 사전 공유한 뒤 추가합니다.

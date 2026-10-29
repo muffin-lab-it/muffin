@@ -31,7 +31,7 @@ const good: WriterOutput = {
 };
 const bad: WriterOutput = { ...good, numbers: [{ ...good.numbers[0], value: "1,400원" }] };
 
-type AgentLike = { name: string; tools: { name: string }[]; instructions: string };
+type AgentLike = { name: string; tools: { name: string }[]; instructions: string; modelSettings: { timeoutMs?: number; reasoning?: { effort?: string }; retry?: { maxRetries?: number } } };
 type RunArgs = [AgentLike, string, { context: RunContext<ResearchContext> }];
 const runMock = run as unknown as ReturnType<typeof vi.fn>;
 
@@ -125,6 +125,11 @@ describe("research() 다섯 단계", () => {
     expect(result.report.sources).toEqual([{ id: "E1", ...source }]);
     expect(result.steps.map((s) => s.tool)).toEqual(["get_fx_krw_rate", "calc_metrics"]);
     expect(result.model).toMatch(/^gpt-6/);
+    // 단계 파일의 Agent 에 리더 쪽 호출 설정(시간 제한 · 시간 초과 재시도 · 조사 추론 강도)이 씌워진다
+    expect(agentOf(0).modelSettings).toMatchObject({ timeoutMs: 15_000, retry: { maxRetries: 1 } });
+    expect(agentOf(1).modelSettings).toMatchObject({ timeoutMs: 15_000, reasoning: { effort: "low" } });
+    expect(agentOf(2).modelSettings).toMatchObject({ timeoutMs: 15_000 });
+    expect(agentOf(3).modelSettings).toMatchObject({ timeoutMs: 30_000, reasoning: { effort: "low" } });
   });
 
   it("숫자가 장부와 다르면 작성에게 1회 수정 요청하고, 고쳐 오면 pass", async () => {
@@ -138,6 +143,26 @@ describe("research() 다섯 단계", () => {
     expect(result.rewrites).toBe(1);
     expect(result.report.verification).toMatchObject({ status: "pass", revisions: 1, removed: [] });
     expect(result.report.numbers[0].check).toBe("verified");
+  });
+
+  it("마감이 가까우면 다시 쓰지 않고 검증에 걸린 숫자를 바로 뺀다 (시간 초과로 리포트가 안 나가는 것보다 낫다)", async () => {
+    mockRuns({ writer: [bad, good] });
+    // 남은 시간이 다시 쓰기에 필요한 15초보다 적다
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard" }, { deadline: Date.now() + 5_000 });
+
+    expect(runMock).toHaveBeenCalledTimes(4);
+    expect(result.rewrites).toBe(0);
+    expect(result.report.numbers).toEqual([]);
+    expect(result.report.verification).toMatchObject({ status: "partial", revisions: 0, revisionSkipped: true });
+    expect(result.report.verification.removed[0]).toContain("1,400");
+  });
+
+  it("시간이 넉넉하면 다시 쓰기를 건너뛰지 않는다 (기본 예산 55초)", async () => {
+    mockRuns({ writer: [bad, good] });
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
+
+    expect(result.rewrites).toBe(1);
+    expect(result.report.verification).not.toHaveProperty("revisionSkipped");
   });
 
   it("수정 뒤에도 틀리면 그 숫자를 빼고 dataGaps 와 removed 에 기록한다 (fail-closed). 조사 · 정제는 다시 돌지 않는다", async () => {

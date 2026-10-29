@@ -90,8 +90,11 @@ export const writerSchema = z.object({
 });
 export type WriterOutput = z.infer<typeof writerSchema>;
 
-/** 숫자 검증 상태. verified: 증거 값과 일치 / derived: Calc 결과 (계보 확인) / unverified: 검증 못 함 → 화면에서 회색 */
-export const numberChecks = ["verified", "derived", "unverified"] as const;
+/**
+ * 숫자 검증 상태. verified: 증거 값과 일치 / derived: Calc 결과 (계보 확인) /
+ * reported: 뉴스 기사(제목)에 나온 숫자와 일치. 기사 보도일 뿐 공식 데이터로 확인한 것은 아님 / unverified: 검증 못 함 → 화면에서 회색
+ */
+export const numberChecks = ["verified", "derived", "reported", "unverified"] as const;
 export type NumberCheck = (typeof numberChecks)[number];
 
 /** 증거 장부 한 줄. tool 결과(출처 단위)마다 하나. 리포트의 ref / refs 가 가리키는 대상이고, 화면의 "원본 보기" 가 됩니다. */
@@ -148,11 +151,18 @@ export type FactsOutput = z.infer<typeof factsSchema>;
 /** ✅ 검증 요약. skipped 는 검증기 없이 만든 리포트 (0단계, v1 기록). */
 export const verificationSchema = z.object({
   status: z.enum(["pass", "partial", "skipped"]),
-  numbers: z.object({ total: z.number(), verified: z.number(), derived: z.number(), unverified: z.number() }),
+  numbers: z.object({
+    total: z.number(),
+    verified: z.number(),
+    derived: z.number(),
+    reported: z.number().optional().describe("뉴스 기사에 나온 숫자와 맞은 수. 예전 기록에는 없음(0)"),
+    unverified: z.number(),
+  }),
   why: z.object({ data: z.number(), news: z.number(), none: z.number(), unsupported: z.number() }),
   advice: z.number().describe("남은 권유 표현 수. 목표 0"),
   revisions: z.number().describe("검증 실패로 다시 쓴 횟수"),
   removed: z.array(z.string()).describe("검증 실패로 뺀 항목"),
+  revisionSkipped: z.boolean().optional().describe("검증에 실패했지만 마감이 가까워 다시 쓰지 않고 바로 뺐으면 true"),
 });
 export type Verification = z.infer<typeof verificationSchema>;
 
