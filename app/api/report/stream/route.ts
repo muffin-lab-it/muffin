@@ -10,6 +10,8 @@ import { costOf } from "@/src/lib/pricing";
 import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 import { fitSpeed, getReplay, playReplay, publicStep, replayedReport, REPLAY_ID, SPEED_MAX, SPEED_MIN } from "@/src/lib/replay";
+import { readClientId } from "@/src/lib/client";
+import { checkLimit, hashIp } from "@/src/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -61,6 +63,20 @@ export async function POST(req: Request) {
   if (!checkOrigin(req).ok) {
     console.warn(`report/stream origin denied (${id}): ${clip(req.headers.get("origin") ?? req.headers.get("referer") ?? "(none)", 200)}`);
     return Response.json({ error: ORIGIN_DENIED_MESSAGE, id }, { status: 403, headers });
+  }
+  // v1은 서버 인스턴스 안에서만 세며, 출처 검사 직후·바디를 읽기 전에 제한합니다.
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwardedFor || req.headers.get("x-real-ip") || "unknown";
+  const rate = await checkLimit({
+    clientId: readClientId(req.headers),
+    ipHash: hashIp(ip, process.env.RATE_LIMIT_SALT ?? ""),
+  });
+  if (!rate.ok) {
+    recordRun({ id, at, mock, ok: false, stage: "limited", ms: Date.now() - started, error: "rate limit exceeded" }, req);
+    return Response.json(
+      { error: `요청이 많아요. ${Math.ceil(rate.retryAfterSec / 60)}분 뒤 다시 시도해 주세요.`, id, retryAfterSec: rate.retryAfterSec },
+      { status: 429, headers: { ...headers, "Retry-After": String(rate.retryAfterSec) } },
+    );
   }
   // 바디는 16KB 까지만 읽습니다. 넘으면 413, JSON 이 아니면 null → 아래 입력 검사가 400
   let raw: unknown = null;
