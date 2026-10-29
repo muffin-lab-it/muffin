@@ -54,6 +54,15 @@ describe("checkLimit", () => {
     expect(await checkLimit(keys)).toMatchObject({ ok: false, retryAfterSec: 24 * 60 * 60 - 22 * 60 * 1000 / 1000 });
   });
 
+  it("uses the documented default 10-minute client limit when the variable is empty", async () => {
+    vi.stubEnv("RATE_LIMIT_10M", "");
+    vi.stubEnv("RATE_LIMIT_DAY", "");
+    vi.stubEnv("RATE_LIMIT_IP_10M", "100");
+    const keys = { clientId: "client-default", ipHash: "ip-default" };
+    for (let i = 0; i < 10; i++) expect(await checkLimit(keys)).toEqual({ ok: true });
+    expect(await checkLimit(keys)).toMatchObject({ ok: false, retryAfterSec: 600 });
+  });
+
   it("allows requests after the 10-minute window expires", async () => {
     const keys = { clientId: "client-expiry", ipHash: "ip-expiry" };
     expect(await checkLimit(keys)).toEqual({ ok: true });
