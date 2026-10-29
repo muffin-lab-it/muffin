@@ -35,10 +35,11 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
-  it("영역별 힌트가 여행 목적과 미보유 사용자의 맥락을 존중한다", () => {
+  it("영역별 힌트가 명시된 목적과 목적이 없는 경우의 기본 관점, 미보유 맥락을 전달한다", () => {
     const fx = writerInstructions("easy", "fx");
     const etf = writerInstructions("standard", "etf", "decision_facts");
-    expect(fx).toContain("수입품·해외자산은 질문과 관련 있을 때만");
+    expect(fx).toContain("질문에 명시된 목적이 있으면 그 목적과 직접 관련된 영향을 중심으로 설명");
+    expect(fx).toContain("목적이 드러나지 않으면 환율 변화가 생활·수입품·해외자산에 뜻하는 바를 설명");
     expect(etf).toContain("아직 사지 않았다고 하면 보유자 관점으로 쓰지 않습니다");
     expect(etf).toContain(depthInstructions("standard", "decision_facts"));
   });
@@ -46,7 +47,8 @@ describe("writerInstructions", () => {
   it.each(["easy", "standard", "deep"] as const)("%s 에서 읽기 규칙과 기존 금융 깊이 · 판단 요청 규칙을 함께 전달한다", (depth) => {
     const text = writerInstructions(depth, "macro", "decision_facts");
     expect(text).toContain("[읽는 사람을 위한 구성]");
-    expect(text).toContain("핵심 개념의 뜻과 질문에 연결되는 의미를 본문에서 설명");
+    expect(text).toContain("핵심 개념의 뜻은 깊이별 용어 설명 규칙에 따라 설명 여부를 정합니다");
+    expect(text).toContain("질문에 연결되는 의미는 본문에서 설명하고 nextTopics 로 미루지 않습니다");
     expect(text).toContain("자료 없음은 값이 0이거나 변화가 없다는 뜻이 아닙니다");
     expect(text).toContain("다음 조회의 성공을 약속하지 않습니다");
     expect(text).toContain(depthInstructions(depth, "decision_facts"));
