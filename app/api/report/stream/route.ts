@@ -6,6 +6,8 @@ import { research, type ResearchResult } from "@/src/agent/muffin";
 import { areas, depths } from "@/src/agent/schema";
 import { clip, logRun, newRunId, type RunLog } from "@/src/lib/log";
 import { redactSecrets } from "@/src/lib/redact";
+import { readClientId } from "@/src/lib/client";
+import { checkLimit, hashIp } from "@/src/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -38,8 +40,25 @@ export async function POST(req: Request) {
   const started = Date.now();
   const at = new Date(started).toISOString();
   const mock = isMockMode();
-  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   const headers = { "Cache-Control": "no-store", "X-Request-Id": id };
+
+  // v1: in-memory, per-instance rate limiting. Source guard must precede this
+  // when the guard PR is integrated, as required by docs/web-spec.md.
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwardedFor || req.headers.get("x-real-ip") || "unknown";
+  const rate = await checkLimit({
+    clientId: readClientId(req.headers),
+    ipHash: hashIp(ip, process.env.RATE_LIMIT_SALT ?? ""),
+  });
+  if (!rate.ok) {
+    logRun({ id, at, mock, ok: false, stage: "limited", ms: Date.now() - started, error: "rate limit exceeded" });
+    return Response.json(
+      { error: `요청이 많아요. ${Math.ceil(rate.retryAfterSec / 60)}분 뒤 다시 시도해 주세요.`, id, retryAfterSec: rate.retryAfterSec },
+      { status: 429, headers: { ...headers, "Retry-After": String(rate.retryAfterSec) } },
+    );
+  }
+
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
 
   if (!parsed.success) {
     logRun({ id, at, mock, ok: false, stage: "input", ms: Date.now() - started, error: "invalid body" });
