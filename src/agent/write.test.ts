@@ -47,8 +47,8 @@ describe("writerInstructions", () => {
   it.each(["easy", "standard", "deep"] as const)("%s 에서 읽기 규칙과 기존 금융 깊이 · 판단 요청 규칙을 함께 전달한다", (depth) => {
     const text = writerInstructions(depth, "macro", "decision_facts");
     expect(text).toContain("[읽는 사람을 위한 구성]");
-    expect(text).toContain("핵심 개념의 뜻은 깊이별 용어 설명 규칙에 따라 설명 여부를 정합니다");
-    expect(text).toContain("질문에 연결되는 의미는 본문에서 설명하고 nextTopics 로 미루지 않습니다");
+    expect(text).toContain("용어 사용과 설명 방식은 깊이별 규칙을 따릅니다");
+    expect(text).toContain("질문에 대한 답을 nextTopics 로 미루지 않습니다");
     expect(text).toContain("자료 없음은 값이 0이거나 변화가 없다는 뜻이 아닙니다");
     expect(text).toContain("다음 조회의 성공을 약속하지 않습니다");
     expect(text).toContain(depthInstructions(depth, "decision_facts"));
