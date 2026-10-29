@@ -8,6 +8,8 @@ import { clip, newRunId } from "@/src/lib/log";
 import { costOf } from "@/src/lib/pricing";
 import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
+import { readClientId } from "@/src/lib/client";
+import { checkLimit, hashIp } from "@/src/lib/ratelimit";
 
 // tool 여러 개를 호출하므로 기본 10초보다 길게 둡니다.
 export const maxDuration = 60;
@@ -41,6 +43,20 @@ export async function POST(req: Request) {
     console.warn(`report origin denied (${id}): ${clip(req.headers.get("origin") ?? req.headers.get("referer") ?? "(none)", 200)}`);
     return NextResponse.json({ error: ORIGIN_DENIED_MESSAGE, id }, { status: 403 });
   }
+  // v1은 서버 인스턴스 안에서만 세며, 출처 검사 직후·바디를 읽기 전에 제한합니다.
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwardedFor || req.headers.get("x-real-ip") || "unknown";
+  const rate = await checkLimit({
+    clientId: readClientId(req.headers),
+    ipHash: hashIp(ip, process.env.RATE_LIMIT_SALT ?? ""),
+  });
+  if (!rate.ok) {
+    recordRun({ id, at, ok: false, stage: "limited", mock, ms: ms(), error: "rate limit exceeded" }, req);
+    return NextResponse.json(
+      { error: `요청이 많아요. ${Math.ceil(rate.retryAfterSec / 60)}분 뒤 다시 시도해 주세요.`, id, retryAfterSec: rate.retryAfterSec },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+    );
+  }
   // 바디는 16KB 까지만 읽습니다. 넘으면 413, JSON 이 아니면 null → 아래 입력 검사가 400
   let raw: unknown = null;
   try {
@@ -60,7 +76,7 @@ export async function POST(req: Request) {
 
   if (!mock && !process.env.OPENAI_API_KEY) {
     recordRun({ id, at, ok: false, stage: "config", mock, input, ms: ms(), error: "OPENAI_API_KEY missing" }, req);
-    return NextResponse.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 500 });
+    return NextResponse.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 503 });
   }
 
   try {
