@@ -82,7 +82,7 @@ export function planInput(question: string, area: Area | undefined, depth: Depth
   const list = tools.map((t) => `- ${t.name}: ${t.description}`).join("\n");
   return [
     `[질문]\n${question}`,
-    `[관심 영역]\n${area ? `${areaNames[area]} (${area})` : "(지정 없음)"`,
+    `[관심 영역]\n${area ? `${areaNames[area]} (${area})` : "(지정 없음)"}`,
     `[설명 깊이]\n${depth}`,
     `[쓸 수 있는 tool] 이 이름 그대로 tools 에 적습니다.\n${list}`,
   ].join("\n\n");
