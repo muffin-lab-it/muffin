@@ -4,7 +4,7 @@
  */
 import type { ToolStep } from "../agent/context";
 
-export type RunStage = "input" | "config" | "agent" | "ok";
+export type RunStage = "input" | "config" | "limited" | "agent" | "ok";
 
 export type RunLog = {
   type: "muffin.run";
