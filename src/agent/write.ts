@@ -74,7 +74,11 @@ export const areaWriting: Record<Area, string> = {
 };
 
 export function writerInstructions(depth: Depth, area?: Area, mode: ReportMode = "research"): string {
-  return instructionsFor(writingRules, depthInstructions(depth, mode), area ? areaWriting[area] : "");
+  // Deep의 기존 용어 규칙을 작성 항목에 적용합니다. 다른 깊이에는 설명 금지 지시를 전달하지 않습니다.
+  const terminologyApplication = depth === "deep"
+    ? "[깊이별 용어 규칙 적용] 현재 깊이는 Deep입니다. 용어는 설명 없이 쓴다는 규칙을 리포트의 모든 항목에 적용합니다. 용어의 정의·동의어 풀이·괄호 해설을 덧붙이지 않습니다. 질문에 답하는 데 관련된 용어라도 뜻을 풀어 쓰지 않고, 용어는 그대로 사용하여 관측된 값·관계·차이가 질문에 뜻하는 바를 설명합니다."
+    : "";
+  return instructionsFor(writingRules, depthInstructions(depth, mode), area ? areaWriting[area] : "", terminologyApplication);
 }
 
 /** 투자 권유 표현이 있으면 tripwire. 패턴은 guard.ts 하나만 씁니다. */

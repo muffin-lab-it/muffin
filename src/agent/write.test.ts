@@ -55,6 +55,18 @@ describe("writerInstructions", () => {
     expect(text).toContain("관심 영역: 물가·경제지표");
   });
 
+  it.each(["research", "decision_facts"] as const)("%s 모드에서 Deep에만 용어 설명 금지의 적용 범위를 전달한다", (mode) => {
+    const deep = writerInstructions("deep", "etf", mode);
+    expect(deep).toContain("용어는 설명 없이 쓴다는 규칙을 리포트의 모든 항목에 적용합니다");
+    expect(deep).toContain("용어의 정의·동의어 풀이·괄호 해설을 덧붙이지 않습니다");
+    for (const depth of ["easy", "standard"] as const) {
+      const text = writerInstructions(depth, "etf", mode);
+      expect(text).not.toContain("[깊이별 용어 규칙 적용]");
+      expect(text).not.toContain("용어의 정의·동의어 풀이·괄호 해설을 덧붙이지 않습니다");
+      expect(text).toContain(depthInstructions(depth, mode));
+    }
+  });
+
   it("깊이별 규칙과 공통 규칙(증거 번호 인용 · 근거 종류 · 권유 금지)이 들어간다", () => {
     const easy = writerInstructions("easy");
     const deep = writerInstructions("deep", "etf");
