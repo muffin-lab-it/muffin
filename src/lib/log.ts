@@ -5,7 +5,7 @@
 import type { ToolStep } from "../agent/context";
 import type { Intent, Verification } from "../agent/schema";
 
-export type RunStage = "input" | "config" | "agent" | "ok";
+export type RunStage = "input" | "config" | "limited" | "agent" | "ok";
 
 export type RunLog = {
   type: "muffin.run";
