@@ -50,16 +50,23 @@ export type ParsedNumber = {
   text: string;
   /** 부호 없이 쓰고 바로 뒤에 하락 낱말이 붙은 숫자 ("34.69원 낮아졌습니다"). 장부의 음수 값과도 맞춰 봅니다 */
   falling?: true;
+  /**
+   * extractNumbers(text, { movement: true }) 일 때만: 변화량으로 쓴 숫자에 방향을 붙인 값. 부호를 붙였거나("1337원(-14원)" 의 -14)
+   * 오름 · 내림 낱말이 바로 붙은 숫자("14.0원 오른" → 14, "14.0원 내린" → -14)입니다. 기사 제목 속 변화량을 가려낼 때 씁니다
+   */
+  movement?: number;
 };
 
 const TOKEN = /([-+−]?)(\d[\d,]*(?:\.\d+)?)\s*([조억만천백]+|%\s?포인트|퍼센트\s?포인트|%p|%|bp|원|달러|엔|유로|위안|파운드|포인트|개월|분기|일|년|주|월|회|건|개|번)?/g;
+/** "0.47%포인트" · "0.47퍼센트포인트" 는 %p 와 같은 단위입니다. */
+const PERCENT_POINT = /^(?:%|퍼센트)\s?포인트$/;
 /**
  * 숫자 바로 뒤에 붙어 부호 대신 하락폭을 뜻하는 말. "34.69원 낮아" · "2.55% 하락" · "1,080원가량 떨어져" · "(2.55%) 낮아".
  * "21.47%로 하락" 처럼 로 · 으로 · 까지가 붙은 숫자는 하락폭이 아니라 도착한 수준이라 해당하지 않습니다.
  */
-/** "0.47%포인트" · "0.47퍼센트포인트" 는 %p 와 같은 단위입니다. */
-const PERCENT_POINT = /^(?:%|퍼센트)\s?포인트$/;
-const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소)/;
+const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소|인하)/;
+/** 상승폭을 뜻하는 말. "14.0원 오른" · "2.55% 상승" · "30원가량 뛰어" · "0.25%p 인상". "1,337원으로 상승" 은 도착한 수준이라 해당하지 않습니다. */
+const RISING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:오른|올라|올랐|오르|상승|급등|뛴|뛰어|뛰었|반등|늘어|늘었|늘며|증가|확대|인상)/;
 
 /**
  * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "1달러에 1,324원" · "같은 1달러를 사는 데" 의 외화 금액은 데이터 숫자가 아닙니다.
@@ -77,8 +84,9 @@ function isQuoteBasis(value: number, unit: string, rest: string): boolean {
  * "1조 2,000억 원" → 1.2e12 원 / "0.88%p" · "0.88%포인트" → 0.88 %p / "30일 +2.00%" → 30 일, 2 % / "34.69원 낮아" → 34.69 원 (falling) /
  * "28,023,404주" → 28023404 주 (주식 수. "52주" 는 기간).
  * 날짜(2026-10-22) · 연월(2026-08) · 지수 기준 "(2020=100)" · 환율 기준 단위("1달러당")는 뺍니다.
+ * movement: true 면 변화량으로 쓴 숫자에 방향을 붙인 값(ParsedNumber.movement)도 적습니다 (장부의 기사 제목용).
  */
-export function extractNumbers(text: string): ParsedNumber[] {
+export function extractNumbers(text: string, opts: { movement?: boolean } = {}): ParsedNumber[] {
   const cleaned = text
     .replace(/\d{4}-\d{2}-\d{2}/g, " ")
     .replace(/\b\d{4}-(?:0[1-9]|1[0-2])\b/g, " ")
@@ -87,6 +95,16 @@ export function extractNumbers(text: string): ParsedNumber[] {
   let group: ParsedNumber | null = null;
   let groupSign = 1;
   let lastMagnitude = Infinity;
+  // 묶은 금액("1조원")의 부호와 금액 뒤의 말. 기사 제목의 "1조원 늘어난" 을 변화량으로 가려낼 때 씁니다.
+  let groupSigned = false;
+  let groupRest = "";
+  const flush = (g: ParsedNumber | null): null => {
+    if (g) {
+      const move = opts.movement ? movementOf(groupSigned, g.value, groupRest) : undefined;
+      out.push(move === undefined ? g : { ...g, movement: move });
+    }
+    return null;
+  };
 
   for (const m of cleaned.matchAll(TOKEN)) {
     const sign = m[1] === "-" || m[1] === "−" ? -1 : 1;
@@ -104,8 +122,9 @@ export function extractNumbers(text: string): ParsedNumber[] {
         group.value += groupSign * magnitude;
         group.text += ` ${m[2]}${unit}`;
       } else {
-        if (group) out.push(group);
+        group = flush(group);
         groupSign = sign;
+        groupSigned = m[1] !== "";
         group = { value: sign * magnitude, unit: "", text: `${m[2]}${unit}` };
       }
       lastMagnitude = factor;
@@ -113,20 +132,31 @@ export function extractNumbers(text: string): ParsedNumber[] {
       const rest = cleaned.slice((m.index ?? 0) + m[0].length);
       const currency = /^\s*(원|달러|엔|유로|위안|파운드)/.exec(rest);
       if (currency) group.unit = currency[1];
+      groupRest = currency ? rest.slice(currency[0].length) : rest;
       continue;
     }
-    if (group) {
-      out.push(group);
-      group = null;
-    }
+    group = flush(group);
     const rest = cleaned.slice((m.index ?? 0) + m[0].length);
     if (isQuoteBasis(value, unit, rest)) continue;
     // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뜁니다.
     const falling = m[1] === "" && !isPeriodUnit(unit, m[2], value) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
-    out.push(falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] });
+    const parsed: ParsedNumber = falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] };
+    const move = opts.movement && !isPeriodUnit(unit, m[2], value) ? movementOf(m[1] !== "", value, rest) : undefined;
+    out.push(move === undefined ? parsed : { ...parsed, movement: move });
   }
-  if (group) out.push(group);
+  flush(group);
   return out;
+}
+
+/**
+ * 기사 제목 속 변화량이면 방향을 붙인 값. 부호를 붙였거나("-14원") 오름 · 내림 낱말이 바로 붙은 숫자("14.0원 오른" · "1조원 늘어난")입니다.
+ * 괄호는 건너뛰지 않습니다: "1337원(-14원) 하락" 의 1337원은 수준이고 변화량은 부호를 붙인 -14원입니다.
+ */
+function movementOf(signed: boolean, value: number, rest: string): number | undefined {
+  if (signed) return value;
+  if (FALLING.test(rest)) return -value;
+  if (RISING.test(rest)) return value;
+  return undefined;
 }
 
 /** 비교 기간 · 연도 · 횟수가 아닌, 대조해야 할 데이터 숫자인지. */
@@ -162,7 +192,8 @@ function nearlyEqual(a: number, b: number): boolean {
  * delta 는 단위를 알 수 없는 변화량(키가 그냥 change) 입니다. 장부에 changeUnit 메타가 있으면 그것을 따릅니다.
  */
 export type CandidateUnit = "bp" | "pp" | "pct" | "ratio" | "plain" | "delta";
-export type Candidate = { key: string; value: number; unit: CandidateUnit };
+/** movement: 문장(기사 제목) 속에서 오름 · 내림 낱말이 붙은 변화량 ("14.0원 오른" → 14, "14.0원 내린" → -14). 카드의 change 는 이것과만 맞춥니다 */
+export type Candidate = { key: string; value: number; unit: CandidateUnit; movement?: true };
 
 export function unitOfKey(key: string, values: Evidence["values"]): CandidateUnit {
   const k = key.toLowerCase();
@@ -214,7 +245,14 @@ export function numericCandidates(evidence: Evidence): Candidate[] {
       const t = v.trim();
       if (/^[-+]?\d[\d,]*(\.\d+)?$/.test(t) && !/^\d{4}$/.test(t)) push(key, Number(t.replace(/,/g, "")));
       else if (/^\d{4}-\d{2}-\d{2}/.test(t)) continue;
-      else for (const n of extractNumbers(t).filter(isStrictNumber)) out.push({ key: `${key}#text`, value: n.value, unit: unitOfText(n.unit) });
+      else {
+        for (const n of extractNumbers(t, { movement: true }).filter(isStrictNumber)) {
+          const text = { key: `${key}#text`, unit: unitOfText(n.unit) };
+          out.push({ ...text, value: n.value });
+          // 변화량으로 쓴 숫자는 방향을 붙인 값으로도 둡니다 ("14.0원 오른" → 14, "14.0원 내린" → -14). 카드의 change 는 이것과만 맞춥니다.
+          if (n.movement !== undefined) out.push({ ...text, value: n.movement, movement: true });
+        }
+      }
     }
   }
   return out;
@@ -326,23 +364,31 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
       return { index, label, status: "unverified", reason: `value ${v.text}${v.unit} 가 ${n.ref} 의 값과 다름 (장부: ${describe(candidates)})` };
     }
     let m = matches[0]!;
+    // value 가 맞은 후보의 값. 기사 제목처럼 한 키(title#text)에 숫자가 여럿이면("14.0원 오른 1337.7원") 그중 맞은 숫자입니다.
+    // 같은 정책으로 맞은 후보를 고릅니다 ("13.6원 오른 14원" 의 14원 카드는 정확히 맞은 14 이지 반올림으로도 맞는 13.6 이 아님).
+    const hitValue = (hit: { key: string; policy: MatchPolicy }) =>
+      candidates.find((c) => c.key === hit.key && matchValue(valueNumbers[0]!, [c])?.policy === hit.policy)!.value;
     const conflict = roleConflict(m.key, n.asOf, e);
     if (conflict) {
       // 최신 값과 비교 시점 값이 같으면(기준금리 3% → 3%) 같은 숫자가 두 키에 있습니다. 먼저 맞은 키의 역할이 asOf 와 어긋나도
       // 같은 숫자를 가진 수준 값 키 중 asOf 와 역할이 맞는 키가 있으면 그 키로 봅니다. 숫자가 다르면 그대로 실패입니다
       // ("30일 전 값을 오늘 날짜로". 30일 전 2.75% 를 "3%" 로 반올림해 맞추지 않도록 같은 숫자로만 좁힙니다).
       // 변화량 키(change · diff …)는 역할 검사를 하지 않으므로 대신 맞추지 않습니다 (50원 → 100원이면 change 도 50).
-      const same = candidates.find((c) => c.key === m.key)!.value;
+      const same = hitValue(m);
       const levels = candidates.filter((c) => !NOT_LEVEL_KEY.test(c.key) && nearlyEqual(c.value, same) && !roleConflict(c.key, n.asOf, e));
       const fit = matchValue(valueNumbers[0]!, levels);
       if (!fit) return { index, label, status: "unverified", reason: conflict };
       m = fit;
     }
 
-    // change 는 value 와 같은 값(현재가를 변화처럼 적는 것)이면 안 되므로, value 가 맞은 키와 같은 숫자를 가진 수준 값 키는 후보에서 뺍니다.
+    // change 는 value 와 같은 값(현재가를 변화처럼 적는 것)이면 안 되므로, value 와 같은 숫자는 후보에서 뺍니다 (다른 키의 변화량 값은 남김).
     // 기준금리 3% → 3% 면 rate · comparisonRate 둘 다입니다. 하나만 빼면 "+3%" 가 남은 쪽에 맞아 통과합니다 (실제 변화는 0).
-    const matched = candidates.find((c) => c.key === m.key)!.value;
-    const changeCandidates = candidates.filter((c) => c.key !== m.key && (NOT_LEVEL_KEY.test(c.key) || !nearlyEqual(c.value, matched)));
+    // 문장(기사 제목) 속 숫자는 오름 · 내림 낱말이 붙은 변화량만 받습니다: "14.0원 오른 1337.7원 마감" 의 1337.7원 카드는 변화 "+14.0원" 을
+    // 같은 제목에서 확인하고, "1324원에서 1337원으로 상승" 의 1324원(수준)은 변화로 받지 않습니다. "14.0원 내린" 은 "-14.0원" 과 맞습니다.
+    const matched = hitValue(m);
+    const changeCandidates = candidates.filter(
+      (c) => (!c.key.endsWith("#text") || c.movement === true) && (!nearlyEqual(c.value, matched) || (c.key !== m.key && NOT_LEVEL_KEY.test(c.key))),
+    );
     const bad = extractNumbers(n.change).filter(isDataNumber).find((c) => !matchValue(c, changeCandidates));
     return {
       index,
