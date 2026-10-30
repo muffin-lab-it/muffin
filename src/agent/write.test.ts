@@ -38,8 +38,8 @@ describe("writerInstructions", () => {
   it("영역별 힌트가 명시된 목적과 목적이 없는 경우의 기본 관점, 미보유 맥락을 전달한다", () => {
     const fx = writerInstructions("easy", "fx");
     const etf = writerInstructions("standard", "etf", "decision_facts");
-    expect(fx).toContain("질문에 명시된 목적이 있으면 그 목적과 직접 관련된 영향을 중심으로 설명");
-    expect(fx).toContain("목적이 드러나지 않으면 환율 변화가 생활·수입품·해외자산에 뜻하는 바를 설명");
+    expect(fx).toContain("여행·해외결제·해외투자처럼 환율을 쓰는 목적이 드러나면");
+    expect(fx).toContain("원인이나 현황만 묻는 질문처럼 목적이 드러나지 않으면 환율 변화가 생활·수입품·해외자산에 뜻하는 바를 설명");
     expect(etf).toContain("아직 사지 않았다고 하면 보유자 관점으로 쓰지 않습니다");
     expect(etf).toContain(depthInstructions("standard", "decision_facts"));
   });
@@ -71,9 +71,13 @@ describe("writerInstructions", () => {
     ["macro", "생활 물가와 실질 소득 관점"],
   ] as const)("%s 기본 관점은 목적이 없을 때 적용하고 무관한 항목을 채우지 않는다", (area, fallback) => {
     const text = writerInstructions("deep", area);
-    expect(text).toContain("질문에 명시된 목적과 비교 대상을 우선합니다");
+    expect(text).toContain("질문에 답하는 데 필요한 사실로 내용을 구성합니다");
     expect(text).toContain(`목적이 드러나지 않으면 ${fallback}`);
-    expect(text).toContain("항목을 채우기 위해 질문과 무관한 정보나 근거 없는 내용을 추가하지 않습니다");
+    if (area === "macro") {
+      expect(text).toContain("월급·대출처럼 비교 대상이나 목적이 드러나면");
+      expect(text).toContain("원인이나 현황만 묻는 질문처럼 목적이 드러나지 않으면");
+    }
+    expect(text).toContain("자료에 있다는 이유만으로 무관한 수치나 관점을 덧붙이지 않습니다");
   });
 
   it("깊이별 규칙과 공통 규칙(증거 번호 인용 · 근거 종류 · 권유 금지)이 들어간다", () => {
