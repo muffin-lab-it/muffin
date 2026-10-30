@@ -41,7 +41,10 @@ describe("planInput · planInstructions", () => {
     expect(planRules).toContain('"원달러 환율이 왜 올랐어?"');
     expect(planRules).toContain('"한국과 미국 금리 차이는?"');
     expect(planRules).toContain('"오늘 원달러 환율 얼마야?"');
-    expect(planRules).toContain("판단 요청은 다른 의도보다 우선합니다");
+    expect(planRules).toContain('"비트코인 왜 떨어졌어?"');
+    expect(planRules).toContain('"TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?"');
+    expect(planRules).toContain("범위 밖이면 질문에 '왜', '비교', '사도 돼'가 있어도 반드시 out_of_scope");
+    expect(planRules).toContain("원인·비교보다 우선합니다");
     expect(planRules).toContain("모든 tool 을 무조건 선택하지 않습니다");
     expect(planRules).toContain("out_of_scope 는 항상 tools: []");
   });
@@ -62,19 +65,24 @@ describe("defaultPlan (모델 없는 기본 규칙)", () => {
     expect(DECISION_PATTERN.test("달러 지금 사도 돼?")).toBe(true);
   });
 
-  it("판단 요청은 원인 표현보다 우선하고, 원인·판단 질문에는 뉴스 tool 을 더한다", () => {
+  it("명확한 범위 밖 대상은 질문 형식보다 먼저 처리한다", () => {
+    expect(defaultPlan("비트코인 왜 떨어졌어?")).toMatchObject({ intent: "out_of_scope", tools: [] });
+    expect(defaultPlan("비트코인 지금 사도 돼?")).toMatchObject({ intent: "out_of_scope", tools: [] });
+  });
+
+  it("지원 범위 안에서는 판단 요청이 원인보다 우선하고, 왜는 비교 표현보다 우선한다", () => {
     expect(defaultPlan("환율이 왜 올랐는데 지금 달러 사도 돼?", "fx")).toMatchObject({
       intent: "decision",
       tools: ["get_fx_krw_rate", "get_korean_economic_news"],
     });
     expect(defaultPlan("환율 왜 올랐어?", "fx").tools).toEqual(["get_fx_krw_rate", "get_korean_economic_news"]);
+    expect(defaultPlan("TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?", "etf").intent).toBe("cause");
   });
 
   it("관심 영역의 tool 을 먼저, 영역이 없으면 전체", () => {
     expect(defaultPlan("오늘 달러 얼마야?", "fx").tools).toEqual(["get_fx_krw_rate"]);
     expect(defaultPlan("요즘 경제 어때?").tools).toEqual(muffinTools.map((t) => t.name));
-    // 범위 밖은 기본 규칙이 판정하지 않는다
-    expect(defaultPlan("비트코인 지금 얼마야?").intent).toBe("status");
+    expect(defaultPlan("비트코인 지금 얼마야?").intent).toBe("out_of_scope");
   });
 });
 
