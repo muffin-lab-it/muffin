@@ -125,8 +125,43 @@ describe("extractNumbers", () => {
       { value: 2.55, unit: "%", text: "2.55", falling: true },
     ]);
     expect(extractNumbers("34.69원 올랐습니다")).toEqual([{ value: 34.69, unit: "원", text: "34.69" }]);
+    // 금리 "인하" 도 하락 낱말이다 (장부의 changePp -0.25 와 맞춘다)
+    expect(extractNumbers("기준금리를 0.25%p 인하했습니다")).toEqual([{ value: 0.25, unit: "%p", text: "0.25", falling: true }]);
     // 로 · 으로가 붙으면 하락폭이 아니라 도착한 수준이다
     expect(extractNumbers("기간 수익률은 21.47%로 하락했습니다")).toEqual([{ value: 21.47, unit: "%", text: "21.47" }]);
+  });
+
+  it("movement 옵션: 기사 제목에서 부호를 붙였거나 오름 · 내림 낱말이 바로 붙은 숫자만 변화량이다 (괄호는 건너뛰지 않는다)", () => {
+    const moves = (text: string) => extractNumbers(text, { movement: true }).map((n) => [n.value, n.movement ?? null]);
+    expect(moves("14.0원 오른 1337.7원 마감")).toEqual([
+      [14, 14],
+      [1337.7, null],
+    ]);
+    expect(moves("14.0원 내린 1323.7원 마감")).toEqual([
+      [14, -14],
+      [1323.7, null],
+    ]);
+    // "1337원(-14원) 하락" 의 1337원은 수준이고 변화량은 -14원이다
+    expect(moves("환율 1337원(-14원) 하락")).toEqual([
+      [1337, null],
+      [-14, -14],
+    ]);
+    // 로 · 으로가 붙은 도착 수준과 출발 수준은 변화량이 아니다
+    expect(moves("1324원에서 1337원으로 상승")).toEqual([
+      [1324, null],
+      [1337, null],
+    ]);
+    // 조 · 억으로 묶어 읽는 금액도 낱말이 붙으면 변화량이고, 금리의 인상 · 인하도 방향 낱말이다
+    expect(moves("수출액 1조원 늘어난 2조원")).toEqual([
+      [1e12, 1e12],
+      [2e12, null],
+    ]);
+    expect(moves("한은 기준금리 0.25%p 인하, 연 2.75%")).toEqual([
+      [0.25, -0.25],
+      [2.75, null],
+    ]);
+    // 옵션이 없으면 movement 를 적지 않는다 (작성 문장 대조는 예전 그대로)
+    expect(extractNumbers("14.0원 오른 1337.7원 마감")[0]).not.toHaveProperty("movement");
   });
 });
 
@@ -332,6 +367,70 @@ describe("verifyNumbers", () => {
     expect(volume).toMatchObject({ status: "verified", key: "latest.volume" });
     expect(track).toMatchObject({ status: "verified", key: "period.trackingDiffPp" });
     expect(wrongVolume.status).toBe("unverified");
+  });
+
+  it("기사 제목에 숫자가 여럿이면 카드 값과 변화량을 같은 제목에서 각각 확인한다", () => {
+    // 2026-10-30 실측: "14.0원 오른 1337.7원 마감" 카드의 변화 "+14.0원" 이 "장부: 숫자 없음" 으로 걸려 6번 중 3번 다시 썼다
+    const headline: Evidence = {
+      id: "E2-1",
+      tool: "get_korean_economic_news",
+      label: "경제 뉴스 확인 · 뉴시스",
+      values: { title: "[속보]원·달러 환율, 14.0원 오른 1337.7원 마감 - 뉴시스", publishedAt: "2026-10-28T06:31:50.000Z" },
+      source: src("뉴시스", "2026-10-28"),
+    };
+    const [close, sameAsValue, wrongChange] = verifyNumbers(
+      [
+        num("원/달러 환율 종가 보도", "1337.7원", "+14.0원", "E2-1", "2026-10-28"),
+        num("원/달러 환율 종가 보도", "1337.7원", "+1337.7원", "E2-1", "2026-10-28"),
+        num("원/달러 환율 종가 보도", "1337.7원", "+15.0원", "E2-1", "2026-10-28"),
+      ],
+      [headline],
+    );
+    expect(close).toMatchObject({ status: "reported", key: "title#text", changeOk: true });
+    // 카드 값을 변화로 다시 쓰거나 제목에 없는 숫자를 쓰면 여전히 틀린 것
+    expect(sameAsValue.status === "reported" && sameAsValue.changeOk).toBe(false);
+    expect(wrongChange.status === "reported" && wrongChange.changeOk).toBe(false);
+  });
+
+  it("기사 제목의 변화량은 오름 · 내림 낱말이 붙은 숫자만이고 방향도 맞아야 한다", () => {
+    const title = (id: string, text: string): Evidence => ({
+      id,
+      tool: "get_korean_economic_news",
+      label: "경제 뉴스 확인",
+      values: { title: text, publishedAt: "2026-10-28T06:31:50.000Z" },
+      source: src("뉴스", "2026-10-28"),
+    });
+    const down = title("E2-1", "원·달러 환율, 14.0원 내린 1323.7원 마감");
+    const levels = title("E2-2", "환율 1324원에서 1337원으로 상승");
+    const near = title("E2-3", "원·달러 환율 13.6원 오른 14원대");
+    const paren = title("E2-4", "환율 1337원(-14원) 하락");
+    const grouped = title("E2-5", "수출액 1조원 늘어난 2조원");
+    const cards = verifyNumbers(
+      [
+        num("환율 마감 보도", "1323.7원", "-14.0원", "E2-1", "2026-10-28"),
+        num("환율 마감 보도", "1323.7원", "14.0원 하락", "E2-1", "2026-10-28"),
+        num("환율 마감 보도", "1323.7원", "+14.0원", "E2-1", "2026-10-28"),
+        num("환율 보도", "1337원", "+1324원", "E2-2", "2026-10-28"),
+        num("환율 보도", "14원", "+13.6원", "E2-3", "2026-10-28"),
+        num("환율 보도", "1337원", "-14원", "E2-4", "2026-10-28"),
+        num("환율 보도", "1337원", "-1337원", "E2-4", "2026-10-28"),
+        num("수출액 보도", "2조원", "+1조원", "E2-5", "2026-10-28"),
+      ],
+      [down, levels, near, paren, grouped],
+    );
+    const ok = cards.map((c) => c.status === "reported" && c.changeOk);
+    // 내린 제목은 "-14.0원" · "14.0원 하락" 과 맞고, 방향을 거꾸로 쓴 "+14.0원" 은 걸린다
+    expect(ok.slice(0, 3)).toEqual([true, true, false]);
+    // 수준 두 개("1324원에서 1337원으로")는 변화량이 아니다
+    expect(ok[3]).toBe(false);
+    // "13.6원 오른 14원" 의 14원 카드는 정확히 맞은 14 이고, 변화 13.6원을 확인한다
+    expect(ok[4]).toBe(true);
+    // "1337원(-14원) 하락" 의 변화량은 -14원이지 수준 1337원이 아니다
+    expect(ok.slice(5, 7)).toEqual([true, false]);
+    // 조 · 억으로 묶은 금액의 변화량도 확인한다
+    expect(ok[7]).toBe(true);
+    // 요약에 "14.0원 내린" 을 옮겨 적어도 장부의 -14 와 맞는다 (예전엔 "장부에 없음" 으로 걸렸다)
+    expect(matchValue(extractNumbers("14.0원 내린 1,323.7원")[0], numericCandidates(down))).toMatchObject({ key: "title#text" });
   });
 });
 
