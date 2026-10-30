@@ -65,6 +65,10 @@ describe("editInput · editInstructions", () => {
     expect(text).toContain("장부에 이미 있는 값은 계산하지 않고");
     // 원 단위 값에 pp_diff 금지 (종가 − NAV = -185.96%p), 퍼센트끼리 pct_change 금지
     expect(text).toContain("이런 값에는 pp_diff 를 쓰지 않습니다");
+    // 단위는 필드 기준: 금리 항목의 changeBp, 환율 rate 를 퍼센트로 보지 않음 (Codex 리뷰)
+    expect(text).toContain("계산에 넣을 필드(key) 하나로 판단합니다");
+    expect(text).toContain("changeBp 대신 changePp");
+    expect(text).toContain("환율 rate(unit 이 원/달러 등)는 가격입니다");
     expect(text).toContain("퍼센트끼리 pct_change 를 쓰지 않습니다");
     // 비교 질문은 차이를 C 번호로, 답에 안 쓰는 계산은 하지 않음
     expect(text).toContain("compare(비교)");
