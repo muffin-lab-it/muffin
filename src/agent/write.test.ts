@@ -35,6 +35,14 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
+  it.each(["easy", "standard", "deep"] as const)("%s 에서 새 계산은 금지하고 장부의 퍼센트 표기 반올림은 허용한다", (depth) => {
+    const text = writerInstructions(depth, "etf");
+    expect(text).toContain("계산하지 않습니다. 퍼센트(%, %p)는 소수 둘째 자리로 반올림해 적습니다");
+    expect(text).toContain("numbers 의 value · change 와 summary · why · impact · caveats 본문 모두 소수 둘째 자리로 반올림");
+    expect(text).not.toContain("계산하거나 반올림하지 않습니다");
+    expect(text).toContain("C 항목이 없으면 그 숫자는 쓰지 않습니다");
+  });
+
   it("영역별 힌트가 명시된 목적과 목적이 없는 경우의 기본 관점, 미보유 맥락을 전달한다", () => {
     const fx = writerInstructions("easy", "fx");
     const etf = writerInstructions("standard", "etf", "decision_facts");
