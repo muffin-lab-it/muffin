@@ -66,6 +66,12 @@ describe("extractNumbers", () => {
     ]);
     expect(extractNumbers("0.88%p")).toEqual([{ value: 0.88, unit: "%p", text: "0.88" }]);
     expect(extractNumbers("-0.5bp")).toEqual([{ value: -0.5, unit: "bp", text: "0.5" }]);
+    // "%포인트" · "퍼센트포인트" 도 %p 다 (예전엔 "0.47%포인트" 를 % 로 읽었다)
+    expect(extractNumbers("0.47%포인트")).toEqual([{ value: 0.47, unit: "%p", text: "0.47" }]);
+    expect(extractNumbers("0.47% 포인트 · 0.25퍼센트포인트")).toEqual([
+      { value: 0.47, unit: "%p", text: "0.47" },
+      { value: 0.25, unit: "%p", text: "0.25" },
+    ]);
   });
 
   it("조 · 억 단위는 하나의 숫자로 합치고, 날짜는 뺀다", () => {
@@ -88,6 +94,12 @@ describe("extractNumbers", () => {
     // "(2020=100)" 은 지수 기준 표기라 숫자로 보지 않는다
     expect(extractNumbers("120.43 (2020=100)").filter(isDataNumber).map((p) => p.value)).toEqual([120.43]);
     expect(isDataNumber({ value: 1392.4, unit: "원", text: "1,392.40" })).toBe(true);
+    // "주" 는 기간(52주)이지만, 쉼표가 있거나 1,000 이상이면 주식 수(거래량 · 상장주식수)라 대조한다
+    expect(extractNumbers("52주 최고가 3주 연속").filter(isDataNumber)).toEqual([]);
+    expect(extractNumbers("거래량 28,023,404주 · 1000주").filter(isDataNumber)).toEqual([
+      { value: 28023404, unit: "주", text: "28,023,404" },
+      { value: 1000, unit: "주", text: "1000" },
+    ]);
   });
 
   it("환율 기준 단위(1달러당 · 100엔당 · 1달러에 · 같은 1달러를 사는)와 연월(2026-08)은 숫자로 보지 않는다", () => {
@@ -280,6 +292,46 @@ describe("verifyNumbers", () => {
     expect(change.status).toBe("verified");
     expect(roleConflict("rate", "2026-09-16", rate)).toContain("최신 값");
     expect(roleConflict("rate", "2026-01-01", rate)).toBeNull();
+  });
+
+  it("최신 값과 비교 시점 값이 같으면(기준금리 3% → 3%) 비교 기준일 카드도 통과한다. 값이 다르면 그대로 잡는다", () => {
+    // 2026-10-30 실측: Deep 금리 비교에서 "30일 전 기준금리 3%" 카드가 6번 모두 "비교 기준일인데 최신 값" 으로 걸렸다
+    const flat: Evidence = { ...rate, values: { ...rate.values, rate: 3, comparisonRate: 3, changePp: 0, changeBp: 0 } };
+    const [before, now] = verifyNumbers([num("30일 전 기준금리", "3%", "", "E2", "2026-09-16"), num("기준금리", "3%", "", "E2", "2026-10-16")], [flat]);
+    expect(before).toMatchObject({ status: "verified", key: "comparisonRate" });
+    expect(now).toMatchObject({ status: "verified", key: "rate" });
+    // 값이 같아도 변화량에 그 값("+3%")을 쓰면 틀린 것이다 (실제 변화 0). 실제로 쓰는 "30일 0%p" 는 통과
+    const [plus3Before, plus3Now, zero] = verifyNumbers(
+      [num("30일 전 기준금리", "3%", "+3%", "E2", "2026-09-16"), num("기준금리", "3%", "+3%", "E2", "2026-10-16"), num("기준금리", "3%", "30일 0%p", "E2", "2026-10-16")],
+      [flat],
+    );
+    expect(plus3Before.status === "verified" && plus3Before.changeOk).toBe(false);
+    expect(plus3Now.status === "verified" && plus3Now.changeOk).toBe(false);
+    expect(zero.status === "verified" && zero.changeOk).toBe(true);
+    // 값이 다르면(2.75% → 3%) 최신 값 3% 를 비교 기준일로 적은 카드는 예전처럼 걸린다
+    const [wrong] = verifyNumbers([num("30일 전 기준금리", "3%", "", "E2", "2026-09-16")], ledger);
+    expect(wrong.status === "unverified" && wrong.reason).toContain("비교 기준일인데 값(rate)은 최신 값");
+    // 변화량이 비교 시점 값과 같아도(50원 → 100원이면 change 50) 변화량 키로 대신 맞추지 않는다
+    const doubled: Evidence = { ...fx, values: { pair: "USD/KRW", rate: 100, comparisonRate: 50, change: 50, asOf: "2026-10-19", comparisonDate: "2026-09-19" } };
+    const [stale] = verifyNumbers([num("USD/KRW", "50원", "", "E1", "2026-10-19")], [doubled]);
+    expect(stale.status === "unverified" && stale.reason).toContain("최신 기준일인데 값(comparisonRate)은 비교 시점 값");
+  });
+
+  it("ETF 거래량(주)과 추적 차이(%포인트) 카드도 장부와 맞춰 본다", () => {
+    const etf: Evidence = {
+      id: "E6",
+      tool: "get_etf_kr_price",
+      label: "ETF 확인 · KRX",
+      values: { "latest.volume": 28023404, "period.trackingDiffPp": 0.468519 },
+      source: src("KRX", "2026-10-28"),
+    };
+    const [volume, track, wrongVolume] = verifyNumbers(
+      [num("거래량", "28,023,404주", "", "E6", "2026-10-28"), num("추적 차이", "0.47%포인트", "", "E6", "2026-10-28"), num("거래량", "27,500,000주", "", "E6", "2026-10-28")],
+      [etf],
+    );
+    expect(volume).toMatchObject({ status: "verified", key: "latest.volume" });
+    expect(track).toMatchObject({ status: "verified", key: "period.trackingDiffPp" });
+    expect(wrongVolume.status).toBe("unverified");
   });
 });
 

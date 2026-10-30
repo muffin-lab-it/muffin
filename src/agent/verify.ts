@@ -23,6 +23,14 @@ export const RELATIVE_TOLERANCE = 0.001;
 
 /** 데이터 값이 아닌 숫자의 단위: 비교 기간 · 날짜 · 횟수. 검증 대상에서 뺍니다. */
 const PERIOD_UNITS = new Set(["일", "개월", "년", "주", "월", "분기", "회", "건", "개", "번"]);
+/**
+ * 기간 · 횟수 단위인지. "주" 는 "52주 최고가" 처럼 기간이지만, 천 단위 쉼표가 있거나 1,000 이상이면
+ * 주식 수(거래량 · 상장주식수, "28,023,404주")라서 장부와 대조합니다.
+ */
+function isPeriodUnit(unit: string, text: string, value: number): boolean {
+  if (unit === "주" && (text.includes(",") || Math.abs(value) >= 1000)) return false;
+  return PERIOD_UNITS.has(unit);
+}
 const MAGNITUDE: Record<string, number> = { 조: 1e12, 억: 1e8, 만: 1e4, 천: 1e3, 백: 1e2 };
 /** "천억", "백만" 처럼 이어 쓴 자릿수 단위의 배율. */
 function magnitudeOf(unit: string): number {
@@ -44,11 +52,13 @@ export type ParsedNumber = {
   falling?: true;
 };
 
-const TOKEN = /([-+−]?)(\d[\d,]*(?:\.\d+)?)\s*([조억만천백]+|%p|%|bp|원|달러|엔|유로|위안|파운드|포인트|개월|분기|일|년|주|월|회|건|개|번)?/g;
+const TOKEN = /([-+−]?)(\d[\d,]*(?:\.\d+)?)\s*([조억만천백]+|%\s?포인트|퍼센트\s?포인트|%p|%|bp|원|달러|엔|유로|위안|파운드|포인트|개월|분기|일|년|주|월|회|건|개|번)?/g;
 /**
  * 숫자 바로 뒤에 붙어 부호 대신 하락폭을 뜻하는 말. "34.69원 낮아" · "2.55% 하락" · "1,080원가량 떨어져" · "(2.55%) 낮아".
  * "21.47%로 하락" 처럼 로 · 으로 · 까지가 붙은 숫자는 하락폭이 아니라 도착한 수준이라 해당하지 않습니다.
  */
+/** "0.47%포인트" · "0.47퍼센트포인트" 는 %p 와 같은 단위입니다. */
+const PERCENT_POINT = /^(?:%|퍼센트)\s?포인트$/;
 const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소)/;
 
 /**
@@ -64,7 +74,8 @@ function isQuoteBasis(value: number, unit: string, rest: string): boolean {
 
 /**
  * 문자열에서 숫자를 모두 뽑습니다. "1,392.40원" → 1392.4 원 / "-38.1원 (-2.79%)" → -38.1 원, -2.79 % /
- * "1조 2,000억 원" → 1.2e12 원 / "0.88%p" → 0.88 %p / "30일 +2.00%" → 30 일, 2 % / "34.69원 낮아" → 34.69 원 (falling).
+ * "1조 2,000억 원" → 1.2e12 원 / "0.88%p" · "0.88%포인트" → 0.88 %p / "30일 +2.00%" → 30 일, 2 % / "34.69원 낮아" → 34.69 원 (falling) /
+ * "28,023,404주" → 28023404 주 (주식 수. "52주" 는 기간).
  * 날짜(2026-10-22) · 연월(2026-08) · 지수 기준 "(2020=100)" · 환율 기준 단위("1달러당")는 뺍니다.
  */
 export function extractNumbers(text: string): ParsedNumber[] {
@@ -80,7 +91,7 @@ export function extractNumbers(text: string): ParsedNumber[] {
   for (const m of cleaned.matchAll(TOKEN)) {
     const sign = m[1] === "-" || m[1] === "−" ? -1 : 1;
     const digits = m[2].replace(/,/g, "");
-    const unit = m[3] ?? "";
+    const unit = PERCENT_POINT.test(m[3] ?? "") ? "%p" : (m[3] ?? "");
     const value = sign * Number(digits);
 
     if (isMagnitude(unit)) {
@@ -111,7 +122,7 @@ export function extractNumbers(text: string): ParsedNumber[] {
     const rest = cleaned.slice((m.index ?? 0) + m[0].length);
     if (isQuoteBasis(value, unit, rest)) continue;
     // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뜁니다.
-    const falling = m[1] === "" && !PERIOD_UNITS.has(unit) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
+    const falling = m[1] === "" && !isPeriodUnit(unit, m[2], value) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
     out.push(falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] });
   }
   if (group) out.push(group);
@@ -120,7 +131,7 @@ export function extractNumbers(text: string): ParsedNumber[] {
 
 /** 비교 기간 · 연도 · 횟수가 아닌, 대조해야 할 데이터 숫자인지. */
 export function isDataNumber(n: ParsedNumber): boolean {
-  if (PERIOD_UNITS.has(n.unit)) return false;
+  if (isPeriodUnit(n.unit, n.text, n.value)) return false;
   if (n.unit === "" && Number.isInteger(n.value) && n.value >= 1900 && n.value <= 2100 && !n.text.includes(",")) return false;
   return true;
 }
@@ -153,7 +164,7 @@ function nearlyEqual(a: number, b: number): boolean {
 export type CandidateUnit = "bp" | "pp" | "pct" | "ratio" | "plain" | "delta";
 export type Candidate = { key: string; value: number; unit: CandidateUnit };
 
-function unitOfKey(key: string, values: Evidence["values"]): CandidateUnit {
+export function unitOfKey(key: string, values: Evidence["values"]): CandidateUnit {
   const k = key.toLowerCase();
   if (/bp\b|basispoint|_bp$|bp$/.test(k)) return "bp";
   if (/pp\b|changepp|percentagepoint|spread|diff|gap|delta|result$/.test(k)) return "pp";
@@ -310,12 +321,24 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
       const v = valueNumbers[failedAt];
       return { index, label, status: "unverified", reason: `value ${v.text}${v.unit} 가 ${n.ref} 의 값과 다름 (장부: ${describe(candidates)})` };
     }
-    const m = matches[0]!;
+    let m = matches[0]!;
     const conflict = roleConflict(m.key, n.asOf, e);
-    if (conflict) return { index, label, status: "unverified", reason: conflict };
+    if (conflict) {
+      // 최신 값과 비교 시점 값이 같으면(기준금리 3% → 3%) 같은 숫자가 두 키에 있습니다. 먼저 맞은 키의 역할이 asOf 와 어긋나도
+      // 같은 숫자를 가진 수준 값 키 중 asOf 와 역할이 맞는 키가 있으면 그 키로 봅니다. 숫자가 다르면 그대로 실패입니다
+      // ("30일 전 값을 오늘 날짜로". 30일 전 2.75% 를 "3%" 로 반올림해 맞추지 않도록 같은 숫자로만 좁힙니다).
+      // 변화량 키(change · diff …)는 역할 검사를 하지 않으므로 대신 맞추지 않습니다 (50원 → 100원이면 change 도 50).
+      const same = candidates.find((c) => c.key === m.key)!.value;
+      const levels = candidates.filter((c) => !NOT_LEVEL_KEY.test(c.key) && nearlyEqual(c.value, same) && !roleConflict(c.key, n.asOf, e));
+      const fit = matchValue(valueNumbers[0]!, levels);
+      if (!fit) return { index, label, status: "unverified", reason: conflict };
+      m = fit;
+    }
 
-    // change 는 value 와 같은 값(현재가를 변화처럼 적는 것)이면 안 되므로, value 가 맞은 키는 후보에서 뺍니다.
-    const changeCandidates = candidates.filter((c) => c.key !== m.key);
+    // change 는 value 와 같은 값(현재가를 변화처럼 적는 것)이면 안 되므로, value 가 맞은 키와 같은 숫자를 가진 수준 값 키는 후보에서 뺍니다.
+    // 기준금리 3% → 3% 면 rate · comparisonRate 둘 다입니다. 하나만 빼면 "+3%" 가 남은 쪽에 맞아 통과합니다 (실제 변화는 0).
+    const matched = candidates.find((c) => c.key === m.key)!.value;
+    const changeCandidates = candidates.filter((c) => c.key !== m.key && (NOT_LEVEL_KEY.test(c.key) || !nearlyEqual(c.value, matched)));
     const bad = extractNumbers(n.change).filter(isDataNumber).find((c) => !matchValue(c, changeCandidates));
     return {
       index,
