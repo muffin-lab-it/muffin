@@ -59,6 +59,35 @@ describe("editInput · editInstructions", () => {
     expect(text).toContain("데이터를 새로 가져오지 않습니다");
   });
 
+  it("기준선 eval 에서 본 실수를 막는 규칙이 들어간다", () => {
+    const text = editInstructions();
+    // 장부에 있는 값은 다시 계산하지 않음 (추적 차이 0.31 → C 0.3)
+    expect(text).toContain("장부에 이미 있는 값은 계산하지 않고");
+    // 원 단위 값에 pp_diff 금지 (종가 − NAV = -185.96%p), 퍼센트끼리 pct_change 금지
+    expect(text).toContain("이런 값에는 pp_diff 를 쓰지 않습니다");
+    // 단위는 필드 기준: 금리 항목의 changeBp, 환율 rate 를 퍼센트로 보지 않음 (Codex 리뷰)
+    expect(text).toContain("계산에 넣을 필드(key) 하나로 판단합니다");
+    expect(text).toContain("changeBp 대신 changePp");
+    expect(text).toContain("환율 rate(unit 이 원/달러 등)는 가격입니다");
+    expect(text).toContain("퍼센트끼리 pct_change 를 쓰지 않습니다");
+    // 비교 질문은 차이를 C 번호로, 답에 안 쓰는 계산은 하지 않음
+    expect(text).toContain("compare(비교)");
+    expect(text).toContain("결과를 facts 에 넣을 계산만 합니다");
+    // 쓴 항목을 dropped 에 넣지 않음, 뉴스는 기사 번호로
+    expect(text).toContain("facts 에 쓴 항목은 dropped 에 넣지 않습니다");
+    expect(text).toContain("E3-1");
+    // 단위 규칙
+    expect(text).toContain("…Pp 는 %p");
+  });
+
+  it("깊이마다 사실 개수 상한이 다르고, 정제 Agent 는 자기 깊이의 지시문을 받는다", () => {
+    expect(editInstructions("easy")).toContain("facts 는 4개 이내");
+    expect(editInstructions("standard")).toContain("facts 는 7개 이내");
+    expect(editInstructions("deep")).toContain("facts 는 12개 이내");
+    expect(createEditorAgent("easy").instructions).toContain("facts 는 4개 이내");
+    expect(createEditorAgent("deep").instructions).toContain("facts 는 12개 이내");
+  });
+
   it("정제 Agent 의 tool 은 계산 하나뿐이다", () => {
     expect(createEditorAgent("standard").tools.map((t) => t.name)).toEqual(["calc_metrics"]);
   });
