@@ -72,7 +72,42 @@ export function editInput(question: string, plan: PlanOutput, evidence: Evidence
 }
 
 /**
+ * 모델 출력을 장부와 맞춰 정리합니다. 작성은 facts 가 인용한 장부 항목만 보므로, 여기서 어긋난 것을 걸러야 합니다.
+ *  - facts: 장부에 없는 ref(지어낸 번호, 뉴스 E3 처럼 목록의 호출 번호)와 빈 문장은 빼고 dropped 에 이유를 남깁니다. 같은 ref · 같은 문장은 한 번만
+ *  - dropped: facts 에서 쓴 ref 는 뺀 것이 아니므로 지웁니다. 장부에 없는 ref 와 중복도 지웁니다
+ *  - unverified: 빈 문장과 중복을 지웁니다
+ */
+export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>): FactsOutput {
+  const facts: FactsOutput["facts"] = [];
+  const unknown: FactsOutput["dropped"] = [];
+  const seenFacts = new Set<string>();
+  for (const f of out.facts) {
+    const fact = f.fact.trim();
+    if (!fact) continue;
+    if (!ledgerIds.has(f.ref)) {
+      if (!unknown.some((d) => d.ref === f.ref)) unknown.push({ ref: f.ref, reason: "장부에 없는 번호라 사실에서 뺌" });
+      continue;
+    }
+    const key = `${f.ref}\u0000${fact}`;
+    if (seenFacts.has(key)) continue;
+    seenFacts.add(key);
+    facts.push({ ref: f.ref, fact });
+  }
+
+  const used = new Set(facts.map((f) => f.ref));
+  const dropped: FactsOutput["dropped"] = [];
+  for (const d of out.dropped) {
+    if (used.has(d.ref) || !ledgerIds.has(d.ref) || dropped.some((x) => x.ref === d.ref)) continue;
+    dropped.push(d);
+  }
+
+  const unverified = [...new Set(out.unverified.map((u) => u.trim()).filter(Boolean))];
+  return { facts, dropped: [...dropped, ...unknown], unverified };
+}
+
+/**
  * 정제 Agent 를 한 번 실행합니다. 계산 tool 결과는 runCtx 안의 장부에 C 번호로 쌓입니다.
+ * 출력은 cleanFacts 로 장부와 맞춥니다 (계산 tool 이 만든 C 번호도 장부에 있으므로 통과).
  * 출력이 없거나 실패하면 null 을 돌려주고, 작성은 장부 전체를 봅니다 (muffin.ts). 정제 하나 때문에 리포트가 실패하지 않게 하기 위한 것입니다.
  */
 export async function runEdit(
@@ -82,7 +117,8 @@ export async function runEdit(
 ): Promise<FactsOutput | null> {
   try {
     const result = await run(agent, input, { context: runCtx });
-    return result.finalOutput ?? null;
+    if (!result.finalOutput) return null;
+    return cleanFacts(result.finalOutput, new Set(runCtx.context.evidence.map((e) => e.id)));
   } catch {
     return null;
   }
