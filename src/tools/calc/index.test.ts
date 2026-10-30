@@ -134,11 +134,34 @@ describe("calc_metrics tool", () => {
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1", "E2", "E3", "E4"]);
     expect(ctx.steps.every((s) => s.status === "error")).toBe(true);
 
-    // 한쪽 단위를 모르면 막지 않는다 (아는 쪽이 % 이면 pp_diff 도 가능). diff 결과 단위는 비워 둔다
-    const pp = (await invoke(ctx, { op: "pp_diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "물가 − 금리" })) as { id: string; data: { value: number; unit: string } };
-    expect(pp).toMatchObject({ id: "C1", data: { value: 0.9, unit: "%p" } });
+    // 단위를 모르는 쪽은 키 이름으로 본다. value 는 % 라는 표시가 없어 pp_diff 가 안 된다
+    expect(await fail({ op: "pp_diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })).toContain("pp_diff 는 % 값 사이에서만 씁니다: E4.value(단위 없음) · E2.rate(%)");
+    // diff 는 한쪽 단위를 모르면 막지 않고, 결과 단위는 비워 둔다
     const d = (await invoke(ctx, { op: "diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })) as { id: string; data: { unit: string } };
-    expect(d).toMatchObject({ id: "C2", data: { unit: "" } });
+    expect(d).toMatchObject({ id: "C1", data: { unit: "" } });
+  });
+
+  it("unit 메타가 없는 ETF 값은 키 이름으로 % 를 가린다: 수익률끼리는 pp_diff 가 되고 종가 · NAV 는 안 된다", async () => {
+    const ctx = ledger();
+    const etf: Evidence = {
+      id: "E4",
+      tool: "get_etf_kr_price",
+      label: "ETF 확인 · KRX",
+      values: { "latest.close": 88905, "latest.nav": 89090.96, "period.returnPct": -3.61, "period.indexReturnPct": -4.37 },
+      source: { name: "KRX", url: "https://data.krx.co.kr", asOf: "2026-10-28" },
+    };
+    ctx.addEvidence([etf]);
+    // 예전엔 단위를 모르면 막지 않아 종가 − NAV 가 -185.96%p 로 장부에 올라갔다 (2026-10-28 정제 기준선 eval)
+    expect(JSON.stringify(await invoke(ctx, { op: "pp_diff", a: { ref: "E4", key: "latest.nav" }, b: { ref: "E4", key: "latest.close" }, label: "x" }))).toContain(
+      "pp_diff 는 % 값 사이에서만 씁니다: E4.latest.nav(단위 없음) · E4.latest.close(단위 없음)",
+    );
+    const track = (await invoke(ctx, {
+      op: "pp_diff",
+      a: { ref: "E4", key: "period.indexReturnPct" },
+      b: { ref: "E4", key: "period.returnPct" },
+      label: "추적 차이",
+    })) as { id: string; data: { value: number; unit: string } };
+    expect(track).toMatchObject({ id: "C1", data: { value: 0.76, unit: "%p" } });
   });
 
   it("장부 없이 단독으로 부르면 throw (Agent 밖에서는 ResearchContext 를 만들어 넘긴다)", async () => {

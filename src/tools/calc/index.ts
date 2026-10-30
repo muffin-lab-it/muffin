@@ -13,6 +13,7 @@
 import { z } from "zod";
 import type { ResearchContext } from "../../agent/context";
 import type { Evidence } from "../../agent/schema";
+import { unitOfKey } from "../../agent/verify";
 import { defineTool, type EvidenceValues } from "../define";
 import type { ToolResult } from "../types";
 import { diff, pctChange, ppDiff } from "./metrics";
@@ -67,6 +68,16 @@ function unitOf(e: Evidence): string {
   return typeof e.values.unit === "string" ? e.values.unit : "";
 }
 
+/**
+ * pp_diff 에 쓸 수 있는 % 값인지. unit 메타가 있으면 그것으로 보고, 없으면(ETF 처럼 unit 을 올리지 않는 tool) 키 이름으로 봅니다.
+ * returnPct · premiumPct · trackingDiffPp 는 %, close · nav · netAssets 는 아닙니다. 키 이름 규칙은 검증기(unitOfKey)와 같습니다.
+ */
+function isPercent(e: Evidence, key: string, unit: string): boolean {
+  if (unit) return unit.includes("%");
+  const kind = unitOfKey(key, e.values);
+  return kind === "pct" || kind === "pp";
+}
+
 /** 오류 메시지용. 예: "E1.rate(KRW per USD) · E2.rate(%)" */
 function describeUnits(a: Operand, ua: string, b: Operand, ub: string): string {
   return `${a.ref}.${a.key}(${ua || "단위 없음"}) · ${b.ref}.${b.key}(${ub || "단위 없음"})`;
@@ -96,8 +107,11 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     value = pctChange(a.value, b.value);
     unit = "%";
   } else if (input.op === "pp_diff") {
-    // 양쪽을 각각 봅니다. 한쪽만 % 여도 %p 차이는 뜻이 없습니다.
-    if ([ua, ub].some((u) => u && !u.includes("%"))) throw new Error(`pp_diff 는 % 값 사이에서만 씁니다: ${units}. diff 를 쓰세요`);
+    // 양쪽을 각각 봅니다. 한쪽만 % 여도 %p 차이는 뜻이 없습니다. 단위 메타가 없으면 키 이름으로 봅니다
+    // (예전엔 단위를 모르면 막지 않아 ETF 종가 88,905원 − NAV 89,090.96원이 -185.96%p 로 장부에 올라갔습니다).
+    if (!isPercent(a.evidence, input.a.key, ua) || !isPercent(b.evidence, input.b.key, ub)) {
+      throw new Error(`pp_diff 는 % 값 사이에서만 씁니다: ${units}. diff 를 쓰세요`);
+    }
     value = ppDiff(a.value, b.value);
     unit = "%p";
   } else {
