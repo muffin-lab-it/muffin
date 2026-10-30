@@ -48,6 +48,8 @@ describe("writerInstructions", () => {
     const etf = writerInstructions("standard", "etf", "decision_facts");
     expect(fx).toContain("여행·해외결제·해외투자처럼 환율을 쓰는 목적이 드러나면");
     expect(fx).toContain("원인이나 현황만 묻는 질문처럼 목적이 드러나지 않으면 환율 변화가 생활·수입품·해외자산에 뜻하는 바를 설명");
+    expect(fx).toContain("이 기본 관점에서는 수입품의 원화 비용과 해외자산의 원화 환산 가치에 대한 영향을 모두 담습니다");
+    expect(fx).toContain("단순한 원화 환산 설명이나 원인 확인의 한계만으로 두 관점을 대신하지 않습니다");
     expect(etf).toContain("아직 사지 않았다고 하면 보유자 관점으로 쓰지 않습니다");
     expect(etf).toContain(depthInstructions("standard", "decision_facts"));
   });
