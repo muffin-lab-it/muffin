@@ -38,7 +38,7 @@ export default function Home() {
     setError(null);
     try {
       const { report, steps } = await createReport({ question, depth, area });
-      const record = saveReport({ question, depth, area }, report, steps);
+      const record = await saveReport({ question, depth, area }, report, steps);
       router.push(`/report/${record.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
