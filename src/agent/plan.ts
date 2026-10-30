@@ -15,17 +15,41 @@ import { instructionsFor } from "./instructions";
 import { modelFor } from "./models";
 import { planSchema, type Area, type Depth, type PlanOutput } from "./schema";
 
-/** 아직 초안입니다. 분류 기준과 예시 질문을 채우는 것이 담당자의 일입니다. */
+/**
+ * 분류 기준은 구체적인 질문 예시를 기준으로 적용합니다.
+ * 출력은 intent · 등록된 tool 이름 · 한 문장 reason 으로 제한합니다.
+ */
 export const planRules = `[역할: 📋 분류]
-당신은 tool 을 부르지 않습니다. 질문을 읽고 의도와, 조사 단계가 부를 tool 을 정합니다.
-- status: 지금 얼마인지 · 어떤 상태인지 묻는 질문 (예: "오늘 달러 환율 얼마야?")
-- cause: 왜 · 원인 · 이유를 묻는 질문 (예: "환율이 왜 올랐어?"). 원인 설명에 필요한 다른 영역 tool 도 함께 고릅니다 (환율 원인 → 금리 · 뉴스).
-- compare: 둘 이상을 비교하거나 기간 차이를 묻는 질문 (예: "한국이랑 미국 금리 차이 얼마나 나?")
-- decision: 사도 되는지 · 팔아야 하는지 · 들어가도 되는지 묻는 질문. 거절하지 않고, 판단에 필요한 사실을 모을 tool 을 고릅니다.
-- out_of_scope: 환율 · ETF · 경제 뉴스 · 금리 · 물가 지표와 무관한 질문 (예: 개별 코인 시세, 날씨, 코드 작성). tools 는 빈 배열.
-- 관심 영역이 주어지면 그 영역의 tool 을 먼저 넣습니다. 확실하지 않으면 tool 을 더 넣는 쪽이 안전합니다 (조사가 필요 없는 것은 건너뜁니다).`;
+당신은 tool 을 직접 부르지 않습니다. 질문을 읽고 의도와 조사 단계가 부를 tool 을 정합니다.
 
-/** 관심 영역 → 그 영역의 tool 이름. 레지스트리의 name 과 같아야 합니다. */
+[의도 분류 — 아래 우선순위로 질문에서 가장 중요한 요청 하나를 고릅니다]
+- out_of_scope: 먼저 질문의 실제 대상이 환율, ETF, 경제 뉴스, 금리, 물가·경제지표 중 하나인지 판단합니다. 대상이 범위 밖이면 질문에 '왜', '비교', '사도 돼'가 있어도 반드시 out_of_scope 입니다.
+  예: "오늘 비트코인 시세 알려줘", "비트코인 왜 떨어졌어?", "비트코인 지금 사도 돼?", "내일 서울 날씨", "파이썬 코드 작성해 줘".
+  tools 는 반드시 빈 배열입니다. 금융이라는 이유만으로 지원 영역에 포함하지 않습니다.
+- decision: 지원 범위 안에서만, 사용자가 사거나 팔아도 되는지, 투자해도 되는지 판단을 요청합니다.
+  예: "달러 지금 사도 돼?", "이 ETF 팔아야 할까?", "금리가 내리면 채권 ETF 투자해도 돼?"
+  범위 안에서는 판단 요청이 원인·비교보다 우선합니다. 질문에 '왜'가 있어도 최종 요청이 매수·매도 판단이면 decision 입니다.
+  투자 결정을 대신하거나 매수·매도를 권하지 말고, 판단에 필요한 사실을 조사합니다.
+- cause: 어떤 변화나 상태의 원인·이유·배경을 묻습니다.
+  예: "원달러 환율이 왜 올랐어?", "물가가 오른 이유가 뭐야?"
+  비교 대상이 함께 있어도 '왜'·원인·이유를 물으면 compare 가 아니라 cause 입니다. 예: "TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?"는 ETF와 환율 등 원인을 조사하는 cause 입니다.
+  원인 설명에 필요한 영역을 고르고, 질문에 직접 관련된 경제 뉴스·금리 등 보조 tool 을 함께 선택합니다.
+- compare: 둘 이상의 대상이나 시점·기간 사이의 차이를 묻습니다.
+  예: "한국과 미국 금리 차이는?", "환율이 한 달 전보다 얼마나 변했어?", "두 ETF를 비교해 줘".
+- status: 현재 값·최근 상태·현황을 묻거나, 위 의도에 해당하지 않는 지원 영역 질문입니다.
+  예: "오늘 원달러 환율 얼마야?", "현재 기준금리가 얼마야?", "최근 경제 뉴스 알려줘".
+
+[tool 선택]
+- 관심 영역이 지정되면 해당 영역의 tool 을 첫 번째에 둡니다. 관심 영역은 질문의 실제 대상과 충돌하지 않는 한 우선합니다.
+- 원인 질문은 원인을 설명하는 데 도움이 되는 관련 tool 을 추가합니다. 예: 환율 원인 → 환율 + 경제 뉴스, 금리 등 질문과 관련된 영역.
+- 판단·비교 질문은 질문에 등장하는 대상과 비교 기준을 확인할 수 있는 tool 을 선택합니다.
+- 질문에 답하는 데 필요한 tool 만 고릅니다. 확실하지 않다는 이유만으로 모든 tool 을 무조건 선택하지 않습니다.
+- [쓸 수 있는 tool] 목록에 실제로 있는 이름만 정확히 사용합니다. 이름을 지어내거나 중복해서 쓰지 않습니다.
+- out_of_scope 는 항상 tools: [] 입니다. 그 외 의도는 가능한 관련 tool 을 선택합니다.
+- reason 은 선택한 의도와 tool 의 이유를 한국어 한 문장으로 설명합니다.
+- 숫자·변동률을 직접 계산하지 않습니다. 계산은 후속 단계의 계산 tool 이 담당합니다.`;
+
+ /** 관심 영역 → 그 영역의 tool 이름. 레지스트리의 name 과 같아야 합니다. */
 export const areaTools: Record<Area, string> = {
   fx: "get_fx_krw_rate",
   etf: "get_etf_kr_price",
@@ -38,6 +62,7 @@ const areaNames: Record<Area, string> = { fx: "환율", etf: "ETF", news: "경�
 
 /** "사도 돼?" 류 판단 요청. Mock 과 기본 규칙이 같이 씁니다. */
 export const DECISION_PATTERN = /(사도|살까|팔까|팔아야|매수|매도|들어가도|투자해도|사야|팔면)/;
+const OUT_OF_SCOPE_PATTERN = /(비트코인|bitcoin|이더리움|ethereum|암호화폐|가상자산|코인)/i;
 const CAUSE_PATTERN = /(왜|원인|이유|때문|배경)/;
 const COMPARE_PATTERN = /(비교|대비|vs|차이|보다|격차)/i;
 
@@ -67,9 +92,12 @@ export function planInput(question: string, area: Area | undefined, depth: Depth
 
 /**
  * 모델 없이 규칙으로 만드는 기본 계획. 분류 Agent 가 실패했을 때 씁니다.
- * 범위 밖은 판정하지 않습니다 (모르면 조사하는 쪽이 안전). 관심 영역이 없으면 모든 tool 을 줍니다.
+ * 명확한 범위 밖 대상은 먼저 걸러 냅니다. 그 밖에 확신할 수 없는 질문은 조사하는 쪽이 안전합니다.
  */
 export function defaultPlan(question: string, area?: Area): PlanOutput {
+  if (OUT_OF_SCOPE_PATTERN.test(question)) {
+    return { intent: "out_of_scope", tools: [], reason: "지원 범위 밖 대상" };
+  }
   const intent = DECISION_PATTERN.test(question) ? "decision" : CAUSE_PATTERN.test(question) ? "cause" : COMPARE_PATTERN.test(question) ? "compare" : "status";
   const tools = area ? [areaTools[area]] : muffinTools.map((t) => t.name);
   if (area && (intent === "cause" || intent === "decision") && area !== "news") tools.push(areaTools.news);
