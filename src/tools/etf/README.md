@@ -30,8 +30,16 @@ DATA_GO_KR_KEY=발급받은키
 - 출력 `data`
   - `etf`: `code`, `isin`, `name`, `baseIndex`(기초지수명)
   - `latest`: 최신 기준일의 `close`, `change`, `changePct`, `nav`, `premiumPct`(괴리율), `open`, `high`, `low`, `volume`, `tradeValue`, `netAssets`(순자산총액, 원), `listedShares`, `indexClose`
-  - `period`: `from`, `to`, `tradingDays`, `returnPct`, `high`, `low`, `indexReturnPct`, `trackingDiffPct`(ETF 수익률 − 지수 수익률)
+  - `period`: `from`, `to`, `tradingDays`, `closeFrom`·`indexCloseFrom`(기간 시작일 종가 · 지수), `returnPct`, `high`, `low`, `indexReturnPct`, `trackingDiffPp`(ETF 수익률 − 지수 수익률, %p)
+- 계산값(`premiumPct`, `returnPct`, `indexReturnPct`, `trackingDiffPp`)은 반올림하지 않습니다. 반올림은 리포트 표기와 검증기가 합니다.
 - `source.asOf` 는 최신 기준일입니다.
+
+## 증거 장부 (evidence)
+`evidenceOf` 가 장부에 올릴 핵심 값을 고릅니다. 리포트의 숫자가 이 값을 인용하고(E1…), 검증기(`src/agent/verify.ts`)가 대조합니다.
+- 키는 `data` 경로 그대로입니다 (`latest.close`, `period.returnPct` …). 검증기는 키 이름으로 단위와 역할을 판단합니다.
+  - `Pct` → %, `Pp` → %p. 추적 차이를 `0.76%` 로 적으면 걸리고 `0.76%p` 로 적어야 맞습니다.
+  - `From` 으로 끝나는 키(`period.closeFrom`)는 비교 시점 값입니다. 기간 시작일(`period.from`)로 인용해야 합니다.
+- 종목코드 · ISIN 은 올리지 않습니다 (`069500` 이 숫자 69500 으로 대조 후보에 섞임). 값이 없는(`null`) 항목도 뺍니다.
 
 ## 동작 방식
 1. `query` 가 6자리 코드면 `likeSrtnCd` 로 기간 조회
@@ -45,9 +53,9 @@ DATA_GO_KR_KEY=발급받은키
 
 ## 주의
 - 기간 수익률은 분배금을 뺀 가격 수익률입니다.
-- 조회 기간에 관측값이 2개 미만이면 `returnPct`, `indexReturnPct`, `trackingDiffPct` 는 비교 데이터 부족을 나타내는 `null` 입니다.
+- 조회 기간에 관측값이 2개 미만이면 `closeFrom`, `indexCloseFrom`, `returnPct`, `indexReturnPct`, `trackingDiffPp` 는 비교 데이터 부족을 나타내는 `null` 입니다.
 - 기초지수가 TR(배당 재투자) 지수인지 PR(가격) 지수인지에 따라 추적 차이가 달라질 수 있습니다.
-- 해외 지수 추종 ETF(예: TIGER 미국S&P500)는 기초지수가 달러 등 현지 통화 기준입니다. 환헤지(H)가 없는 상품은 `trackingDiffPct` 에 환율 변동이 섞입니다.
+- 해외 지수 추종 ETF(예: TIGER 미국S&P500)는 기초지수가 달러 등 현지 통화 기준입니다. 환헤지(H)가 없는 상품은 `trackingDiffPp` 에 환율 변동이 섞입니다.
 - 공공데이터포털 키는 URL 쿼리로 보내야 해서, 실패 메시지에서는 `serviceKey` 값을 `****` 로 가립니다.
 - 공공데이터포털이 해외 IP 를 막을 수 있어, Vercel 배포 시 Function 리전을 `icn1`(서울)로 두고 실제 호출을 확인해야 합니다.
 
