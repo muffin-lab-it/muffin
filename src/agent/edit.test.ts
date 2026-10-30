@@ -11,7 +11,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 
 import { RunContext, run } from "@openai/agents";
 import { ResearchContext } from "./context";
-import { createEditorAgent, editInput, editInstructions, runEdit } from "./edit";
+import { cleanFacts, createEditorAgent, editInput, editInstructions, runEdit } from "./edit";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes } from "./schema";
 
 const runMock = run as unknown as ReturnType<typeof vi.fn>;
@@ -94,10 +94,98 @@ describe("runEdit", () => {
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1", "E2-1", "C1"]);
   });
 
+  it("모델 출력은 장부와 맞춰 정리해서 돌려준다", async () => {
+    const ctx = new ResearchContext();
+    ctx.addEvidence(evidence);
+    runMock.mockResolvedValueOnce({
+      finalOutput: {
+        facts: [{ ref: "E1", fact: "USD/KRW 1,392.40원 (2026-10-19)" }, { ref: "E9", fact: "지어낸 번호" }],
+        dropped: [{ ref: "E1", reason: "핵심 항목만 남김" }],
+        unverified: [],
+      } satisfies FactsOutput,
+    });
+
+    const out = await runEdit(createEditorAgent("standard"), "input", new RunContext(ctx));
+    expect(out).toEqual({
+      facts: [{ ref: "E1", fact: "USD/KRW 1,392.40원 (2026-10-19)" }],
+      dropped: [{ ref: "E9", reason: "장부에 없는 번호라 사실에서 뺌" }],
+      unverified: [],
+    });
+  });
+
   it("출력이 없거나 실패하면 null (작성이 장부 전체를 본다)", async () => {
     runMock.mockResolvedValueOnce({ finalOutput: undefined }).mockRejectedValueOnce(new Error("timeout"));
     const ctx = () => new RunContext(new ResearchContext());
     expect(await runEdit(createEditorAgent("easy"), "input", ctx())).toBeNull();
     expect(await runEdit(createEditorAgent("easy"), "input", ctx())).toBeNull();
+  });
+});
+
+describe("cleanFacts", () => {
+  const ids = new Set(["E1", "E2-1", "E2-2", "C1"]);
+
+  it("facts 에 쓴 항목은 dropped 에서 지운다 (같은 항목을 쓰고 동시에 빼는 모순)", () => {
+    const out = cleanFacts(
+      {
+        facts: [{ ref: "E1", fact: "종가 88,905원 (2026-10-27)" }],
+        dropped: [
+          { ref: "E1", reason: "질문과 직접 관련된 핵심 항목만 남겼습니다" },
+          { ref: "E2-1", reason: "다른 상품 기사" },
+        ],
+        unverified: [],
+      },
+      ids,
+    );
+    expect(out.dropped).toEqual([{ ref: "E2-1", reason: "다른 상품 기사" }]);
+  });
+
+  it("장부에 없는 ref 의 사실은 빼고 dropped 에 이유를 남긴다 (뉴스 호출 번호 E2 · 지어낸 C9)", () => {
+    const out = cleanFacts(
+      {
+        facts: [
+          { ref: "E2", fact: "기사에 따르면 코스피 급등" },
+          { ref: "C9", fact: "차이 0.61%p" },
+          { ref: "C9", fact: "차이 다시" },
+          { ref: "C1", fact: "두 수익률 차이 0.61%p" },
+        ],
+        dropped: [{ ref: "E7", reason: "없는 번호" }],
+        unverified: [],
+      },
+      ids,
+    );
+    expect(out.facts).toEqual([{ ref: "C1", fact: "두 수익률 차이 0.61%p" }]);
+    expect(out.dropped).toEqual([
+      { ref: "E2", reason: "장부에 없는 번호라 사실에서 뺌" },
+      { ref: "C9", reason: "장부에 없는 번호라 사실에서 뺌" },
+    ]);
+  });
+
+  it("빈 문장 · 중복을 지우고 앞뒤 공백을 다듬는다", () => {
+    const out = cleanFacts(
+      {
+        facts: [
+          { ref: "E1", fact: " 종가 88,905원 " },
+          { ref: "E1", fact: "종가 88,905원" },
+          { ref: "E2-2", fact: "  " },
+        ],
+        dropped: [
+          { ref: "E2-1", reason: "무관" },
+          { ref: "E2-1", reason: "무관 (중복)" },
+        ],
+        unverified: ["기사 속 1조 원", "기사 속 1조 원", " "],
+      },
+      ids,
+    );
+    expect(out).toEqual({
+      facts: [{ ref: "E1", fact: "종가 88,905원" }],
+      dropped: [{ ref: "E2-1", reason: "무관" }],
+      unverified: ["기사 속 1조 원"],
+    });
+  });
+
+  it("고를 것이 없으면 facts 는 빈 배열 (작성은 장부 전체를 본다)", () => {
+    const out = cleanFacts({ facts: [{ ref: "E9", fact: "x" }], dropped: [], unverified: ["금리 확인 못 함"] }, ids);
+    expect(out.facts).toEqual([]);
+    expect(out.unverified).toEqual(["금리 확인 못 함"]);
   });
 });
