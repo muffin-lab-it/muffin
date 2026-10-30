@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence, FactsOutput, ResearchNotes, WriterOutput } from "./schema";
 import { adviceGuardrail, revisionNote, writerInput, writerInstructions } from "./write";
+import { depthInstructions } from "./depth";
 
 const evidence: Evidence[] = [
   {
@@ -34,6 +35,61 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
+  it.each(["easy", "standard", "deep"] as const)("%s 에서 새 계산은 금지하고 장부의 퍼센트 표기 반올림은 허용한다", (depth) => {
+    const text = writerInstructions(depth, "etf");
+    expect(text).toContain("계산하지 않습니다. 퍼센트(%, %p)는 소수 둘째 자리로 반올림해 적습니다");
+    expect(text).toContain("numbers 의 value · change 와 summary · why · impact · caveats 본문 모두 소수 둘째 자리로 반올림");
+    expect(text).not.toContain("계산하거나 반올림하지 않습니다");
+    expect(text).toContain("C 항목이 없으면 그 숫자는 쓰지 않습니다");
+  });
+
+  it("영역별 힌트가 명시된 목적과 목적이 없는 경우의 기본 관점, 미보유 맥락을 전달한다", () => {
+    const fx = writerInstructions("easy", "fx");
+    const etf = writerInstructions("standard", "etf", "decision_facts");
+    expect(fx).toContain("여행·해외결제·해외투자처럼 환율을 쓰는 목적이 드러나면");
+    expect(fx).toContain("원인이나 현황만 묻는 질문처럼 목적이 드러나지 않으면 환율 변화가 생활·수입품·해외자산에 뜻하는 바를 설명");
+    expect(fx).toContain("이 기본 관점에서는 수입품의 원화 비용과 해외자산의 원화 환산 가치에 대한 영향을 모두 담습니다");
+    expect(fx).toContain("단순한 원화 환산 설명이나 원인 확인의 한계만으로 두 관점을 대신하지 않습니다");
+    expect(etf).toContain("아직 사지 않았다고 하면 보유자 관점으로 쓰지 않습니다");
+    expect(etf).toContain(depthInstructions("standard", "decision_facts"));
+  });
+
+  it.each(["easy", "standard", "deep"] as const)("%s 에서 읽기 규칙과 기존 금융 깊이 · 판단 요청 규칙을 함께 전달한다", (depth) => {
+    const text = writerInstructions(depth, "macro", "decision_facts");
+    expect(text).toContain("[읽는 사람을 위한 구성]");
+    expect(text).toContain("용어 사용과 설명 방식은 깊이별 규칙을 따릅니다");
+    expect(text).toContain("질문에 대한 답을 nextTopics 로 미루지 않습니다");
+    expect(text).toContain("자료 없음은 값이 0이거나 변화가 없다는 뜻이 아닙니다");
+    expect(text).toContain("다음 조회의 성공을 약속하지 않습니다");
+    expect(text).toContain(depthInstructions(depth, "decision_facts"));
+    expect(text).toContain("관심 영역: 물가·경제지표");
+  });
+
+  it.each(["research", "decision_facts"] as const)("%s 모드에서 깊이별 규칙을 전달하고 별도의 깊이 정책을 덧붙이지 않는다", (mode) => {
+    for (const depth of ["easy", "standard", "deep"] as const) {
+      const text = writerInstructions(depth, "etf", mode);
+      expect(text).not.toContain("[깊이별 용어 규칙 적용]");
+      expect(text).not.toContain("용어의 정의·동의어 풀이·괄호 해설을 덧붙이지 않습니다");
+      expect(text).not.toContain("개수는 상한이지 채워야 할 수가 아닙니다");
+      expect(text).toContain("항목 수는 깊이별 규칙을 따릅니다");
+      expect(text).toContain(depthInstructions(depth, mode));
+    }
+  });
+
+  it.each([
+    ["rate", "대출·예금·채권 관점"],
+    ["macro", "생활 물가와 실질 소득 관점"],
+  ] as const)("%s 기본 관점은 목적이 없을 때 적용하고 무관한 항목을 채우지 않는다", (area, fallback) => {
+    const text = writerInstructions("deep", area);
+    expect(text).toContain("질문에 답하는 데 필요한 사실로 내용을 구성합니다");
+    expect(text).toContain(`목적이 드러나지 않으면 ${fallback}`);
+    if (area === "macro") {
+      expect(text).toContain("월급·대출처럼 비교 대상이나 목적이 드러나면");
+      expect(text).toContain("원인이나 현황만 묻는 질문처럼 목적이 드러나지 않으면");
+    }
+    expect(text).toContain("자료에 있다는 이유만으로 무관한 수치나 관점을 덧붙이지 않습니다");
+  });
+
   it("깊이별 규칙과 공통 규칙(증거 번호 인용 · 근거 종류 · 권유 금지)이 들어간다", () => {
     const easy = writerInstructions("easy");
     const deep = writerInstructions("deep", "etf");
@@ -107,6 +163,17 @@ describe("writerInput", () => {
     expect(text).toContain("tool 이 모두 실패");
     expect(text).toContain("[조사 메모]\n- (없음)");
   });
+
+  it("자료가 없을 때도 질문과 실패 이유를 보존하고 성공이나 접수를 만들어 전달하지 않는다", () => {
+    const text = writerInput("ETF 규모가 궁금해", [], { notes: [], gaps: ["ETF 조회 실패"] }, {
+      facts: [], dropped: [], unverified: ["순자산총액 확인 불가"],
+    });
+    expect(text).toContain("[질문]\nETF 규모가 궁금해");
+    expect(text).toContain("- ETF 조회 실패");
+    expect(text).toContain("- 순자산총액 확인 불가");
+    expect(text).not.toContain("접수했습니다");
+    expect(text).not.toContain("준비 중입니다");
+  });
 });
 
 describe("revisionNote", () => {
@@ -115,6 +182,7 @@ describe("revisionNote", () => {
     expect(text).toMatch(/^\[수정 요청\]/);
     expect(text).toContain("- numbers \"USD/KRW\"");
     expect(text).toContain("- 투자 권유 표현");
+    expect(text).toContain("관련 요약과 설명도 일치시키고");
   });
 });
 
