@@ -180,7 +180,11 @@ export function unitOfKey(key: string, values: Evidence["values"]): CandidateUni
   }
   // 금리 tool 처럼 값의 단위를 unit 으로 알려 주면(unit: "%") 수준 값(rate 3, comparisonRate 2.75)도 퍼센트입니다.
   // 메타가 없는 plain 값(환율 1392.4)은 "%" 표기와 맞춰 보지 않습니다 ("1,392%" 를 통과시키지 않기 위해).
-  if (String(values.unit ?? "").includes("%")) return "pct";
+  // 계산 결과의 from · to 는 계산에 쓴 값의 단위를 unit 으로 남깁니다 (%p · bp).
+  const unitMeta = String(values.unit ?? "");
+  if (unitMeta === "%p") return "pp";
+  if (unitMeta === "bp") return "bp";
+  if (unitMeta.includes("%")) return "pct";
   return "plain";
 }
 

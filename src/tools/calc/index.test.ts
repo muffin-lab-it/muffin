@@ -164,12 +164,66 @@ describe("calc_metrics tool", () => {
     expect(track).toMatchObject({ id: "C1", data: { value: 0.76, unit: "%p" } });
   });
 
+  it("값의 단위는 키 이름이 먼저다: 통화가 다른 환율도 changePct 끼리는 pp_diff 가 되고, 환율 값끼리 · bp 끼리는 막는다", async () => {
+    const ctx = ledger();
+    const fxRate = (id: string, pair: string, unit: string, rate: number, changePct: number): Evidence => ({
+      id,
+      tool: "get_fx_krw_rate",
+      label: `환율 확인 · ${pair}`,
+      values: { pair, unit, rate, "comparison.rate": rate / (1 + changePct / 100), changePct },
+      source: { name: "Frankfurter v2", url: "https://api.frankfurter.dev", asOf: "2026-10-28" },
+    });
+    const bp = (id: string, changeBp: number): Evidence => ({
+      id,
+      tool: "get_rate_data",
+      label: "금리 확인",
+      values: { rate: 3, unit: "%", changePp: changeBp / 100, changeBp },
+      source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2026-10-28" },
+    });
+    ctx.addEvidence([fxRate("E4", "USD/KRW", "KRW per 1 USD", 1392.4, 2), fxRate("E5", "JPY/KRW", "KRW per 100 JPY", 912.3, -1.5), bp("E6", 25), bp("E7", 50)]);
+    const fail = async (input: unknown) => JSON.stringify(await invoke(ctx, input));
+
+    // 예전엔 환율 항목의 unit("KRW per 1 USD" · "KRW per 100 JPY")만 봐서 "엔화가 달러보다 얼마나 더 떨어졌나" 를 계산하지 못했다
+    const gap = (await invoke(ctx, { op: "pp_diff", a: { ref: "E5", key: "changePct" }, b: { ref: "E4", key: "changePct" }, label: "달러 − 엔 변동률 차이" })) as {
+      id: string;
+      data: { value: number; unit: string };
+    };
+    expect(gap).toMatchObject({ id: "C1", data: { value: 3.5, unit: "%p" } });
+    // 환율 값 자체는 통화마다 단위가 달라 어떤 계산도 안 된다
+    expect(await fail({ op: "diff", a: { ref: "E5", key: "rate" }, b: { ref: "E4", key: "rate" }, label: "x" })).toContain(
+      "단위가 다른 값은 계산하지 않습니다: E5.rate(KRW per 100 JPY) · E4.rate(KRW per 1 USD)",
+    );
+    // bp 끼리의 차이는 %p 가 아니다 (예전엔 항목 unit "%" 만 봐서 25bp − 50bp 가 "25%p" 로 계산됐다)
+    expect(await fail({ op: "pp_diff", a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changeBp" }, label: "x" })).toContain(
+      "pp_diff 는 % 값 사이에서만 씁니다: E6.changeBp(bp) · E7.changeBp(bp)",
+    );
+    expect(await fail({ op: "diff", a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changePp" }, label: "x" })).toContain("단위가 다른 값");
+
+    // bp 끼리 · %p 끼리의 diff 는 결과 단위를 키 이름으로, 계산에 쓴 값의 단위를 unit 으로 남겨 리포트가 "25bp" · "0.25%p" 로 인용할 수 있다
+    await invoke(ctx, { op: "diff", a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changeBp" }, label: "변동폭 차이 (bp)" });
+    await invoke(ctx, { op: "diff", a: { ref: "E6", key: "changePp" }, b: { ref: "E7", key: "changePp" }, label: "변동폭 차이 (%p)" });
+    const [bpGap, ppGap] = [ctx.findEvidence("C2")!, ctx.findEvidence("C3")!];
+    expect(bpGap.values).toEqual({ changeBp: 25, from: 25, to: 50, unit: "bp" });
+    expect(ppGap.values).toEqual({ changePp: 0.25, from: 0.25, to: 0.5, unit: "%p" });
+    const keyOf = (text: string, e: Evidence) => matchValue(extractNumbers(text)[0], numericCandidates(e))?.key ?? null;
+    expect(keyOf("25bp", bpGap)).toBe("changeBp");
+    expect(keyOf("0.25%p", ppGap)).toBe("changePp");
+    expect(keyOf("0.5%p", ppGap)).toBe("to"); // 계산에 쓴 값도 %p 로 맞춰 본다
+    expect(keyOf("0.5%", ppGap)).toBeNull(); // %p 값을 % 로 적으면 걸린다
+  });
+
   it("장부 없이 단독으로 부르면 throw (Agent 밖에서는 ResearchContext 를 만들어 넘긴다)", async () => {
     const input = { op: "diff" as const, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "x" };
     await expect(execute(input)).rejects.toThrow("장부(ResearchContext)");
     const result = await execute(input, ledger());
     expect(result.data.value).toBe(0.88);
-    expect(result.data.unit).toBe("%"); // diff 는 입력 단위를 따른다
-    expect(calcEvidence(result.data)).toEqual({ change: 0.88, from: 3, to: 3.88, unit: "%" });
+    // diff 는 입력 단위를 따르되, 두 퍼센트 값의 차이는 %p 다 (3.88% − 3% = 0.88%p). pp_diff 와 같은 키로 올라간다
+    expect(result.data.unit).toBe("%p");
+    expect(result.data.formula).toBe("E3.rate 3.88 − E2.rate 3 = 0.88%p");
+    const values = calcEvidence(result.data);
+    expect(values).toEqual({ changePp: 0.88, from: 3, to: 3.88, unit: "%" });
+    // 예전엔 { change, unit: "%" } 로 올라가 리포트가 "0.88%p" 로도 "0.88%" 로도 인용할 수 없었다 (2026-10-30 한미 물가 상승률 차이)
+    const c: Evidence = { id: "C1", tool: "calc_metrics", label: "계산 · x", values, source: { name: "x", url: "", asOf: "2026-10-16" } };
+    expect(matchValue(extractNumbers("0.88%p")[0], numericCandidates(c))?.key).toBe("changePp");
   });
 });
