@@ -45,7 +45,7 @@ flowchart LR
 | `app/components/useHistory.ts` (선택) | 비동기 history 를 화면에서 쓰는 훅 | 하니 |
 | `app/layout.tsx`, `app/components/Sidebar.tsx`, `app/globals.css` | 공용 | 전원 (바꾸기 전 Discord 한 줄) |
 | `src/lib/api.ts`, `src/lib/client.ts` (신규) | fetch 창구, 브라우저 익명 id | 리더 |
-| `src/lib/history.ts` | 저장 함수 5개 | 은경 |
+| `src/lib/history.ts` | 저장 함수 4개 | 은경 |
 | `app/api/report/route.ts`, `app/api/report/stream/route.ts` | 리포트 생성 API | 서영(호출 제한 · 에러 코드 · 실행 로그) → 은경(출처 검사 · 바디 크기) |
 | `src/lib/ratelimit.ts` (신규) | 호출 제한 | 서영 |
 | `src/lib/log.ts` | 실행 로그, `RunStage` 에 `limited`, 2차 `runs` 저장 | 서영 |
@@ -122,12 +122,12 @@ type ReportRecord = {
 
 saveReport(input, report, steps, id?: string): Promise<ReportRecord> // id 없으면 새로 만듦
 listReports(): Promise<ReportRecord[]>                                // 최신순, 최대 100
-getReport(id: string): Promise<ReportRecord | undefined>
+getReport(id: string): Promise<ReportRecord | null>                   // 없으면 null
 deleteReport(id: string): Promise<void>
-subscribeHistory(listener: () => void): () => void                    // 그대로
 ```
 
 - 지금은 동기 함수이고 화면 세 곳이 부릅니다: `app/page.tsx` 의 `saveReport`, `app/history/page.tsx` 와 `app/report/[id]/page.tsx` 의 `useSyncExternalStore`. 전환 PR(은경)이 이 세 곳을 `await saveReport(...)` 와 `useEffect` + 상태(불러오는 중 · 없음 · 있음)로 같이 고칩니다. 하니는 이 PR 이 머지될 때까지 두 페이지를 고치지 않습니다.
+- `subscribeHistory` 는 뺍니다. 서버 저장에서는 다른 탭의 변경을 알 수 없어서, 저장함 · 상세는 열 때와 지운 뒤에 다시 불러옵니다 (다른 탭에서 바꾼 기록은 새로고침하면 보입니다).
 - 1차: 구현은 localStorage(`muffin.history.v1`) 그대로 두고 함수만 Promise 를 돌려줍니다.
 - 2차: History API 호출로 바꾸고 `X-Muffin-Client` 는 `getClientId()` 로 붙입니다. 1차 브라우저 기록은 서버로 옮기지 않습니다.
 - 읽을 때 `normalizeReport` 로 v1 기록을 v2 모양으로 맞추는 것은 유지합니다.
@@ -225,7 +225,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 
 | 누구 | 할 일 | 완료 조건 |
 | --- | --- | --- |
-| 은경 | history 비동기 전환: `history.ts` 함수 5개를 Promise 로(`saveReport` 에 `id?` 추가), 화면 세 곳 호출부까지. 구현은 localStorage 그대로 | 세 화면이 전과 같이 동작, `pnpm test` 통과, 하니에게 미리 알림 |
+| 은경 | history 비동기 전환: `history.ts` 함수 4개를 Promise 로(`saveReport` 에 `id?` 추가, `subscribeHistory` 는 뺌), 화면 세 곳 호출부까지. 구현은 localStorage 그대로 | 세 화면이 전과 같이 동작, `pnpm test` 통과, 하니에게 미리 알림 |
 | 서영 | 호출 제한 v1: `ratelimit.ts` + 테스트, 두 라우트에서 바디를 읽기 전에 호출, 429, `RunStage` 에 `limited`, JSON 라우트 키 없음 500 → 503 | 11번째 요청 429 + `Retry-After`, 브라우저 id 를 바꿔도 IP 상한에서 429, 가짜 시계로 10분 뒤 풀림, 환경 변수로 한도가 바뀜, 라우트 테스트에 429 응답 1건 |
 | 은경 | 출처 검사 · 바디 크기: `src/lib/guard.ts` + 테스트, 두 라우트에 적용 | 허용 Origin 통과, 다른 Origin 403, 큰 바디 413 |
 | 은경 | DB · History API: `db.ts`, 마이그레이션 SQL, 엔드포인트 4개 + 테스트(Supabase 클라이언트는 모킹), `history.ts` 2차 구현 | 같은 브라우저에서만 보이고 다른 브라우저에서는 안 보임, 삭제 동작 |
