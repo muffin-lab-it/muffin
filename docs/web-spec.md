@@ -83,7 +83,7 @@ flowchart LR
 
 | type | 필드 | 언제 | 화면 |
 | --- | --- | --- | --- |
-| `stage` | `stage: "plan" \| "research" \| "edit" \| "write" \| "verify"`, `status: "start" \| "done"` | 단계 시작 · 끝 | 단계 표시. 라벨은 `stageLabels` (질문 파악 · 데이터 조사 · 사실 정리 · 리포트 작성 · 검증) |
+| `stage` | `stage: "plan" \| "research" \| "edit" \| "write" \| "verify"`, `status: "start" \| "done"` | 단계 시작 · 끝 | 단계 표시. 라벨은 `stageLabels` (질문 살펴보기 · 자료 찾기 · 핵심 추리기 · 답변 쓰기 · 근거 확인하기) |
 | `plan` | `intent`, `mode`, `tools: string[]` | 분류 끝 | "이렇게 조사할게요" 한 줄. tool 이름은 `labelFor(name)` |
 | `step` | `step: { tool, status: "ok" \| "error", ms, error? }` | tool 하나 끝날 때마다 | tool 한 줄. 계산 step 은 edit 단계 안에서 옴 |
 | `verify` | `verification` | 검증 끝 | 검증 한 줄 |
