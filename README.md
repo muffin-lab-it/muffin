@@ -276,7 +276,7 @@ MUFFIN_MOCK=         # 1 이면 OpenAI·tool 을 부르지 않고 샘플 리포�
 |---|---|---|---|
 | 💵 FX | Frankfurter v2 (ECB 기준) | 불필요 | USD · JPY · EUR · CNY 등의 원화 환율, 기간 비교 |
 | 📈 ETF | 공공데이터포털 금융위원회 증권상품시세정보 | `DATA_GO_KR_KEY` | 국내 ETF 시세, 기초지수 |
-| 📰 News | 연합뉴스 · 한국경제 RSS, Google News RSS, 공개 기사 본문 | 불필요 | 본문 추출은 **개발 · 비상업 범위에서만 허용** (10/19 리더 결정). 서비스 공개 전 각 언론사 이용 조건 재확인 |
+| 📰 News | 연합뉴스 · 한국경제 RSS, Google News RSS, 공개 기사 본문 | 불필요 | 본문 추출 · AI 활용은 **비상업 범위에서만 허용** (10/19 리더 결정, 11/02 리더가 이용 조건 확인: 비상업 목적이면 AI 활용 가능). 상업적으로 쓰려면 다시 확인 |
 | 🏦 Rate | 한국은행 ECOS (기준금리), FRED (DFF · DGS10) | `ECOS_API_KEY` `FRED_API_KEY` | 30 · 90 · 365일 |
 | 📊 Macro | ECOS · FRED (CPI, 실업률) | 같음 | 한국 · 미국 |
 | 🧮 Calc | 없음. 장부(위 Tool 의 결과)의 두 값을 가리켜 계산 | 불필요 | 변동률 · 차이 · %p. 결과는 C 번호로 장부에, 입력 번호는 lineage 에 (`src/tools/calc/README.md`) |
