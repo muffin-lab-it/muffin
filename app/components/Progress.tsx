@@ -99,10 +99,10 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
   const story = error ? error.kind === "save" ? "저장을 다시 시도해도 조사를 새로 시작하지 않아요." : "오류 안내는 자동으로 사라지지 않아요. 입력한 질문을 유지한 채 다음 행동을 선택할 수 있어요."
     : scope ? "지금은 환율·ETF·경제뉴스·금리·물가에 대한 질문을 도와드려요."
     : state.complete ? "완성된 답변을 저장하고 있어요. 잠시만 기다려 주세요."
-    : latestStep ? `${labelFor(latestStep.tool)}: ${latestStep.status === "ok" ? "자료를 확인했어요." : "자료를 확인하지 못했어요."} 아래에서 지금까지의 확인 내역을 볼 수 있어요.`
-    : state.plan?.tools.length ? "질문에 맞춰 필요한 자료를 확인할 계획이에요. 잠시만 기다려 주세요."
     : current === "verify" ? "답변의 숫자와 원본 자료가 맞는지 살펴보고 있어요."
     : current === "write" ? "확인한 내용을 읽기 쉬운 답변으로 정리하고 있어요."
+    : latestStep ? `${labelFor(latestStep.tool)}: ${latestStep.status === "ok" ? "자료를 확인했어요." : "자료를 확인하지 못했어요."} 아래에서 지금까지의 확인 내역을 볼 수 있어요.`
+    : state.plan?.tools.length ? "질문에 맞춰 필요한 자료를 확인할 계획이에요. 잠시만 기다려 주세요."
     : "질문을 살펴보고 있어요. 조사 계획이 도착하면 여기서 알려드릴게요.";
   const verification = state.verification;
   const applicable = stages.filter(stage => state.status[stage] !== "skipped");
