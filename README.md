@@ -79,7 +79,8 @@ Agent 간 handoff 는 쓰지 않습니다. 금융에서는 "흐름은 고정, �
 | **1단계** 작성 · 검증 분리 · 숫자 코드 검증 (정확 / 반올림 / 단위 / 허용오차) · 1회 수정 루프 · fail-closed · 핵심 값 훅 · 고정 질문 세트 | ✅ 10/22 |
 | **2단계** 담당자별 단계 지시문 · 테스트 (분류 정확도, 정제의 사실 선택, 작성 깊이 규칙) · 원인 지도 · 유의성 게이트 | 10/28 ~ 11/6 |
 | **3단계** 근거 판정자 · 모델 비교 · Promptfoo 평가 · 주간 평가 Action + Codex 수정 PR | 11/7 ~ 11/13 |
-| 스트리밍 라우트 · 호출 제한 · 로그 DB · `/admin` | 백엔드 팀 |
+| 스트리밍 라우트 · 호출 제한 · 로그 DB | 백엔드 팀 |
+| 관리자 화면 `/admin` (실행 로그) | 리더 |
 | 진행 화면 · 검증 배지 · 원본 보기 · 차트 · AI 고지 | 프론트 팀 |
 | 리플레이 모드 (데모 대비) · 사용자 테스트 · 차트 고도화 | 11/14 ~ 11/30 |
 
@@ -187,7 +188,7 @@ muffin/
 │  ├─ report/[id]/page.tsx           리포트 상세 (History 에서 조회)
 │  ├─ history/page.tsx               저장한 리포트 목록
 │  ├─ components/                    Sidebar, ReportView (+ 진행 화면, 검증 배지, 차트 예정)
-│  ├─ admin/                         (예정, 백엔드) 최근 실패 · 평균 시간 · tool 별 성공률 · 검증 실패율
+│  ├─ admin/                         실행 로그 (리더, ADMIN_PASSWORD 로그인): 최근 실패 · 응답 시간 · tool 별 성공률 · 검증
 │  └─ api/report/
 │     ├─ route.ts                    POST /api/report — 완료 후 JSON 한 번에 (백엔드)
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
@@ -220,6 +221,7 @@ muffin/
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
 │     ├─ history.ts                  리포트 저장함 (localStorage → 서버, 백엔드)
 │     ├─ log.ts                      muffin.run 실행 로그
+│     ├─ admin.ts                    /admin 집계 · loadRuns (runs 연결 전에는 예시 데이터, 리더)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/
@@ -229,6 +231,7 @@ muffin/
 ├─ docs/PLAN.md                      스터디 운영 계획 (주차별 · 역할 · 모임 대본)
 ├─ .github/                          CI (lint · typecheck · test), PR 템플릿
 ├─ AGENTS.md  CONTRIBUTING.md        Codex · Claude 공통 규칙, 협업 절차
+├─ proxy.ts                          /admin 비밀번호 (Next.js 16 의 proxy, 예전 middleware. 리더)
 └─ .env.example
 ```
 
@@ -268,6 +271,7 @@ DATA_GO_KR_KEY=      # etf
 ECOS_API_KEY=        # rate, macro
 FRED_API_KEY=        # rate, macro
 MUFFIN_MOCK=         # 1 이면 OpenAI·tool 을 부르지 않고 샘플 리포트 (비상용)
+ADMIN_PASSWORD=      # /admin 로그인 비밀번호 (아이디는 아무거나). 비우면 /admin 은 404
 ```
 
 ## 데이터 소스
@@ -435,7 +439,7 @@ v1 과 비교하면 `ref · basis · refs · check · mode · evidence · verifi
 
 - `/api/report/stream`: 위 참고 코드. Mock 분기도 같은 라우트에서 처리합니다 (`mockResearch` 가 이벤트를 순서대로 흉내 냅니다).
 - 호출 제한: Vercel 은 요청마다 서버 인스턴스가 달라질 수 있어 메모리에 세는 방식은 정확하지 않습니다. 로그 DB 에 횟수를 세거나 Vercel 방화벽 규칙을 씁니다.
-- 실행 로그 DB: `RunLog` 를 그대로 저장하고 `/admin` 에 최근 실패 · 평균 시간 · tool 별 성공률 · 토큰 · **검증 실패율 · 가드레일 작동 횟수** 를 보여줍니다. `/admin` 은 환경 변수 비밀번호 등으로 보호합니다. History 서버 저장과 같은 DB 를 씁니다.
+- 실행 로그 DB: `RunLog` 를 그대로 저장하고 `/admin` 에 최근 실패 · 평균 시간 · tool 별 성공률 · 토큰 · **검증 실패율 · 가드레일 작동 횟수** 를 보여줍니다. `/admin` 은 브라우저 기본 로그인 창과 환경 변수 `ADMIN_PASSWORD` 로 보호합니다 (`proxy.ts`). 가드레일 작동 횟수는 아직 로그 칸이 없어 남은 권유 표현 수로 대신합니다 (`docs/web-spec.md` 4.7). History 서버 저장과 같은 DB 를 씁니다.
 - History: 읽을 때 `normalizeReport` 를 적용해 v1 기록도 v2 화면에서 보이게 합니다. 서버 저장으로 바꾸면 함수가 비동기가 되므로 프론트와 먼저 합의합니다.
 
 ### 프론트 과제
