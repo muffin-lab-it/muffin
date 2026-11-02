@@ -4,10 +4,17 @@ import styles from "./admin.module.css";
 export default function AdminLoading() {
   return (
     <div className={styles.page} aria-busy="true" aria-label="실행 로그를 불러오는 중">
-      <h1>🛠️ 실행 로그</h1>
-      <div className={styles.skeleton} />
-      <div className={styles.skeleton} />
-      <div className={styles.skeletonTall} />
+      <h1 className={styles.title}>실행 모니터링</h1>
+      <div className={styles.skBanner} />
+      <div className={styles.kpis}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className={styles.skKpi} />
+        ))}
+      </div>
+      <div className={styles.gridMain}>
+        <div className={styles.skPanel} />
+        <div className={styles.skPanel} />
+      </div>
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { config, proxy } from "@/proxy";
-import { FAILURE_LIMIT, loadRuns, summarizeRuns, WINDOW_DAYS, type RunRow } from "./admin";
+import { EVENT_LIMIT, healthOf, loadRuns, parseRange, summarizeRuns, type RunRow } from "./admin";
 import { ADMIN_CHALLENGE, adminEnabled, isAdminAuthorized } from "./admin-auth";
 import { sampleRuns } from "./admin.sample";
 
 const basic = (user: string, pass: string) => `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
+/** 한국 시간 2026-11-02 12:00 */
 const NOW = new Date("2026-11-02T03:00:00.000Z");
 const ago = (minutes: number) => new Date(NOW.getTime() - minutes * 60_000).toISOString();
 const verification = (status: "pass" | "partial" | "skipped", total: number, unverified = 0, revisions = 0, advice = 0) => ({
@@ -25,6 +26,7 @@ const run = (over: Partial<RunRow> = {}): RunRow => ({
   input: { question: "환율 왜 올랐어?", depth: "standard", area: "fx" },
   ...over,
 });
+const many = (n: number, over: Partial<RunRow> = {}) => Array.from({ length: n }, () => run(over));
 
 describe("관리자 비밀번호 (Basic 인증)", () => {
   it("비밀번호가 같으면 통과하고 아이디는 보지 않는다", () => {
@@ -75,12 +77,28 @@ describe("proxy (/admin 앞단)", () => {
   });
 });
 
+describe("기간", () => {
+  it("24h · 7d 만 받고 나머지는 7일", () => {
+    expect(parseRange("24h")).toBe("24h");
+    expect(parseRange("7d")).toBe("7d");
+    expect(parseRange(undefined)).toBe("7d");
+    expect(parseRange("30d")).toBe("7d");
+    expect(parseRange(["24h", "7d"])).toBe("7d");
+  });
+
+  it("24시간을 고르면 그 안의 줄만 센다", () => {
+    const rows = [run({ at: ago(60) }), run({ at: ago(23 * 60) }), run({ at: ago(25 * 60) })];
+    expect(summarizeRuns(rows, NOW, "24h").total).toBe(2);
+    expect(summarizeRuns(rows, NOW, "7d").total).toBe(3);
+  });
+});
+
 describe("summarizeRuns", () => {
   it("기간 밖 · Mock · 진행 중(2분 안의 started) 줄은 빼고, 호출 제한은 성공률에서 따로 센다", () => {
     const s = summarizeRuns(
       [
         run(),
-        run({ at: ago(WINDOW_DAYS * 24 * 60 + 5) }),
+        run({ at: ago(7 * 24 * 60 + 5) }),
         run({ mock: true }),
         run({ ok: false, stage: "started", ms: 0, at: ago(1) }),
         run({ ok: false, stage: "limited", ms: 5, input: null }),
@@ -89,12 +107,6 @@ describe("summarizeRuns", () => {
       NOW,
     );
     expect(s).toMatchObject({ total: 2, ok: 1, failed: 1, limited: 1, mock: 1 });
-  });
-
-  it("2분이 지나도 started 로 남은 줄은 끝난 기록 없는 실패로 센다", () => {
-    const s = summarizeRuns([run({ ok: false, stage: "started", ms: 0, at: ago(3) })], NOW);
-    expect(s.failed).toBe(1);
-    expect(s.failures[0]).toMatchObject({ stage: "started", error: "시작만 기록되고 끝난 기록이 없습니다" });
   });
 
   it("응답 시간은 리포트를 만든 요청(성공, 범위 밖 제외)으로 평균 · 90% 와 깊이별로 낸다", () => {
@@ -113,6 +125,7 @@ describe("summarizeRuns", () => {
       { depth: "easy", count: 1, avgMs: 12_000, p90Ms: 12_000 },
       { depth: "standard", count: 10, avgMs: 55_000, p90Ms: 90_000 },
     ]);
+    expect(s.points).toHaveLength(11);
   });
 
   it("토큰은 리포트를 만든 요청당 평균이다", () => {
@@ -162,19 +175,89 @@ describe("summarizeRuns", () => {
     ]);
   });
 
-  it("최근 실패는 최신순으로 정해진 개수만, 긴 질문 · 오류는 자른다", () => {
-    const fails = Array.from({ length: FAILURE_LIMIT + 2 }, (_, i) =>
-      run({ id: `f${i}`, ok: false, stage: "agent", at: ago(100 - i), error: "x".repeat(300), input: { question: "q".repeat(120), depth: "standard" } }),
+  it("막대는 한국 시간 정각 경계로 자르고 마지막 칸이 지금을 포함한다 (24시간 = 1시간 칸 25개)", () => {
+    const s = summarizeRuns(
+      [run({ at: ago(10), ms: 30_000 }), run({ at: ago(70), ok: false, stage: "agent" }), run({ at: ago(70), ok: false, stage: "limited" })],
+      NOW,
+      "24h",
     );
-    const s = summarizeRuns(fails, NOW);
-    expect(s.failures).toHaveLength(FAILURE_LIMIT);
-    expect(s.failures[0]!.id).toBe(`f${FAILURE_LIMIT + 1}`);
-    expect(s.failures[0]!.question).toHaveLength(81);
-    expect(s.failures[0]!.error).toHaveLength(161);
+    expect(s.bucketMs).toBe(60 * 60_000);
+    expect(s.buckets).toHaveLength(25);
+    expect(s.buckets[0]!.start).toBe("2026-11-01T03:00:00.000Z");
+    expect(s.buckets.at(-1)!.start).toBe("2026-11-02T03:00:00.000Z");
+    expect(s.buckets[23]).toMatchObject({ ok: 1, failed: 0, limited: 0, avgMs: 30_000 });
+    expect(s.buckets[22]).toMatchObject({ ok: 0, failed: 1, limited: 1, avgMs: null });
   });
 
-  it("기록이 없으면 숫자는 null, 목록은 비어 있다", () => {
-    expect(summarizeRuns([], NOW)).toMatchObject({ total: 0, time: null, tokens: null, verification: null, byDepth: [], tools: [], failures: [], intents: [] });
+  it("7일은 6시간 칸 29개이고 칸 경계가 한국 시간 0 · 6 · 12 · 18시다", () => {
+    const s = summarizeRuns([run()], NOW, "7d");
+    expect(s.buckets).toHaveLength(29);
+    for (const b of s.buckets) expect((new Date(b.start).getUTCHours() + 9) % 6).toBe(0);
+    expect(s.buckets.reduce((sum, b) => sum + b.ok, 0)).toBe(1);
+  });
+
+  it("이벤트는 실패 · 멈춤 · 호출 제한 · tool 실패를 최신순으로 모으고 길이 · 글자를 자른다", () => {
+    const s = summarizeRuns(
+      [
+        run({ id: "agent", at: ago(5), ok: false, stage: "agent", error: "x".repeat(300), input: { question: "q".repeat(120), depth: "standard" } }),
+        run({ id: "stale", at: ago(30), ok: false, stage: "started", ms: 0 }),
+        run({ id: "limited", at: ago(40), ok: false, stage: "limited", ms: 5, error: "브라우저 키 10분 한도" }),
+        run({ id: "tool", at: ago(50), steps: [{ tool: "get_korean_economic_news", status: "error", ms: 300, error: "본문 없음" }] }),
+        ...many(EVENT_LIMIT, { at: ago(600), ok: false, stage: "agent", error: "오래된 실패" }),
+      ],
+      NOW,
+    );
+    expect(s.events).toHaveLength(EVENT_LIMIT);
+    expect(s.events.slice(0, 4).map((e) => [e.id, e.level, e.kind])).toEqual([
+      ["agent", "bad", "agent"],
+      ["stale", "warn", "started"],
+      ["limited", "info", "limited"],
+      ["tool:0", "warn", "tool"],
+    ]);
+    expect(s.events[0]!.question).toHaveLength(81);
+    expect(s.events[0]!.detail).toHaveLength(161);
+    expect(s.events[1]!.detail).toBe("시작만 기록되고 끝난 기록이 없습니다");
+    expect(s.events[3]).toMatchObject({ tool: "get_korean_economic_news", detail: "본문 없음" });
+  });
+
+  it("기록이 없으면 숫자는 null, 목록은 비어 있고 막대는 0 으로 채워진다", () => {
+    const s = summarizeRuns([], NOW);
+    expect(s).toMatchObject({ total: 0, time: null, tokens: null, verification: null, byDepth: [], tools: [], events: [], intents: [], points: [] });
+    expect(s.buckets.every((b) => b.ok + b.failed + b.limited === 0)).toBe(true);
+  });
+});
+
+describe("healthOf (상태등)", () => {
+  const ok = (n: number, over: Partial<RunRow> = {}) => many(n, { verification: verification("pass", 3), ...over });
+  const fail = (n: number) => many(n, { ok: false, stage: "agent", error: "실패" });
+
+  it("성공률은 95% 이상 정상, 85% 이상 주의, 그 아래 장애", () => {
+    expect(healthOf(summarizeRuns(ok(20), NOW))).toMatchObject({ overall: "ok", success: "ok" });
+    expect(healthOf(summarizeRuns([...ok(18), ...fail(2)], NOW))).toMatchObject({ overall: "warn", success: "warn" });
+    expect(healthOf(summarizeRuns([...ok(16), ...fail(4)], NOW))).toMatchObject({ overall: "bad", success: "bad" });
+  });
+
+  it("p90 응답 시간은 45초 안(이하)이면 정상, 예산 55초 안(이하)이면 주의, 넘으면 장애", () => {
+    expect(healthOf(summarizeRuns(ok(10, { ms: 45_000 }), NOW)).latency).toBe("ok");
+    expect(healthOf(summarizeRuns(ok(10, { ms: 50_000 }), NOW)).latency).toBe("warn");
+    expect(healthOf(summarizeRuns(ok(10, { ms: 55_000 }), NOW)).latency).toBe("warn");
+    expect(healthOf(summarizeRuns(ok(10, { ms: 56_000 }), NOW))).toMatchObject({ overall: "bad", latency: "bad" });
+  });
+
+  it("권유 표현이 하나라도 남으면 장애, 검증 통과율이 낮으면 전체는 주의까지만", () => {
+    expect(healthOf(summarizeRuns([...ok(9), run({ verification: verification("pass", 3, 0, 0, 1) })], NOW))).toMatchObject({ overall: "bad", advice: "bad" });
+    const lowPass = [...ok(7), ...many(3, { verification: verification("partial", 3, 1) })];
+    expect(healthOf(summarizeRuns(lowPass, NOW))).toMatchObject({ overall: "warn", verification: "bad" });
+  });
+
+  it("tool 상태는 tool 마다 따로 판정하고 전체 상태에는 넣지 않는다", () => {
+    const step = (status: "ok" | "error") => ({ tool: "get_korean_economic_news", status, ms: 300 });
+    const rows = [...ok(8, { steps: [step("ok")] }), ...ok(2, { steps: [step("error")] })];
+    expect(healthOf(summarizeRuns(rows, NOW))).toMatchObject({ overall: "ok", tools: { get_korean_economic_news: "bad" } });
+  });
+
+  it("기록이 없으면 모두 기록 없음", () => {
+    expect(healthOf(summarizeRuns([], NOW))).toMatchObject({ overall: "idle", success: "idle", latency: "idle", advice: "idle" });
   });
 });
 
@@ -182,21 +265,24 @@ describe("예시 데이터", () => {
   it("같은 now 면 같은 값이고 모두 최근 7일 안이다", () => {
     const rows = sampleRuns(NOW);
     expect(rows).toEqual(sampleRuns(NOW));
-    expect(rows).toHaveLength(46);
-    expect(summarizeRuns(rows, NOW).total + summarizeRuns(rows, NOW).limited + summarizeRuns(rows, NOW).mock).toBe(46);
+    expect(rows.length).toBeGreaterThan(100);
+    expect(rows.every((r) => NOW.getTime() - Date.parse(r.at) < 7 * 24 * 60 * 60_000)).toBe(true);
   });
 
   it("화면의 모든 칸이 채워지도록 성공 · 실패 · 호출 제한 · Mock · 멈춘 요청 · tool 실패가 섞여 있다", () => {
-    const s = summarizeRuns(sampleRuns(NOW), NOW);
-    expect(s.ok).toBeGreaterThan(30);
-    expect(s.limited).toBe(1);
-    expect(s.mock).toBe(2);
-    expect(new Set(s.failures.map((f) => f.stage))).toEqual(new Set(["agent", "input", "started"]));
-    // 범위 밖 질문은 2초 안에 끝나므로 조사 중 실패로 두지 않습니다
-    expect(sampleRuns(NOW).filter((r) => r.stage === "agent").every((r) => r.intent !== "out_of_scope")).toBe(true);
+    const rows = sampleRuns(NOW);
+    const s = summarizeRuns(rows, NOW);
+    expect(s.ok / s.total).toBeGreaterThan(0.8);
+    expect(s.limited).toBeGreaterThan(0);
+    expect(s.mock).toBeGreaterThan(0);
+    expect(new Set(rows.filter((r) => !r.ok).map((r) => r.stage))).toEqual(new Set(["agent", "input", "started", "limited"]));
     expect(s.byDepth.map((d) => d.depth)).toEqual(["easy", "standard", "deep"]);
     expect(s.verification!.pass).toBeLessThan(s.verification!.checked);
     expect(s.tools.some((t) => t.ok < t.calls)).toBe(true);
+    // 범위 밖 질문은 2초 안에 끝나므로 조사 중 실패 · 멈춤으로 두지 않습니다
+    expect(rows.filter((r) => r.stage === "agent" || r.stage === "started").every((r) => r.intent !== "out_of_scope")).toBe(true);
+    // 최근 24시간에도 막대가 비지 않을 만큼 있습니다
+    expect(summarizeRuns(rows, NOW, "24h").total).toBeGreaterThan(10);
   });
 
   it("runs 표 연결 전이라 loadRuns 는 예시 데이터를 돌려준다", async () => {
