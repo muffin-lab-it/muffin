@@ -1,0 +1,43 @@
+/* 관리자 화면. 간격은 4 · 8 · 12 · 16 · 24px, 글자는 12 · 14 · 16 · 20px 단계만 씁니다. */
+.page { display: grid; gap: 24px; }
+.page h1 { margin: 0 0 4px; }
+.sub { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 20px; }
+.notice { margin: 0; padding: 12px 16px; border-radius: 8px; background: #fff0d8; color: #805319; font-size: 14px; line-height: 20px; }
+.alert { margin: 0; padding: 12px 16px; border-radius: 8px; background: #fbe4e2; color: #8f2d27; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+
+.section { display: grid; gap: 12px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.section h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: var(--ink); }
+.note { margin: 0; color: var(--ink-2); font-size: 12px; line-height: 16px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.card { display: grid; gap: 4px; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.card small { color: var(--ink-2); font-size: 12px; line-height: 16px; }
+.card b { font-size: 20px; line-height: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.card span { color: var(--ink-3); font-size: 12px; line-height: 16px; }
+
+.scroll { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 20px; }
+.table th { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+.table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.table tbody tr:last-child td { border-bottom: 0; }
+.table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bad { color: var(--up); font-weight: 600; }
+
+/* 최근 실패: 휴대폰에서도 오류까지 한눈에 보이게 표 대신 한 건씩 쌓습니다 */
+.failures { display: grid; margin: 0; padding: 0; list-style: none; }
+.failures li { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.failures li:first-child { padding-top: 0; }
+.failures li:last-child { padding-bottom: 0; border-bottom: 0; }
+.failures p { margin: 0; overflow-wrap: anywhere; }
+.failureMeta { color: var(--ink-2); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.failureQuestion { font-size: 14px; line-height: 20px; }
+.failureError { color: var(--ink-2); font-size: 14px; line-height: 20px; }
+
+/* 불러오는 동안 (loading.tsx): 실제 칸 모양의 회색 상자 */
+.skeleton { height: 96px; border-radius: 12px; background: var(--surface-2); }
+.skeletonTall { height: 192px; border-radius: 12px; background: var(--surface-2); }
+
+@media (max-width: 480px) {
+  .section { padding: 12px; }
+  .cards { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
