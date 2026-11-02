@@ -54,6 +54,7 @@ flowchart LR
 | `app/api/history/route.ts`, `app/api/history/[id]/route.ts` (신규) | History API | 은경 |
 | `supabase/migrations/*.sql` (신규) | 표 정의. 적용은 리더 | 은경 |
 | `src/agent/events.ts`, `src/agent/schema.ts` | 이벤트 · 리포트 모양 | 리더 (변경은 Discord 로 요청) |
+| `app/admin/`, `src/lib/admin.ts` · `admin-auth.ts` · `admin.sample.ts`, `proxy.ts` (신규) | 관리자 화면(실행 로그), `/admin` 비밀번호 | 리더 |
 
 ## 3. 계약: 리포트 생성
 
@@ -194,6 +195,8 @@ alter table runs enable row level security;
 
 `logRun` 은 지금처럼 콘솔(Vercel Logs, `muffin.run`)에 남기고, 2차부터 `runs` 에도 남깁니다. 요청의 줄은 호출 제한 v2 가 시작할 때 먼저 넣고(4.5), 끝나면 `logRun` 이 같은 id 의 줄을 갱신합니다. 갱신은 응답을 늦추지 않게 `next/server` 의 `after()` 로 하고, 실패해도 응답은 그대로 나가게 try/catch 후 콘솔에만 남깁니다. `db.ts` 는 은경의 것을 씁니다.
 
+`RunLog` 에 `verification`(리포트 `verification` 의 status · numbers · why · advice · revisions)과 `intent`(`research()` 결과의 `plan.intent`)를 더해 `runs` 의 같은 칸에 넣습니다. 관리자 화면(4.7)의 검증 통과율 · 다시 쓰기 비율 · 의도별 요청 수가 이 두 칸을 씁니다.
+
 ### 4.5 호출 제한 (서영)
 
 - 키 두 개를 함께 셉니다. 브라우저 키는 `readClientId(req.headers)` 값(없으면 IP 키만), IP 키는 `x-forwarded-for` 의 첫 IP 를 `RATE_LIMIT_SALT` 와 함께 sha256 한 값입니다. 원문 IP 는 저장 · 로그하지 않습니다.
@@ -219,6 +222,14 @@ export function checkOrigin(req: Request): { ok: true } | { ok: false; status: 4
 export async function readJsonLimited(req: Request, maxBytes: number): Promise<unknown>; // 넘으면 throw → 413
 ```
 
+### 4.7 관리자 화면 `/admin` (리더)
+
+- 최근 7일 `runs` 를 모아 보여 줍니다: 요청 수 · 성공률 · 응답 시간(평균 · 90%, 깊이별) · 리포트당 토큰 · 검증(통과 · 다시 쓰기 · 확인 못 한 숫자 · 남은 권유 표현) · 의도별 요청 · tool 별 호출 · 성공률 · 평균 시간 · 최근 실패 10건.
+- 응답 시간 · 토큰 · 검증은 리포트를 만든 요청만 셉니다 (범위 밖 질문은 분류만 하고 끝나서 뺍니다). Mock 요청은 모든 숫자에서 빼고, 호출 제한(`limited`)은 성공률에서 따로 셉니다. 2분 넘게 `started` 로 남은 줄은 중간에 멈춘 실패로 셉니다.
+- 보호는 브라우저 기본 로그인 창(HTTP Basic)입니다. 비밀번호는 서버 전용 환경 변수 `ADMIN_PASSWORD` 하나이고 아이디는 보지 않습니다. 비어 있으면 `/admin` 은 404 입니다. `proxy.ts`(Next.js 16 의 proxy, 예전 middleware)가 `/admin` 앞에서 막고 페이지도 한 번 더 확인합니다. 검색 노출은 막습니다(noindex).
+- 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표가 연결되기 전(은경 `db.ts` · 마이그레이션, 서영 `runs` 저장)에는 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. 연결되면 `loadRuns` 안의 조회만 바꿉니다.
+- 가드레일 작동 횟수는 아직 로그 칸이 없어 "남은 권유 표현"(`verification.advice`)으로 대신합니다.
+
 ## 5. 할 일과 완료 조건
 
 ### 백엔드
@@ -229,7 +240,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 | 서영 | 호출 제한 v1: `ratelimit.ts` + 테스트, 두 라우트에서 바디를 읽기 전에 호출, 429, `RunStage` 에 `limited`, JSON 라우트 키 없음 500 → 503 | 11번째 요청 429 + `Retry-After`, 브라우저 id 를 바꿔도 IP 상한에서 429, 가짜 시계로 10분 뒤 풀림, 환경 변수로 한도가 바뀜, 라우트 테스트에 429 응답 1건 |
 | 은경 | 출처 검사 · 바디 크기: `src/lib/guard.ts` + 테스트, 두 라우트에 적용 | 허용 Origin 통과, 다른 Origin 403, 큰 바디 413 |
 | 은경 | DB · History API: `db.ts`, 마이그레이션 SQL, 엔드포인트 4개 + 테스트(Supabase 클라이언트는 모킹), `history.ts` 2차 구현 | 같은 브라우저에서만 보이고 다른 브라우저에서는 안 보임, 삭제 동작 |
-| 서영 | 실행 로그 DB: `logRun` 이 `runs` 에도 insert | Supabase 표에 한 줄, 쓰기가 실패해도 응답은 그대로 |
+| 서영 | 실행 로그 DB: `logRun` 이 `runs` 에도 insert (`verification` · `intent` 포함, 4.4) | Supabase 표에 한 줄, 쓰기가 실패해도 응답은 그대로 |
 | 서영 | 호출 제한 v2: 요청 시작 때 `runs` 에 먼저 넣고 세기 | 인스턴스가 달라도 같은 수로 셈, 같은 브라우저에서 동시에 11건이 와도 10건만 통과 |
 
 ### 프론트
@@ -253,6 +264,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 - `src/lib/client.ts` 의 `getClientId()`: `crypto.randomUUID()` 를 localStorage `muffin.client` 에 저장하고, 서버 렌더링에서는 빈 문자열을 돌려줍니다. `api.ts` 가 `X-Muffin-Client` 를 자동으로 붙이고, 429 의 `retryAfterSec` 를 에러 메시지에 반영합니다.
 - Supabase 새 조직 · 프로젝트 · 키를 만들고, `.env.local` 과 Vercel 환경 변수(`SUPABASE_URL` · `SUPABASE_SECRET_KEY` · `ALLOWED_ORIGINS` · `RATE_LIMIT_*` · `RATE_LIMIT_SALT`)에 넣습니다. 마이그레이션도 적용합니다.
 - `events.ts` · `schema.ts` 변경 창구와 AGENTS.md 관리, 응답 시간(55초) 줄이기를 맡습니다.
+- 관리자 화면 `/admin`(4.7)을 만들고 Vercel 환경 변수 `ADMIN_PASSWORD` 를 넣습니다. `runs` 가 연결되면 `loadRuns` 를 실제 조회로 바꿉니다.
 
 ## 6. 순서
 
