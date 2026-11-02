@@ -1,6 +1,6 @@
 /**
  * /admin 예시 데이터. runs 표가 연결되기 전에 화면을 확인하는 용도이고, 실제 요청이 아닙니다 (화면에도 그렇게 표시).
- * now 기준 최근 7일에 흩어 놓고, 같은 now 면 항상 같은 값이 나옵니다 (테스트 · 스크린샷용).
+ * now 기준 최근 7일에 낮에는 촘촘히, 밤(한국 시간 1~8시)에는 드문드문 흩어 놓습니다. 같은 now 면 항상 같은 값입니다 (테스트 · 스크린샷용).
  * 시간 기준값은 10/28 ~ 10/30 실측(환율 원인 27.4초, ETF 30.1초, 금리 Deep 41.7초, 여행 Easy 10.8초)에서 가져왔습니다.
  */
 import type { ToolStep } from "../agent/context";
@@ -17,16 +17,19 @@ const scenarios: Scenario[] = [
   { question: "이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘", area: "news", depth: "standard", intent: "status", tools: ["get_korean_economic_news"], baseMs: 19_600 },
   { question: "KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘", area: "etf", depth: "standard", intent: "compare", tools: ["get_etf_kr_price", "get_etf_kr_price", "calc_metrics"], baseMs: 26_900 },
   { question: "비트코인 지금 얼마야?", area: "etf", depth: "standard", intent: "out_of_scope", tools: [], baseMs: 2_300 },
+  { question: "엔화 환율 지금 얼마야? 일본 여행 가려고", area: "fx", depth: "easy", intent: "status", tools: ["get_fx_krw_rate"], baseMs: 11_400 },
+  { question: "미국 금리가 내리면 내 대출 이자는 어떻게 돼?", area: "rate", depth: "standard", intent: "cause", tools: ["get_rate_data", "get_korean_economic_news"], baseMs: 28_800 },
 ];
 
-const COUNT = 46;
-// 실패는 리포트를 만드는 질문에만 둡니다 (범위 밖 질문은 2초 안에 끝나 시간 초과가 날 수 없음).
-const TIMEOUT_FAILS = new Set([4, 18, 33]);
-const MODEL_FAIL = 14;
-const LIMITED = 9;
-const BAD_INPUT = 27;
-const STALE = 38;
-const MOCKS = new Set([15, 41]);
+const COUNT = 150;
+const WEEK_MS = 7 * 24 * 60 * 60_000;
+// 실패 · 특수 줄은 번호 규칙으로 섞습니다. 앞의 것이 우선입니다.
+const isMock = (i: number) => i % 29 === 11;
+const isLimited = (i: number) => i % 37 === 5;
+const isBadInput = (i: number) => i % 53 === 21;
+const isStale = (i: number) => i % 71 === 33;
+const isTimeout = (i: number) => i % 23 === 7;
+const isModelFail = (i: number) => i % 41 === 13;
 
 const toolMs: Record<string, [number, number]> = {
   get_fx_krw_rate: [450, 1000],
@@ -39,6 +42,7 @@ const toolMs: Record<string, [number, number]> = {
 const toolFailures: Record<string, [number, string]> = {
   get_korean_economic_news: [0.2, "기사 본문을 확보하지 못했습니다"],
   get_rate_data: [0.06, "ECOS 응답 오류 (HTTP 503)"],
+  get_etf_kr_price: [0.01, "공공데이터포털 응답 시간 초과"],
 };
 const tokens = { easy: [11_840, 1_630], standard: [19_270, 2_940], deep: [31_460, 5_210] } as const;
 
@@ -94,27 +98,39 @@ function okRow(s: Scenario, i: number, base: Pick<RunRow, "id" | "at" | "input" 
   };
 }
 
-/** 최근 7일의 예시 실행 로그 46줄 (최신순). 성공 · 시간 초과 · 모델 오류 · 호출 제한 · 입력 오류 · 멈춘 요청 · Mock 이 섞여 있습니다. */
+function rowFor(s: Scenario, i: number, base: Pick<RunRow, "id" | "at" | "input" | "intent">): RunRow {
+  if (isMock(i)) return { ...okRow(s, i, base), mock: true, model: null, ms: between(i, 7, [900, 1_600]) };
+  // 호출 제한은 바디를 읽기 전에 막으므로 질문이 없습니다 (docs/web-spec.md 4.5).
+  if (isLimited(i)) return { ...base, input: null, intent: null, ok: false, stage: "limited", mock: false, ms: 6, error: "브라우저 키 10분 한도 (10회)" };
+  if (isBadInput(i)) return { ...base, input: null, intent: null, ok: false, stage: "input", mock: false, ms: 3, error: "invalid body" };
+  // 범위 밖 질문은 2초 안에 끝나므로 조사 중 실패 · 멈춤으로 두지 않습니다.
+  if (s.intent === "out_of_scope") return okRow(s, i, base);
+  if (isStale(i)) return { ...base, ok: false, stage: "started", mock: false, ms: 0 };
+  if (isTimeout(i)) {
+    return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [55_020, 55_480]), error: "조사 시간이 초과되었습니다. 질문 범위를 줄여 다시 시도해 주세요." };
+  }
+  if (isModelFail(i)) {
+    return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [31_200, 33_900]), error: "OpenAI 요청 시간 초과 (재시도 1회 후에도 응답 없음)" };
+  }
+  return okRow(s, i, base);
+}
+
+/** 최근 7일의 예시 실행 로그 (최신순). 성공 · 시간 초과 · 모델 오류 · 호출 제한 · 입력 오류 · 멈춘 요청 · Mock · tool 실패가 섞여 있습니다. */
 export function sampleRuns(now = new Date()): RunRow[] {
-  return Array.from({ length: COUNT }, (_, i) => {
-    const s = scenarios[(i * 5) % scenarios.length]!;
-    const t = now.getTime() - (7 + i * 217 + Math.round(40 * noise(i, 0))) * 60_000;
+  const rows: RunRow[] = [];
+  let t = now.getTime() - 4 * 60_000; // 가장 최근 요청은 4분 전
+  for (let i = 0; i < COUNT && t > now.getTime() - WEEK_MS; i++) {
+    const s = scenarios[(i * 7 + Math.floor(i / 10)) % scenarios.length]!;
     const base = {
       id: `${t.toString(36)}-${(i * 7919 + 104_729).toString(36).slice(-6)}`,
       at: new Date(t).toISOString(),
       input: { question: s.question, depth: s.depth, area: s.area },
       intent: s.intent,
     };
-    if (MOCKS.has(i)) return { ...okRow(s, i, base), mock: true, model: null, ms: between(i, 7, [900, 1_600]) };
-    if (i === LIMITED) return { ...base, intent: null, ok: false, stage: "limited", mock: false, ms: 6, error: "브라우저 키 10분 한도 (10회)" };
-    if (i === BAD_INPUT) return { ...base, input: null, intent: null, ok: false, stage: "input", mock: false, ms: 3, error: "invalid body" };
-    if (i === STALE) return { ...base, ok: false, stage: "started", mock: false, ms: 0 };
-    if (TIMEOUT_FAILS.has(i)) {
-      return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [55_020, 55_480]), error: "조사 시간이 초과되었습니다. 질문 범위를 줄여 다시 시도해 주세요." };
-    }
-    if (i === MODEL_FAIL) {
-      return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [31_200, 33_900]), error: "OpenAI 요청 시간 초과 (재시도 1회 후에도 응답 없음)" };
-    }
-    return okRow(s, i, base);
-  });
+    rows.push(rowFor(s, i, base));
+    const kstHour = new Date(t + 9 * 60 * 60_000).getUTCHours();
+    const night = kstHour >= 1 && kstHour < 8;
+    t -= Math.round((14 + 80 * noise(i, 9)) * (night ? 3.5 : 1)) * 60_000;
+  }
+  return rows;
 }

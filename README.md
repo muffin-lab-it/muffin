@@ -188,7 +188,7 @@ muffin/
 │  ├─ report/[id]/page.tsx           리포트 상세 (History 에서 조회)
 │  ├─ history/page.tsx               저장한 리포트 목록
 │  ├─ components/                    Sidebar, ReportView (+ 진행 화면, 검증 배지, 차트 예정)
-│  ├─ admin/                         실행 로그 (리더, ADMIN_PASSWORD 로그인): 최근 실패 · 응답 시간 · tool 별 성공률 · 검증
+│  ├─ admin/                         실행 모니터링 (리더, ADMIN_PASSWORD 로그인): 상태 · 요청 추이 · 응답 시간 · tool 상태 · 이벤트 · 검증
 │  └─ api/report/
 │     ├─ route.ts                    POST /api/report — 완료 후 JSON 한 번에 (백엔드)
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
@@ -221,7 +221,7 @@ muffin/
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
 │     ├─ history.ts                  리포트 저장함 (localStorage → 서버, 백엔드)
 │     ├─ log.ts                      muffin.run 실행 로그
-│     ├─ admin.ts                    /admin 집계 · loadRuns (runs 연결 전에는 예시 데이터, 리더)
+│     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 연결 전에는 예시 데이터, 리더)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/

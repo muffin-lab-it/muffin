@@ -1,35 +1,34 @@
 /**
- * 관리자 화면: 최근 7일 실행 로그. 리더 관리. 보호는 proxy.ts + 아래 확인 (src/lib/admin-auth.ts).
+ * 관리자 화면: 실행 모니터링 (최근 24시간 · 7일). 리더 관리. 보호는 proxy.ts + 아래 확인 (src/lib/admin-auth.ts).
  * 데이터는 src/lib/admin.ts 의 loadRuns. runs 표 연결 전에는 예시 데이터이고 맨 위에 그렇게 표시합니다.
  */
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { labelFor } from "@/src/agent/events";
-import { loadRuns, summarizeRuns, WINDOW_DAYS, type LoadedRuns, type RunsSummary } from "@/src/lib/admin";
+import { BUDGET_MS, healthOf, loadRuns, parseRange, RANGES, summarizeRuns, THRESHOLDS, type AdminEvent, type Health, type LoadedRuns, type RunsSummary } from "@/src/lib/admin";
 import { isAdminAuthorized } from "@/src/lib/admin-auth";
 import { redactSecrets } from "@/src/lib/redact";
 import styles from "./admin.module.css";
+import { AutoRefresh } from "./AutoRefresh";
+import { LatencyScatter, RequestBars, Sparkline, StackBar } from "./charts";
+import { ago, count, kst, percent, seconds } from "./format";
 
-export const metadata: Metadata = { title: "실행 로그 · Muffin Lab", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "실행 모니터링 · Muffin Lab", robots: { index: false, follow: false } };
 
+const healthLabels: Record<Health, string> = { ok: "정상", warn: "주의", bad: "장애", idle: "기록 없음" };
+const levelLabels = { bad: "장애", warn: "주의", info: "정보" } as const;
 const depthLabels: Record<string, string> = { easy: "Easy", standard: "Standard", deep: "Deep Dive" };
 const intentLabels: Record<string, string> = { status: "현황", cause: "원인", compare: "비교", decision: "판단 요청", out_of_scope: "범위 밖" };
-const failureStages: Record<string, string> = { input: "입력 확인", config: "서비스 설정", agent: "조사 중 오류", started: "중간에 멈춤" };
+const eventTitles: Record<string, string> = { agent: "조사 중 오류", started: "중간에 멈춤", input: "입력 확인 실패", config: "서비스 설정 오류", limited: "호출 제한" };
 
-const kstParts = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-function kst(iso: string): string {
-  const p = Object.fromEntries(kstParts.formatToParts(new Date(iso)).map((part) => [part.type, part.value]));
-  return `${p.month}-${p.day} ${p.hour}:${p.minute}`;
-}
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}초`;
-const percent = (part: number, whole: number) => (whole ? `${((part / whole) * 100).toFixed(1)}%` : "-");
-const count = (n: number) => n.toLocaleString("ko-KR");
-
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   // proxy.ts 가 먼저 막습니다. matcher 가 바뀌어도 열리지 않게 여기서 한 번 더 확인합니다.
   if (!isAdminAuthorized((await headers()).get("authorization"))) notFound();
 
+  const range = parseRange((await searchParams).range);
   const now = new Date();
   let loaded: LoadedRuns;
   try {
@@ -38,152 +37,306 @@ export default async function AdminPage() {
     const reason = redactSecrets(err instanceof Error ? err.message : String(err)).slice(0, 200);
     return (
       <div className={styles.page}>
-        <h1>🛠️ 실행 로그</h1>
-        <p className={styles.alert} role="alert">
+        <h1 className={styles.title}>실행 모니터링</h1>
+        <p className={`${styles.banner} ${styles.bad}`} role="alert">
           실행 로그를 불러오지 못했습니다. Supabase 프로젝트가 일시 정지됐는지 확인한 뒤 새로고침하세요. ({reason})
         </p>
       </div>
     );
   }
-  const s = summarizeRuns(loaded.rows, now);
+  const s = summarizeRuns(loaded.rows, now, range);
+  const health = healthOf(s);
 
   return (
     <div className={styles.page}>
-      <header>
-        <h1>🛠️ 실행 로그</h1>
-        <p className={styles.sub}>
-          최근 {WINDOW_DAYS}일 · {kst(s.since)} ~ {kst(s.until)} (한국 시간)
-        </p>
+      <header className={styles.top}>
+        <div>
+          <p className={styles.eyebrow}>Muffin Lab 운영</p>
+          <h1 className={styles.title}>실행 모니터링</h1>
+          <p className={styles.meta}>
+            {kst(s.until, true)} 기준 · 최근 {RANGES[range].label} · 한국 시간
+          </p>
+        </div>
+        <div className={styles.controls}>
+          <nav className={styles.segment} aria-label="기간">
+            {(Object.keys(RANGES) as (keyof typeof RANGES)[]).map((key) => (
+              <Link key={key} href={{ pathname: "/admin", query: { range: key } }} aria-current={key === range ? "page" : undefined}>
+                {RANGES[key].label}
+              </Link>
+            ))}
+          </nav>
+          <AutoRefresh seconds={60} />
+        </div>
       </header>
+
       {loaded.source === "sample" && (
-        <p className={styles.notice} role="note">
+        <p className={styles.sample} role="note">
           예시 데이터입니다. 실제 요청이 아닙니다. 실행 로그 DB(runs 표)가 연결되면 실제 기록으로 바뀝니다.
         </p>
       )}
-      {s.total === 0 && s.limited === 0 ? <Empty /> : <Summary s={s} />}
+
+      <StatusBanner s={s} health={health} />
+      {s.total + s.limited === 0 ? <Empty label={RANGES[range].label} /> : <Dashboard s={s} health={health} now={now} />}
     </div>
   );
 }
 
-function Empty() {
+function StatusBanner({ s, health }: { s: RunsSummary; health: ReturnType<typeof healthOf> }) {
+  const reasons = [
+    health.success === "ok" || health.success === "idle" ? "" : `성공률 ${percent(s.ok, s.total)} (기준 ${THRESHOLDS.success[0] * 100}%)`,
+    health.latency === "ok" || health.latency === "idle" ? "" : `응답 시간 p90 ${seconds(s.time!.p90Ms)} (정상 ${seconds(THRESHOLDS.p90Ms[0])} 이하 · 예산 ${seconds(BUDGET_MS)})`,
+    health.advice === "bad" ? `권유 표현 ${count(s.verification!.advice)}건 남음` : "",
+    health.verification === "ok" || health.verification === "idle" ? "" : `검증 통과 ${percent(s.verification!.pass, s.verification!.checked)}`,
+  ].filter(Boolean);
+  const idleText = s.limited ? `처리한 요청이 없습니다. 호출 제한으로 막힌 요청만 ${count(s.limited)}건 있습니다.` : "이 기간에 들어온 요청이 없습니다.";
+  const text = health.overall === "idle" ? idleText : reasons.length ? reasons.join(" · ") : "모든 지표가 기준 안에 있습니다.";
   return (
-    <section className={styles.section}>
-      <h2>아직 기록이 없습니다</h2>
-      <p className={styles.note}>최근 {WINDOW_DAYS}일 동안 들어온 요청이 없습니다. 홈에서 리포트를 하나 만들면 여기에 쌓입니다.</p>
+    <section className={`${styles.banner} ${styles[health.overall]}`} aria-label="전체 상태">
+      <span className={styles.bannerLight} aria-hidden="true" />
+      <div className={styles.bannerBody}>
+        <p className={styles.bannerTitle}>{health.overall === "ok" ? "정상 운영 중" : healthLabels[health.overall]}</p>
+        <p className={styles.bannerText}>{text}</p>
+      </div>
+      <p className={styles.bannerFacts}>
+        실패 {count(s.failed)} · 호출 제한 {count(s.limited)}
+        {s.mock ? ` · Mock ${count(s.mock)} 제외` : ""}
+      </p>
     </section>
   );
 }
 
-function Card({ label, value, detail }: { label: string; value: string; detail?: string }) {
+function Empty({ label }: { label: string }) {
   return (
-    <div className={styles.card}>
-      <small>{label}</small>
-      <b>{value}</b>
-      {detail && <span>{detail}</span>}
+    <section className={styles.panel}>
+      <h2 className={styles.panelTitle}>아직 기록이 없습니다</h2>
+      <p className={styles.note}>최근 {label} 동안 들어온 요청이 없습니다. 홈에서 리포트를 하나 만들면 여기에 쌓입니다.</p>
+    </section>
+  );
+}
+
+function Kpi({ label, value, sub, health, children }: { label: string; value: string; sub?: string; health?: Health; children?: ReactNode }) {
+  return (
+    <div className={styles.kpi}>
+      <div className={styles.kpiHead}>
+        <span className={styles.kpiLabel}>{label}</span>
+        {health && (
+          <span className={`${styles.pill} ${styles[health]}`}>
+            <span className={styles.pillDot} aria-hidden="true" />
+            {healthLabels[health]}
+          </span>
+        )}
+      </div>
+      <b className={styles.kpiValue}>{value}</b>
+      {sub && <span className={styles.kpiSub}>{sub}</span>}
+      {children}
     </div>
   );
 }
 
-function Summary({ s }: { s: RunsSummary }) {
-  const excluded = [s.limited ? `호출 제한 ${count(s.limited)}건` : "", s.mock ? `Mock ${count(s.mock)}건` : ""].filter(Boolean).join(" · ");
+function Panel({ title, sub, legend, children, className = "" }: { title: string; sub?: string; legend?: { label: string; className: string }[]; children: ReactNode; className?: string }) {
   return (
-    <>
-      <section className={styles.section} aria-labelledby="overview">
-        <h2 id="overview">한눈에</h2>
-        <div className={styles.cards}>
-          <Card label="요청" value={`${count(s.total)}건`} detail={`성공 ${count(s.ok)} · 실패 ${count(s.failed)}${excluded ? ` (${excluded} 제외)` : ""}`} />
-          <Card label="성공률" value={percent(s.ok, s.total)} detail="호출 제한 · Mock 제외" />
-          <Card label="응답 시간 (리포트)" value={s.time ? `평균 ${seconds(s.time.avgMs)}` : "-"} detail={s.time ? `90%가 ${seconds(s.time.p90Ms)} 안에 끝남` : undefined} />
-          <Card label="토큰 (리포트당 평균)" value={s.tokens ? `${count(s.tokens.input + s.tokens.output)}` : "-"} detail={s.tokens ? `입력 ${count(s.tokens.input)} · 출력 ${count(s.tokens.output)}` : undefined} />
+    <section className={`${styles.panel} ${className}`}>
+      <div className={styles.panelHead}>
+        <div>
+          <h2 className={styles.panelTitle}>{title}</h2>
+          {sub && <p className={styles.panelSub}>{sub}</p>}
         </div>
-        <p className={styles.note}>응답 시간 · 토큰 · 검증은 리포트를 만든 요청만 셉니다. 범위 밖 질문은 분류만 하고 끝나서 뺐습니다.</p>
-      </section>
-
-      {s.verification && (
-        <section className={styles.section} aria-labelledby="verification">
-          <h2 id="verification">✅ 검증</h2>
-          <div className={styles.cards}>
-            <Card label="통과" value={percent(s.verification.pass, s.verification.checked)} detail={`${count(s.verification.pass)} / ${count(s.verification.checked)}건`} />
-            <Card label="다시 쓰기" value={percent(s.verification.rewritten, s.verification.checked)} detail={`${count(s.verification.rewritten)}건`} />
-            <Card label="확인 못 한 숫자" value={`${count(s.verification.unverified)}개`} detail={`숫자 ${count(s.verification.numbers)}개 중`} />
-            <Card label="남은 권유 표현" value={`${count(s.verification.advice)}건`} detail="목표 0" />
-          </div>
-        </section>
-      )}
-
-      <section className={styles.section} aria-labelledby="depths">
-        <h2 id="depths">깊이별 응답 시간</h2>
-        {s.byDepth.length ? (
-          <div className={styles.scroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr><th scope="col">깊이</th><th scope="col" className={styles.num}>요청</th><th scope="col" className={styles.num}>평균</th><th scope="col" className={styles.num}>90%</th></tr>
-              </thead>
-              <tbody>
-                {s.byDepth.map((d) => (
-                  <tr key={d.depth}>
-                    <td>{depthLabels[d.depth] ?? d.depth}</td>
-                    <td className={styles.num}>{count(d.count)}</td>
-                    <td className={styles.num}>{seconds(d.avgMs)}</td>
-                    <td className={styles.num}>{seconds(d.p90Ms)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className={styles.note}>성공한 요청이 없습니다.</p>
-        )}
-        {s.intents.length > 0 && (
-          <p className={styles.note}>
-            의도별 요청: {s.intents.map((x) => `${intentLabels[x.intent] ?? x.intent} ${count(x.count)}`).join(" · ")}
-          </p>
-        )}
-      </section>
-
-      <section className={styles.section} aria-labelledby="tools">
-        <h2 id="tools">🔍 tool 별</h2>
-        {s.tools.length ? (
-          <div className={styles.scroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr><th scope="col">tool</th><th scope="col" className={styles.num}>호출</th><th scope="col" className={styles.num}>성공률</th><th scope="col" className={styles.num}>평균 시간</th></tr>
-              </thead>
-              <tbody>
-                {s.tools.map((t) => (
-                  <tr key={t.tool}>
-                    <td>{labelFor(t.tool)}</td>
-                    <td className={styles.num}>{count(t.calls)}</td>
-                    <td className={`${styles.num} ${t.ok / t.calls < 0.9 ? styles.bad : ""}`}>{percent(t.ok, t.calls)}</td>
-                    <td className={styles.num}>{seconds(t.avgMs)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className={styles.note}>tool 호출 기록이 없습니다.</p>
-        )}
-      </section>
-
-      <section className={styles.section} aria-labelledby="failures">
-        <h2 id="failures">최근 실패</h2>
-        {s.failures.length ? (
-          <ul className={styles.failures}>
-            {s.failures.map((f) => (
-              <li key={f.id}>
-                <p className={styles.failureMeta}>
-                  <time dateTime={f.at}>{kst(f.at)}</time> · {failureStages[f.stage] ?? f.stage}
-                </p>
-                <p className={styles.failureQuestion}>{f.question || "질문 없음"}</p>
-                {f.error && <p className={styles.failureError}>{f.error}</p>}
+        {legend && (
+          <ul className={styles.legend}>
+            {legend.map((l) => (
+              <li key={l.label}>
+                <span className={`${styles.swatch} ${l.className}`} aria-hidden="true" />
+                {l.label}
               </li>
             ))}
           </ul>
-        ) : (
-          <p className={styles.note}>최근 {WINDOW_DAYS}일 동안 실패한 요청이 없습니다.</p>
         )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function eventTitle(e: AdminEvent): string {
+  return e.kind === "tool" && e.tool ? `${labelFor(e.tool)} 실패 · 리포트는 나감` : (eventTitles[e.kind] ?? e.kind);
+}
+
+function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<typeof healthOf>; now: Date }) {
+  const v = s.verification;
+  const bucketHours = s.bucketMs / (60 * 60_000);
+  return (
+    <>
+      <section className={styles.kpis} aria-label="핵심 지표">
+        <Kpi label="요청" value={`${count(s.total)}건`} sub={`성공 ${count(s.ok)} · 실패 ${count(s.failed)}`}>
+          <Sparkline values={s.buckets.map((b) => b.ok + b.failed + b.limited)} label="시간대별 요청 수 추이" />
+        </Kpi>
+        <Kpi label="성공률" value={percent(s.ok, s.total)} sub={`기준 ${THRESHOLDS.success[0] * 100}%`} health={health.success}>
+          <Sparkline values={s.buckets.map((b) => (b.ok + b.failed ? b.ok / (b.ok + b.failed) : null))} label="시간대별 성공률 추이" />
+        </Kpi>
+        <Kpi label="응답 시간 p90" value={s.time ? seconds(s.time.p90Ms) : "-"} sub={`예산 ${seconds(BUDGET_MS)}`} health={health.latency}>
+          {s.time && (
+            <div className={styles.budgetMeter} role="img" aria-label={`예산의 ${percent(s.time.p90Ms, BUDGET_MS)}`}>
+              <span className={styles[health.latency]} style={{ width: `${Math.min(100, (s.time.p90Ms / BUDGET_MS) * 100)}%` }} />
+            </div>
+          )}
+        </Kpi>
+        <Kpi label="평균 응답" value={s.time ? seconds(s.time.avgMs) : "-"} sub={s.time ? `리포트 ${count(s.time.count)}건` : undefined}>
+          <Sparkline values={s.buckets.map((b) => b.avgMs)} label="시간대별 평균 응답 시간 추이" />
+        </Kpi>
+        <Kpi label="검증 통과" value={v ? percent(v.pass, v.checked) : "-"} sub={v ? `다시 쓰기 ${percent(v.rewritten, v.checked)}` : undefined} health={health.verification} />
+        <Kpi label="남은 권유 표현" value={v ? `${count(v.advice)}건` : "-"} sub="목표 0" health={health.advice} />
       </section>
+
+      <div className={styles.gridMain}>
+        <Panel
+          title="요청 추이"
+          sub={`${bucketHours}시간 단위`}
+          legend={[
+            { label: "성공", className: styles.segOk },
+            { label: "실패", className: styles.segBad },
+            { label: "호출 제한", className: styles.segLimited },
+          ]}
+        >
+          <RequestBars buckets={s.buckets} bucketMs={s.bucketMs} />
+        </Panel>
+        <Panel
+          title="응답 시간"
+          sub="리포트마다 한 점"
+          legend={[
+            { label: "Easy", className: styles.depth_easy },
+            { label: "Standard", className: styles.depth_standard },
+            { label: "Deep", className: styles.depth_deep },
+          ]}
+        >
+          <LatencyScatter points={s.points} since={s.since} until={s.until} budgetMs={BUDGET_MS} p90Ms={s.time?.p90Ms ?? null} />
+        </Panel>
+      </div>
+
+      <div className={styles.gridSplit}>
+        <Panel title="🔍 tool 상태" sub={`정상 ${THRESHOLDS.tool[0] * 100}% 이상 · 주의 ${THRESHOLDS.tool[1] * 100}% 이상`}>
+          {s.tools.length ? (
+            <ul className={styles.tools}>
+              {s.tools.map((t) => {
+                const h = health.tools[t.tool] ?? "idle";
+                return (
+                  <li key={t.tool} className={styles.tool}>
+                    <span className={`${styles.light} ${styles[h]}`} title={healthLabels[h]} />
+                    <span className={styles.toolName}>{labelFor(t.tool)}</span>
+                    <span className={`${styles.toolRate} ${styles[`text_${h}`] ?? ""}`}>{percent(t.ok, t.calls)}</span>
+                    <span className={styles.toolMeta}>
+                      {count(t.calls)}회 · 평균 {seconds(t.avgMs)}
+                    </span>
+                    <span className={styles.toolMeter} aria-hidden="true">
+                      <span className={styles[h]} style={{ width: `${(t.ok / t.calls) * 100}%` }} />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className={styles.note}>tool 호출 기록이 없습니다.</p>
+          )}
+        </Panel>
+
+        <Panel title="이벤트" sub={`최근 ${s.events.length}건 · 실패 · 멈춤 · 호출 제한 · tool 실패`}>
+          {s.events.length ? (
+            <ol className={styles.events}>
+              {s.events.map((e) => (
+                <li key={e.id} className={styles.event}>
+                  <span className={`${styles.badge} ${styles[e.level]}`}>{levelLabels[e.level]}</span>
+                  <div className={styles.eventBody}>
+                    <p className={styles.eventTitle}>
+                      {eventTitle(e)}
+                      <time dateTime={e.at} title={kst(e.at, true)}>
+                        {ago(e.at, now)}
+                      </time>
+                    </p>
+                    {e.question && <p className={styles.eventQuestion}>{e.question}</p>}
+                    {e.detail && <p className={styles.eventDetail}>{e.detail}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className={styles.note}>이 기간에 이벤트가 없습니다.</p>
+          )}
+        </Panel>
+      </div>
+
+      <div className={styles.gridThree}>
+        <Panel title="✅ 검증" sub="리포트를 만든 요청 (범위 밖 제외)">
+          {v ? (
+            <>
+              <StackBar
+                label={`통과 ${v.pass}건, 일부 실패 ${v.checked - v.pass}건`}
+                parts={[
+                  { value: v.pass, className: styles.ok, title: `통과 ${v.pass}건` },
+                  { value: v.checked - v.pass, className: styles.warn, title: `일부 실패 ${v.checked - v.pass}건` },
+                ]}
+              />
+              <dl className={styles.facts}>
+                <div><dt>통과</dt><dd>{count(v.pass)} / {count(v.checked)}건</dd></div>
+                <div><dt>다시 쓰기</dt><dd>{count(v.rewritten)}건</dd></div>
+                <div><dt>확인 못 한 숫자</dt><dd>{count(v.unverified)} / {count(v.numbers)}개</dd></div>
+                <div><dt>남은 권유 표현</dt><dd>{count(v.advice)}건</dd></div>
+              </dl>
+            </>
+          ) : (
+            <p className={styles.note}>검증을 거친 리포트가 없습니다.</p>
+          )}
+        </Panel>
+
+        <Panel title="깊이별 응답 시간" sub={`막대는 평균, 눈금은 p90 · 끝은 60초`}>
+          {s.byDepth.length ? (
+            <ul className={styles.depths}>
+              {s.byDepth.map((d) => (
+                <li key={d.depth}>
+                  <div className={styles.depthHead}>
+                    <span>{depthLabels[d.depth] ?? d.depth}</span>
+                    <span className={styles.depthNums}>
+                      평균 {seconds(d.avgMs)} · p90 {seconds(d.p90Ms)} · {count(d.count)}건
+                    </span>
+                  </div>
+                  <div className={styles.depthTrack} aria-hidden="true">
+                    <span className={`${styles.depthAvg} ${styles[`depth_${d.depth}`] ?? ""}`} style={{ width: `${Math.min(100, (d.avgMs / 60_000) * 100)}%` }} />
+                    <span className={styles.depthP90} style={{ left: `${Math.min(100, (d.p90Ms / 60_000) * 100)}%` }} />
+                    <span className={styles.depthBudget} style={{ left: `${(BUDGET_MS / 60_000) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.note}>리포트를 만든 요청이 없습니다.</p>
+          )}
+        </Panel>
+
+        <Panel title="질문 의도 · 토큰" sub="요청 수 · 리포트당 평균 토큰">
+          {s.intents.length ? (
+            <>
+              <StackBar
+                label={s.intents.map((x) => `${intentLabels[x.intent] ?? x.intent} ${x.count}`).join(", ")}
+                parts={s.intents.map((x, i) => ({ value: x.count, className: styles[`intent${i % 5}`] ?? "", title: `${intentLabels[x.intent] ?? x.intent} ${x.count}건` }))}
+              />
+              <ul className={styles.legendList}>
+                {s.intents.map((x, i) => (
+                  <li key={x.intent}>
+                    <span className={`${styles.swatch} ${styles[`intent${i % 5}`] ?? ""}`} aria-hidden="true" />
+                    {intentLabels[x.intent] ?? x.intent} <b>{count(x.count)}</b>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className={styles.note}>의도 기록이 없습니다.</p>
+          )}
+          {s.tokens && (
+            <dl className={styles.facts}>
+              <div><dt>입력 토큰</dt><dd>{count(s.tokens.input)}</dd></div>
+              <div><dt>출력 토큰</dt><dd>{count(s.tokens.output)}</dd></div>
+            </dl>
+          )}
+        </Panel>
+      </div>
     </>
   );
 }
