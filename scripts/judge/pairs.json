@@ -1,0 +1,1121 @@
+[
+  {
+    "id": "fx-direction-up-1",
+    "area": "fx",
+    "claim": "달러가 한 달 사이 2% 올랐습니다.",
+    "evidence": "USD/KRW 30일 +2.00%",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1392.4,
+          "asOf": "2026-10-19",
+          "comparison.rate": 1365.1,
+          "comparison.asOf": "2026-09-19",
+          "change": 27.3,
+          "changePct": 2
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-05&to=2026-10-19",
+          "asOf": "2026-10-19"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "changePct 2 가 양수",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "fx-direction-down-1",
+    "area": "fx",
+    "claim": "원·달러 환율은 최근 30일 동안 올랐습니다.",
+    "evidence": "USD/KRW 30일 변동",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1339.36,
+          "asOf": "2026-11-03",
+          "comparison.rate": 1351.93,
+          "comparison.asOf": "2026-10-04",
+          "change": -12.57,
+          "changePct": -0.93
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-20&to=2026-11-03",
+          "asOf": "2026-11-03"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "changePct -0.93 으로 내렸음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "fx-krw-weak-1",
+    "area": "fx",
+    "claim": "최근 한 달 원화가 달러 대비 약세를 보였습니다.",
+    "evidence": "USD/KRW 1,365.10원 → 1,392.40원",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1392.4,
+          "asOf": "2026-10-19",
+          "comparison.rate": 1365.1,
+          "comparison.asOf": "2026-09-19",
+          "change": 27.3,
+          "changePct": 2
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-05&to=2026-10-19",
+          "asOf": "2026-10-19"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "달러당 원화 금액이 오름 = 원화 약세",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "fx-krw-strong-wrong-1",
+    "area": "fx",
+    "claim": "최근 한 달 원화가 달러 대비 강세였습니다.",
+    "evidence": "USD/KRW 30일 +2.00%",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1392.4,
+          "asOf": "2026-10-19",
+          "comparison.rate": 1365.1,
+          "comparison.asOf": "2026-09-19",
+          "change": 27.3,
+          "changePct": 2
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-05&to=2026-10-19",
+          "asOf": "2026-10-19"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "값이 올랐으니 원화 약세. 방향이 반대",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "fx-jpy-weak-1",
+    "area": "fx",
+    "claim": "엔화가 원화 대비 약세를 보였습니다.",
+    "evidence": "JPY(100)/KRW 912.40원 → 905.10원",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "JPY(100)/KRW",
+          "unit": "KRW per 100 JPY",
+          "rate": 905.1,
+          "asOf": "2026-11-03",
+          "comparison.rate": 912.4,
+          "comparison.asOf": "2026-10-04",
+          "change": -7.3,
+          "changePct": -0.8
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=jpy&quotes=krw&from=2026-09-20&to=2026-11-03",
+          "asOf": "2026-11-03"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다. JPY는 국내 관행에 따라 100엔 기준으로 표시합니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "100엔당 원화 금액이 내림 = 엔화 약세",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "fx-jpy-strong-wrong-1",
+    "area": "fx",
+    "claim": "엔화가 원화 대비 강세를 보였습니다.",
+    "evidence": "JPY(100)/KRW 30일 -0.80%",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "JPY(100)/KRW",
+          "unit": "KRW per 100 JPY",
+          "rate": 905.1,
+          "asOf": "2026-11-03",
+          "comparison.rate": 912.4,
+          "comparison.asOf": "2026-10-04",
+          "change": -7.3,
+          "changePct": -0.8
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=jpy&quotes=krw&from=2026-09-20&to=2026-11-03",
+          "asOf": "2026-11-03"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다. JPY는 국내 관행에 따라 100엔 기준으로 표시합니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "100엔당 원화 금액이 내렸으니 엔화 약세",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "rate-gap-level-1",
+    "area": "rate",
+    "claim": "미국 정책금리가 한국 기준금리보다 높아 금리 차이가 났습니다.",
+    "evidence": "미국 3.88% · 한국 3.00%, 차이 0.88%p",
+    "basis": "data",
+    "refs": [
+      "E2",
+      "E3",
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      },
+      {
+        "id": "E3",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · FRED — DFF",
+        "values": {
+          "indicator": "미국 실효 연방기금금리",
+          "rate": 3.88,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3.63,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0.25,
+          "changeBp": 25,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "Federal Reserve Bank of St. Louis (FRED)",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · 한미 기준금리 차이",
+        "values": {
+          "changePp": 0.88,
+          "from": 3,
+          "to": 3.88,
+          "unit": "%"
+        },
+        "source": {
+          "name": "한미 기준금리 차이",
+          "url": "",
+          "asOf": "2026-10-16"
+        },
+        "note": "E3.rate 3.88 − E2.rate 3 = 0.88%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "pp_diff",
+          "inputs": [
+            "E2",
+            "E3"
+          ]
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "3.88 > 3.00, C1 0.88%p",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "rate-gap-widened-wrong-1",
+    "area": "rate",
+    "claim": "한미 금리 차이가 한 달 사이 더 벌어졌습니다.",
+    "evidence": "한국 3.00% · 미국 3.88%",
+    "basis": "data",
+    "refs": [
+      "E2",
+      "E3"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      },
+      {
+        "id": "E3",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · FRED — DFF",
+        "values": {
+          "indicator": "미국 실효 연방기금금리",
+          "rate": 3.88,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3.88,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "Federal Reserve Bank of St. Louis (FRED)",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "둘 다 changePp 0 이라 차이가 그대로",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "rate-gap-widened-1",
+    "area": "rate",
+    "claim": "한 달 사이 미국 금리는 오르고 한국은 그대로여서 금리 차이가 벌어졌습니다.",
+    "evidence": "미국 +0.25%p, 한국 0%p",
+    "basis": "data",
+    "refs": [
+      "E2",
+      "E3"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      },
+      {
+        "id": "E3",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · FRED — DFF",
+        "values": {
+          "indicator": "미국 실효 연방기금금리",
+          "rate": 3.88,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3.63,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0.25,
+          "changeBp": 25,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "Federal Reserve Bank of St. Louis (FRED)",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "E3 changePp 0.25, E2 changePp 0",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "rate-cause-result-only-1",
+    "area": "fx",
+    "claim": "한미 금리 차이 때문에 환율이 올랐습니다.",
+    "evidence": "USD/KRW 30일 +2.00%",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1392.4,
+          "asOf": "2026-10-19",
+          "comparison.rate": 1365.1,
+          "comparison.asOf": "2026-09-19",
+          "change": 27.3,
+          "changePct": 2
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-05&to=2026-10-19",
+          "asOf": "2026-10-19"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "결과(환율)만 있고 원인(금리) 데이터가 없음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "rate-cause-both-1",
+    "area": "fx",
+    "claim": "미국 금리가 한국보다 높은 상태에서 환율이 올랐습니다.",
+    "evidence": "미국 3.88% · 한국 3.00%, USD/KRW +2.00%",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "E2",
+      "E3"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1392.4,
+          "asOf": "2026-10-19",
+          "comparison.rate": 1365.1,
+          "comparison.asOf": "2026-09-19",
+          "change": 27.3,
+          "changePct": 2
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-05&to=2026-10-19",
+          "asOf": "2026-10-19"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      },
+      {
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      },
+      {
+        "id": "E3",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · FRED — DFF",
+        "values": {
+          "indicator": "미국 실효 연방기금금리",
+          "rate": 3.88,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3.63,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0.25,
+          "changeBp": 25,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "Federal Reserve Bank of St. Louis (FRED)",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "같이 일어난 사실이고 둘 다 장부에 있음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "rate-general-knowledge-1",
+    "area": "rate",
+    "claim": "금리가 오르면 보통 그 나라 통화가 강세를 보입니다.",
+    "evidence": "미국 금리 3.88%",
+    "basis": "data",
+    "refs": [
+      "E3"
+    ],
+    "ledger": [
+      {
+        "id": "E3",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · FRED — DFF",
+        "values": {
+          "indicator": "미국 실효 연방기금금리",
+          "rate": 3.88,
+          "unit": "%",
+          "asOf": "2026-10-16",
+          "comparisonRate": 3.63,
+          "comparisonDate": "2026-09-16",
+          "changePp": 0.25,
+          "changeBp": 25,
+          "requestedDays": 30
+        },
+        "source": {
+          "name": "Federal Reserve Bank of St. Louis (FRED)",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-10-16"
+        },
+        "note": "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, %p 와 bp 로 함께 적습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "교과서 설명. 장부가 보여 주는 사실이 아님",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "calc-gap-1",
+    "area": "rate",
+    "claim": "한미 기준금리 차이는 0.88%p 입니다.",
+    "evidence": "C1 0.88%p",
+    "basis": "data",
+    "refs": [
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · 한미 기준금리 차이",
+        "values": {
+          "changePp": 0.88,
+          "from": 3,
+          "to": 3.88,
+          "unit": "%"
+        },
+        "source": {
+          "name": "한미 기준금리 차이",
+          "url": "",
+          "asOf": "2026-10-16"
+        },
+        "note": "E3.rate 3.88 − E2.rate 3 = 0.88%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "pp_diff",
+          "inputs": [
+            "E2",
+            "E3"
+          ]
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "C1 changePp 0.88",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-report-1",
+    "area": "news",
+    "claim": "외국인이 국내 주식을 순매도했다는 보도가 있었습니다.",
+    "evidence": "연합뉴스 제목",
+    "basis": "news",
+    "refs": [
+      "E4-2"
+    ],
+    "ledger": [
+      {
+        "id": "E4-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "외국인, 이번 주 국내 주식 1조 2천억 원 순매도",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-10-17T08:30:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261017B",
+          "asOf": "2026-10-17"
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "제목이 그대로 말함",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-unrelated-1",
+    "area": "news",
+    "claim": "국제 유가 급등이 환율 상승 압력으로 작용했습니다.",
+    "evidence": "연합뉴스 제목",
+    "basis": "news",
+    "refs": [
+      "E4-1"
+    ],
+    "ledger": [
+      {
+        "id": "E4-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "한은, 기준금리 3.00%로 동결… \"환율·가계부채 지켜볼 것\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-10-16T02:00:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261016A",
+          "asOf": "2026-10-16"
+        }
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목은 기준금리 동결 이야기. 유가 언급 없음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-contradicted-1",
+    "area": "news",
+    "claim": "환율이 하락 출발했습니다.",
+    "evidence": "직썰 제목",
+    "basis": "news",
+    "refs": [
+      "E4-1"
+    ],
+    "ledger": [
+      {
+        "id": "E4-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 직썰",
+        "values": {
+          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승",
+          "publisher": "직썰",
+          "publishedAt": "2026-11-03T00:57:26.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "직썰",
+          "url": "https://www.ziksir.com/news/articleView.html?idxno=1",
+          "asOf": "2026-11-03"
+        }
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 '상승'",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-causal-title-1",
+    "area": "fx",
+    "claim": "기사 제목은 위험회피 심리를 환율 상승의 배경으로 들었습니다.",
+    "evidence": "직썰 제목",
+    "basis": "news",
+    "refs": [
+      "E4-1"
+    ],
+    "ledger": [
+      {
+        "id": "E4-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 직썰",
+        "values": {
+          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승",
+          "publisher": "직썰",
+          "publishedAt": "2026-11-03T00:57:26.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "직썰",
+          "url": "https://www.ziksir.com/news/articleView.html?idxno=1",
+          "asOf": "2026-11-03"
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "제목이 인과를 말함",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-forecast-as-fact-1",
+    "area": "fx",
+    "claim": "11월 말 환율은 1,320원까지 내립니다.",
+    "evidence": "비즈니스포스트 제목",
+    "basis": "news",
+    "refs": [
+      "E4-3"
+    ],
+    "ledger": [
+      {
+        "id": "E4-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 비즈니스포스트",
+        "values": {
+          "title": "iM증권 \"11월 말 원/달러 환율 1320원 전망, 대외 불확실성 해소에 달러 추가 하락\"",
+          "publisher": "비즈니스포스트",
+          "publishedAt": "2026-11-03T00:12:52.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "비즈니스포스트",
+          "url": "https://www.businesspost.co.kr/BP?command=article_view&num=1",
+          "asOf": "2026-11-03"
+        }
+      }
+    ],
+    "expected": "unsupported",
+    "note": "증권사 전망을 확정 사실처럼 씀",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-forecast-reported-1",
+    "area": "fx",
+    "claim": "iM증권은 11월 말 환율을 1,320원으로 전망했다고 보도됐습니다.",
+    "evidence": "비즈니스포스트 제목",
+    "basis": "news",
+    "refs": [
+      "E4-3"
+    ],
+    "ledger": [
+      {
+        "id": "E4-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 비즈니스포스트",
+        "values": {
+          "title": "iM증권 \"11월 말 원/달러 환율 1320원 전망, 대외 불확실성 해소에 달러 추가 하락\"",
+          "publisher": "비즈니스포스트",
+          "publishedAt": "2026-11-03T00:12:52.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "비즈니스포스트",
+          "url": "https://www.businesspost.co.kr/BP?command=article_view&num=1",
+          "asOf": "2026-11-03"
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "보도 사실을 옮긴 것이고 제목이 담고 있음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-rate-hike-wrong-1",
+    "area": "rate",
+    "claim": "한국은행이 기준금리를 인상했습니다.",
+    "evidence": "연합뉴스 제목",
+    "basis": "news",
+    "refs": [
+      "E4-1"
+    ],
+    "ledger": [
+      {
+        "id": "E4-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "한은, 기준금리 3.00%로 동결… \"환율·가계부채 지켜볼 것\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-10-16T02:00:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261016A",
+          "asOf": "2026-10-16"
+        }
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 '동결'",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "news-foreign-sell-cause-1",
+    "area": "fx",
+    "claim": "외국인 매도로 환율이 급등했습니다.",
+    "evidence": "2news 제목",
+    "basis": "news",
+    "refs": [
+      "E4-2"
+    ],
+    "ledger": [
+      {
+        "id": "E4-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 2news",
+        "values": {
+          "title": "외국인 매도 폭주에 달러 환율 급등 시작",
+          "publisher": "2news",
+          "publishedAt": "2026-11-03T00:44:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "2news",
+          "url": "https://www.2news.co.kr/news/1",
+          "asOf": "2026-11-03"
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "제목이 '외국인 매도 폭주에 … 급등' 으로 인과를 말함",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "macro-yoy-1",
+    "area": "macro",
+    "claim": "소비자물가는 지난해 같은 달보다 2.4% 올랐습니다.",
+    "evidence": "CPI yoy 2.4% (2026-09)",
+    "basis": "data",
+    "refs": [
+      "E5"
+    ],
+    "ledger": [
+      {
+        "id": "E5",
+        "tool": "get_macro_indicators",
+        "label": "물가·고용 지표 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "소비자물가지수(CPI)",
+          "unit": "2020=100",
+          "latest.month": "2026-09",
+          "latest.value": 116.2,
+          "latest.yoy": 2.4,
+          "previousMonth.month": "2026-08",
+          "previousMonth.value": 115.9,
+          "previousMonth.yoy": 3.1
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-09"
+        },
+        "note": "yoy 는 전년 동월 대비 상승률(%)입니다. 지수는 2020년을 100으로 둔 수준값입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "latest.yoy 2.4",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "macro-slowdown-wrong-1",
+    "area": "macro",
+    "claim": "9월에 물가가 내렸습니다.",
+    "evidence": "CPI yoy 3.1% → 2.4%",
+    "basis": "data",
+    "refs": [
+      "E5"
+    ],
+    "ledger": [
+      {
+        "id": "E5",
+        "tool": "get_macro_indicators",
+        "label": "물가·고용 지표 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "소비자물가지수(CPI)",
+          "unit": "2020=100",
+          "latest.month": "2026-09",
+          "latest.value": 116.2,
+          "latest.yoy": 2.4,
+          "previousMonth.month": "2026-08",
+          "previousMonth.value": 115.9,
+          "previousMonth.yoy": 3.1
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-09"
+        },
+        "note": "yoy 는 전년 동월 대비 상승률(%)입니다. 지수는 2020년을 100으로 둔 수준값입니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "상승률이 둔화됐을 뿐 지수(115.9 → 116.2)는 올랐음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "macro-slowdown-1",
+    "area": "macro",
+    "claim": "물가 상승률이 전달보다 둔화됐습니다.",
+    "evidence": "CPI yoy 3.1% → 2.4%",
+    "basis": "data",
+    "refs": [
+      "E5"
+    ],
+    "ledger": [
+      {
+        "id": "E5",
+        "tool": "get_macro_indicators",
+        "label": "물가·고용 지표 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "소비자물가지수(CPI)",
+          "unit": "2020=100",
+          "latest.month": "2026-09",
+          "latest.value": 116.2,
+          "latest.yoy": 2.4,
+          "previousMonth.month": "2026-08",
+          "previousMonth.value": 115.9,
+          "previousMonth.yoy": 3.1
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-09"
+        },
+        "note": "yoy 는 전년 동월 대비 상승률(%)입니다. 지수는 2020년을 100으로 둔 수준값입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "previousMonth.yoy 3.1 → latest.yoy 2.4",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "etf-tracking-1",
+    "area": "etf",
+    "claim": "KODEX 200 은 최근 3개월 기초지수보다 덜 떨어졌습니다.",
+    "evidence": "ETF -3.61% vs 지수 -4.37%",
+    "basis": "data",
+    "refs": [
+      "E6"
+    ],
+    "ledger": [
+      {
+        "id": "E6",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보",
+        "values": {
+          "name": "KODEX 200",
+          "latest.date": "2026-11-02",
+          "latest.close": 110745,
+          "latest.nav": 110640.5,
+          "latest.premiumPct": 0.09,
+          "period.days": 90,
+          "period.returnPct": -3.61,
+          "period.indexReturnPct": -4.37,
+          "period.trackingDiffPp": 0.76
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-02"
+        },
+        "note": "시세는 T+1 공개 자료입니다. 기간 수익률은 가격 기준이며 분배금은 제외합니다. 괴리율 = (종가 − NAV) / NAV."
+      }
+    ],
+    "expected": "supported",
+    "note": "-3.61 > -4.37, trackingDiffPp 0.76",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "etf-tracking-wrong-1",
+    "area": "etf",
+    "claim": "KODEX 200 수익률이 최근 3개월 기초지수보다 낮았습니다.",
+    "evidence": "ETF -3.61% vs 지수 -4.37%",
+    "basis": "data",
+    "refs": [
+      "E6"
+    ],
+    "ledger": [
+      {
+        "id": "E6",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보",
+        "values": {
+          "name": "KODEX 200",
+          "latest.date": "2026-11-02",
+          "latest.close": 110745,
+          "latest.nav": 110640.5,
+          "latest.premiumPct": 0.09,
+          "period.days": 90,
+          "period.returnPct": -3.61,
+          "period.indexReturnPct": -4.37,
+          "period.trackingDiffPp": 0.76
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-02"
+        },
+        "note": "시세는 T+1 공개 자료입니다. 기간 수익률은 가격 기준이며 분배금은 제외합니다. 괴리율 = (종가 − NAV) / NAV."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "ETF 가 지수보다 덜 떨어졌으니 수익률은 더 높음",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "etf-premium-1",
+    "area": "etf",
+    "claim": "종가가 순자산가치보다 높았습니다.",
+    "evidence": "종가 110,745원 · NAV 110,640.5원",
+    "basis": "data",
+    "refs": [
+      "E6"
+    ],
+    "ledger": [
+      {
+        "id": "E6",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보",
+        "values": {
+          "name": "KODEX 200",
+          "latest.date": "2026-11-02",
+          "latest.close": 110745,
+          "latest.nav": 110640.5,
+          "latest.premiumPct": 0.09,
+          "period.days": 90,
+          "period.returnPct": -3.61,
+          "period.indexReturnPct": -4.37,
+          "period.trackingDiffPp": 0.76
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-02"
+        },
+        "note": "시세는 T+1 공개 자료입니다. 기간 수익률은 가격 기준이며 분배금은 제외합니다. 괴리율 = (종가 − NAV) / NAV."
+      }
+    ],
+    "expected": "supported",
+    "note": "close > nav, premiumPct 0.09",
+    "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "etf-cause-unsupported-1",
+    "area": "etf",
+    "claim": "외국인 매도 때문에 KODEX 200 이 떨어졌습니다.",
+    "evidence": "3개월 -3.61%",
+    "basis": "data",
+    "refs": [
+      "E6"
+    ],
+    "ledger": [
+      {
+        "id": "E6",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보",
+        "values": {
+          "name": "KODEX 200",
+          "latest.date": "2026-11-02",
+          "latest.close": 110745,
+          "latest.nav": 110640.5,
+          "latest.premiumPct": 0.09,
+          "period.days": 90,
+          "period.returnPct": -3.61,
+          "period.indexReturnPct": -4.37,
+          "period.trackingDiffPp": 0.76
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-02"
+        },
+        "note": "시세는 T+1 공개 자료입니다. 기간 수익률은 가격 기준이며 분배금은 제외합니다. 괴리율 = (종가 − NAV) / NAV."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "결과(수익률)만 있고 외국인 매도 데이터가 없음",
+    "source": "seed (리더, 2026-11-03)"
+  }
+]

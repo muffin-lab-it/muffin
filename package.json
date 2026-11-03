@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "tool": "tsx",
     "probe": "tsx scripts/probe.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "judge": "tsx scripts/judge/calibrate.ts"
   },
   "dependencies": {
     "@openai/agents": "^0.20.0",
