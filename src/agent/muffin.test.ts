@@ -10,7 +10,8 @@ import { run, type RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
 import { research } from "./muffin";
-import type { FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
+import { DECISION_NOTICE } from "./report";
+import type { Evidence, FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
 
 const source = { name: "Frankfurter v2", url: "https://api.frankfurter.dev", asOf: "2026-10-19" };
 const plan: PlanOutput = { intent: "cause", tools: ["get_fx_krw_rate", "get_rate_data"], reason: "왜 를 묻는 환율 질문" };
@@ -44,6 +45,8 @@ type Scenario = {
   facts?: FactsOutput | null;
   /** 작성 출력을 순서대로 */
   writer: WriterOutput[];
+  /** 조사가 장부에 남기는 환율 결과의 값. 기본은 유의성 게이트가 재지 않는 짧은 값 */
+  fxValues?: Evidence["values"];
 };
 
 /** 네 Agent 를 이름으로 구분해 흉내 냅니다. 조사는 장부에 E1 을 남기고, 정제는 장부에 C1 을 남깁니다. */
@@ -58,7 +61,7 @@ function mockRuns(s: Scenario) {
         return { finalOutput: s.plan === undefined ? plan : (s.plan ?? undefined) };
       case "Muffin Researcher":
         ctx.addEvidence([
-          { id: ctx.nextCallId(), tool: "get_fx_krw_rate", label: "환율 확인 · Frankfurter v2", values: { rate: 1392.4, change: 27.3, changePct: 2 }, source },
+          { id: ctx.nextCallId(), tool: "get_fx_krw_rate", label: "환율 확인 · Frankfurter v2", values: s.fxValues ?? { rate: 1392.4, change: 27.3, changePct: 2 }, source },
         ]);
         ctx.addStep({ tool: "get_fx_krw_rate", status: "ok", ms: 5 });
         return { finalOutput: s.notes === undefined ? notes : (s.notes ?? undefined) };
@@ -87,7 +90,27 @@ const agentOf = (i: number) => call(i)[0];
 const inputOf = (i: number) => call(i)[1];
 const traceOf = (events: MuffinEvent[]) => events.map((e) => (e.type === "stage" ? `${e.stage}:${e.status}` : e.type));
 
-afterEach(() => runMock.mockReset());
+afterEach(() => {
+  runMock.mockReset();
+  vi.unstubAllGlobals();
+});
+
+/** 환율 tool 이 실제로 남기는 값 (유의성 게이트가 잴 수 있는 모양). 2026-09-19 → 2026-10-19 에 +2.00% */
+const fullFx = { pair: "USD/KRW", unit: "KRW per 1 USD", rate: 1392.4, asOf: "2026-10-19", "comparison.rate": 1365.1, "comparison.asOf": "2026-09-19", change: 27.3, changePct: 2 };
+
+/** 게이트가 받는 일별 환율: 비교 기준일 직전 90일은 하루 ±0.3% (평소 30일 폭 ±1.65% 안팎), 그 뒤는 매일 조금씩 오름 */
+function stubDailyRates(status = 200) {
+  const rows: { date: string; base: string; quote: string; rate: number }[] = [];
+  let r = 1300;
+  for (let t = Date.parse("2026-06-21T00:00:00Z"), i = 0; t <= Date.parse("2026-10-19T00:00:00Z"); t += 86_400_000, i++) {
+    const date = new Date(t).toISOString().slice(0, 10);
+    if (i > 0) r *= 1 + (date <= "2026-09-19" ? (i % 2 ? 0.3 : -0.3) : 0.06) / 100;
+    rows.push({ date, base: "USD", quote: "KRW", rate: r });
+  }
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify(status === 200 ? rows : { error: "down" }), { status, headers: { "Content-Type": "application/json" } }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
 describe("research() 다섯 단계", () => {
   it("분류 → 조사 → 정제 → 작성 → 검증 순서로 이벤트를 보내고, 검증을 통과하면 수정 없이 끝난다", async () => {
@@ -234,6 +257,69 @@ describe("research() 다섯 단계", () => {
     expect(agentOf(3).instructions).toContain("[모드: 판단 요청]");
     expect(result.report.mode).toBe("decision_facts");
     expect(result.report.notice).toContain("판단");
+  });
+
+  it("원인 질문이면 정제와 동시에 움직임 크기를 재서 장부(C 번호) · 작성 입력 · 리포트 안내에 붙인다 (유의성 게이트)", async () => {
+    const fetchMock = stubDailyRates();
+    mockRuns({ fxValues: fullFx, writer: [good] });
+    const events: MuffinEvent[] = [];
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" }, { onEvent: (e) => events.push(e) });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // 게이트의 기록은 정제 단계 안, 정제의 계산 다음에 온다
+    expect(traceOf(events).slice(5, 10)).toEqual(["research:done", "edit:start", "step", "step", "edit:done"]);
+    expect(result.steps.map((s) => `${s.tool}:${s.status}`)).toEqual(["get_fx_krw_rate:ok", "calc_metrics:ok", "calc_movement:ok"]);
+    expect(result.report.evidence.map((e) => e.id)).toEqual(["E1", "C1", "C2"]);
+    expect(result.report.evidence[2]).toMatchObject({ tool: "calc_movement", values: { movePct: 2, level: "notable" }, lineage: { op: "zscore", inputs: ["E1"] } });
+    // +2.00% 는 평소 폭의 1배를 넘어 원인 후보(원인 지도)를 보게 한다
+    expect(inputOf(3)).toContain("[움직임 크기] 코드가 계산한 값입니다 (C2)");
+    expect(inputOf(3)).toContain("+2.00% 올랐습니다");
+    expect(inputOf(3)).toContain("[원인 후보]");
+    // 사실 목록은 E1 만 인용하므로 게이트의 C2 는 값을 덧붙여 보여 준다
+    expect(inputOf(3)).toContain("- C2 · 평소 움직임과 비교 · USD/KRW 30일 변화의 크기 (직전 90일 기준) · 기준일 2026-10-19");
+    // 따로 받은 일별 환율 주소가 출처로 남는다
+    expect(result.report.sources.map((s) => s.id)).toEqual(["E1", "C2"]);
+    expect(result.report.movement).toMatchObject({ ref: "E1", window: 90, level: "notable" });
+    expect(result.report.notice).toMatch(/^USD\/KRW 30일 변화\(\+2\.00%\)는 직전 90일 기준 평소 폭\(±\d\.\d{2}%\)의 \d\.\d{2}배로, 평소보다 큰 움직임입니다\.$/);
+    expect(result.report.verification.status).toBe("pass");
+  });
+
+  it("움직임을 재지 못하면 게이트 없이 리포트를 내고, 실패는 실행 기록에만 남는다", async () => {
+    stubDailyRates(503);
+    mockRuns({ fxValues: fullFx, writer: [good] });
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
+
+    expect(result.steps.map((s) => `${s.tool}:${s.status}`)).toEqual(["get_fx_krw_rate:ok", "calc_metrics:ok", "calc_movement:error"]);
+    expect(result.report.evidence.map((e) => e.id)).toEqual(["E1", "C1"]);
+    expect(inputOf(3)).not.toContain("[움직임 크기]");
+    expect(result.report.notice).toBeUndefined();
+    expect(result.report).not.toHaveProperty("movement");
+    expect(result.report.verification.status).toBe("pass");
+  });
+
+  it("ETF 원인 질문이면 조사가 환율을 받아 와도 움직임을 재지 않는다 (주제가 환율일 때만)", async () => {
+    const fetchMock = stubDailyRates();
+    mockRuns({ plan: { intent: "cause", tools: ["get_etf_kr_price", "get_fx_krw_rate"], reason: "ETF 추적 차이" }, fxValues: fullFx, writer: [good] });
+    const result = await research({ question: "TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?", depth: "standard", area: "etf" });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.report).not.toHaveProperty("movement");
+    expect(result.report.notice).toBeUndefined();
+    expect(inputOf(3)).not.toContain("[움직임 크기]");
+  });
+
+  it("원인 질문이 아니면 움직임을 재지 않는다", async () => {
+    const fetchMock = stubDailyRates();
+    mockRuns({ plan: { intent: "status", tools: ["get_fx_krw_rate"], reason: "현황" }, fxValues: fullFx, writer: [good] });
+    const status = await research({ question: "오늘 달러 얼마야?", depth: "standard", area: "fx" });
+    expect(status.report).not.toHaveProperty("movement");
+    expect(inputOf(3)).not.toContain("[움직임 크기]");
+
+    runMock.mockReset();
+    mockRuns({ plan: { intent: "decision", tools: ["get_fx_krw_rate"], reason: "사도 돼" }, fxValues: fullFx, writer: [good] });
+    const decision = await research({ question: "지금 달러 사도 돼?", depth: "standard", area: "fx" });
+    expect(decision.report.notice).toBe(DECISION_NOTICE);
+    expect(decision.report).not.toHaveProperty("movement");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("분류가 레지스트리에 없는 tool 을 고르면 버리고, 남는 게 없으면 기본 계획의 tool 로 조사한다", async () => {
