@@ -627,23 +627,23 @@
       {
         "id": "E4-2",
         "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 연합뉴스",
+        "label": "경제 뉴스 확인 · 예시 기사",
         "values": {
           "title": "외국인, 이번 주 국내 주식 1조 2천억 원 순매도",
-          "publisher": "연합뉴스",
+          "publisher": "예시 기사",
           "publishedAt": "2026-10-17T08:30:00.000Z",
           "body": "unavailable"
         },
         "source": {
-          "name": "연합뉴스",
-          "url": "https://www.yna.co.kr/view/AKR20261017B",
+          "name": "예시 기사 (실제 기사 아님)",
+          "url": "",
           "asOf": "2026-10-17"
         }
       }
     ],
     "expected": "supported",
     "note": "제목이 그대로 말함",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "seed (리더, 2026-11-03) · 지어낸 예시 제목, 실제 기사 아님"
   },
   {
     "id": "news-unrelated-1",
@@ -658,23 +658,23 @@
       {
         "id": "E4-1",
         "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 연합뉴스",
+        "label": "경제 뉴스 확인 · 예시 기사",
         "values": {
           "title": "한은, 기준금리 3.00%로 동결… \"환율·가계부채 지켜볼 것\"",
-          "publisher": "연합뉴스",
+          "publisher": "예시 기사",
           "publishedAt": "2026-10-16T02:00:00.000Z",
           "body": "unavailable"
         },
         "source": {
-          "name": "연합뉴스",
-          "url": "https://www.yna.co.kr/view/AKR20261016A",
+          "name": "예시 기사 (실제 기사 아님)",
+          "url": "",
           "asOf": "2026-10-16"
         }
       }
     ],
     "expected": "unsupported",
     "note": "제목은 기준금리 동결 이야기. 유가 언급 없음",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "seed (리더, 2026-11-03) · 지어낸 예시 제목, 실제 기사 아님"
   },
   {
     "id": "news-contradicted-1",
@@ -683,29 +683,30 @@
     "evidence": "직썰 제목",
     "basis": "news",
     "refs": [
-      "E4-1"
+      "E1-5"
     ],
     "ledger": [
       {
-        "id": "E4-1",
+        "id": "E1-5",
         "tool": "get_korean_economic_news",
         "label": "경제 뉴스 확인 · 직썰",
         "values": {
-          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승",
+          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승 - 직썰",
           "publisher": "직썰",
           "publishedAt": "2026-11-03T00:57:26.000Z",
           "body": "unavailable"
         },
         "source": {
           "name": "직썰",
-          "url": "https://www.ziksir.com/news/articleView.html?idxno=1",
-          "asOf": "2026-11-03"
-        }
+          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1sYThQY28yMW1yQV9kdXhLQ2lCel80aHFvU3dOTWVRMXlSLUpiSjZuQ1Q1MWNteERpamFBR2NGcWUyVDVNVURoSkl1dUpEaldMWE5WZ2JpTzF3YjV6aXhQYl9TeGNkVWF40gFsQVVfeXFMTWUtaDY0cTJUU2lNdmZzQ1dmNmJOVUc3bC1rME9JR2ZOdmdvNVczaTNXdVdETHdacDQ1QUVyY2VkWHJVZGV2eFJIUjFRdWVLbHlXclVUMUVGWW5MUjZkWjVYSmdVLWQxclRQSkYx?oc=5",
+          "asOf": "2026-11-03T00:57:26.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
       }
     ],
     "expected": "contradicted",
     "note": "제목은 '상승'",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "docs/eval/2026-11-03-0613.pairs.json (common 평가 장부의 실제 항목 그대로, 정답은 리더 2026-11-03)"
   },
   {
     "id": "news-causal-title-1",
@@ -714,29 +715,30 @@
     "evidence": "직썰 제목",
     "basis": "news",
     "refs": [
-      "E4-1"
+      "E1-5"
     ],
     "ledger": [
       {
-        "id": "E4-1",
+        "id": "E1-5",
         "tool": "get_korean_economic_news",
         "label": "경제 뉴스 확인 · 직썰",
         "values": {
-          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승",
+          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승 - 직썰",
           "publisher": "직썰",
           "publishedAt": "2026-11-03T00:57:26.000Z",
           "body": "unavailable"
         },
         "source": {
           "name": "직썰",
-          "url": "https://www.ziksir.com/news/articleView.html?idxno=1",
-          "asOf": "2026-11-03"
-        }
+          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1sYThQY28yMW1yQV9kdXhLQ2lCel80aHFvU3dOTWVRMXlSLUpiSjZuQ1Q1MWNteERpamFBR2NGcWUyVDVNVURoSkl1dUpEaldMWE5WZ2JpTzF3YjV6aXhQYl9TeGNkVWF40gFsQVVfeXFMTWUtaDY0cTJUU2lNdmZzQ1dmNmJOVUc3bC1rME9JR2ZOdmdvNVczaTNXdVdETHdacDQ1QUVyY2VkWHJVZGV2eFJIUjFRdWVLbHlXclVUMUVGWW5MUjZkWjVYSmdVLWQxclRQSkYx?oc=5",
+          "asOf": "2026-11-03T00:57:26.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
       }
     ],
     "expected": "supported",
     "note": "제목이 인과를 말함",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "docs/eval/2026-11-03-0613.pairs.json (common 평가 장부의 실제 항목 그대로, 정답은 리더 2026-11-03)"
   },
   {
     "id": "news-forecast-as-fact-1",
@@ -751,28 +753,28 @@
       {
         "id": "E4-3",
         "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 비즈니스포스트",
+        "label": "경제 뉴스 확인 · 예시 기사",
         "values": {
-          "title": "iM증권 \"11월 말 원/달러 환율 1320원 전망, 대외 불확실성 해소에 달러 추가 하락\"",
-          "publisher": "비즈니스포스트",
+          "title": "A증권 \"11월 말 원/달러 환율 1320원 전망, 대외 불확실성 해소에 달러 추가 하락\"",
+          "publisher": "예시 기사",
           "publishedAt": "2026-11-03T00:12:52.000Z",
           "body": "unavailable"
         },
         "source": {
-          "name": "비즈니스포스트",
-          "url": "https://www.businesspost.co.kr/BP?command=article_view&num=1",
+          "name": "예시 기사 (실제 기사 아님)",
+          "url": "",
           "asOf": "2026-11-03"
         }
       }
     ],
     "expected": "unsupported",
     "note": "증권사 전망을 확정 사실처럼 씀",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "seed (리더, 2026-11-03) · 지어낸 예시 제목, 실제 기사 아님"
   },
   {
     "id": "news-forecast-reported-1",
     "area": "fx",
-    "claim": "iM증권은 11월 말 환율을 1,320원으로 전망했다고 보도됐습니다.",
+    "claim": "A증권은 11월 말 환율을 1,320원으로 전망했다고 보도됐습니다.",
     "evidence": "비즈니스포스트 제목",
     "basis": "news",
     "refs": [
@@ -782,23 +784,23 @@
       {
         "id": "E4-3",
         "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 비즈니스포스트",
+        "label": "경제 뉴스 확인 · 예시 기사",
         "values": {
-          "title": "iM증권 \"11월 말 원/달러 환율 1320원 전망, 대외 불확실성 해소에 달러 추가 하락\"",
-          "publisher": "비즈니스포스트",
+          "title": "A증권 \"11월 말 원/달러 환율 1320원 전망, 대외 불확실성 해소에 달러 추가 하락\"",
+          "publisher": "예시 기사",
           "publishedAt": "2026-11-03T00:12:52.000Z",
           "body": "unavailable"
         },
         "source": {
-          "name": "비즈니스포스트",
-          "url": "https://www.businesspost.co.kr/BP?command=article_view&num=1",
+          "name": "예시 기사 (실제 기사 아님)",
+          "url": "",
           "asOf": "2026-11-03"
         }
       }
     ],
     "expected": "supported",
     "note": "보도 사실을 옮긴 것이고 제목이 담고 있음",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "seed (리더, 2026-11-03) · 지어낸 예시 제목, 실제 기사 아님"
   },
   {
     "id": "news-rate-hike-wrong-1",
@@ -813,23 +815,23 @@
       {
         "id": "E4-1",
         "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 연합뉴스",
+        "label": "경제 뉴스 확인 · 예시 기사",
         "values": {
           "title": "한은, 기준금리 3.00%로 동결… \"환율·가계부채 지켜볼 것\"",
-          "publisher": "연합뉴스",
+          "publisher": "예시 기사",
           "publishedAt": "2026-10-16T02:00:00.000Z",
           "body": "unavailable"
         },
         "source": {
-          "name": "연합뉴스",
-          "url": "https://www.yna.co.kr/view/AKR20261016A",
+          "name": "예시 기사 (실제 기사 아님)",
+          "url": "",
           "asOf": "2026-10-16"
         }
       }
     ],
     "expected": "contradicted",
     "note": "제목은 '동결'",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "seed (리더, 2026-11-03) · 지어낸 예시 제목, 실제 기사 아님"
   },
   {
     "id": "news-foreign-sell-cause-1",
@@ -844,23 +846,23 @@
       {
         "id": "E4-2",
         "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 2news",
+        "label": "경제 뉴스 확인 · 예시 기사",
         "values": {
           "title": "외국인 매도 폭주에 달러 환율 급등 시작",
-          "publisher": "2news",
+          "publisher": "예시 기사",
           "publishedAt": "2026-11-03T00:44:00.000Z",
           "body": "unavailable"
         },
         "source": {
-          "name": "2news",
-          "url": "https://www.2news.co.kr/news/1",
+          "name": "예시 기사 (실제 기사 아님)",
+          "url": "",
           "asOf": "2026-11-03"
         }
       }
     ],
     "expected": "supported",
     "note": "제목이 '외국인 매도 폭주에 … 급등' 으로 인과를 말함",
-    "source": "seed (리더, 2026-11-03)"
+    "source": "seed (리더, 2026-11-03) · 지어낸 예시 제목, 실제 기사 아님"
   },
   {
     "id": "macro-yoy-1",

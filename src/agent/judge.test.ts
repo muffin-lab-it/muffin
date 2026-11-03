@@ -38,9 +38,10 @@ const evidence: Evidence[] = [
   {
     id: "E3-1",
     tool: "get_korean_economic_news",
-    label: "경제 뉴스 확인 · 연합뉴스",
+    label: "경제 뉴스 확인 · 예시 기사",
     values: { title: "외국인, 이번 주 국내 주식 1조 2천억 원 순매도", publishedAt: "2026-10-17" },
-    source: { name: "연합뉴스", url: "https://www.yna.co.kr/view/1", asOf: "2026-10-17" },
+    // 지어낸 예시 제목이라 실제 언론사 · 기사 주소를 붙이지 않습니다
+    source: { name: "예시 기사 (실제 기사 아님)", url: "", asOf: "2026-10-17" },
   },
   {
     id: "C1",
