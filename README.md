@@ -221,6 +221,7 @@ muffin/
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
 │     ├─ history.ts                  리포트 저장함 (localStorage → 서버, 백엔드)
 │     ├─ log.ts                      muffin.run 실행 로그
+│     ├─ db.ts                       Supabase 서버 클라이언트 getDb · 표 타입 (secret 키, 서버 전용. 리더)
 │     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 연결 전에는 예시 데이터, 리더)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
@@ -228,6 +229,7 @@ muffin/
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
 │  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
 │  └─ promptfoo/                     (예정) 채점 규칙 · 기준선 비교 · 주간 실행
+├─ supabase/migrations/              표 정의 SQL (reports · runs, RLS 켬, 권한은 secret 키에만). 적용은 리더가 SQL Editor 에서
 ├─ docs/PLAN.md                      스터디 운영 계획 (주차별 · 역할 · 모임 대본)
 ├─ .github/                          CI (lint · typecheck · test), PR 템플릿
 ├─ AGENTS.md  CONTRIBUTING.md        Codex · Claude 공통 규칙, 협업 절차

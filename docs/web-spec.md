@@ -50,9 +50,9 @@ flowchart LR
 | `src/lib/ratelimit.ts` (신규) | 호출 제한 | 서영 |
 | `src/lib/log.ts` | 실행 로그, `RunStage` 에 `limited`, 2차 `runs` 저장 | 서영 |
 | `src/lib/guard.ts` (신규. `src/agent/guard.ts` 와 다른 파일) | 출처 검사, 바디 크기 | 은경 |
-| `src/lib/db.ts` (신규) | Supabase 서버 클라이언트 | 은경 |
+| `src/lib/db.ts` (신규) | Supabase 서버 클라이언트 · 표 타입 | 리더 |
 | `app/api/history/route.ts`, `app/api/history/[id]/route.ts` (신규) | History API | 은경 |
-| `supabase/migrations/*.sql` (신규) | 표 정의. 적용은 리더 | 은경 |
+| `supabase/migrations/*.sql` (신규) | 표 정의 · 적용 | 리더 |
 | `src/agent/events.ts`, `src/agent/schema.ts` | 이벤트 · 리포트 모양 | 리더 (변경은 Discord 로 요청) |
 | `app/admin/`, `src/lib/admin.ts` · `admin-auth.ts` · `admin.sample.ts`, `proxy.ts` (신규) | 관리자 화면(실행 로그), `/admin` 비밀번호 | 리더 |
 
@@ -148,12 +148,13 @@ deleteReport(id: string): Promise<void>
 ### 4.3 DB: Supabase Postgres (리더 소유 조직, 무료 플랜, 리전 도쿄 `ap-northeast-1`, 프로젝트 `muffin`)
 
 - 서버 전용 환경 변수: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`(`sb_secret_` 로 시작). `NEXT_PUBLIC_` 를 붙이지 않고, 브라우저용 publishable 키는 쓰지 않습니다.
-- 라이브러리는 `@supabase/supabase-js` 하나입니다. RLS 는 켜고 정책은 만들지 않습니다 (secret 키만 표에 닿음).
+- 라이브러리는 `@supabase/supabase-js` 하나입니다. 클라이언트는 `src/lib/db.ts` 의 `getDb()` 를 같이 쓰고, 표 한 줄의 타입도 여기 있습니다(`Tables<"runs">` · `TablesInsert<"reports">`).
+- RLS 는 켜고 정책은 만들지 않으며, 표 권한은 secret 키(service_role)에만 줍니다. Supabase 가 새 표에 권한을 자동으로 주지 않는 쪽으로 바뀌는 중이라 권한을 마이그레이션에 직접 적습니다.
 - 마이그레이션은 `supabase/migrations/<타임스탬프>_init.sql` 로 커밋하고, 적용은 리더가 SQL Editor 에서 합니다.
 - 무료 플랜은 7일 동안 요청이 적으면 일시 정지됩니다. 다시 켜면 데이터는 그대로입니다.
 
 ```sql
-create table reports (
+create table public.reports (
   id text primary key,                 -- 요청 id
   client_id uuid not null,
   created_at timestamptz not null default now(),
@@ -161,9 +162,9 @@ create table reports (
   report jsonb not null,               -- Report v2
   steps jsonb not null default '[]'
 );
-create index reports_client_created on reports (client_id, created_at desc);
+create index reports_client_created on public.reports (client_id, created_at desc);
 
-create table runs (                    -- src/lib/log.ts 의 RunLog 와 같은 필드
+create table public.runs (             -- src/lib/log.ts 의 RunLog 와 같은 필드
   id text primary key,
   at timestamptz not null,
   ok boolean not null,
@@ -182,18 +183,22 @@ create table runs (                    -- src/lib/log.ts 의 RunLog 와 같은 �
   intent text,
   error text
 );
-create index runs_at on runs (at desc);
-create index runs_client_at on runs (client_id, at desc);
-create index runs_ip_at on runs (ip_hash, at desc);
+create index runs_at on public.runs (at desc);
+create index runs_client_at on public.runs (client_id, at desc);
+create index runs_ip_at on public.runs (ip_hash, at desc);
 
--- RLS 는 켜고 정책은 만들지 않습니다. secret 키만 표에 닿습니다.
-alter table reports enable row level security;
-alter table runs enable row level security;
+-- 줄 접근: RLS 를 켜고 정책은 만들지 않습니다. secret 키(service_role)는 RLS 를 거치지 않습니다.
+alter table public.reports enable row level security;
+alter table public.runs enable row level security;
+
+-- 표 접근: 브라우저용 역할(anon · authenticated)에는 주지 않고 secret 키(service_role)에만 줍니다.
+revoke all on table public.reports, public.runs from anon, authenticated;
+grant select, insert, update, delete on table public.reports, public.runs to service_role;
 ```
 
 ### 4.4 실행 로그 (서영)
 
-`logRun` 은 지금처럼 콘솔(Vercel Logs, `muffin.run`)에 남기고, 2차부터 `runs` 에도 남깁니다. 요청의 줄은 호출 제한 v2 가 시작할 때 먼저 넣고(4.5), 끝나면 `logRun` 이 같은 id 의 줄을 갱신합니다. 갱신은 응답을 늦추지 않게 `next/server` 의 `after()` 로 하고, 실패해도 응답은 그대로 나가게 try/catch 후 콘솔에만 남깁니다. `db.ts` 는 은경의 것을 씁니다.
+`logRun` 은 지금처럼 콘솔(Vercel Logs, `muffin.run`)에 남기고, 2차부터 `runs` 에도 남깁니다. 요청의 줄은 호출 제한 v2 가 시작할 때 먼저 넣고(4.5), 끝나면 `logRun` 이 같은 id 의 줄을 갱신합니다. 갱신은 응답을 늦추지 않게 `next/server` 의 `after()` 로 하고, 실패해도 응답은 그대로 나가게 try/catch 후 콘솔에만 남깁니다. DB 는 `db.ts` 의 `getDb()` 를 씁니다.
 
 `RunLog` 에 `verification`(리포트 `verification` 의 status · numbers · why · advice · revisions)과 `intent`(`research()` 결과의 `plan.intent`)를 더해 `runs` 의 같은 칸에 넣습니다. 관리자 화면(4.7)의 검증 통과율 · 다시 쓰기 비율 · 의도별 요청 수가 이 두 칸을 씁니다.
 
@@ -229,7 +234,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 - 상태 기준(`src/lib/admin.ts` 의 `THRESHOLDS`): 성공률 95% 이상 정상 · 85% 이상 주의, 응답 시간 p90 45초 안 정상 · 예산 55초 안 주의, 검증 통과 90% · 75%, tool 성공률 95% · 85%, 남은 권유 표현은 1건이라도 장애. 전체 상태는 성공률 · 응답 시간 · 권유 표현 중 가장 나쁜 것이고, 검증은 전체를 주의까지만 올립니다. tool 실패는 리포트가 나가므로 tool 상태등과 이벤트에만 표시합니다.
 - 응답 시간 · 토큰 · 검증은 리포트를 만든 요청만 셉니다 (범위 밖 질문은 분류만 하고 끝나서 뺍니다). Mock 요청은 모든 숫자에서 빼고, 호출 제한(`limited`)은 성공률에서 따로 셉니다. 2분 넘게 `started` 로 남은 줄은 중간에 멈춘 실패로 셉니다.
 - 보호는 브라우저 기본 로그인 창(HTTP Basic)입니다. 비밀번호는 서버 전용 환경 변수 `ADMIN_PASSWORD` 하나이고 아이디는 보지 않습니다. 비어 있으면 `/admin` 은 404 입니다. `proxy.ts`(Next.js 16 의 proxy, 예전 middleware)가 `/admin` 앞에서 막고 페이지도 한 번 더 확인합니다. 검색 노출은 막습니다(noindex).
-- 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표가 연결되기 전(은경 `db.ts` · 마이그레이션, 서영 `runs` 저장)에는 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. 연결되면 `loadRuns` 안의 조회만 바꿉니다.
+- 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표가 연결되기 전(리더 `db.ts` · 마이그레이션, 서영 `runs` 저장)에는 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. 연결되면 `loadRuns` 안의 조회만 바꿉니다.
 - 가드레일 작동 횟수는 아직 로그 칸이 없어 "남은 권유 표현"(`verification.advice`)으로 대신합니다.
 
 ## 5. 할 일과 완료 조건
@@ -241,7 +246,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 | 은경 | history 비동기 전환: `history.ts` 함수 4개를 Promise 로(`saveReport` 에 `id?` 추가, `subscribeHistory` 는 뺌), 화면 세 곳 호출부까지. 구현은 localStorage 그대로 | 세 화면이 전과 같이 동작, `pnpm test` 통과, 하니에게 미리 알림 |
 | 서영 | 호출 제한 v1: `ratelimit.ts` + 테스트, 두 라우트에서 바디를 읽기 전에 호출, 429, `RunStage` 에 `limited`, JSON 라우트 키 없음 500 → 503 | 11번째 요청 429 + `Retry-After`, 브라우저 id 를 바꿔도 IP 상한에서 429, 가짜 시계로 10분 뒤 풀림, 환경 변수로 한도가 바뀜, 라우트 테스트에 429 응답 1건 |
 | 은경 | 출처 검사 · 바디 크기: `src/lib/guard.ts` + 테스트, 두 라우트에 적용 | 허용 Origin 통과, 다른 Origin 403, 큰 바디 413 |
-| 은경 | DB · History API: `db.ts`, 마이그레이션 SQL, 엔드포인트 4개 + 테스트(Supabase 클라이언트는 모킹), `history.ts` 2차 구현 | 같은 브라우저에서만 보이고 다른 브라우저에서는 안 보임, 삭제 동작 |
+| 은경 | History API: 엔드포인트 4개 + 테스트(`db.ts` 의 `getDb` 는 모킹), `history.ts` 2차 구현 | 같은 브라우저에서만 보이고 다른 브라우저에서는 안 보임, 삭제 동작 |
 | 서영 | 실행 로그 DB: `logRun` 이 `runs` 에도 insert (`verification` · `intent` 포함, 4.4) | Supabase 표에 한 줄, 쓰기가 실패해도 응답은 그대로 |
 | 서영 | 호출 제한 v2: 요청 시작 때 `runs` 에 먼저 넣고 세기 | 인스턴스가 달라도 같은 수로 셈, 같은 브라우저에서 동시에 11건이 와도 10건만 통과 |
 
@@ -264,7 +269,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 ### 리더
 
 - `src/lib/client.ts` 의 `getClientId()`: `crypto.randomUUID()` 를 localStorage `muffin.client` 에 저장하고, 서버 렌더링에서는 빈 문자열을 돌려줍니다. `api.ts` 가 `X-Muffin-Client` 를 자동으로 붙이고, 429 의 `retryAfterSec` 를 에러 메시지에 반영합니다.
-- Supabase 새 조직 · 프로젝트 · 키를 만들고, `.env.local` 과 Vercel 환경 변수(`SUPABASE_URL` · `SUPABASE_SECRET_KEY` · `ALLOWED_ORIGINS` · `RATE_LIMIT_*` · `RATE_LIMIT_SALT`)에 넣습니다. 마이그레이션도 적용합니다.
+- Supabase 새 조직 · 프로젝트 · 키를 만들고, `.env.local` 과 Vercel 환경 변수(`SUPABASE_URL` · `SUPABASE_SECRET_KEY` · `ALLOWED_ORIGINS` · `RATE_LIMIT_*` · `RATE_LIMIT_SALT`)에 넣습니다. `db.ts`(클라이언트 · 표 타입)와 마이그레이션 SQL 을 만들고 적용합니다.
 - `events.ts` · `schema.ts` 변경 창구와 AGENTS.md 관리, 응답 시간(55초) 줄이기를 맡습니다.
 - 관리자 화면 `/admin`(4.7)을 만들고 Vercel 환경 변수 `ADMIN_PASSWORD` 를 넣습니다. `runs` 가 연결되면 `loadRuns` 를 실제 조회로 바꿉니다.
 
@@ -281,9 +286,9 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 | 1. Mock 시연 | 서영 | 라우트에 호출 제한 연결, 429, 503 통일 | 없음 |
 | 1. Mock 시연 | 은경 | `guard.ts` + 라우트 적용 | 서영 라우트 PR 머지 (같은 파일) |
 | 1. Mock 시연 | 전원 | Mock 으로 홈 → 진행 → 상세 → 저장함 시연 | 위 화면 PR |
-| 2. Supabase | 리더 | 조직 · 프로젝트 · 키 · Vercel 환경 변수, 마이그레이션 적용 | 없음 |
-| 2. Supabase | 은경 | `db.ts` · 마이그레이션 SQL · History API · `history.ts` 2차 | 리더 키 전달 |
-| 2. Supabase | 서영 | `runs` 로그 저장 → 호출 제한 v2 | 은경 `db.ts` · 마이그레이션 머지 |
+| 2. Supabase | 리더 | 조직 · 프로젝트 · 키 · Vercel 환경 변수, `db.ts` · 마이그레이션 SQL · 적용 | 없음 |
+| 2. Supabase | 은경 | History API · `history.ts` 2차 | 리더 `db.ts` · 마이그레이션 머지 |
+| 2. Supabase | 서영 | `runs` 로그 저장 → 호출 제한 v2 | 리더 `db.ts` · 마이그레이션 머지 |
 | 2. Supabase | 하니 | 저장함 서버 전환 확인 | 은경 History API 머지 |
 | 3. 시연 | 전원 | 실제 키로 홈 → 진행 → 상세 → 저장함 | 2단계 |
 
