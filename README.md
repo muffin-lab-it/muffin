@@ -202,6 +202,7 @@ muffin/
 │  │  ├─ depth.ts                    ✍️ 깊이별 금융 규칙 (Easy · Standard · Deep) · 판단 요청 모드 문구 (하니)
 │  │  ├─ verify.ts  guard.ts         ✅ 검증 (코드): 숫자 대조 · 근거 표시 · 권유 → 실패 목록, fail-closed 적용 (리더)
 │  │  ├─ movement.ts                 유의성 게이트 · 원인 지도: 원인 질문에서 이번 움직임이 평소 범위인지 (직전 90일 기준, 환율) (리더)
+│  │  ├─ judge.ts                    근거 판정 (3단계, 모델): 원인 문장의 refs 가 주장을 뒷받침하는지 supported · unsupported · contradicted. 지금은 평가에서만 (리더)
 │  │  ├─ instructions.ts             네 Agent 공통 persona · 공통 규칙 (리더)
 │  │  ├─ models.ts                   단계 · 깊이별 모델 (OPENAI_MODEL_SMALL · OPENAI_MODEL · OPENAI_MODEL_DEEP)
 │  │  ├─ context.ts                  실행 컨텍스트: 증거 장부 (E · C 번호) · tool 실행 기록 · 이벤트 콜백
@@ -229,6 +230,7 @@ muffin/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
 │  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
+│  ├─ judge/                         근거 판정 보정 세트 (pairs.json, 사람이 매긴 정답) + pnpm judge 로 정확도 재기 (형식: 폴더 README)
 │  └─ promptfoo/                     (예정) 채점 규칙 · 기준선 비교 · 주간 실행
 ├─ supabase/migrations/              표 정의 SQL (reports · runs, RLS 켬, 권한은 secret 키에만). 적용은 리더가 SQL Editor 에서
 ├─ docs/PLAN.md                      스터디 운영 계획 (주차별 · 역할 · 모임 대본)
@@ -676,7 +678,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 - **권유** (1단계 ✅): `guard.ts` 의 표현 목록을 작성 Agent 의 SDK output guardrail 로 걸어 Traces 에 남기고, 코드 검증도 같은 목록을 씁니다. 수정 뒤에도 남으면 그 항목(why · impact · caveats · nextTopics · dataGaps · numbers 의 label)을 빼고 `removed` 에 적습니다 (문장 원문은 `removed` 에도 남기지 않음). summary 는 권유 문장만 지우고, 전부 권유면 안내 문장으로 바꿉니다. `advice` 는 처리 뒤에도 남은 수(목표 0)입니다.
 - **표시 원칙 (fail-closed)** (1단계 ✅): 검증을 통과하지 못한 숫자는 리포트에 나가지 않고 `verification.removed` 와 `dataGaps` ("검증을 통과하지 못해 뺀 숫자 N개") 에 기록됩니다. 남은 숫자는 `verified`(✓) 또는 `derived`(계산) 입니다. `unverified` 회색은 0단계 · v1 기록에만 남습니다.
 - **방향** (2단계): 숫자가 있는 문장은 숫자 정책이 방향까지 봅니다. "1.06% 올랐다" 인데 장부가 -1.06% 면 맞는 값이 없어 실패합니다. 숫자 없는 문장("환율이 올랐다")은 "올해는 올랐지만 최근 30일은 내렸다" 처럼 기간이 섞이면 코드가 맞는 문장까지 지우므로, 아래 근거 판정(3단계)에서 봅니다. 대신 원인 질문에는 유의성 게이트가 이번 기간의 실제 방향을 작성에게 알려, 질문이 반대 방향을 전제하면 첫 문장에서 바로잡게 합니다.
-- **근거 판정** (3단계, 모델): 원인 `claim` 이 `refs` 의 증거로 뒷받침되는지 → `supported / unsupported / contradicted`. 숫자에는 쓰지 않습니다. 처음에는 평가에서만 돌리고, 한국어 150~200쌍으로 보정한 뒤 실행 중에도 켭니다.
+- **근거 판정** (3단계 ✅ 평가에서, `judge.ts`): 원인 `claim` 이 `refs` 의 장부 항목으로 뒷받침되는지 작은 모델(`gpt-5.4-mini`)이 `supported / unsupported / contradicted` 로 판정합니다. 숫자에는 쓰지 않고(검증기 몫), 장부에 없는 지식으로 판정하지 않으며, `basis` 가 `none` 이거나 refs 가 장부에 없는 항목은 건너뜁니다. 지금은 `pnpm eval` 의 "근거 판정 ✓/✗/⚡" 열과 원인마다 붙는 판정 줄로만 보고, 사람이 정답을 매긴 보정 세트(`scripts/judge/pairs.json`, `pnpm judge`)로 정확도를 잽니다. 평가가 남기는 `docs/eval/<날짜>.pairs.json` 이 보정 세트의 후보입니다. 한국어 150~200쌍에서 보정한 뒤 실행 중에도 켜고, 그때 `verification.why.unsupported` 를 채웁니다.
 - **유의성 게이트** (2단계 ✅ 환율, `movement.ts`): 원인 질문(`cause`)의 주제가 환율이고 장부에 환율 결과가 있으면, 정제와 동시에 같은 출처(Frankfurter)에서 이번 기간 직전 90일의 일별 환율을 받아 평소 폭을 정합니다. 평소 폭 = 하루 변화율의 표준편차 × √(이번 기간 관측 수), z-score = 이번 변화 ÷ 평소 폭입니다 (`metrics.ts` 의 `movementZ`). |z| 가 1 미만이면 평소 범위(`normal`), 2 미만이면 평소보다 큼(`notable`), 그 이상이면 드물게 큼(`extreme`)입니다. 결과는 장부에 `C` 번호(`calc_movement`)로 올라가고, 작성 입력 끝에 `[움직임 크기]` 가 붙고, 리포트의 `notice` · `movement` 에 들어갑니다. 평소 범위면 작성은 첫 문장에서 그렇게 말하고 원인을 단정하지 않습니다. 받기에 실패하면 게이트만 건너뛰고 실행 기록에 남깁니다. 주제는 관심 영역으로 정합니다: 환율이면 재고, ETF · 금리 · 물가면 재지 않습니다 (ETF 원인 질문에서 조사가 환율을 보조로 받아도 리포트가 환율 이야기로 흐르지 않게). 영역이 없거나 경제뉴스면 질문에 환율 낱말이 있고 다른 주제(ETF · 지수 · 금리 · 물가) 낱말이 없을 때만 잽니다. 질문에 통화(달러 · 엔 · 유로)가 나오면 그 통화의 결과를 잽니다. 2025-03 ~ 2026-11 의 USD/KRW 30일 변화를 날짜마다 재 보면 평소 범위 49% · 큼 30% · 드묾 21% 입니다. ETF · 금리 · 물가는 아직 재지 않습니다.
 - **원인 지도** (2단계 ✅ 환율, `movement.ts` 의 `causeMap`): 큰 움직임의 원인을 확인할 후보와 그 근거가 되는 데이터입니다. 환율은 한미 금리 차이(금리 tool), 국내외 경제 뉴스(뉴스 tool), 다른 통화 대비 흐름(다른 통화쌍의 환율)입니다. 게이트가 `notable` · `extreme` 이면 작성이 후보마다 장부 근거를 보고, 뒷받침하면 `why`, 맞지 않으면 `caveats`("이 요인으로는 설명되지 않음"), 근거가 없으면 `dataGaps` 에 적습니다. 근거는 이번 기간에 맞는 것만 씁니다: 기간 안에 나온 기사, 같은 기간의 다른 통화쌍, 기간 시작 이후의 금리. 정제가 무관하다고 뺀 항목은 다시 넣지 않고, 비교 기간이 다른 금리는 변화폭이 아니라 지금 수준만 근거로 쓰게 합니다.
 
@@ -707,7 +709,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 ## 품질 측정 (eval)
 
-- **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 의도 일치(`intent`, 분류의 점수), 숫자의 증거 번호 채움, 원인 근거 종류, 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문마다 분류 결과와 정제가 고른 사실 · 뺀 항목도 적어 두므로 담당자는 자기 단계가 무엇을 했는지 볼 수 있습니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다.
+- **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 의도 일치(`intent`, 분류의 점수), 숫자의 증거 번호 채움, 원인 근거 종류, 원인마다 근거 판정(✓ supported · ✗ unsupported · ⚡ contradicted, `--no-judge` 로 끔), 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문마다 분류 결과와 정제가 고른 사실 · 뺀 항목도 적어 두므로 담당자는 자기 단계가 무엇을 했는지 볼 수 있습니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다.
 - **1단계 (✅)**: 검증기가 숫자 검증 결과(✓ 장부 일치 / C 계산 / 제거)와 근거 종류를 자동으로 냅니다. 요약 표의 `숫자 ✓/C/제거` · `수정` · `검증` 열입니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
 - **3단계부터**: [Promptfoo](https://www.promptfoo.dev/) 로 옮깁니다. OpenAI 가 Evals 플랫폼을 2026-11-30 에 종료하고 공식 이전 경로로 안내하는 도구입니다. 고정 질문 세트(`scripts/promptfoo/`), tool 선택 검사, 결정적 채점(우리 검증기 호출) + 원인 판정 rubric, 기준선 비교를 한 곳에서 돌리고, GitHub Action 으로 매주 실행합니다. 수치가 떨어지면 실패 사례를 Codex 에 넘겨 지시문 수정 PR 을 올리게 합니다.
 
