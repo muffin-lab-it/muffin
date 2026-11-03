@@ -86,7 +86,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `stage` | `stage: "plan" \| "research" \| "edit" \| "write" \| "verify"`, `status: "start" \| "done"` | 단계 시작 · 끝 | 단계 표시. 라벨은 `stageLabels` (질문 살펴보기 · 자료 찾기 · 핵심 추리기 · 답변 쓰기 · 근거 확인하기) |
 | `plan` | `intent`, `mode`, `tools: string[]` | 분류 끝 | "이렇게 조사할게요" 한 줄. tool 이름은 `labelFor(name)` |
-| `step` | `step: { tool, status: "ok" \| "error", ms, error? }` | tool 하나 끝날 때마다 | tool 한 줄. 계산 step 은 edit 단계 안에서 옴 |
+| `step` | `step: { tool, status: "ok" \| "error", ms, error? }` | tool 하나 끝날 때마다 | tool 한 줄. 계산(`calc_metrics`) · 움직임 비교(`calc_movement`, 원인 질문만) step 은 edit 단계 안에서 옴 |
 | `verify` | `verification` | 검증 끝 | 검증 한 줄 |
 | `report` | `report`, `steps`, `rewrites`, `id` | 마지막 줄 | 저장 후 상세로 이동 |
 | `error` | `message`, `id?` | 실패 · 시간 초과 (마지막 줄) | 메시지 + 요청 id + 다시 시도 |
@@ -98,7 +98,7 @@ flowchart LR
 
 | 필드 | 화면 | 담당 |
 | --- | --- | --- |
-| `mode` (research · decision_facts · out_of_scope), `notice` | 상단 배너. 문구는 서버가 준 것을 그대로 | 하니 |
+| `mode` (research · decision_facts · out_of_scope), `notice`, `movement` | 상단 배너. 문구는 서버가 준 것을 그대로. `notice` 는 판단 요청 · 범위 밖, 그리고 원인 질문(research 모드)의 움직임 크기에서 옵니다 (예: "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임입니다."). `movement`(`level`: normal · notable · extreme)는 같은 내용의 값이라 배지 색 등에 쓸 수 있음 | 하니 |
 | `disclosure` | AI 생성 고지, 리포트 하단 고정 | 하니 |
 | `summary`, `impact[]`, `caveats[]`, `dataGaps[]`, `nextTopics[]` | 각 칸 | 은선 |
 | `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`) | 숫자 카드, 배지, 원본 보기. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |

@@ -154,7 +154,7 @@ sequenceDiagram
 - Agent 실행 과정 실시간 표시 — 0단계에서 규격 고정, 백엔드 · 프론트가 구현
 - 출처와 검증 결과가 붙은 구조화 리포트 — v1 ✅, v2 (검증 배지 · 근거 등급) 1단계
 - "사도 돼?" 에는 판단에 필요한 사실로 답하기 — 2단계
-- 이례적 움직임만 원인 분석 (90일 기준 z-score) — 2단계
+- 이례적 움직임만 원인 분석 (직전 90일 기준 z-score) — 2단계 ✅ 환율
 - 리포트 History (브라우저 localStorage ✅, 고도화 기간에 서버 저장)
 - 차트 (증거 번호에 묶인 시계열 · 뉴스 이벤트 표시) — 고도화
 - AI 생성 고지 (AI 기본법) — 0단계부터 리포트 필드, 화면은 프론트
@@ -201,6 +201,7 @@ muffin/
 │  │  ├─ write.ts                    ✍️ 작성 Agent: 사실 목록 → 깊이별 리포트. 구성 · 문장 규칙, 권유 가드레일, 수정 요청 입력 (은선)
 │  │  ├─ depth.ts                    ✍️ 깊이별 금융 규칙 (Easy · Standard · Deep) · 판단 요청 모드 문구 (하니)
 │  │  ├─ verify.ts  guard.ts         ✅ 검증 (코드): 숫자 대조 · 근거 표시 · 권유 → 실패 목록, fail-closed 적용 (리더)
+│  │  ├─ movement.ts                 유의성 게이트 · 원인 지도: 원인 질문에서 이번 움직임이 평소 범위인지 (직전 90일 기준, 환율) (리더)
 │  │  ├─ instructions.ts             네 Agent 공통 persona · 공통 규칙 (리더)
 │  │  ├─ models.ts                   단계 · 깊이별 모델 (OPENAI_MODEL_SMALL · OPENAI_MODEL · OPENAI_MODEL_DEEP)
 │  │  ├─ context.ts                  실행 컨텍스트: 증거 장부 (E · C 번호) · tool 실행 기록 · 이벤트 콜백
@@ -397,7 +398,7 @@ const result = await streamReport({ question, depth, area }, (event) => {
 type Report = {
   version: 2;
   mode: "research" | "decision_facts" | "out_of_scope";   // 일반 / 판단에 필요한 사실 / 범위 밖
-  notice?: string;                                         // mode 에 따른 상단 안내
+  notice?: string;                                         // 상단 안내: mode 에 따른 문구, 원인 질문이면 움직임 크기
   summary: string;
   numbers: { label: string; value: string; change: string; asOf: string;
              ref?: string;                                  // 인용한 증거 번호 "E1" 또는 계산 "C1"
@@ -416,7 +417,7 @@ type Report = {
     revisions: number;                                     // 수정 횟수
     removed: string[];                                     // 검증 실패로 뺀 항목
   };
-  movement?: { ref: string; zScore: number; window: 90; level: "normal" | "notable" | "extreme" }; // 2단계
+  movement?: { ref: string; zScore: number; window: 90; level: "normal" | "notable" | "extreme" }; // 유의성 게이트 (원인 질문, 환율)
   charts?: { kind: "line" | "bar"; title: string;
              series: { label: string; ref: string; points: { t: string; v: number }[] }[];  // 증거 번호에 묶인 시계열
              events?: { ref: string; label: string; at: string }[] }[];                     // 뉴스 이벤트 점
@@ -667,14 +668,15 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 ### 증거 장부와 검증 규칙
 
 - **번호**: Tool 호출 성공 1건 = `E{n}`. 뉴스는 기사마다 `E{n}-{k}`. Calc 결과는 `C{n}` 이고 `lineage` 에 연산과 입력 번호가 남습니다. 장부의 `values` 는 tool 이 `evidence` 로 고른 핵심 값(없으면 200자 이하 원시값), `note` 는 tool 의 주의점입니다.
-- **숫자 정책** (1단계 ✅ `verify.ts`): 리포트의 모든 숫자는 `ref` 가 가리키는 장부 항목의 숫자 값과 대조합니다. 엄격한 것부터 정확 일치 → 표기 자릿수 반올림 (`2.878866` → `2.88%`) → 단위 환산 (비율 `0.02` ↔ `2%`, `0.25%p` ↔ `25bp`) → 상대 오차 0.1%. 표기 단위와 장부 키의 단위가 호환돼야 합니다 (`changeBp` 25 는 `25%` 가 아니고, `%p` 는 `changePp` · `spread` 같은 차이 값과만 맞춤. 그래서 tool 의 `evidence` 값 키에 단위를 담아 주세요: `changePct` · `changePp` · `changeBp`). 본문(summary · why · impact · caveats)의 금융 숫자(단위 · 소수점 · 쉼표가 있는 것)도 장부 어딘가에 있어야 하고, 없으면 그 문장(summary) 또는 항목을 뺍니다. 정책에 없는 차이는 실패입니다. `value` 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목을 뺌), `change` 의 숫자만 틀리면 `change` 를 비웁니다. 비교 기간(`30일`) · 연도 · 횟수는 데이터 숫자로 보지 않습니다. `ref` 가 없거나 장부에 없는 id 면 실패입니다. `C` 번호를 인용한 숫자는 같은 정책으로 대조한 뒤 `derived` 로 표시합니다. 계보(`lineage`)를 따라 다시 계산해 보는 검사는 다음에 붙입니다.
+- **숫자 정책** (1단계 ✅ `verify.ts`): 리포트의 모든 숫자는 `ref` 가 가리키는 장부 항목의 숫자 값과 대조합니다. 엄격한 것부터 정확 일치 → 표기 자릿수 반올림 (`2.878866` → `2.88%`) → 단위 환산 (비율 `0.02` ↔ `2%`, `0.25%p` ↔ `25bp`) → 상대 오차 0.1%. 표기 단위와 장부 키의 단위가 호환돼야 합니다 (`changeBp` 25 는 `25%` 가 아니고, `%p` 는 `changePp` · `spread` 같은 차이 값과만 맞춤. 그래서 tool 의 `evidence` 값 키에 단위를 담아 주세요: `changePct` · `changePp` · `changeBp`). 본문(summary · why · impact · caveats)의 금융 숫자(단위 · 소수점 · 쉼표가 있는 것)도 장부 어딘가에 있어야 하고, 없으면 그 문장(summary) 또는 항목을 뺍니다. 정책에 없는 차이는 실패입니다. `value` 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목을 뺌), `change` 의 숫자만 틀리면 `change` 를 비웁니다. 비교 기간(`30일`) · 연도 · 횟수는 데이터 숫자로 보지 않습니다. `ref` 가 없거나 장부에 없는 id 면 실패입니다. `C` 번호를 인용한 숫자는 같은 정책으로 대조한 뒤 `derived` 로 표시합니다. 계산은 모델이 아니라 코드가 장부 값으로 하므로, 계보(`lineage`)를 따라 다시 계산하는 검사는 두지 않습니다.
 - **근거 표시** (1단계 ✅): `why.refs` 는 장부에 있는 id 만, `basis` 는 refs 와 맞아야 합니다 (`data` 는 숫자 데이터 증거, `news` 는 뉴스 tool 증거, `none` 은 refs 없음 + "데이터로 확인되지 않음"). 어긋나면 수정 요청 뒤 `none` 으로 낮춥니다. 주장이 맞는지는 보지 않습니다 (아래 근거 판정).
 - **수정 루프** (1단계 ✅): 실패 목록(`failures`)을 붙여 작성 Agent 를 1회 다시 실행합니다. Tool 은 다시 부르지 않아 증거 번호와 실행 기록이 그대로이고, `verification.revisions` 에 횟수가 남습니다. 조사 · 정제로는 되돌아가지 않습니다 (10/25 결정: 순환 구조는 시간과 복잡도를 늘리고, 숫자가 틀린 것은 작성의 문제이기 때문).
 - **권유** (1단계 ✅): `guard.ts` 의 표현 목록을 작성 Agent 의 SDK output guardrail 로 걸어 Traces 에 남기고, 코드 검증도 같은 목록을 씁니다. 수정 뒤에도 남으면 그 항목(why · impact · caveats · nextTopics · dataGaps · numbers 의 label)을 빼고 `removed` 에 적습니다 (문장 원문은 `removed` 에도 남기지 않음). summary 는 권유 문장만 지우고, 전부 권유면 안내 문장으로 바꿉니다. `advice` 는 처리 뒤에도 남은 수(목표 0)입니다.
 - **표시 원칙 (fail-closed)** (1단계 ✅): 검증을 통과하지 못한 숫자는 리포트에 나가지 않고 `verification.removed` 와 `dataGaps` ("검증을 통과하지 못해 뺀 숫자 N개") 에 기록됩니다. 남은 숫자는 `verified`(✓) 또는 `derived`(계산) 입니다. `unverified` 회색은 0단계 · v1 기록에만 남습니다.
-- **방향** (2단계): "환율이 올랐다" 같은 원인 문장의 방향이 인용한 데이터의 부호와 맞는지 코드로 봅니다.
+- **방향** (2단계): 숫자가 있는 문장은 숫자 정책이 방향까지 봅니다. "1.06% 올랐다" 인데 장부가 -1.06% 면 맞는 값이 없어 실패합니다. 숫자 없는 문장("환율이 올랐다")은 "올해는 올랐지만 최근 30일은 내렸다" 처럼 기간이 섞이면 코드가 맞는 문장까지 지우므로, 아래 근거 판정(3단계)에서 봅니다. 대신 원인 질문에는 유의성 게이트가 이번 기간의 실제 방향을 작성에게 알려, 질문이 반대 방향을 전제하면 첫 문장에서 바로잡게 합니다.
 - **근거 판정** (3단계, 모델): 원인 `claim` 이 `refs` 의 증거로 뒷받침되는지 → `supported / unsupported / contradicted`. 숫자에는 쓰지 않습니다. 처음에는 평가에서만 돌리고, 한국어 150~200쌍으로 보정한 뒤 실행 중에도 켭니다.
-- **유의성 게이트** (2단계): "왜 움직였나" 질문은 Calc 가 90일 기준 z-score 를 내고, 평소 범위면 "평소 범위 안의 움직임입니다" 라고 말하고 억지 원인을 만들지 않습니다. 이례적이면 원인 후보마다 찬반 증거를 붙입니다.
+- **유의성 게이트** (2단계 ✅ 환율, `movement.ts`): 원인 질문(`cause`)의 주제가 환율이고 장부에 환율 결과가 있으면, 정제와 동시에 같은 출처(Frankfurter)에서 이번 기간 직전 90일의 일별 환율을 받아 평소 폭을 정합니다. 평소 폭 = 하루 변화율의 표준편차 × √(이번 기간 관측 수), z-score = 이번 변화 ÷ 평소 폭입니다 (`metrics.ts` 의 `movementZ`). |z| 가 1 미만이면 평소 범위(`normal`), 2 미만이면 평소보다 큼(`notable`), 그 이상이면 드물게 큼(`extreme`)입니다. 결과는 장부에 `C` 번호(`calc_movement`)로 올라가고, 작성 입력 끝에 `[움직임 크기]` 가 붙고, 리포트의 `notice` · `movement` 에 들어갑니다. 평소 범위면 작성은 첫 문장에서 그렇게 말하고 원인을 단정하지 않습니다. 받기에 실패하면 게이트만 건너뛰고 실행 기록에 남깁니다. 주제는 관심 영역으로 정합니다: 환율이면 재고, ETF · 금리 · 물가면 재지 않습니다 (ETF 원인 질문에서 조사가 환율을 보조로 받아도 리포트가 환율 이야기로 흐르지 않게). 영역이 없거나 경제뉴스면 질문에 환율 낱말이 있고 다른 주제(ETF · 지수 · 금리 · 물가) 낱말이 없을 때만 잽니다. 질문에 통화(달러 · 엔 · 유로)가 나오면 그 통화의 결과를 잽니다. 2025-03 ~ 2026-11 의 USD/KRW 30일 변화를 날짜마다 재 보면 평소 범위 49% · 큼 30% · 드묾 21% 입니다. ETF · 금리 · 물가는 아직 재지 않습니다.
+- **원인 지도** (2단계 ✅ 환율, `movement.ts` 의 `causeMap`): 큰 움직임의 원인을 확인할 후보와 그 근거가 되는 데이터입니다. 환율은 한미 금리 차이(금리 tool), 국내외 경제 뉴스(뉴스 tool), 다른 통화 대비 흐름(다른 통화쌍의 환율)입니다. 게이트가 `notable` · `extreme` 이면 작성이 후보마다 장부 근거를 보고, 뒷받침하면 `why`, 맞지 않으면 `caveats`("이 요인으로는 설명되지 않음"), 근거가 없으면 `dataGaps` 에 적습니다. 근거는 이번 기간에 맞는 것만 씁니다: 기간 안에 나온 기사, 같은 기간의 다른 통화쌍, 기간 시작 이후의 금리. 정제가 무관하다고 뺀 항목은 다시 넣지 않고, 비교 기간이 다른 금리는 변화폭이 아니라 지금 수준만 근거로 쓰게 합니다.
 
 ### 설명 깊이 정의
 
