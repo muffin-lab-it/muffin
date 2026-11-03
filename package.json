@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@openai/agents": "^0.20.0",
+    "@supabase/supabase-js": "^2.118.0",
     "cheerio": "^1.2.0",
     "fast-xml-parser": "^5.11.2",
     "next": "16.3.8",
