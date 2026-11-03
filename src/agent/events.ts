@@ -11,7 +11,7 @@ export const stages: readonly Stage[] = ["plan", "research", "edit", "write", "v
  *
  *  stage  → 단계 시작 · 끝 (plan 질문 살펴보기 / research 자료 찾기 / edit 핵심 추리기 / write 답변 쓰기 / verify 근거 확인하기)
  *  plan   → 📋 분류 결과: 의도 · 모드 · 부를 tool ("이렇게 조사할게요")
- *  step   → tool 하나가 끝날 때마다 (진행상황 목록 한 줄). 계산 도구(calc_metrics)는 edit 단계에서 옵니다
+ *  step   → tool 하나가 끝날 때마다 (진행상황 목록 한 줄). 계산 도구(calc_metrics)와 원인 질문의 움직임 비교(calc_movement)는 edit 단계에서 옵니다
  *  verify → ✅ 검증 요약 ("숫자 8/8 · 권유 0")
  *  report → 리포트 완성
  *  error  → 실패. 이후 이벤트 없음
@@ -37,6 +37,7 @@ export const toolLabels: Record<string, string> = {
   get_macro_indicators: "물가·고용 지표 확인",
   get_rate_data: "금리 확인",
   calc_metrics: "계산",
+  calc_movement: "평소 움직임과 비교",
 };
 
 export function labelFor(toolName: string): string {

@@ -20,8 +20,8 @@ describe("mockResearch", () => {
     const events: MuffinEvent[] = [];
     const r = await mockResearch({ question: "환율 왜 올랐어?", depth: "easy" }, { onEvent: (e) => events.push(e) });
 
-    const dataSteps = r.steps.filter((s) => s.tool !== "calc_metrics");
-    const calcSteps = r.steps.filter((s) => s.tool === "calc_metrics");
+    const dataSteps = r.steps.filter((s) => !s.tool.startsWith("calc_"));
+    const calcSteps = r.steps.filter((s) => s.tool.startsWith("calc_"));
     expect(calcSteps.length).toBeGreaterThan(0);
     expect(trace(events)).toEqual([
       "plan:start",
@@ -42,7 +42,10 @@ describe("mockResearch", () => {
     expect(reportSchema.parse(r.report)).toEqual(r.report);
     expect(r.report.summary).toMatch(/^\[MOCK · easy\]/);
     expect(r.report.mode).toBe("research");
-    expect(r.report.notice).toBeUndefined();
+    // 원인 질문 샘플이라 유의성 게이트의 안내와 movement 가 있다
+    expect(r.report.notice).toContain("평소보다 큰 움직임");
+    expect(r.report.movement).toMatchObject({ ref: "E1", window: 90, level: "notable" });
+    expect(calcSteps.map((s) => s.tool)).toContain("calc_movement");
     expect(r.model).toBe("mock");
     // step 이벤트는 돌려준 steps 와 같은 순서 (데이터 tool 은 research, 계산은 edit 단계)
     const stepEvents = events.filter((e) => e.type === "step").map((e) => e.step);
@@ -60,8 +63,24 @@ describe("mockResearch", () => {
     const r = await mockResearch({ question: "달러 지금 사도 돼?", depth: "standard", area: "fx" }, { onEvent: (e) => events.push(e) });
     expect(r.report.mode).toBe("decision_facts");
     expect(r.report.notice).toContain("판단");
+    // 유의성 게이트는 원인 질문만이라 판단 요청에는 그 단계 · 장부 항목 · 출처가 없다
+    expect(r.report).not.toHaveProperty("movement");
+    expect(r.steps.map((s) => s.tool)).not.toContain("calc_movement");
+    expect(events.filter((e) => e.type === "step").map((e) => e.step.tool)).not.toContain("calc_movement");
+    expect(r.report.evidence.map((e) => e.tool)).not.toContain("calc_movement");
+    expect(r.report.sources.map((s) => s.id)).not.toContain("C2");
     expect(events.find((e) => e.type === "plan")).toMatchObject({ intent: "decision", mode: "decision_facts" });
     expect(reportSchema.parse(r.report)).toEqual(r.report);
+  });
+
+  it("환율이 주제인 원인 질문이 아니면 움직임 크기를 보여 주지 않는다 (실제 게이트와 같은 기준)", async () => {
+    for (const [question, area] of [["KODEX 200이 최근 석 달 동안 왜 이렇게 움직였어?", "etf"], ["원달러 환율 얼마야?", "fx"]] as const) {
+      const r = await mockResearch({ question, depth: "standard", area });
+      expect(r.report).not.toHaveProperty("movement");
+      expect(r.report.notice).toBeUndefined();
+      expect(r.steps.map((s) => s.tool)).not.toContain("calc_movement");
+      expect(r.report.evidence.map((e) => e.tool)).not.toContain("calc_movement");
+    }
   });
 
   it("onEvent 없이도 동작한다", async () => {

@@ -69,14 +69,15 @@ const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?
 const RISING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:오른|올라|올랐|오르|상승|급등|뛴|뛰어|뛰었|반등|늘어|늘었|늘며|증가|확대|인상)/;
 
 /**
- * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "1달러에 1,324원" · "같은 1달러를 사는 데" 의 외화 금액은 데이터 숫자가 아닙니다.
- * 뒤에 "당" 이 붙거나, 기준 금액(1달러 · 100엔) 뒤에 "에 <숫자>" · "를 사다 · 바꾸다 · 환전" 이 올 때만 기준 단위로 봅니다. "유가가 1달러 하락" 은 숫자입니다.
+ * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "1달러에 1,324원" · "같은 1달러를 사는 데" · "-12.57원/1달러" 의 외화 금액은 데이터 숫자가 아닙니다.
+ * 뒤에 "당" 이 붙거나, 기준 금액(1달러 · 100엔) 뒤에 "에 <숫자>" · "를 사다 · 바꾸다 · 환전" 이 오거나 앞에 "/" 가 있을 때만 기준 단위로 봅니다.
+ * "유가가 1달러 하락" 은 숫자입니다.
  */
-function isQuoteBasis(value: number, unit: string, rest: string): boolean {
+function isQuoteBasis(value: number, unit: string, before: string, rest: string): boolean {
   if (unit === "원" || !CURRENCY_UNITS.has(unit)) return false;
   if (/^\s*당/.test(rest)) return true;
   const unitAmount = value === 1 || (unit === "엔" && value === 100);
-  return unitAmount && /^\s*(?:에\s*\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest);
+  return unitAmount && (/\/\s*$/.test(before) || /^\s*(?:에\s*\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest));
 }
 
 /**
@@ -137,7 +138,7 @@ export function extractNumbers(text: string, opts: { movement?: boolean } = {}):
     }
     group = flush(group);
     const rest = cleaned.slice((m.index ?? 0) + m[0].length);
-    if (isQuoteBasis(value, unit, rest)) continue;
+    if (isQuoteBasis(value, unit, cleaned.slice(0, m.index ?? 0), rest)) continue;
     // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뜁니다.
     const falling = m[1] === "" && !isPeriodUnit(unit, m[2], value) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
     const parsed: ParsedNumber = falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] };
