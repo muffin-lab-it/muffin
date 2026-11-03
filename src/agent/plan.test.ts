@@ -42,7 +42,7 @@ describe("planInput · planInstructions", () => {
     expect(planRules).toContain('"한국과 미국 금리 차이는?"');
     expect(planRules).toContain('"오늘 원달러 환율 얼마야?"');
     expect(planRules).toContain('"비트코인 왜 떨어졌어?"');
-    expect(planRules).toContain('"TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?"');
+    expect(planRules).toContain("해외 지수를 따르는 ETF 수익률이 지수와 왜 다른지 묻는 질문은");
     expect(planRules).toContain("범위 밖이면 질문에 '왜', '비교', '사도 돼'가 있어도 반드시 out_of_scope");
     expect(planRules).toContain("원인·비교보다 우선합니다");
     expect(planRules).toContain("모든 tool 을 무조건 선택하지 않습니다");
@@ -76,7 +76,7 @@ describe("defaultPlan (모델 없는 기본 규칙)", () => {
       tools: ["get_fx_krw_rate", "get_korean_economic_news"],
     });
     expect(defaultPlan("환율 왜 올랐어?", "fx").tools).toEqual(["get_fx_krw_rate", "get_korean_economic_news"]);
-    expect(defaultPlan("TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나?", "etf").intent).toBe("cause");
+    expect(defaultPlan("나스닥100을 따르는 ETF 수익률이 지수와 왜 달라?", "etf").intent).toBe("cause");
   });
 
   it("관심 영역의 tool 을 먼저, 영역이 없으면 전체", () => {
