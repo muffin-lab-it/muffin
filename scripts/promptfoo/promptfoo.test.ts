@@ -16,13 +16,19 @@ import type { Area } from "../../src/agent/schema";
 import { loadAllQuestionSets } from "../questions/schema";
 import * as asserts from "./asserts";
 import type { EvalOutput } from "./provider";
-import { PROMPTFOO_VERSION, promptfooArgs, promptfooEnv, runFailure } from "./runner";
+import { evalContext, evalRow, publishEval } from "./publish";
+import { experimentTag, PROMPTFOO_VERSION, promptfooArgs, promptfooEnv, runFailure } from "./runner";
 import { defaultThresholds, metricRates, summarize, type PromptfooOutput, type PromptfooRow } from "./summary";
 import { assertsFor, buildTests, loadSets } from "./tests";
+
+// evals 표 넣기는 Supabase 를 부르지 않고 upsert 만 흉내 냅니다
+const upsert = vi.hoisted(() => vi.fn(async () => ({ error: null as { message: string } | null })));
+vi.mock("../../src/lib/db", () => ({ dbEnabled: () => true, getDb: () => ({ from: () => ({ upsert }) }) }));
 
 const runMock = run as unknown as ReturnType<typeof vi.fn>;
 afterEach(() => {
   runMock.mockReset();
+  upsert.mockClear();
   vi.unstubAllEnvs();
 });
 
@@ -228,6 +234,70 @@ describe("summary.ts — 결과 요약", () => {
   });
 });
 
+describe("publish.ts — evals 표에 넣는 한 줄", () => {
+  const out: PromptfooOutput = {
+    config: { metadata: { thresholds: { intent: 0.9 } } },
+    results: {
+      timestamp: "2026-11-04T03:01:00.000Z",
+      results: [
+        { success: true, failureReason: 0, latencyMs: 20000, vars: { id: "q-1", depth: "standard" }, response: { output: { model: "gpt-6-luna" } }, tokenUsage: { total: 1500, prompt: 1000, completion: 500 }, gradingResult: { pass: true, componentResults: [{ pass: true, score: 1, reason: "ok", assertion: { type: "javascript", metric: "intent" } }] } },
+        { success: false, failureReason: 1, error: "x", latencyMs: 30000, vars: { id: "q-2", depth: "deep" }, response: { output: { model: "gpt-6-sol" } }, tokenUsage: { total: 2500, prompt: 2000, completion: 500 }, gradingResult: { pass: false, componentResults: [{ pass: false, score: 0, reason: "분류 status · 정답 cause", assertion: { type: "javascript", metric: "intent" } }] } },
+      ],
+    },
+  };
+
+  it("Action 안이면 run id · 실행 주소를 쓰고 ci, 아니면 promptfoo evalId(없으면 날짜-시각)에 local 이다", () => {
+    expect(evalContext({ GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "41764416453", GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: "muffin-lab-it/muffin" }, "2026-11-04-0301", undefined, "common", "eval-abc")).toEqual({
+      id: "41764416453",
+      source: "ci",
+      tag: null,
+      set: "common",
+      runUrl: "https://github.com/muffin-lab-it/muffin/actions/runs/41764416453",
+    });
+    // 같은 분에 두 번 돌려도 evalId 가 달라 겹치지 않는다
+    expect(evalContext({}, "2026-11-04-0254-sol", "sol", undefined, "eval-MpZ-2026-11-04T02:54:10")).toEqual({ id: "eval-MpZ-2026-11-04T02:54:10", source: "local", tag: "sol", set: null, runUrl: null });
+    expect(evalContext({}, "2026-11-04-0254-sol", "sol", undefined)).toMatchObject({ id: "2026-11-04-0254-sol" });
+  });
+
+  it("세트는 --set 이 없으면 Action 이 넘기는 MUFFIN_EVAL_SET 을 쓴다 (수동 실행의 세트 일부가 전체로 적히지 않게)", () => {
+    expect(evalContext({ GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "1", GITHUB_REPOSITORY: "o/r", MUFFIN_EVAL_SET: "common" }, "s", undefined, undefined).set).toBe("common");
+    expect(evalContext({ MUFFIN_EVAL_SET: "common" }, "s", undefined, "etf").set).toBe("etf");
+    expect(evalContext({ MUFFIN_EVAL_SET: "" }, "s", undefined, undefined).set).toBeNull();
+  });
+
+  it("요약 · 기준 · 모델 · 토큰 · 평균 시간을 표 한 줄 모양으로 만든다", () => {
+    const summary = summarize(out);
+    const row = evalRow(out, summary, evalContext({}, "2026-11-04-0301", undefined, undefined, "eval-x1"));
+    expect(row).toMatchObject({
+      id: "eval-x1",
+      at: "2026-11-04T03:01:00.000Z",
+      source: "local",
+      tag: null,
+      set_name: null,
+      questions: 2,
+      errors: 0,
+      avg_ms: 25000,
+      models: ["gpt-6-luna", "gpt-6-sol"],
+      tokens: { prompt: 3000, completion: 1000 },
+      thresholds: expect.objectContaining({ intent: 0.9, latency: defaultThresholds.latency }),
+      failed: [{ metric: "intent", rate: 0.5, threshold: 0.9 }],
+      run_url: null,
+    });
+    expect(row.rates.intent).toEqual({ pass: 1, total: 2, rate: 0.5 });
+    expect(row.summary).toContain("# 리포트 평가 (Promptfoo)");
+  });
+
+  it("같은 id 면 덮어쓰고(upsert), 실패하면 이유만 돌려준다", async () => {
+    const row = evalRow(out, summarize(out), evalContext({}, "s", undefined, undefined));
+    expect(await publishEval(row)).toBeNull();
+    expect(upsert).toHaveBeenCalledWith(row);
+    upsert.mockResolvedValueOnce({ error: { message: "Could not find the table 'public.evals'" } });
+    expect(await publishEval(row)).toContain("public.evals");
+    upsert.mockRejectedValueOnce(new Error("fetch failed"));
+    expect(await publishEval(row)).toBe("fetch failed");
+  });
+});
+
 describe("runner.ts — promptfoo 실행 명령과 실패 판단", () => {
   it("고정 버전을 pnpm --silent dlx 로 부르고, 세트 · 깊이 · 근거 판정 여부는 환경 변수로 넘긴다", () => {
     const args = promptfooArgs("docs/eval/promptfoo/x.json", { concurrency: "1" });
@@ -250,6 +320,14 @@ describe("runner.ts — promptfoo 실행 명령과 실패 판단", () => {
     const env = promptfooEnv({ OPENAI_MODEL: "gpt-6-luna" }, { model: "gpt-6-sol", smallModel: "gpt-6-luna" });
     expect(env).toMatchObject({ OPENAI_MODEL: "gpt-6-sol", OPENAI_MODEL_DEEP: "gpt-6-sol", OPENAI_MODEL_SMALL: "gpt-6-luna" });
     expect(promptfooEnv({ OPENAI_MODEL: "gpt-6-luna" }, {})).toMatchObject({ OPENAI_MODEL: "gpt-6-luna" });
+  });
+
+  it("깊이 · 모델을 바꾼 실행은 --tag 가 없어도 실험 이름이 붙는다 (주간 비교 기준 · 주간 평가 줄에 섞이지 않게)", () => {
+    expect(experimentTag("sol", { depth: "all" })).toBe("sol");
+    expect(experimentTag(undefined, { depth: "all" })).toBe("depth-all");
+    expect(experimentTag(undefined, { model: "gpt-6-sol" })).toBe("model-gpt-6-sol");
+    expect(experimentTag(undefined, { smallModel: "gpt-6-luna" })).toBe("small-gpt-6-luna");
+    expect(experimentTag(undefined, {})).toBeUndefined();
   });
 
   it("exit 가 0 이 아니거나 결과 파일이 없거나 실행 자체가 안 되면 실패다 (이전 결과를 요약하지 않음)", () => {

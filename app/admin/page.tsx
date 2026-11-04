@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { labelFor } from "@/src/agent/events";
 import { BUDGET_MS, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RANGES, summarizeRuns, THRESHOLDS, type AdminEvent, type Health, type LoadedRuns, type RangeKey, type RunsSummary } from "@/src/lib/admin";
 import { isAdminAuthorized } from "@/src/lib/admin-auth";
+import { failedLabels, loadEvals, metricLines, withinRatio, type EvalRow, type LoadedEvals } from "@/src/lib/admin-evals";
 import { redactSecrets } from "@/src/lib/redact";
 import styles from "./admin.module.css";
 import { AutoRefresh } from "./AutoRefresh";
@@ -49,6 +50,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
   const s = summarizeRuns(loaded.rows, now, range);
   const health = healthOf(s);
+  // 품질 평가(evals 표)는 실행 로그와 따로 읽습니다. 표가 없거나 실패해도 위 화면은 그대로 그립니다.
+  const evals = await loadEvals();
 
   return (
     <div className={styles.page}>
@@ -91,7 +94,111 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <StatusBanner s={s} health={health} />
       {s.total + s.limited === 0 ? <Empty range={range} real={loaded.source === "runs"} rowsInTable={loaded.rows.length} /> : <Dashboard s={s} health={health} now={now} />}
+      <EvalPanel evals={evals} />
     </div>
+  );
+}
+
+const evalKind = (r: EvalRow) => (r.tag ? `실험 ${r.tag}` : r.source === "ci" ? (r.set_name ? `수동 (${r.set_name})` : "주간 평가") : r.set_name ? `로컬 (${r.set_name})` : "로컬 실행");
+
+/**
+ * 품질 평가: 고정 질문 세트를 매주 금요일 자동으로 돌린 결과(Weekly eval)와 로컬 · 실험 실행의 기록.
+ * 본 결과는 주간 평가(Action, 전체 세트)만 쓰고, 세트 일부 · 로컬 · 실험은 기록 목록에만 둡니다 (전체 세트와 비교할 수 없어서).
+ * 지표마다 통과율을 기준(promptfooconfig.yaml 의 thresholds)과 비교하고, 주간 평가끼리 "기준 안 지표 비율" 추이를 그립니다.
+ */
+function EvalPanel({ evals }: { evals: LoadedEvals }) {
+  const weekly = evals.weekly;
+  const latest = weekly[0];
+  const trend = [...weekly].reverse().map(withinRatio);
+  const history = evals.rows.length > 0 && (
+    <ol className={styles.evalHistory} aria-label="평가 기록">
+      {evals.rows.map((r) => (
+        <li key={r.id}>
+          <time dateTime={r.at} title={kst(r.at, true)}>
+            {kst(r.at)}
+          </time>
+          <span>{evalKind(r)}</span>
+          <span>{count(r.questions)}문항</span>
+          <span className={r.failed.length ? styles.text_bad : ""}>{r.failed.length ? `미달 ${count(r.failed.length)}` : r.errors ? `오류 ${count(r.errors)}` : "기준 안"}</span>
+          <span>{r.avg_ms ? seconds(r.avg_ms) : "-"}</span>
+          {r.run_url ? <a href={r.run_url}>실행</a> : <span />}
+        </li>
+      ))}
+    </ol>
+  );
+  let body: ReactNode;
+  if (evals.source === "none") body = <p className={styles.note}>Supabase 환경 변수가 없어 평가 기록을 읽지 못합니다.</p>;
+  else if (evals.error) body = <p className={styles.note}>평가 기록을 읽지 못했습니다: {evals.error}. evals 표가 아직 없으면 supabase/migrations 의 evals 마이그레이션을 적용하세요.</p>;
+  else if (!latest)
+    body = (
+      <>
+        <p className={styles.note}>
+          {evals.rows.length ? "아직 주간 평가(전체 세트) 결과가 없습니다. 아래는 세트 일부 · 로컬 · 실험 실행 기록입니다." : "아직 평가 기록이 없습니다."} 주간 평가는 금요일 09:00 에 자동으로 돌고, pnpm eval:promptfoo 를 돌려도 기록이 쌓입니다.
+        </p>
+        {history}
+      </>
+    );
+  else {
+    const tone = latest.failed.length || latest.errors ? "bad" : "ok";
+    body = (
+      <>
+        <div className={styles.evalHead}>
+          <span className={`${styles.pill} ${styles[tone]}`}>
+            <span className={styles.pillDot} aria-hidden="true" />
+            {latest.failed.length ? `기준 미달 ${count(latest.failed.length)}개` : latest.errors ? `오류 ${count(latest.errors)}건` : "모든 지표 기준 안"}
+          </span>
+          <span className={styles.evalMeta}>
+            {kst(latest.at)} · {evalKind(latest)} · 질문 {count(latest.questions)}개{latest.avg_ms ? ` · 평균 ${seconds(latest.avg_ms)}` : ""}
+            {latest.models?.length ? ` · ${latest.models.join(" · ")}` : ""}
+            {latest.run_url && (
+              <>
+                {" · "}
+                <a href={latest.run_url}>실행 보기</a>
+              </>
+            )}
+          </span>
+        </div>
+        {latest.failed.length > 0 && <p className={styles.evalFailed}>미달: {failedLabels(latest).join(", ")}</p>}
+        <table className={styles.evalTable}>
+          <thead>
+            <tr>
+              <th>지표</th>
+              <th>통과</th>
+              <th>통과율</th>
+              <th>기준</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metricLines(latest).map((l) => (
+              <tr key={l.metric}>
+                <td>{l.label}</td>
+                <td>
+                  {count(l.pass)}/{count(l.total)}
+                </td>
+                <td>{l.rate === null ? "-" : percent(l.rate, 1)}</td>
+                <td>{l.threshold === null ? "-" : percent(l.threshold, 1)}</td>
+                <td>
+                  <span className={`${styles.pill} ${styles[l.ok === null ? "idle" : l.ok ? "ok" : "bad"]}`}>{l.ok === null ? "-" : l.ok ? "기준 안" : "미달"}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {weekly.length >= 2 && (
+          <div className={styles.evalTrend}>
+            <span className={styles.note}>주간 평가 {count(weekly.length)}회의 기준 안 지표 비율 추이</span>
+            <Sparkline values={trend} label="주간 평가 기준 안 지표 비율 추이" />
+          </div>
+        )}
+        {evals.rows.length > 1 && history}
+      </>
+    );
+  }
+  return (
+    <Panel title="📊 품질 평가" sub="고정 질문 세트를 매주 금요일 09:00 자동으로 돌린 결과 (Weekly eval) · 실험 실행은 기록으로만">
+      {body}
+    </Panel>
   );
 }
 
