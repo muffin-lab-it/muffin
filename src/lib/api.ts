@@ -12,6 +12,8 @@ import type { Area, Depth, Report } from "../agent/schema";
 import { CLIENT_HEADER, getClientId } from "./client";
 
 export type ReportRequest = { question: string; depth: Depth; area?: Area };
+/** 리플레이: 녹화된 실행(src/replays)을 같은 이벤트로 다시 받습니다. speed 는 0.25~10 (기본 1) */
+export type ReplayRequest = { replay: string; speed?: number };
 export type ReportResponse = { report: Report; steps: ToolStep[]; rewrites: number; /** 서버 로그의 요청 id */ id?: string };
 
 /** API 실패. 429(호출 제한)면 retryAfterSec 로 다시 시도할 수 있을 때까지 남은 초를 알 수 있습니다. */
@@ -62,7 +64,7 @@ export async function createReport(input: ReportRequest): Promise<ReportResponse
  * 이벤트를 한 줄씩 받으면서 onEvent 를 부르고, report 이벤트가 오면 createReport 와 같은 모양으로 끝납니다.
  * error 이벤트나 HTTP 오류는 throw 합니다. 라우트가 아직 없으면 404 로 실패하니 그때는 createReport 를 쓰면 됩니다.
  */
-export async function streamReport(input: ReportRequest, onEvent: (event: MuffinEvent) => void): Promise<ReportResponse> {
+export async function streamReport(input: ReportRequest | ReplayRequest, onEvent: (event: MuffinEvent) => void): Promise<ReportResponse> {
   const res = await fetch("/api/report/stream", {
     method: "POST",
     headers: headers({ Accept: "application/x-ndjson" }),

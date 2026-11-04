@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "id": "etf-decision",
+  "recordedAt": "2026-11-04T15:21:56.730Z",
+  "question": "KODEX 200 지금 사도 돼?",
+  "depth": "standard",
+  "area": "etf",
+  "model": "gpt-6-luna",
+  "ms": 21451,
+  "events": [
+    {
+      "t": 0,
+      "type": "stage",
+      "stage": "plan",
+      "status": "start"
+    },
+    {
+      "t": 3790,
+      "type": "plan",
+      "intent": "decision",
+      "mode": "decision_facts",
+      "tools": [
+        "get_etf_kr_price",
+        "get_korean_economic_news",
+        "get_rate_data"
+      ]
+    },
+    {
+      "t": 3790,
+      "type": "stage",
+      "stage": "plan",
+      "status": "done"
+    },
+    {
+      "t": 3790,
+      "type": "stage",
+      "stage": "research",
+      "status": "start"
+    },
+    {
+      "t": 7242,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 1193
+      }
+    },
+    {
+      "t": 10728,
+      "type": "stage",
+      "stage": "research",
+      "status": "done"
+    },
+    {
+      "t": 10728,
+      "type": "stage",
+      "stage": "edit",
+      "status": "start"
+    },
+    {
+      "t": 14092,
+      "type": "stage",
+      "stage": "edit",
+      "status": "done"
+    },
+    {
+      "t": 14092,
+      "type": "stage",
+      "stage": "write",
+      "status": "start"
+    },
+    {
+      "t": 21444,
+      "type": "stage",
+      "stage": "write",
+      "status": "done"
+    },
+    {
+      "t": 21444,
+      "type": "stage",
+      "stage": "verify",
+      "status": "start"
+    },
+    {
+      "t": 21450,
+      "type": "verify",
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 4,
+          "verified": 4,
+          "derived": 0,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      }
+    },
+    {
+      "t": 21450,
+      "type": "stage",
+      "stage": "verify",
+      "status": "done"
+    }
+  ],
+  "report": {
+    "summary": "지금 매수할지 여부는 이 자료만으로 판단할 수 없습니다. KODEX 200은 2026-11-03 종가 기준 89,325원이며, 당일 등락률은 -3.89%입니다. 최근 30일 가격 수익률은 -19.34%였지만 이는 과거 성과이며, 매수 적합성을 결정하지는 않습니다.",
+    "numbers": [
+      {
+        "label": "KODEX 200 종가",
+        "value": "89,325원",
+        "change": "당일 -3.89%",
+        "asOf": "2026-11-03",
+        "ref": "E1",
+        "check": "verified"
+      },
+      {
+        "label": "KODEX 200 최근 30일 가격 수익률",
+        "value": "-19.34%",
+        "change": "2026-10-06~2026-11-03",
+        "asOf": "2026-11-03",
+        "ref": "E1",
+        "check": "verified"
+      },
+      {
+        "label": "코스피200 지수 최근 30일 수익률",
+        "value": "-19.18%",
+        "change": "2026-10-06~2026-11-03",
+        "asOf": "2026-11-03",
+        "ref": "E1",
+        "check": "verified"
+      },
+      {
+        "label": "KODEX 200 괴리율",
+        "value": "-0.13%",
+        "change": "",
+        "asOf": "2026-11-03",
+        "ref": "E1",
+        "check": "verified"
+      }
+    ],
+    "why": [],
+    "impact": [
+      "최근 30일 가격 기준으로 ETF와 기초지수가 모두 하락했지만, 과거 수익률만으로 향후 방향을 알 수는 없습니다.",
+      "괴리율은 종가와 순자산가치(NAV)의 차이를 나타내며, 해당 기준일에는 소폭 음수였습니다.",
+      "매수 적합 여부를 가리려면 투자 기간과 감내 가능한 손실, 시장 배경 등 추가 판단 기준이 필요합니다."
+    ],
+    "caveats": [
+      "시세는 T+1 공개 데이터로, 2026-11-03 기준 값은 직전 영업일 종가 기준입니다.",
+      "기간 수익률은 분배금을 제외한 가격 기준입니다.",
+      "금리·환율·기업 실적·정책 등 거시 환경과의 연결은 확인되지 않았습니다."
+    ],
+    "dataGaps": [
+      "이 자료만으로 지금 KODEX 200의 매수 적합 여부를 판단할 수 없습니다.",
+      "매수 판단에 필요한 투자 기간, 위험 감내 수준, 금리·환율·실적·정책 관련 자료가 없습니다."
+    ],
+    "nextTopics": [
+      "KODEX 200 총수익률과 분배금",
+      "코스피200 구성 종목과 업종 비중",
+      "ETF 보수와 추적 차이",
+      "투자 기간과 손실 위험 기준"
+    ],
+    "version": 2,
+    "mode": "decision_facts",
+    "notice": "투자 판단을 대신하지 않습니다. 아래는 판단에 필요한 사실만 정리한 것입니다.",
+    "sources": [
+      {
+        "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "url": "https://www.data.go.kr/data/15094806/openapi.do",
+        "asOf": "2026-11-03",
+        "id": "E1"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 110745,
+          "period.indexCloseFrom": 1095.83,
+          "period.returnPct": -19.34173100365705,
+          "period.indexReturnPct": -19.178157195915425,
+          "period.trackingDiffPp": -0.16357380774162422,
+          "period.high": 112805,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      }
+    ],
+    "verification": {
+      "status": "pass",
+      "numbers": {
+        "total": 4,
+        "verified": 4,
+        "derived": 0,
+        "reported": 0,
+        "unverified": 0
+      },
+      "why": {
+        "data": 0,
+        "news": 0,
+        "none": 0,
+        "unsupported": 0
+      },
+      "advice": 0,
+      "revisions": 0,
+      "removed": []
+    },
+    "disclosure": "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다."
+  },
+  "steps": [
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 1193
+    }
+  ],
+  "rewrites": 0
+}

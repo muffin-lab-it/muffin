@@ -79,6 +79,7 @@ flowchart LR
 - 55초 제한(`STREAM_TIMEOUT_MS`): 넘으면 `error` 이벤트 "조사 시간이 초과되었습니다…" 를 보내고 닫습니다. 실제 소요는 30~60초입니다.
 - 에러 · 이벤트 · 로그는 `redactSecrets` 를 거칩니다 (이미 있음).
 - `MUFFIN_MOCK=1` 이면 같은 라우트가 키 없이 샘플 리포트와 다섯 단계 이벤트를 지연을 두고 보냅니다. 질문에 "사도 돼" 가 있으면 판단 요청 샘플입니다.
+- 리플레이(11/5, 리더): 바디가 `{ replay: "<녹화 id>", speed?: 0.25~10 }` 이면 녹화된 실제 실행(`src/replays/<id>.json`, `src/lib/replay.ts`)의 stage · plan · step · verify 이벤트를 원래 간격(÷speed, 간격 상한 15초)으로 보내고 `report` 로 끝냅니다. OpenAI · tool 을 부르지 않고 키도 필요 없습니다. 없는 id 는 404 `{ error: "저장된 실행을 찾을 수 없습니다.", id }`, 속도 범위 밖은 400. 요청한 속도로 55초 안에 못 끝나면 끝날 만큼 속도를 올립니다 (`fitSpeed`). 리포트 `notice` 앞에 "🎞️ 저장된 실행 다시 보기 · M/D HH:MM 에 실제로 만든 리포트입니다. 지금 데이터가 아닙니다." 가 붙고, 로그는 `mock: true` · `model: "replay:<id>"` 로 남아 운영 통계에서 빠집니다. 화면은 `/replay`(목록 · 재생, `?id=&speed=` 로 바로 재생)이고, 홈의 진행 화면도 같은 이벤트라 `streamReport({ replay, speed })` 로 붙일 수 있습니다. 녹화는 `pnpm replay:record --question … --area … --id …`, 형식 검사는 `pnpm test`.
 
 ### 3.2 스트림 이벤트 (`src/agent/events.ts`, 한 줄에 JSON 하나)
 

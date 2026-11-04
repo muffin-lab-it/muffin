@@ -1,0 +1,341 @@
+{
+  "version": 1,
+  "id": "rate-compare",
+  "recordedAt": "2026-11-04T15:22:20.079Z",
+  "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",
+  "depth": "standard",
+  "area": "rate",
+  "model": "gpt-6-luna",
+  "ms": 20446,
+  "events": [
+    {
+      "t": 0,
+      "type": "stage",
+      "stage": "plan",
+      "status": "start"
+    },
+    {
+      "t": 1818,
+      "type": "plan",
+      "intent": "compare",
+      "mode": "research",
+      "tools": [
+        "get_rate_data"
+      ]
+    },
+    {
+      "t": 1818,
+      "type": "stage",
+      "stage": "plan",
+      "status": "done"
+    },
+    {
+      "t": 1818,
+      "type": "stage",
+      "stage": "research",
+      "status": "start"
+    },
+    {
+      "t": 4855,
+      "type": "step",
+      "step": {
+        "tool": "get_rate_data",
+        "status": "ok",
+        "ms": 774
+      }
+    },
+    {
+      "t": 5217,
+      "type": "step",
+      "step": {
+        "tool": "get_rate_data",
+        "status": "ok",
+        "ms": 1114
+      }
+    },
+    {
+      "t": 8490,
+      "type": "stage",
+      "stage": "research",
+      "status": "done"
+    },
+    {
+      "t": 8490,
+      "type": "stage",
+      "stage": "edit",
+      "status": "start"
+    },
+    {
+      "t": 11109,
+      "type": "step",
+      "step": {
+        "tool": "calc_metrics",
+        "status": "ok",
+        "ms": 1
+      }
+    },
+    {
+      "t": 11109,
+      "type": "step",
+      "step": {
+        "tool": "calc_metrics",
+        "status": "ok",
+        "ms": 0
+      }
+    },
+    {
+      "t": 13481,
+      "type": "stage",
+      "stage": "edit",
+      "status": "done"
+    },
+    {
+      "t": 13481,
+      "type": "stage",
+      "stage": "write",
+      "status": "start"
+    },
+    {
+      "t": 20445,
+      "type": "stage",
+      "stage": "write",
+      "status": "done"
+    },
+    {
+      "t": 20445,
+      "type": "stage",
+      "stage": "verify",
+      "status": "start"
+    },
+    {
+      "t": 20446,
+      "type": "verify",
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 3,
+          "verified": 2,
+          "derived": 1,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      }
+    },
+    {
+      "t": 20446,
+      "type": "stage",
+      "stage": "verify",
+      "status": "done"
+    }
+  ],
+  "report": {
+    "summary": "2026-11-02 기준 미국 실효 연방기금금리는 한국은행 기준금리보다 0.88%p 높습니다. 두 금리 모두 30일 전과 비교해 변동이 없었습니다. 미국 금리는 실제 단기 자금시장에서 형성되는 실효금리이고 한국 금리는 정책금리라, 두 수치의 성격이 다릅니다.",
+    "numbers": [
+      {
+        "label": "한국은행 기준금리",
+        "value": "3%",
+        "change": "30일 0%p",
+        "asOf": "2026-11-02",
+        "ref": "E1",
+        "check": "verified"
+      },
+      {
+        "label": "미국 실효 연방기금금리",
+        "value": "3.88%",
+        "change": "30일 0%p",
+        "asOf": "2026-11-02",
+        "ref": "E2",
+        "check": "verified"
+      },
+      {
+        "label": "미국 금리 − 한국 기준금리",
+        "value": "0.88%p",
+        "change": "",
+        "asOf": "2026-11-02",
+        "ref": "C1",
+        "check": "derived"
+      }
+    ],
+    "why": [],
+    "impact": [
+      "이 금리 차이는 두 나라의 정책·단기 자금시장 금리 수준을 비교한 값이며, 환율 변동의 원인이나 방향을 단독으로 확정하지는 않습니다.",
+      "예금·대출 금리는 각 금융기관의 조달 여건과 상품 조건 등에도 영향을 받으므로, 기준금리 차이만으로 실제 금리 차이를 알 수는 없습니다.",
+      "채권시장 금리는 만기와 시장 수급에 따라 달라져 기준금리와 다르게 움직일 수 있습니다."
+    ],
+    "caveats": [
+      "한국은행 기준금리는 정책금리로 시장금리의 일별 변동과 다릅니다.",
+      "자료의 최신 관측일은 발표 시차로 오늘보다 이전일 수 있습니다."
+    ],
+    "dataGaps": [],
+    "nextTopics": [
+      "한미 금리 차이와 환율",
+      "한국 기준금리와 대출금리",
+      "정책금리와 국채금리 차이",
+      "실효 연방기금금리 의미"
+    ],
+    "version": 2,
+    "mode": "research",
+    "sources": [
+      {
+        "name": "한국은행 경제통계시스템(ECOS)",
+        "url": "https://ecos.bok.or.kr",
+        "asOf": "2026-11-02",
+        "id": "E1"
+      },
+      {
+        "name": "Federal Reserve Bank of St. Louis (FRED)",
+        "url": "https://fred.stlouisfed.org/series/DFF",
+        "asOf": "2026-11-02",
+        "id": "E2"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "E1",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-11-02",
+          "comparisonDate": "2026-10-03",
+          "comparisonRate": 3,
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30,
+          "observationCount": 31
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-11-02"
+        },
+        "note": "기준금리는 정책금리로, 시장금리의 일별 변동과는 다릅니다. ECOS 단위 '연%'를 '%'로 표기합니다. 변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, 그날 값이 없으면 직전 관측일 값을 사용합니다. 최신 관측일은 발표 시차로 오늘보다 이전일 수 있습니다."
+      },
+      {
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · Federal Reserve Bank of St. Louis (FRED)",
+        "values": {
+          "indicator": "미국 실효 연방기금금리",
+          "rate": 3.88,
+          "unit": "%",
+          "asOf": "2026-11-02",
+          "comparisonDate": "2026-10-03",
+          "comparisonRate": 3.88,
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30,
+          "observationCount": 31
+        },
+        "source": {
+          "name": "Federal Reserve Bank of St. Louis (FRED)",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-11-02"
+        },
+        "note": "DGS10은 미국 국채 10년물 시장금리, DFF는 미국 실효 연방기금금리입니다. 주말·미국 공휴일 등 값이 없는 날('.')은 제외합니다. 변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, 그날 값이 없으면 직전 관측일 값을 사용합니다. 최신 관측일은 발표 시차로 오늘보다 이전일 수 있습니다."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · 한국 기준금리 대비 미국 실효 연방기금금리 차이",
+        "values": {
+          "changePp": 0.88,
+          "from": 3,
+          "to": 3.88,
+          "unit": "%"
+        },
+        "source": {
+          "name": "한국 기준금리 대비 미국 실효 연방기금금리 차이",
+          "url": "",
+          "asOf": "2026-11-02"
+        },
+        "note": "E2.rate 3.88 − E1.rate 3 = 0.88%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "pp_diff",
+          "inputs": [
+            "E1",
+            "E2"
+          ]
+        }
+      },
+      {
+        "id": "C2",
+        "tool": "calc_metrics",
+        "label": "계산 · 30일 전 한국 기준금리 대비 미국 실효 연방기금금리 차이",
+        "values": {
+          "changePp": 0.88,
+          "from": 3,
+          "to": 3.88,
+          "unit": "%"
+        },
+        "source": {
+          "name": "30일 전 한국 기준금리 대비 미국 실효 연방기금금리 차이",
+          "url": "",
+          "asOf": "2026-11-02"
+        },
+        "note": "E2.comparisonRate 3.88 − E1.comparisonRate 3 = 0.88%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "pp_diff",
+          "inputs": [
+            "E1",
+            "E2"
+          ]
+        }
+      }
+    ],
+    "verification": {
+      "status": "pass",
+      "numbers": {
+        "total": 3,
+        "verified": 2,
+        "derived": 1,
+        "reported": 0,
+        "unverified": 0
+      },
+      "why": {
+        "data": 0,
+        "news": 0,
+        "none": 0,
+        "unsupported": 0
+      },
+      "advice": 0,
+      "revisions": 0,
+      "removed": []
+    },
+    "disclosure": "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다."
+  },
+  "steps": [
+    {
+      "tool": "get_rate_data",
+      "status": "ok",
+      "ms": 774
+    },
+    {
+      "tool": "get_rate_data",
+      "status": "ok",
+      "ms": 1114
+    },
+    {
+      "tool": "calc_metrics",
+      "status": "ok",
+      "ms": 1
+    },
+    {
+      "tool": "calc_metrics",
+      "status": "ok",
+      "ms": 0
+    }
+  ],
+  "rewrites": 0
+}

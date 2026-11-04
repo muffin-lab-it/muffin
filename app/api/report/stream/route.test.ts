@@ -9,6 +9,28 @@ import { maxDuration, POST } from "./route";
 
 vi.mock("@/src/agent/muffin", () => ({ research: vi.fn() }));
 vi.mock("@/src/agent/mock", () => ({ isMockMode: vi.fn(), mockResearch: vi.fn() }));
+vi.mock("@/src/replays", () => ({
+  replays: {
+    "fixture-replay": {
+      version: 1,
+      id: "fixture-replay",
+      recordedAt: "2026-11-04T12:30:00.000Z",
+      question: "녹화된 질문",
+      depth: "easy",
+      area: "etf",
+      model: "gpt-6-luna",
+      ms: 3_000,
+      events: [
+        { t: 0, type: "stage", stage: "plan", status: "start" },
+        { t: 5, type: "step", step: { tool: "get_etf_kr_price", status: "error", ms: 3, error: "데이터를 확인하지 못했습니다." } },
+        { t: 10, type: "stage", stage: "verify", status: "done" },
+      ],
+      report: sample.report,
+      steps: [{ tool: "get_etf_kr_price", status: "ok", ms: 3 }],
+      rewrites: 0,
+    },
+  },
+}));
 vi.mock("@/src/lib/log", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/src/lib/log")>(),
   newRunId: () => "test-request-id",
@@ -173,6 +195,37 @@ describe("POST /api/report/stream", () => {
     expect(logRun).toHaveBeenCalledTimes(1);
     expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ error: "client disconnected", ok: false }));
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("리플레이: 녹화된 이벤트를 보내고 안내가 붙은 리포트 하나로 끝난다. 키가 없어도 되고, 로그는 mock 이며 모델을 부르지 않는다", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const response = await POST(request({ replay: "fixture-replay", speed: 10 }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("application/x-ndjson");
+    const seen = await events(response);
+    expect(seen.map((e) => e.type)).toEqual(["stage", "step", "stage", "report"]);
+    const report = seen.at(-1) as Extract<MuffinEvent, { type: "report" }>;
+    expect(report.id).toBe("test-request-id");
+    expect(report.report.notice).toContain("저장된 실행 다시 보기 · 11/4 21:30");
+    expect(report.steps).toEqual([{ tool: "get_etf_kr_price", status: "ok", ms: 3 }]);
+    expect(research).not.toHaveBeenCalled();
+    expect(mockResearch).not.toHaveBeenCalled();
+    expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ ok: true, stage: "ok", mock: true, model: "replay:fixture-replay", input: { question: "녹화된 질문", depth: "easy", area: "etf" } }));
+  });
+
+  it("리플레이: 55초 안에 못 끝나는 느린 속도는 끝날 만큼 올려서 report 로 끝낸다", async () => {
+    const response = await POST(request({ replay: "fixture-replay", speed: 0.25 }));
+    const seen = await events(response);
+    expect(seen.at(-1)?.type).toBe("report");
+  });
+
+  it("리플레이: 없는 녹화는 404, 속도 범위 밖은 400 (스트림을 열지 않음)", async () => {
+    const missing = await POST(request({ replay: "nope-nope" }));
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: "저장된 실행을 찾을 수 없습니다.", id: "test-request-id" });
+    const bad = await POST(request({ replay: "fixture-replay", speed: 99 }));
+    expect(bad.status).toBe(400);
+    expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ ok: false, stage: "input", mock: true }));
   });
 
   it("does not start research when the request is already aborted", async () => {
