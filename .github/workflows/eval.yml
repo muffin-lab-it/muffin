@@ -1,8 +1,14 @@
 # 주간 리포트 평가 (Promptfoo). 매주 금요일 09:00 KST 에 고정 질문 세트를 실제 키로 돌려 지표별 통과율을 냅니다.
 # 기준(scripts/promptfoo/promptfooconfig.yaml 의 thresholds) 아래로 떨어진 지표가 있으면 실행이 실패로 표시됩니다.
 # 요약은 실행 페이지(Summary)에, 결과 파일은 Artifacts 에 90일 남습니다. 지난 결과는 cache 로 넘겨 나란히 비교합니다.
-# 필요한 Secrets: OPENAI_API_KEY · FRED_API_KEY · ECOS_API_KEY · DATA_GO_KR_KEY (Settings → Secrets and variables → Actions)
+# 요약 한 줄은 Supabase evals 표에도 넣어 /admin 품질 평가 패널에 보이고, 기준 미달이면 이슈(라벨 eval)를 엽니다.
+# 필요한 Secrets: OPENAI_API_KEY · FRED_API_KEY · ECOS_API_KEY · DATA_GO_KR_KEY · SUPABASE_URL · SUPABASE_SECRET_KEY (Settings → Secrets and variables → Actions)
 name: Weekly eval
+
+permissions:
+  contents: read
+  actions: write # 결과 보관(artifact) · 지난 결과(cache)
+  issues: write # 기준 미달 이슈
 
 on:
   schedule:
@@ -43,14 +49,35 @@ jobs:
           restore-keys: promptfoo-latest-
 
       - name: 평가 실행 (실제 OpenAI · 데이터 API 호출)
+        id: eval
         run: pnpm eval:promptfoo
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           MUFFIN_EVAL_SET: ${{ inputs.set }}
           MUFFIN_EVAL_DEPTH: ${{ inputs.depth }}
+
+      - name: 기준 미달이면 이슈 열기
+        # current.md 는 이번 실행의 요약 (세트 일부 · 깊이를 바꾼 수동 실행도 씀). latest.md 는 전체 세트 기본 실행만 갱신하므로 쓰지 않음
+        if: failure() && steps.eval.outcome == 'failure' && hashFiles('docs/eval/promptfoo/current.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create eval --color FBCA04 --description "주간 평가" --force
+          title="주간 평가 기준 미달 $(TZ=Asia/Seoul date +%Y-%m-%d)"
+          {
+            echo "주간 평가에서 기준 아래 지표나 오류가 나왔습니다. 실행: $RUN_URL"
+            echo
+            echo "고치는 순서: 아래 '틀린 것' 의 질문을 \`pnpm eval --question \"…\" --area <영역>\` 으로 다시 돌려 원인을 보고, 해당 단계 지시문을 고친 뒤 \`pnpm eval:promptfoo --set <세트>\` 로 확인해 PR 을 올립니다. 수정 초안은 Codex 에 맡겨도 됩니다."
+            echo
+            cat docs/eval/promptfoo/current.md
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --title "$title" --body-file "$RUNNER_TEMP/issue.md" --label eval
 
       - name: 결과 파일 보관 (90일)
         if: always()
