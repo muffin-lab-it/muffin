@@ -46,12 +46,23 @@ export type RunRow = {
   usage?: { requests: number; inputTokens: number; outputTokens: number } | null;
   steps?: ToolStep[] | null;
   rewrites?: number | null;
-  verification?: Pick<Verification, "status" | "numbers" | "advice" | "revisions"> | null;
+  /** why 는 11/5 이후 기록에만 있음 (깊이별 원인 수) */
+  verification?: (Pick<Verification, "status" | "numbers" | "advice" | "revisions"> & { why?: Verification["why"] }) | null;
   intent?: string | null;
   error?: string | null;
 };
 
 export type TimeStat = { count: number; avgMs: number; p90Ms: number };
+/** 깊이별 비교: 응답 시간에 더해 리포트당 평균 토큰 · 숫자 카드 · 원인 수와 다시 쓰기 비율 (Easy / Deep 가 실제로 무엇이 다른지) */
+export type DepthStat = { depth: string } & TimeStat & {
+  tokens: { input: number; output: number } | null;
+  /** 리포트당 평균 숫자 카드 수 (검증 기록이 있는 요청만) */
+  numbers: number | null;
+  /** 리포트당 평균 원인 수 */
+  why: number | null;
+  /** 검증 실패로 다시 쓴 비율 */
+  rewritten: number | null;
+};
 export type ToolStat = {
   tool: string;
   calls: number;
@@ -91,7 +102,7 @@ export type RunsSummary = {
   mock: number;
   /** 리포트를 만든 요청(성공, 범위 밖 제외)의 응답 시간 */
   time: TimeStat | null;
-  byDepth: ({ depth: string } & TimeStat)[];
+  byDepth: DepthStat[];
   /** 리포트를 만든 요청당 평균 토큰 */
   tokens: { input: number; output: number } | null;
   /** 리포트를 만든 요청 중 숫자 검증을 거친 것 (skipped 제외) */
@@ -108,6 +119,8 @@ export type RunsSummary = {
 };
 
 const DEPTHS = ["easy", "standard", "deep"];
+
+const round1 = (x: number | null) => (x === null ? null : Math.round(x * 10) / 10);
 
 function timeStat(values: number[]): TimeStat | null {
   if (!values.length) return null;
@@ -164,9 +177,23 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
   // 범위 밖 질문은 분류만 하고 2초 안에 끝나서 리포트 시간 · 토큰 · 검증 숫자를 흐립니다. 리포트를 만든 요청만 봅니다.
   const reports = ok.filter((r) => r.intent !== "out_of_scope");
 
-  const byDepth = DEPTHS.flatMap((depth) => {
-    const stat = timeStat(reports.filter((r) => r.input?.depth === depth).map((r) => r.ms));
-    return stat ? [{ depth, ...stat }] : [];
+  const byDepth: DepthStat[] = DEPTHS.flatMap((depth) => {
+    const rows = reports.filter((r) => r.input?.depth === depth);
+    const stat = timeStat(rows.map((r) => r.ms));
+    if (!stat) return [];
+    const used = rows.flatMap((r) => (r.usage ? [r.usage] : []));
+    const verified = rows.filter((r) => r.verification && r.verification.status !== "skipped");
+    const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+    return [
+      {
+        depth,
+        ...stat,
+        tokens: used.length ? { input: Math.round(mean(used.map((u) => u.inputTokens))!), output: Math.round(mean(used.map((u) => u.outputTokens))!) } : null,
+        numbers: round1(mean(verified.map((r) => r.verification!.numbers.total))),
+        why: round1(mean(verified.flatMap((r) => (r.verification!.why ? [r.verification!.why.data + r.verification!.why.news + r.verification!.why.none] : [])))),
+        rewritten: verified.length ? verified.filter((r) => (r.verification!.revisions ?? r.rewrites ?? 0) > 0).length / verified.length : null,
+      },
+    ];
   });
 
   const usages = reports.flatMap((r) => (r.usage ? [r.usage] : []));
