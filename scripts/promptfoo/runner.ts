@@ -6,7 +6,16 @@ export const PROMPTFOO_VERSION = "0.125.1";
 export const CONFIG = "scripts/promptfoo/promptfooconfig.yaml";
 export const OUT_DIR = "docs/eval/promptfoo";
 
-export type RunOptions = { set?: string; depth?: string; judge?: boolean; concurrency?: string };
+export type RunOptions = {
+  set?: string;
+  depth?: string;
+  judge?: boolean;
+  concurrency?: string;
+  /** 조사 · 작성 모델을 모든 깊이에서 이 값으로 (OPENAI_MODEL · OPENAI_MODEL_DEEP). 모델 비교용 */
+  model?: string;
+  /** 분류 · 정제 모델 (OPENAI_MODEL_SMALL) */
+  smallModel?: string;
+};
 
 /** `pnpm --silent dlx promptfoo@<버전> eval …`. --silent 는 dlx 가 설치하며 찍는 peer 의존성 경고를 숨깁니다 (promptfoo 출력은 그대로) */
 export function promptfooArgs(outPath: string, opts: RunOptions = {}): string[] {
@@ -26,6 +35,12 @@ export function promptfooEnv(base: Env, opts: RunOptions = {}): Env {
   if (opts.set) env.MUFFIN_EVAL_SET = opts.set;
   if (opts.depth) env.MUFFIN_EVAL_DEPTH = opts.depth;
   if (opts.judge === false) env.MUFFIN_EVAL_NO_JUDGE = "1";
+  // 모델 비교: provider 가 돌리는 research 는 models.ts 를 거쳐 이 환경 변수로 모델을 고릅니다
+  if (opts.model) {
+    env.OPENAI_MODEL = opts.model;
+    env.OPENAI_MODEL_DEEP = opts.model;
+  }
+  if (opts.smallModel) env.OPENAI_MODEL_SMALL = opts.smallModel;
   return env;
 }
 

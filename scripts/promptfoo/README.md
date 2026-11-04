@@ -21,10 +21,23 @@ pnpm eval:promptfoo --set common,etf       # 세트 고르기
 pnpm eval:promptfoo --depth all            # 세 깊이 모두
 pnpm eval:promptfoo --no-judge             # 근거 판정(모델 호출) 없이
 pnpm eval:promptfoo --concurrency 1        # 동시에 돌리는 질문 수 (기본 2)
+pnpm eval:promptfoo --baseline x.json      # 나란히 볼 결과를 직접 지정 (기본 latest.json)
 pnpm dlx promptfoo@0.125.1 view            # 질문별 리포트 전문 · 채점 이유를 브라우저에서
 ```
 
-결과는 `docs/eval/promptfoo/<날짜-시각>.md` 와 `.json` 에 쌓이고(gitignore), 가장 최근 것이 `latest.md` · `latest.json` 입니다. 다음 실행은 `latest.json` 을 "지난 번" 으로 읽어 나란히 보여 줍니다. 기준 아래 지표나 오류가 있으면 exit 1 입니다.
+결과는 `docs/eval/promptfoo/<날짜-시각>.md` 와 `.json` 에 쌓이고(gitignore), 가장 최근 것이 `latest.md` · `latest.json` 입니다. 다음 실행은 `latest.json` 을 "지난 번" 으로 읽어 나란히 보여 줍니다. 기준 아래 지표나 오류가 있으면 exit 1 입니다. 요약 머리에는 쓴 모델(작성 단계)과 토큰 합계도 적습니다.
+
+## 모델 비교
+
+같은 세트를 모델만 바꿔 돌리고 기본 모델 결과와 나란히 봅니다. `--model` 은 조사 · 작성 모델을 모든 깊이에서 바꾸고(`OPENAI_MODEL` · `OPENAI_MODEL_DEEP`), `--small-model` 은 분류 · 정제(`OPENAI_MODEL_SMALL`)를 바꿉니다. `--tag` 를 붙이면 결과 파일 이름에 들어가고 `latest.json` 은 갱신하지 않습니다 (주간 비교 기준을 흐리지 않게).
+
+```bash
+pnpm eval:promptfoo                                                              # 기본 모델 (luna · deep 은 sol · 분류 · 정제 mini)
+pnpm eval:promptfoo --model gpt-6-sol --tag sol --baseline docs/eval/promptfoo/<기본 결과>.json
+pnpm eval:promptfoo --model gpt-5.4-mini --tag mini --baseline docs/eval/promptfoo/<기본 결과>.json
+```
+
+비교 열 이름이 기준 파일 이름으로 바뀌고, 머리줄에 양쪽의 평균 시간 · 모델 · 토큰이 나옵니다. 같은 시각에 돌려야 데이터(환율 · 뉴스)가 같습니다.
 
 레포 루트에서 돌려야 합니다 (질문 세트 경로 `scripts/questions` 가 루트 기준). promptfoo 0.125.1 은 Node 22.22 이상을 요구합니다 (경고만 나오고 멈추지는 않음).
 
