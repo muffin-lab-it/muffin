@@ -69,6 +69,8 @@ describe("editInput · editInstructions", () => {
     expect(text).toContain("계산에 넣을 필드(key) 하나로 판단합니다");
     expect(text).toContain("changeBp 대신 changePp");
     expect(text).toContain("환율 rate(unit 이 원/달러 등)는 가격입니다");
+    // 괴리 금액 부호: NAV − 종가로 계산하면 괴리율(+)과 반대로 나옴
+    expect(text).toContain("괴리 금액은 종가 − NAV 입니다 (a 에 NAV, b 에 종가)");
     expect(text).toContain("퍼센트끼리 pct_change 를 쓰지 않습니다");
     // 비교 질문은 차이를 C 번호로, 답에 안 쓰는 계산은 하지 않음
     expect(text).toContain("compare(비교)");
