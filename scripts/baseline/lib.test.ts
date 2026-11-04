@@ -16,6 +16,7 @@ describe("Tool 없음 기준선 측정", () => {
     expect(extractDates("12월 25일 발표", today)).toEqual(["2025-12-25"]);
     expect(extractDates("13월 40일", today)).toEqual([]);
     expect(extractDates("2026-02-31 기준", today)).toEqual([]); // 달력에 없는 날
+    expect(extractDates("2024년 10월 기준 https://example.com/2026/11/05/news", today)).toEqual(["2024-10-01"]); // 링크 속 날짜는 제외
     expect(extractDates("2024-02-29 기준", today)).toEqual(["2024-02-29"]);
   });
 
@@ -54,6 +55,8 @@ describe("Tool 없음 기준선 측정", () => {
     const report = reportSchema.parse((sample as { report: unknown }).report);
     const m = analyzeReport(report, { today, ms: 24_000, tokens: { input: 5_000, output: 900 }, model: "gpt-6-luna" });
     expect(m.numbers).toBeGreaterThan(0);
+    // 화면에 보이는 상단 안내의 숫자도 셉니다 (샘플에는 움직임 안내가 있음)
+    expect(m.numbers).toBeGreaterThanOrEqual(distinctNumbers([report.summary, ...report.numbers.map((n) => n.value)].join("\n")));
     expect(m.cards).toBe(report.numbers.length);
     expect(m.verifiable).toBe(report.verification.numbers.verified + report.verification.numbers.derived);
     expect(m.urls.length).toBe(new Set(report.sources.map((s) => s.url)).size);
@@ -67,6 +70,7 @@ describe("Tool 없음 기준선 측정", () => {
       const u = String(url);
       calls.push(`${init?.method} ${u}`);
       if (u.includes("redirect-private")) return new Response("", { status: 302, headers: { location: "http://169.254.169.254/" } });
+      if (u.includes("redirect-loop")) return new Response("", { status: 302, headers: { location: u } });
       if (u.includes("redirect-ok")) return new Response("", { status: 301, headers: { location: "https://a.test/ok" } });
       if (u.includes("ok")) return new Response("", { status: 200 });
       if (u.includes("gone")) return new Response("", { status: 404 });
@@ -75,11 +79,12 @@ describe("Tool 없음 기준선 측정", () => {
       throw Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
     });
     const out = await checkUrls(
-      ["https://a.test/ok", "https://a.test/gone", "https://a.test/blocked", "https://nodns.invalid/x", "https://slow.test/x", "https://a.test/redirect-ok", "https://a.test/redirect-private", "http://localhost:3000/"],
+      ["https://a.test/ok", "https://a.test/gone", "https://a.test/blocked", "https://nodns.invalid/x", "https://slow.test/x", "https://a.test/redirect-ok", "https://a.test/redirect-private", "http://localhost:3000/", "https://a.test/redirect-loop"],
       fetchImpl as unknown as typeof fetch,
       { timeoutMs: 10 },
     );
-    expect(out.map((c) => c.status)).toEqual(["live", "dead", "unknown", "dead", "unknown", "live", "unknown", "unknown"]);
+    expect(out.map((c) => c.status)).toEqual(["live", "dead", "unknown", "dead", "unknown", "live", "unknown", "unknown", "unknown"]);
+    expect(out[8]?.note).toBe("redirect not resolved");
     expect(calls.filter((c) => c.includes("blocked"))).toEqual(["HEAD https://a.test/blocked", "GET https://a.test/blocked"]);
     expect(calls.some((c) => c.includes("169.254.169.254") || c.includes("localhost"))).toBe(false);
     expect(out[6]?.note).toContain("unsafe redirect");

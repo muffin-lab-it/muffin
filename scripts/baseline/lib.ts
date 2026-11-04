@@ -75,9 +75,11 @@ function iso(y: number, m: number, d: number): string | null {
 }
 
 /** 글 속 날짜: 2026-10-25 · 2026.10.25 · 2026년 10월 25일 · 2026년 10월(1일로) · 10월 25일(올해, 미래면 작년) */
-export function extractDates(text: string, today: string): string[] {
+export function extractDates(raw: string, today: string): string[] {
   const year = Number(today.slice(0, 4));
   const found = new Set<string>();
+  // 링크 경로의 날짜(…/2026/11/05/news)는 글의 기준일이 아닙니다
+  const text = raw.replace(URL_RE, " ");
   for (const m of text.matchAll(DATE_FULL)) {
     const d = iso(Number(m[1]), Number(m[2]), Number(m[3]));
     if (d) found.add(d);
@@ -127,8 +129,8 @@ export function analyzeAnswer(text: string, { today, ms, tokens, model }: { toda
 export function analyzeReport(report: Report, { today, ms, tokens, model }: { today: string; ms: number; tokens: Tokens | null; model: string }): SideMetrics {
   const dates = [...new Set([...report.sources.map((s) => s.asOf), ...report.numbers.map((n) => n.asOf)].flatMap((d) => extractDates(d, today)))].sort();
   const latestDate = dates.length ? dates[dates.length - 1]! : null;
-  // 기준선과 같은 범위: 사용자가 보는 글 전부 (숫자 카드의 값 · 변화 포함)
-  const text = [report.summary, ...report.numbers.flatMap((n) => [n.label, n.value, n.change]), ...report.why.map((w) => `${w.claim} ${w.evidence}`), ...report.impact, ...report.caveats].join("\n");
+  // 기준선과 같은 범위: 사용자가 보는 글 전부 (상단 안내 · 숫자 카드의 값 · 변화 · 확인하지 못한 것 포함)
+  const text = [report.notice ?? "", report.summary, ...report.numbers.flatMap((n) => [n.label, n.value, n.change]), ...report.why.map((w) => `${w.claim} ${w.evidence}`), ...report.impact, ...report.caveats, ...report.dataGaps].join("\n");
   return {
     chars: text.length,
     numbers: distinctNumbers(text),
@@ -185,17 +187,18 @@ export async function checkUrls(urls: string[], fetchImpl: typeof fetch = fetch,
   const out: UrlCheck[] = new Array(urls.length);
   let next = 0;
   const classify = (code: number): UrlCheck["status"] => (code < 400 ? "live" : code === 404 || code === 410 ? "dead" : "unknown");
-  const request = async (url: string, method: "HEAD" | "GET"): Promise<Response> => {
+  /** 최종 응답. 리디렉션이 MAX_HOPS 안에 끝나지 않으면 null (살아 있다고 볼 수 없음) */
+  const request = async (url: string, method: "HEAD" | "GET"): Promise<Response | null> => {
     let current = url;
-    for (let hop = 0; ; hop++) {
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
       const res = await fetchImpl(current, { method, redirect: "manual", signal: AbortSignal.timeout(timeoutMs), headers: { "user-agent": "Mozilla/5.0 muffin-baseline" } });
       const location = res.headers.get("location");
       if (res.status < 300 || res.status >= 400 || !location) return res;
       const target = new URL(location, current).toString();
       if (!isSafeUrl(target)) throw new Error(`unsafe redirect: ${target.slice(0, 60)}`);
-      if (hop + 1 >= MAX_HOPS) return res;
       current = target;
     }
+    return null;
   };
   const worker = async () => {
     while (next < urls.length) {
@@ -208,8 +211,8 @@ export async function checkUrls(urls: string[], fetchImpl: typeof fetch = fetch,
       try {
         let res = await request(url, "HEAD");
         // HEAD 를 막는 서버가 있어 2xx 가 아니면 GET 으로 한 번 더
-        if (res.status >= 400) res = await request(url, "GET");
-        out[i] = { url, status: classify(res.status), code: res.status };
+        if (res && res.status >= 400) res = await request(url, "GET");
+        out[i] = res ? { url, status: classify(res.status), code: res.status } : { url, status: "unknown", note: "redirect not resolved" };
       } catch (err) {
         const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
         const dead = /ENOTFOUND|EAI_AGAIN|getaddrinfo|ERR_INVALID_URL|Invalid URL/i.test(message) || (err instanceof Error && "cause" in err && /ENOTFOUND|EAI_AGAIN/i.test(String((err as { cause?: unknown }).cause)));
