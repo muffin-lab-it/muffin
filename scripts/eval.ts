@@ -6,16 +6,20 @@
  *   pnpm eval --set common --depth deep        # 깊이 지정 (all 이면 세 깊이 모두)
  *   pnpm eval --question "KODEX 200 요즘 어때?" --area etf
  *   pnpm eval --questions my-questions.json    # 임시 파일. [{ question, area }] 배열
+ *   pnpm eval --no-judge                       # 근거 판정(3단계, 모델) 없이
  *
- * 결과: docs/eval/<날짜-시각>.md (gitignore). 리포트 전문 + 사용한 tool + 자동 점검 결과.
+ * 결과: docs/eval/<날짜-시각>.md (gitignore). 리포트 전문 + 사용한 tool + 자동 점검 결과 + 원인마다 근거 판정.
+ * 같이 나오는 <날짜-시각>.pairs.json 은 근거 판정 보정 세트의 후보입니다 (scripts/judge/README.md).
  * 질문 세트의 형식과 담당은 scripts/questions/README.md.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findAdvice } from "../src/agent/guard";
+import { createJudgeAgent, judgeWhy, judgeable, summarizeJudge, verdictMark, type JudgeResult } from "../src/agent/judge";
 import { research, type ResearchResult, TIME_BUDGET_MS } from "../src/agent/muffin";
-import { depths, type Area, type Depth, type Report, type intents } from "../src/agent/schema";
+import { areaTools } from "../src/agent/plan";
+import { depths, type Area, type Depth, type Evidence, type Report, type intents } from "../src/agent/schema";
 import { QUESTIONS_DIR, loadAllQuestionSets, loadQuestionSet } from "./questions/schema";
+import { checks, renderIntentMatch, renderToolMatch, toolMatch } from "./scoring";
 
 try {
   process.loadEnvFile(".env.local");
@@ -25,6 +29,7 @@ try {
 
 /** 세트 파일의 질문. --question / --questions 로 넘긴 임시 질문은 question 과 area 만 있습니다. */
 type Q = {
+  id?: string;
   question: string;
   area?: Area | null;
   depth?: Depth;
@@ -46,48 +51,18 @@ function loadQuestions(): Q[] {
 }
 
 const questions = loadQuestions();
+/** 근거 판정(3단계). --no-judge 면 부르지 않습니다. 모델 호출 한 번이 더 들지만 리포트 생성 시간에는 넣지 않습니다. */
+const judgeAgent = argv.includes("--no-judge") ? null : createJudgeAgent();
+/** 근거 판정 보정 세트의 후보. 판정한 원인 문장마다 하나씩 모아 <stamp>.pairs.json 으로 남깁니다 (scripts/judge/README.md). */
+const candidates: Record<string, unknown>[] = [];
+/** 후보의 영역: 질문의 영역, 없으면(임시 질문) 인용한 장부 항목의 tool 로. 계산만 인용했으면 영역을 알 수 없어 후보에 넣지 않습니다. */
+const toolArea = new Map(Object.entries(areaTools).map(([area, tool]) => [tool, area as Area]));
+const areaOf = (q: Q, ledger: Evidence[]): Area | undefined => q.area ?? ledger.map((e) => toolArea.get(e.tool)).find((a): a is Area => a !== undefined);
 const depthOpt = opt("depth");
 function depthsFor(q: Q): Depth[] {
   if (depthOpt === "all") return [...depths];
   if (depthOpt) return [depthOpt as Depth];
   return [q.depth ?? "standard"];
-}
-
-/** 조사 Agent 가 질문에 맞는 tool 을 골랐는지. expectTools 가 모두 호출됐으면 ✅, 범위 밖 질문은 tool 을 안 불렀을 때 ✅. */
-function toolMatch(q: Q, steps: { tool: string }[]): string {
-  const called = new Set(steps.map((s) => s.tool));
-  if (q.intent === "out_of_scope") return called.size === 0 ? "✅" : `❌ ${[...called].join(",")}`;
-  if (!q.expectTools?.length) return "-";
-  const missing = q.expectTools.filter((t) => !called.has(t));
-  return missing.length === 0 ? "✅" : `❌ ${missing.join(",")} 없음`;
-}
-
-/** 📋 분류가 질문 세트에 적힌 의도와 같은지. 분류 담당(서영)의 점수입니다. 세트에 intent 가 없으면 -. */
-function intentMatch(q: Q, plan: ResearchResult["plan"]): string {
-  if (!q.intent) return "-";
-  return plan.intent === q.intent ? "✅" : `❌ ${plan.intent}`;
-}
-
-/** 사람이 볼 때 같이 보는 자동 점검. 점수가 아니라 "눈여겨볼 것" 표시입니다. */
-function checks(report: Report, steps: { status: string }[]) {
-  const ids = new Set(report.evidence.map((e) => e.id));
-  const cited = [...report.numbers.map((n) => n.ref).filter((r): r is string => !!r), ...report.why.flatMap((w) => w.refs)];
-  return {
-    toolsOk: steps.filter((s) => s.status === "ok").length,
-    toolsFailed: steps.filter((s) => s.status === "error").length,
-    /** 검증을 통과해 남은 숫자 (✓ 장부 일치 / C 계산) 와 검증 실패로 뺀 숫자 */
-    verified: report.verification.numbers.verified,
-    derived: report.verification.numbers.derived,
-    removedNumbers: report.verification.removed.filter((r) => r.startsWith("숫자 ")).length,
-    status: report.verification.status,
-    whyTotal: report.why.length,
-    whyBasis: report.verification.why,
-    /** 장부에 없는 id 를 인용한 횟수 (지어낸 id) */
-    badRefs: cited.filter((id) => !ids.has(id)).length,
-    gaps: report.dataGaps.length,
-    sources: report.sources.length,
-    advice: findAdvice(report).length,
-  };
 }
 
 /** 📋 분류와 ✂️ 정제가 무엇을 했는지. 리포트에는 없지만 담당자가 자기 단계를 고칠 때 봐야 하는 것입니다. */
@@ -105,12 +80,22 @@ function renderStages({ plan, facts }: Pick<ResearchResult, "plan" | "facts">): 
   ].join("\n\n");
 }
 
-function render(report: Report): string {
+/** 원인마다 근거 판정 한 줄. judged 가 null 이면 판정을 못 한 것, skipped 는 판정 대상이 아닌 것(basis none 등), missing 은 모델이 답하지 않은 것입니다. */
+function judgeLine(judged: JudgeResult[] | null, index: number): string {
+  if (!judgeAgent) return "";
+  if (!judged) return "\n  - 판정: (판정 못 함)";
+  const r = judged[index];
+  if (!r || r.verdict === "skipped") return "";
+  if (r.verdict === "missing") return "\n  - 판정: ? 모델이 이 항목을 답하지 않음";
+  return `\n  - 판정: ${verdictMark[r.verdict]} ${r.verdict} — ${r.reason}`;
+}
+
+function render(report: Report, judged: JudgeResult[] | null): string {
   const li = (xs: string[]) => (xs.length ? xs.map((x) => `- ${x}`).join("\n") : "- (없음)");
   return [
     `**한입 요약**\n${report.summary}`,
     `**오늘의 숫자**\n${report.numbers.map((n) => `- ${n.label}: ${n.value} ${n.change} (${n.asOf}) [${n.ref ?? "ref 없음"} · ${n.check}]`).join("\n") || "- (없음)"}`,
-    `**왜 그럴까요**\n${report.why.map((w) => `- ${w.claim}\n  - 근거(${w.basis}${w.refs.length ? ` ${w.refs.join(",")}` : ""}): ${w.evidence}`).join("\n") || "- (없음)"}`,
+    `**왜 그럴까요**\n${report.why.map((w, i) => `- ${w.claim}\n  - 근거(${w.basis}${w.refs.length ? ` ${w.refs.join(",")}` : ""}): ${w.evidence}${judgeLine(judged, i)}`).join("\n") || "- (없음)"}`,
     `**나에게 미치는 영향**\n${li(report.impact)}`,
     `**주의점**\n${li(report.caveats)}`,
     `**확인하지 못한 것**\n${li(report.dataGaps)}`,
@@ -126,8 +111,8 @@ async function main() {
   const runs = questions.reduce((n, q) => n + depthsFor(q).length, 0);
   const out: string[] = [`# 리포트 평가 ${stamp}\n`, `질문 ${questions.length}개, 실행 ${runs}회${opt("set") ? ` (세트: ${opt("set")})` : ""}\n`];
   const summary: string[] = [
-    "| 질문 | 깊이 | 의도 | tool ok/실패 | tool 선택 | 숫자 ✓/C/제거 | why 📊/📰/❔ | 지어낸 ref | 빈칸 | 출처 | 권유 | 수정 | 검증 | 시간 |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    "| 질문 | 깊이 | 의도 | tool ok/실패 | tool 선택 | 숫자 ✓/C/제거 | why 📊/📰/❔ | 근거 판정 ✓/✗/⚡ | 지어낸 ref | 빈칸 | 출처 | 권유 | 수정 | 검증 | 시간 |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
   ];
 
   for (const q of questions) {
@@ -139,23 +124,52 @@ async function main() {
         // 평가는 품질을 보려는 것이라 마감 없이 돌립니다 (다시 쓰기를 건너뛰지 않음). 걸린 시간은 아래에 적습니다.
         const result = await research({ question: q.question, depth, area: q.area ?? undefined }, { deadline: Number.POSITIVE_INFINITY });
         const { report, steps, rewrites } = result;
+        // 채점 규칙은 scripts/scoring.ts 에 있고 Promptfoo 평가(scripts/promptfoo)도 같은 함수를 씁니다.
         const c = checks(report, steps);
-        const match = toolMatch(q, steps);
-        const intent = intentMatch(q, result.plan);
+        const match = renderToolMatch(toolMatch(q, steps));
+        const intent = renderIntentMatch(q, result.plan);
         const sec = ((Date.now() - started) / 1000).toFixed(1);
+        // 근거 판정은 리포트가 나온 뒤 따로 부르므로 위 시간에 들어가지 않습니다.
+        const judgeStarted = Date.now();
+        const judged = judgeAgent ? await judgeWhy(report.why, report.evidence, judgeAgent) : null;
+        const j = judged ? summarizeJudge(judged) : null;
+        // 모델이 빠뜨린 항목(missing)은 따로 적어 "0/0/0" 이 "판정할 게 없음" 으로 읽히지 않게 합니다.
+        const judgeText = !judgeAgent ? "-" : j ? `${j.supported}/${j.unsupported}/${j.contradicted}${j.missing ? ` (답 없음 ${j.missing})` : ""}` : "판정 못 함";
+        if (judged) {
+          for (const item of judgeable(report.why, report.evidence)) {
+            const r = judged[item.index]!;
+            if (r.verdict === "missing") continue;
+            const ledger = report.evidence.filter((e) => item.refs.includes(e.id));
+            const area = areaOf(q, ledger);
+            if (!area) continue;
+            candidates.push({
+              // 세트 질문은 그 id, 임시 질문(--question · --questions)은 순번으로 (보정 세트의 id 는 고유해야 함)
+              id: `${q.id ?? `q${questions.indexOf(q) + 1}`}-${depth}-${item.index + 1}`,
+              area,
+              claim: item.why.claim,
+              evidence: item.why.evidence,
+              basis: item.why.basis,
+              refs: item.refs,
+              ledger,
+              expected: null,
+              judged: { verdict: r.verdict, reason: r.reason },
+              source: `${stamp}.md#${label}`,
+            });
+          }
+        }
         console.log(
-          `${sec}s${Number(sec) * 1000 > TIME_BUDGET_MS ? " (서비스 마감 55초 초과)" : ""}, 의도 ${result.plan.intent} ${intent}, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}`,
+          `${sec}s${Number(sec) * 1000 > TIME_BUDGET_MS ? " (서비스 마감 55초 초과)" : ""}, 의도 ${result.plan.intent} ${intent}, tool ${c.toolsOk}/${c.toolsFailed} ${match}, 숫자 ✓${c.verified} C${c.derived} 제거${c.removedNumbers}, 검증 ${c.status}, 권유 ${c.advice}${judgeAgent ? `, 판정 ✓/✗/⚡ ${judgeText} (${((Date.now() - judgeStarted) / 1000).toFixed(1)}s)` : ""}`,
         );
         summary.push(
-          `| ${q.question} | ${depth} | ${intent} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.verified}/${c.derived}/${c.removedNumbers} | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${c.status} | ${sec}s |`,
+          `| ${q.question} | ${depth} | ${intent} | ${c.toolsOk}/${c.toolsFailed} | ${match} | ${c.verified}/${c.derived}/${c.removedNumbers} | ${c.whyBasis.data}/${c.whyBasis.news}/${c.whyBasis.none} | ${judgeText} | ${c.badRefs} | ${c.gaps} | ${c.sources} | ${c.advice} | ${rewrites} | ${c.status} | ${sec}s |`,
         );
         out.push(
-          `\n---\n\n## ${label}\n\n사용한 tool: ${steps.map((s) => `${s.status === "ok" ? "✅" : "❌"} ${s.tool} ${s.ms}ms${s.error ? ` (${s.error})` : ""}`).join(", ") || "(없음)"}\n\n${renderStages(result)}\n\n${render(report)}\n`,
+          `\n---\n\n## ${label}\n\n사용한 tool: ${steps.map((s) => `${s.status === "ok" ? "✅" : "❌"} ${s.tool} ${s.ms}ms${s.error ? ` (${s.error})` : ""}`).join(", ") || "(없음)"}\n\n${renderStages(result)}\n\n${render(report, judged)}\n`,
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.log(`실패: ${msg}`);
-        summary.push(`| ${q.question} | ${depth} | 실패 | | | | | | | | | | | |`);
+        summary.push(`| ${q.question} | ${depth} | 실패 | | | | | | | | | | | | |`);
         out.push(`\n---\n\n## ${label}\n\n실패: ${msg}\n`);
       }
     }
@@ -165,6 +179,11 @@ async function main() {
   const path = `docs/eval/${stamp}.md`;
   writeFileSync(path, [out[0], out[1], summary.join("\n"), ...out.slice(2)].join("\n"));
   console.log(`\n저장: ${path}`);
+  if (candidates.length) {
+    const pairsPath = `docs/eval/${stamp}.pairs.json`;
+    writeFileSync(pairsPath, JSON.stringify(candidates, null, 2));
+    console.log(`근거 판정 보정 후보 ${candidates.length}개: ${pairsPath} (expected 를 매겨 scripts/judge/pairs.json 에 붙입니다)`);
+  }
 }
 
 main().catch((err) => {

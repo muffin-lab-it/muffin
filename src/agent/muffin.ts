@@ -5,6 +5,7 @@
  *
  * 단계 사이를 잇는 것은 증거 장부(ResearchContext.evidence)입니다. 조사의 tool 결과는 E 번호, 정제의 계산은 C 번호로 올라가고,
  * 작성은 그 번호를 인용하고, 검증은 번호로 원본과 대조합니다. 검증 실패는 작성에게만 1회 되돌립니다 (조사 · 정제로 되돌아가지 않음).
+ * 원인 질문이면 정제와 동시에 유의성 게이트(movement.ts)가 이번 움직임이 평소 범위인지 재서 작성 입력 · 리포트 안내에 붙입니다.
  * 네 Agent 실행은 withTrace 로 한 묶음이라 OpenAI Traces 에서 한 요청으로 보입니다.
  */
 import { RunContext, withTrace, type Agent, type AgentOutputType } from "@openai/agents";
@@ -14,7 +15,8 @@ import { createEditorAgent, editInput, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
 import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
-import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, outOfScopeOutput } from "./report";
+import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
+import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode } from "./schema";
 import { applyVerification, summarizeVerification, verify } from "./verify";
@@ -60,7 +62,7 @@ export type ResearchResult = {
 /**
  * 백엔드 팀은 이 함수만 호출합니다. 입력 모양은 고정이고, 진행 이벤트는 onEvent 로 받습니다.
  *
- * 📋 분류(의도 · tool 선택 · 모드) → 범위 밖이면 고정 안내로 끝 → 🔍 조사(tool + 메모) → ✂️ 정제(사실 고르기 + 계산) →
+ * 📋 분류(의도 · tool 선택 · 모드) → 범위 밖이면 고정 안내로 끝 → 🔍 조사(tool + 메모) → ✂️ 정제(사실 고르기 + 계산, 원인 질문이면 움직임 크기도) →
  * ✍️ 작성(사실 목록만 보고) → ✅ 검증(코드) → 실패하면 작성에 1회 수정 요청 → 그래도 남은 실패는 리포트에서 빼고 verification.removed 에 기록.
  * 수정 때 tool 을 다시 부르지 않아 증거 번호가 유지됩니다. 분류 · 정제가 실패해도 리포트는 나옵니다 (기본 계획 · 장부 전체).
  */
@@ -116,16 +118,28 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
+  // 원인 질문이면 같은 시간에 유의성 게이트가 일별 환율을 받아 이번 움직임이 평소 범위인지 잽니다. 실패해도 리포트는 이어 갑니다.
   emit({ type: "stage", stage: "edit", status: "start" });
+  const gate: Promise<MovementResult> = plan.intent === "cause" ? measureMovement(ctx.evidence, { question, area }) : Promise.resolve({ movement: null });
   const editCtx = new RunContext(ctx);
   const facts = await runEdit(tuned(createEditorAgent(depth), "edit", depth), editInput(question, plan, ctx.evidence, notes), editCtx);
   addUsage(editCtx);
+  // 게이트 결과는 정제가 끝난 뒤 장부에 올려서 C 번호가 정제의 계산 다음에 오게 합니다.
+  const { movement, step: gateStep } = await gate;
+  if (gateStep) ctx.addStep(gateStep);
+  const movementId = movement ? ctx.nextCalcId() : "";
+  if (movement) ctx.addEvidence([movementEvidence(movement, movementId)]);
   emit({ type: "stage", stage: "edit", status: "done" });
 
-  // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다.
+  // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다. 움직임을 쟀으면 [움직임 크기] 를 덧붙입니다.
   emit({ type: "stage", stage: "write", status: "start" });
   const writer = tuned(createWriterAgent(depth, area, plan.mode), "write", depth);
-  const input = writerInput(question, ctx.evidence, notes, facts);
+  // 작성이 [증거 장부] 에서 보는 id (writerInput 과 같은 기준). null 이면 장부 전체를 봅니다.
+  const shown = facts && facts.facts.length > 0 ? new Set(facts.facts.map((f) => f.ref)) : null;
+  const dropped = new Set(facts?.dropped.map((d) => d.ref) ?? []);
+  const input = [writerInput(question, ctx.evidence, notes, facts), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : ""]
+    .filter(Boolean)
+    .join("\n\n");
   const writeCtx = new RunContext(ctx);
   let output = await runWriter(writer, input, writeCtx);
   addUsage(writeCtx);
@@ -148,12 +162,16 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const verification = summarizeVerification(applied, revisions, revisionSkipped);
   emit({ type: "verify", verification });
   emit({ type: "stage", stage: "verify", status: "done" });
+  // 조회가 실패해 저장된 응답을 쓴 tool 은 코드가 "확인하지 못한 것" 에 적습니다 (검증 뒤라 검증 대상이 아님)
+  const gaps = fallbackGaps(ctx.steps);
+  const finalOutput = gaps.length ? { ...applied.output, dataGaps: [...applied.output.dataGaps, ...gaps] } : applied.output;
 
   return {
-    report: assembleReport(applied.output, ctx.evidence, verification, {
+    report: assembleReport(finalOutput, ctx.evidence, verification, {
       mode: plan.mode,
-      ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : {}),
+      ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
       checks: applied.checks,
+      ...(movement ? { movement: movementSummary(movement) } : {}),
     }),
     steps: ctx.steps,
     rewrites: revisions,

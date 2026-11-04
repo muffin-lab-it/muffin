@@ -4,7 +4,8 @@
   "report": {
     "version": 2,
     "mode": "research",
-    "summary": "원달러 환율은 최근 30일 동안 2.00% 올라 1,392.40원이 됐습니다. 한국 기준금리는 3.00%로 멈춰 있는데 미국 정책금리가 3.88%로 올라 금리 차이가 0.88%p로 벌어진 것이 가장 큰 배경입니다. 이번 상승 폭은 최근 90일의 평소 움직임보다 큰 편입니다.",
+    "notice": "USD/KRW 30일 변화(+2.00%)는 직전 90일 기준 평소 폭(±1.57%)의 1.27배로, 평소보다 큰 움직임입니다.",
+    "summary": "원달러 환율은 최근 30일 동안 2.00% 올라 1,392.40원이 됐습니다. 한국 기준금리는 3.00%로 멈춰 있는데 미국 정책금리가 3.88%로 올라 금리 차이가 0.88%p로 벌어진 것이 가장 큰 배경입니다.",
     "numbers": [
       { "label": "USD/KRW", "value": "1,392.40원", "change": "30일 +2.00%", "asOf": "2026-10-19", "ref": "E1", "check": "verified" },
       { "label": "한국 기준금리", "value": "3.00%", "change": "30일 0.00%p", "asOf": "2026-10-16", "ref": "E2", "check": "verified" },
@@ -48,7 +49,8 @@
       { "id": "E2", "name": "한국은행 경제통계시스템(ECOS)", "url": "https://ecos.bok.or.kr", "asOf": "2026-10-16" },
       { "id": "E3", "name": "FRED — DFF", "url": "https://fred.stlouisfed.org/series/DFF", "asOf": "2026-10-16" },
       { "id": "E4-1", "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0001", "asOf": "2026-10-16" },
-      { "id": "E4-2", "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0002", "asOf": "2026-10-17" }
+      { "id": "E4-2", "name": "연합뉴스", "url": "https://www.yna.co.kr/view/MOCK0002", "asOf": "2026-10-17" },
+      { "id": "C2", "name": "Frankfurter v2 일별 환율 (2026-06-22 ~ 2026-10-19)", "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-06-21&to=2026-10-19", "asOf": "2026-10-19" }
     ],
     "evidence": [
       {
@@ -96,10 +98,11 @@
       },
       {
         "id": "C2",
-        "tool": "calc_metrics",
-        "label": "계산 · USD/KRW 30일 변동의 z-score (90일 기준)",
-        "values": { "op": "zscore", "result": 2.3, "window": 90 },
-        "source": { "name": "계산 (E1)", "url": "", "asOf": "2026-10-19" },
+        "tool": "calc_movement",
+        "label": "평소 움직임과 비교 · USD/KRW 30일 변화의 크기 (직전 90일 기준)",
+        "values": { "movePct": 2, "typicalMovePct": 1.57, "zScore": 1.27, "timesTypical": 1.27, "level": "notable", "periodDays": 30, "baselineStart": "2026-06-22", "baselineEnd": "2026-09-19", "baselineCount": 89 },
+        "source": { "name": "Frankfurter v2 일별 환율 (2026-06-22 ~ 2026-10-19)", "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-06-21&to=2026-10-19", "asOf": "2026-10-19" },
+        "note": "직전 90일(2026-06-22~2026-09-19) 하루 변화 89개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±1.57%. 이번 변화 +2.00% 는 평소 폭의 1.27배입니다",
         "lineage": { "op": "zscore", "inputs": ["E1"] }
       }
     ],
@@ -111,7 +114,7 @@
       "revisions": 1,
       "removed": ["impact: \"달러 자산 비중을 늘리는 것이 좋습니다\" — 권유 표현"]
     },
-    "movement": { "ref": "E1", "zScore": 2.3, "window": 90, "level": "notable" },
+    "movement": { "ref": "E1", "zScore": 1.27, "window": 90, "level": "notable" },
     "charts": [
       {
         "kind": "line",
@@ -143,7 +146,8 @@
     { "tool": "get_rate_data", "status": "ok", "ms": 1288 },
     { "tool": "get_korean_economic_news", "status": "ok", "ms": 1530 },
     { "tool": "calc_metrics", "status": "ok", "ms": 4 },
-    { "tool": "calc_metrics", "status": "ok", "ms": 3 }
+    { "tool": "calc_metrics", "status": "ok", "ms": 3 },
+    { "tool": "calc_movement", "status": "ok", "ms": 418 }
   ],
   "rewrites": 1
 }

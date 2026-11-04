@@ -3,15 +3,6 @@
   "owner": "@o3ozzvb",
   "questions": [
     {
-      "id": "etf-status-1",
-      "question": "KODEX 200 요즘 어때? 한 달 동안 얼마나 움직였어?",
-      "area": "etf",
-      "intent": "status",
-      "depth": "standard",
-      "expectTools": ["get_etf_kr_price"],
-      "note": "현황. 최신 종가와 한 달 수익률 두 숫자에 E 번호가 붙고, 기준일이 직전 영업일(T+1 공개)로 적히는지"
-    },
-    {
       "id": "etf-status-2",
       "question": "TIGER 미국S&P500 괴리율이랑 순자산 규모 알려줘",
       "area": "etf",
@@ -64,6 +55,15 @@
       "depth": "standard",
       "expectTools": ["get_etf_kr_price"],
       "note": "비교(ETF 대 기초지수). 추적 차이를 %p 로 적고 괴리율(NAV 대비)과 섞어 쓰지 않는지"
+    },
+    {
+      "id": "etf-compare-3",
+      "question": "KODEX 200 요즘 어때? 한 달 동안 얼마나 움직였어?",
+      "area": "etf",
+      "intent": "compare",
+      "depth": "standard",
+      "expectTools": ["get_etf_kr_price"],
+      "note": "비교(한 달 기간 변화). 기간 차이를 묻는 질문이라 📋 분류 규칙상 비교. 최신 종가와 한 달 수익률 두 숫자에 E 번호가 붙고, 기준일이 직전 영업일(T+1 공개)로 적히는지"
     }
   ]
 }

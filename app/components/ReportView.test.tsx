@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import sample from "@/src/agent/fixtures/report.v2.sample.json";
 import legacy from "@/src/agent/fixtures/report.v1.sample.json";
 import { normalizeReport } from "@/src/agent/normalize";
+import type { ToolStep } from "@/src/agent/context";
 import { reportSchema, type Report } from "@/src/agent/schema";
 import { ReportView } from "./ReportView";
 import { SourceLink } from "./ReportEvidence";
@@ -12,8 +13,8 @@ function fixture(): Report {
   return reportSchema.parse(structuredClone(sample.report));
 }
 
-function render(report: Report) {
-  return load(renderToStaticMarkup(<ReportView report={report} />));
+function render(report: Report, steps?: ToolStep[]) {
+  return load(renderToStaticMarkup(<ReportView report={report} steps={steps} />));
 }
 
 describe("리포트 증거 표시 계약", () => {
@@ -94,5 +95,19 @@ describe("리포트 증거 표시 계약", () => {
     expect($(".num").text()).toContain("공개된 원본 값이 없습니다");
     expect($(".evidence-lineage").text()).toContain("E404 (근거를 찾을 수 없음)");
     expect($(".evidence-lineage").text()).toContain("재계산 검증을 보장하지 않습니다");
+  });
+});
+
+describe("사용한 Tool 목록", () => {
+  it("저장된 응답으로 나간 tool 은 🟡 와 나이를, 회로가 열려 건너뛴 것은 그 사실을 보여 준다", () => {
+    const steps: ToolStep[] = [
+      { tool: "get_fx_krw_rate", status: "ok", ms: 820 },
+      { tool: "get_etf_kr_price", status: "ok", ms: 3, fallbackAgeMs: 3 * 60 * 60_000, breaker: "open" },
+      { tool: "get_rate_data", status: "error", ms: 10_000, error: "10초 안에 끝나지 않음 (timeout)" },
+    ];
+    const text = render(fixture(), steps).text();
+    expect(text).toContain("✅ 환율 확인 · 820ms");
+    expect(text).toContain("🟡 국내 ETF 시세 확인 · 3ms · 저장된 응답(3시간 전) · 회로 열림(호출 생략)");
+    expect(text).toContain("❌ 금리 확인 · 10000ms · 10초 안에 끝나지 않음 (timeout)");
   });
 });

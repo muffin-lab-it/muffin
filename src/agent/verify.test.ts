@@ -107,6 +107,9 @@ describe("extractNumbers", () => {
     expect(extractNumbers("100엔당 912.30원")).toEqual([{ value: 912.3, unit: "원", text: "912.30" }]);
     expect(extractNumbers("1달러에 1,324.72원")).toEqual([{ value: 1324.72, unit: "원", text: "1,324.72" }]);
     expect(extractNumbers("같은 1달러를 사는 데 필요한 원화")).toEqual([]);
+    // "원/1달러" · "원/100엔" 처럼 빗금 뒤에 쓴 기준 금액 (2026-11-03 실측: "-12.57원/1달러" 카드가 1달러 때문에 빠짐)
+    expect(extractNumbers("-12.57원/1달러")).toEqual([{ value: -12.57, unit: "원", text: "12.57" }]);
+    expect(extractNumbers("912.30원 / 100엔")).toEqual([{ value: 912.3, unit: "원", text: "912.30" }]);
     // 기준 단위 문맥이 없는 외화 금액은 1달러 · 100엔이라도 숫자다 ("유가가 1달러 하락" 이 검사를 건너뛰면 안 됨)
     expect(extractNumbers("5달러")).toEqual([{ value: 5, unit: "달러", text: "5" }]);
     expect(extractNumbers("유가가 1달러 하락했습니다").map((p) => p.value)).toEqual([1]);

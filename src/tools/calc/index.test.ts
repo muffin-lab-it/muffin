@@ -4,7 +4,7 @@ import { ResearchContext } from "../../agent/context";
 import type { Evidence } from "../../agent/schema";
 import { extractNumbers, matchValue, numericCandidates } from "../../agent/verify";
 import { calcEvidence, calcTool, execute } from "./index";
-import { diff, pctChange, ppDiff, round, zScore } from "./metrics";
+import { diff, movementZ, pctChange, ppDiff, round, stdev } from "./metrics";
 
 const kr: Evidence = {
   id: "E2",
@@ -38,20 +38,31 @@ async function invoke(ctx: ResearchContext, input: unknown) {
 }
 
 describe("metrics (순수 함수)", () => {
-  it("변동률 · 차이 · %p 차이 · z-score", () => {
+  it("변동률 · 차이 · %p 차이 · 표준편차", () => {
     expect(pctChange(1365.1, 1392.4)).toBeCloseTo(2.0, 1);
     expect(pctChange(100, 90)).toBe(-10);
     expect(diff(1365.1, 1392.4)).toBe(27.3);
     expect(ppDiff(3, 3.88)).toBe(0.88); // 0.8799999 가 아니라 0.88
     expect(round(1 / 3)).toBe(0.333333);
-    expect(zScore([1, 2, 3, 4, 5], 5)).toBeCloseTo(1.2649, 3);
+    expect(stdev([1, 2, 3, 4, 5])).toBeCloseTo(1.5811, 4);
+  });
+
+  it("움직임의 z-score 는 이번 변화 ÷ (하루 변화의 표준편차 × √관측 수) 이고 부호는 이번 변화를 따른다", () => {
+    // 하루 변화 -1 · 0 · 1(%) 의 표본 표준편차는 1 → 4일이면 평소 폭 1 × √4 = 2(%)
+    const daily = [-1, 0, 1];
+    expect(movementZ(3, daily, 4)).toEqual({ z: 1.5, typical: 2 });
+    expect(movementZ(-1, daily, 4)).toEqual({ z: -0.5, typical: 2 });
+    // 같은 변화라도 기간이 길면(관측 수가 많으면) 평소 폭이 커져 배수가 작아진다
+    expect(movementZ(3, daily, 9).z).toBe(1);
   });
 
   it("정의되지 않는 계산은 throw", () => {
     expect(() => pctChange(0, 5)).toThrow("0");
     expect(() => diff(Number.NaN, 1)).toThrow("숫자가 아닙니다");
-    expect(() => zScore([1], 1)).toThrow("2개 이상");
-    expect(() => zScore([2, 2, 2], 2)).toThrow("표준편차가 0");
+    expect(() => stdev([1])).toThrow("2개 이상");
+    expect(() => stdev([2, 2, 2])).toThrow("표준편차가 0");
+    expect(() => movementZ(1, [0.5, -0.5], 0)).toThrow("1 이상의 정수");
+    expect(() => movementZ(Number.NaN, [0.5, -0.5], 3)).toThrow("숫자가 아닙니다");
   });
 });
 

@@ -9,9 +9,9 @@ export const stages: readonly Stage[] = ["plan", "research", "edit", "write", "v
  * 스트리밍 이벤트 규격. 백엔드는 /api/report/stream 에서 이 모양을 NDJSON 한 줄씩 보내고,
  * 프론트는 이 모양만 보고 진행 화면을 만듭니다. 구현 전에 양쪽이 같은 타입을 보게 하려고 먼저 고정합니다.
  *
- *  stage  → 단계 시작 · 끝 (plan 질문 파악 / research 데이터 조사 / edit 사실 정리 / write 리포트 작성 / verify 검증)
+ *  stage  → 단계 시작 · 끝 (plan 질문 살펴보기 / research 자료 찾기 / edit 핵심 추리기 / write 답변 쓰기 / verify 근거 확인하기)
  *  plan   → 📋 분류 결과: 의도 · 모드 · 부를 tool ("이렇게 조사할게요")
- *  step   → tool 하나가 끝날 때마다 (진행상황 목록 한 줄). 계산 도구(calc_metrics)는 edit 단계에서 옵니다
+ *  step   → tool 하나가 끝날 때마다 (진행상황 목록 한 줄). 계산 도구(calc_metrics)와 원인 질문의 움직임 비교(calc_movement)는 edit 단계에서 옵니다
  *  verify → ✅ 검증 요약 ("숫자 8/8 · 권유 0")
  *  report → 리포트 완성
  *  error  → 실패. 이후 이벤트 없음
@@ -37,16 +37,18 @@ export const toolLabels: Record<string, string> = {
   get_macro_indicators: "물가·고용 지표 확인",
   get_rate_data: "금리 확인",
   calc_metrics: "계산",
+  calc_movement: "평소 움직임과 비교",
 };
 
 export function labelFor(toolName: string): string {
   return toolLabels[toolName] ?? toolName;
 }
 
+/** 단계 → 진행 화면에 보여줄 이름. 은선이 진행 화면(#52)에서 정한 사용자용 표현입니다. */
 export const stageLabels: Record<Stage, string> = {
-  plan: "질문 파악",
-  research: "데이터 조사",
-  edit: "사실 정리",
-  write: "리포트 작성",
-  verify: "검증",
+  plan: "질문 살펴보기",
+  research: "자료 찾기",
+  edit: "핵심 추리기",
+  write: "답변 쓰기",
+  verify: "근거 확인하기",
 };
