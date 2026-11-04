@@ -102,7 +102,7 @@ flowchart LR
 | `mode` (research · decision_facts · out_of_scope), `notice`, `movement` | 상단 배너. 문구는 서버가 준 것을 그대로. `notice` 는 판단 요청 · 범위 밖, 그리고 원인 질문(research 모드)의 움직임 크기에서 옵니다 (예: "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임입니다."). `movement`(`level`: normal · notable · extreme)는 같은 내용의 값이라 배지 색 등에 쓸 수 있음 | 하니 |
 | `disclosure` | AI 생성 고지, 리포트 하단 고정 | 하니 |
 | `summary`, `impact[]`, `caveats[]`, `dataGaps[]`, `nextTopics[]` | 각 칸 | 은선 |
-| `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`) | 숫자 카드, 배지, 원본 보기. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |
+| `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`, `match?{ key, policy }` 11/5: 장부의 어느 키와 어떤 규칙(exact · rounded · scaled · tolerance)으로 맞았는지, 검증기가 적음) | 숫자 카드, 배지, 원본 보기. 검증 구역의 "검증이 한 일 보기" 가 `match` · `lineage` 로 숫자마다 한 줄씩 풀어 씀. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |
 | `why[]` (`basis`: data 📊 · news 📰 · none ❔, `refs`) | 원인, 아이콘, 원본 보기 | 소희 |
 | `evidence[]` (E1 · E3-1 · C1, `lineage`), `sources[]` | 원본 보기, 계산 계보, 출처 목록 | 소희 |
 | `charts[]` (11/5, 원인 질문 · 환율): `kind: "line"`, `title`, `unit`, `series[{ label, ref, points[{ t, v }] }]`, `band?{ from, to, low, high, label }`(평소 폭 띠), `events?[{ ref, label, at }]`(기간 안의 기사) | "최근 흐름" 구역의 선 차트 (`app/components/ReportChart.tsx`, inline SVG). 선의 `ref` 는 게이트의 C 번호, 뉴스 점의 `ref` 는 기사의 E 번호라 원본 보기로 이어짐. 숫자는 모두 코드가 계산 (`src/agent/chart.ts`) | 리더 |

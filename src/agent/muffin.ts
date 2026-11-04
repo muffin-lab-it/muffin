@@ -96,7 +96,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
     // 조사 · 정제 · 작성을 건너뜁니다. 숫자가 없으니 검증은 pass 이고, 어떤 tool 도 부르지 않았습니다.
     emit({ type: "stage", stage: "verify", status: "start" });
     const output = outOfScopeOutput(question);
-    const verification = summarizeVerification({ output, checks: [], removed: [] }, 0);
+    const verification = summarizeVerification({ output, checks: [], matches: [], removed: [] }, 0);
     emit({ type: "verify", verification });
     emit({ type: "stage", stage: "verify", status: "done" });
     return {
@@ -174,6 +174,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
       mode: plan.mode,
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
       checks: applied.checks,
+      matches: applied.matches,
       ...(movement ? { movement: movementSummary(movement) } : {}),
       ...(chart ? { charts: [chart] } : {}),
     }),

@@ -14,9 +14,9 @@
  */
 import { findAdvice, hasAdvice, stripAdvice } from "./guard";
 import { UNSUPPORTED_EVIDENCE, summarizeWhy } from "./report";
-import type { Evidence, NumberCheck, Verification, WriterOutput } from "./schema";
+import { matchPolicies, type Evidence, type NumberCheck, type Verification, type WriterOutput } from "./schema";
 
-export type MatchPolicy = "exact" | "rounded" | "scaled" | "tolerance";
+export type MatchPolicy = (typeof matchPolicies)[number];
 
 /** 표기 반올림 외에 허용하는 상대 오차. 환율 소수 셋째 자리 같은 차이를 위한 것이고, 숫자가 다른 것은 걸립니다. */
 export const RELATIVE_TOLERANCE = 0.001;
@@ -513,6 +513,8 @@ export type Applied = {
   output: WriterOutput;
   /** 남은 numbers 와 같은 순서 */
   checks: NumberCheck[];
+  /** 남은 numbers 와 같은 순서: 장부의 어느 키와 어떤 규칙으로 맞았는지 (리포트 numbers[].match 로 나가 화면이 "검증이 한 일" 로 보여 줌) */
+  matches: { key: string; policy: MatchPolicy }[];
   /** 뺀 것 · 낮춘 것. verification.removed 로 나갑니다 */
   removed: string[];
 };
@@ -552,6 +554,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
 
   const numbers: WriterOutput["numbers"] = [];
   const checks: NumberCheck[] = [];
+  const matches: Applied["matches"] = [];
   let droppedNumbers = 0; // 출처 값과 맞지 않아 뺀 숫자 (dataGaps 안내용)
   output.numbers.forEach((n, i) => {
     const f = result.numbers[i];
@@ -571,6 +574,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
       numbers.push(n);
     }
     checks.push(f.status);
+    matches.push({ key: f.key, policy: f.policy });
   });
 
   const whyText = textByField("why");
@@ -631,6 +635,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
       dataGaps,
     },
     checks,
+    matches,
     removed,
   };
 }

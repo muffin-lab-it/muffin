@@ -1,5 +1,14 @@
 [
   {
+    "id": "fx-cause",
+    "recordedAt": "2026-11-04T17:20:11.305Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "standard",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 29209
+  },
+  {
     "id": "etf-decision-deep",
     "recordedAt": "2026-11-04T16:54:14.538Z",
     "question": "KODEX 200 지금 사도 돼?",
@@ -34,15 +43,6 @@
     "area": "fx",
     "model": "gpt-6-luna",
     "ms": 36006
-  },
-  {
-    "id": "fx-cause",
-    "recordedAt": "2026-11-04T16:36:38.811Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "standard",
-    "area": "fx",
-    "model": "gpt-6-luna",
-    "ms": 25230
   },
   {
     "id": "rate-compare",

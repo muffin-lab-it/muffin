@@ -132,3 +132,20 @@ describe("최근 흐름 차트", () => {
     expect($("h2").filter((_, el) => $(el).text() === "최근 흐름")).toHaveLength(0);
   });
 });
+
+describe("검증이 한 일", () => {
+  it("숫자마다 어느 장부 값과 어떤 규칙으로 맞았는지, 계산값의 계보, 기사 보도 여부를 풀어 보여 준다", () => {
+    const $ = render(fixture());
+    const text = $(".verification-detail").text();
+    expect($(".verification-detail summary").text()).toBe("검증이 한 일 보기");
+    expect(text).toContain("USD/KRW 1,392.40원 → 값 대조 E1 의 rate 값과 정확히 일치");
+    expect(text).toContain("한미 금리 차이 0.88%p → 계산값 C1 계산값 (spread ← E3, E2)");
+    expect(text).toContain("외국인 주식 순매도 (보도) 1조 2,000억 원 → 기사 보도 E4-2 의 title 와 정확히 일치 (보도일 뿐 공식 데이터로 확인한 것이 아님)");
+    expect(text).toContain("다시 쓰기 1회");
+  });
+
+  it("검사를 건너뛴 리포트에는 보이지 않는다", () => {
+    const report = { ...fixture(), verification: { ...fixture().verification, status: "skipped" as const } };
+    expect(render(report)(".verification-detail")).toHaveLength(0);
+  });
+});
