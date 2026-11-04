@@ -21,10 +21,11 @@ describe("byDepth", () => {
   });
 
   it("Easy 는 금융 용어를 풀어 설명하되 수치와 단위를 유지한다", () => {
-    for (const term of ["퍼센트포인트", "금리 차이를 나타내는 단위", "지난해 같은 달과 비교", "지난달과 비교", "가격이 오르내리는 폭", "분배금까지 고려한 수익률", "재투자 등 산정 조건", "정확한 수치와 원본 단위를 생략하거나 잘못 바꾸지 않습니다"]) {
+    for (const term of ["퍼센트포인트", "bp는 금리 변화폭을 나타내는 단위", "1bp = 0.01%p", "지난해 같은 달과 비교", "지난달과 비교", "가격이 오르내리는 폭", "분배금까지 고려한 수익률", "재투자 등 산정 조건", "정확한 수치와 원본 단위를 생략하거나 잘못 바꾸지 않습니다"]) {
       expect(byDepth.easy).toContain(term);
     }
     expect(byDepth.easy).toMatch(/원본 단위를 유지하면서[^.\n]*쉬운 우리말로 설명/);
+    expect(byDepth.easy).toContain("리포트 수치의 직접 환산을 허용하지 않습니다");
   });
 
   it("Standard 는 첫 등장 설명과 균형을, Deep Dive 는 전문용어와 해석 한계를 요구한다", () => {
@@ -43,7 +44,7 @@ describe("financeRules", () => {
       expect(financeRules).toContain(rule);
     }
     expect(financeRules).toMatch(/상대적인 변동률\(%\)[^.\n]*금리 수준의 차이를 혼동하지 않습니다/);
-    expect(financeRules).toMatch(/write\.ts 의 원본 단위 유지 규칙을 따릅니다/);
+    expect(financeRules).toContain("작성 규칙의 원본 단위 유지 원칙을 따릅니다");
     expect(financeRules).toMatch(/원본 단위와 수치를[^.\n]*대체하지 않습니다/);
     expect(financeRules).toMatch(/다른 단위의 수치는 검증된 데이터로 장부에 함께 제공된 경우에만[^.\n]*보조적으로 병기/);
     expect(financeRules).toMatch(/작성 단계에서 직접 계산하거나 단위를 환산하지 않습니다/);
@@ -81,6 +82,10 @@ describe("financeRules", () => {
       expect(financeRules).toContain(rule);
     }
     expect(financeRules).toMatch(/확인된 사실[^.\n]*데이터에 대한 해석[^.\n]*미래 전망을 문장에서 구분합니다/);
+    expect(financeRules).toMatch(/증거 장부에 없는 구체적인 숫자는[^.\n]*사용하지 않습니다/);
+    expect(financeRules).toMatch(/기사 본문에서 확인했더라도[^.\n]*숫자를 임의로 옮겨 적지 않습니다/);
+    expect(financeRules).toMatch(/기사 제목 등 확인된 근거가 뒷받침하면[^.\n]*수치를 생략한 정성적 표현/);
+    expect(financeRules).toContain("사용자 질문에 포함된 가정값은 외부 관측값과 구분합니다");
   });
 
   it("관련된 손실 가능성과 불확실성을 설명하고 보장이나 위험 문구 반복을 제한한다", () => {
