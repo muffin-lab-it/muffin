@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import v1 from "./fixtures/report.v1.sample.json";
 import v2 from "./fixtures/report.v2.sample.json";
 import { normalizeReport } from "./normalize";
-import { DISCLOSURE, assembleReport, sourcesFrom, summarizeWhy } from "./report";
+import { DISCLOSURE, assembleReport, fallbackGaps, sourcesFrom, summarizeWhy } from "./report";
 import { reportSchema, writerSchema, type Evidence, type Verification, type WriterOutput } from "./schema";
 
 function evidence(id: string, url: string, asOf = "2026-10-01"): Evidence {
@@ -76,6 +76,20 @@ describe("assembleReport", () => {
     expect("charts" in plain).toBe(false);
     const decision = assembleReport(output, [], skipped, { mode: "decision_facts", notice: "판단은 사용자에게" });
     expect(decision).toMatchObject({ mode: "decision_facts", notice: "판단은 사용자에게" });
+  });
+
+  it("fallbackGaps 는 저장된 응답을 쓴 tool 만, tool 마다 한 줄, 가장 오래된 나이로 적는다", () => {
+    expect(fallbackGaps([{ tool: "get_fx_krw_rate", status: "ok", ms: 10 }, { tool: "get_rate_data", status: "error", ms: 5, error: "x" }])).toEqual([]);
+    expect(
+      fallbackGaps([
+        { tool: "get_fx_krw_rate", status: "ok", ms: 10, fallbackAgeMs: 3 * 60 * 60_000 },
+        { tool: "get_fx_krw_rate", status: "ok", ms: 10, fallbackAgeMs: 5 * 60_000 },
+        { tool: "get_etf_kr_price", status: "ok", ms: 10, fallbackAgeMs: 90_000 },
+      ]),
+    ).toEqual([
+      "환율 확인: 조회가 실패해 3시간 전에 받은 응답을 썼습니다 (데이터 기준일은 출처 그대로)",
+      "국내 ETF 시세 확인: 조회가 실패해 2분 전에 받은 응답을 썼습니다 (데이터 기준일은 출처 그대로)",
+    ]);
   });
 
   it("summarizeWhy 는 basis 별로 센다", () => {

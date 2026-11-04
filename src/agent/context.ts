@@ -7,6 +7,10 @@ export type ToolStep = {
   status: "ok" | "error";
   ms: number;
   error?: string;
+  /** 이번 조회는 실패했고 그만큼 전에 받은 같은 조회의 응답을 대신 썼음 (src/tools/cache.ts). 성공(ok)으로 세되 화면에는 표시 */
+  fallbackAgeMs?: number;
+  /** 회로 차단기(src/tools/breaker.ts)가 관여한 호출. open 이면 외부 호출을 건너뛰었고, half_open 이면 짧은 제한 시간으로 한 번 찔러 본 것 */
+  breaker?: "open" | "half_open";
 };
 
 /**

@@ -1,5 +1,6 @@
 import type { ToolStep } from "@/src/agent/context";
 import { labelFor } from "@/src/agent/events";
+import { formatAge } from "@/src/lib/age";
 import type { Area, Report } from "@/src/agent/schema";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 
@@ -126,7 +127,10 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
           <ul>
             {steps.map((s, i) => (
               <li key={i}>
-                {s.status === "ok" ? "✅" : "❌"} {labelFor(s.tool)} · {s.ms}ms{s.error ? ` · ${s.error}` : ""}
+                {s.status === "ok" ? (s.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(s.tool)} · {s.ms}ms
+                {s.fallbackAgeMs !== undefined ? ` · 저장된 응답(${formatAge(s.fallbackAgeMs)} 전)` : ""}
+                {s.breaker === "open" ? " · 회로 열림(호출 생략)" : ""}
+                {s.error ? ` · ${s.error}` : ""}
               </li>
             ))}
           </ul>

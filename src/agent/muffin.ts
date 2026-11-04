@@ -15,7 +15,7 @@ import { createEditorAgent, editInput, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
 import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
-import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, outOfScopeOutput } from "./report";
+import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode } from "./schema";
@@ -162,9 +162,12 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const verification = summarizeVerification(applied, revisions, revisionSkipped);
   emit({ type: "verify", verification });
   emit({ type: "stage", stage: "verify", status: "done" });
+  // 조회가 실패해 저장된 응답을 쓴 tool 은 코드가 "확인하지 못한 것" 에 적습니다 (검증 뒤라 검증 대상이 아님)
+  const gaps = fallbackGaps(ctx.steps);
+  const finalOutput = gaps.length ? { ...applied.output, dataGaps: [...applied.output.dataGaps, ...gaps] } : applied.output;
 
   return {
-    report: assembleReport(applied.output, ctx.evidence, verification, {
+    report: assembleReport(finalOutput, ctx.evidence, verification, {
       mode: plan.mode,
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
       checks: applied.checks,

@@ -86,7 +86,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `stage` | `stage: "plan" \| "research" \| "edit" \| "write" \| "verify"`, `status: "start" \| "done"` | 단계 시작 · 끝 | 단계 표시. 라벨은 `stageLabels` (질문 살펴보기 · 자료 찾기 · 핵심 추리기 · 답변 쓰기 · 근거 확인하기) |
 | `plan` | `intent`, `mode`, `tools: string[]` | 분류 끝 | "이렇게 조사할게요" 한 줄. tool 이름은 `labelFor(name)` |
-| `step` | `step: { tool, status: "ok" \| "error", ms, error? }` | tool 하나 끝날 때마다 | tool 한 줄. 계산(`calc_metrics`) · 움직임 비교(`calc_movement`, 원인 질문만) step 은 edit 단계 안에서 옴 |
+| `step` | `step: { tool, status: "ok" \| "error", ms, error?, fallbackAgeMs?, breaker? }` | tool 하나 끝날 때마다 | tool 한 줄. 계산(`calc_metrics`) · 움직임 비교(`calc_movement`, 원인 질문만) step 은 edit 단계 안에서 옴. `fallbackAgeMs` 가 있으면 조회는 실패했고 그만큼 전에 받은 저장 응답을 쓴 것 — `ReportView` 가 🟡 "저장된 응답(N시간 전)" 으로 표시 (`formatAge`, `src/lib/age.ts`). 리포트 `dataGaps` 에도 같은 내용이 한 줄 들어감. `breaker` 가 `open` 이면 연속 실패로 외부 호출을 건너뛴 것, `half_open` 이면 짧게 한 번 찔러 본 것 |
 | `verify` | `verification` | 검증 끝 | 검증 한 줄 |
 | `report` | `report`, `steps`, `rewrites`, `id` | 마지막 줄 | 저장 후 상세로 이동 |
 | `error` | `message`, `id?` | 실패 · 시간 초과 (마지막 줄) | 메시지 + 요청 id + 다시 시도 |
@@ -206,14 +206,23 @@ create table public.evals (            -- 평가(scripts/promptfoo/run.ts) 한 �
 );
 create index evals_at on public.evals (at desc);
 
+create table public.tool_cache (       -- tool 응답 캐시 (src/tools/cache.ts). 같은 호출(tool + 입력)의 마지막 성공 응답. 조회가 실패하면 24시간 안의 것을 폴백으로 (11/4, 별도 마이그레이션)
+  key text primary key,                -- tool 이름 + 입력 (키 정렬한 JSON)
+  tool text not null,
+  at timestamptz not null,             -- 이 응답을 받은 시각
+  result jsonb not null                -- ToolResult (data · source · note)
+);
+create index tool_cache_at on public.tool_cache (at desc);
+
 -- 줄 접근: RLS 를 켜고 정책은 만들지 않습니다. secret 키(service_role)는 RLS 를 거치지 않습니다.
 alter table public.reports enable row level security;
 alter table public.runs enable row level security;
 alter table public.evals enable row level security;
+alter table public.tool_cache enable row level security;
 
 -- 표 접근: 브라우저용 역할(anon · authenticated)에는 주지 않고 secret 키(service_role)에만 줍니다.
-revoke all on table public.reports, public.runs, public.evals from anon, authenticated;
-grant select, insert, update, delete on table public.reports, public.runs, public.evals to service_role;
+revoke all on table public.reports, public.runs, public.evals, public.tool_cache from anon, authenticated;
+grant select, insert, update, delete on table public.reports, public.runs, public.evals, public.tool_cache to service_role;
 ```
 
 ### 4.4 실행 로그 (서영)

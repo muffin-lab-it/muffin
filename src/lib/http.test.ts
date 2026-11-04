@@ -1,7 +1,35 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HttpError, ResponseFormatError, fetchJson, fetchText } from "./http";
+import { HttpError, ResponseFormatError, fetchJson, fetchText, isRetryable } from "./http";
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("isRetryable", () => {
+  it("시간 초과 · 연결 실패 · 5xx 는 다시 시도할 만하고, 4xx 와 429 는 아니다. 요청 자체는 한 번만 보낸다", async () => {
+    const timeoutErr = Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
+    expect(isRetryable(timeoutErr)).toBe(true);
+    expect(isRetryable(new TypeError("fetch failed"))).toBe(true);
+    expect(isRetryable(new HttpError(503, "https://x.test"))).toBe(true);
+    expect(isRetryable(new HttpError(429, "https://x.test"))).toBe(false);
+    expect(isRetryable(new HttpError(404, "https://x.test"))).toBe(false);
+    expect(isRetryable(new HttpError(401, "https://x.test?key=SECRET"))).toBe(false);
+    expect(isRetryable("nope")).toBe(false);
+    // tool 이 감싼 메시지 · cause
+    expect(isRetryable(new Error("ECOS API 요청 실패 (503)"))).toBe(true);
+    expect(isRetryable(new Error("BIS API 요청 실패 (502) — 점검"))).toBe(true);
+    expect(isRetryable(new Error("FRED API 요청 실패 (400)"))).toBe(false);
+    expect(isRetryable(new Error("ECOS API 요청 실패"))).toBe(true); // 상태 코드 없음 = 시간 초과 · 연결 실패를 감싼 것
+    expect(isRetryable(new Error("ECOS 응답 오류: INFO-200"))).toBe(false);
+    expect(isRetryable(new Error("예산 (500만 원) 초과"))).toBe(false);
+    expect(isRetryable(new Error("The operation was aborted due to timeout"))).toBe(true);
+    expect(isRetryable(new Error("감쌈", { cause: new HttpError(502, "https://x.test") }))).toBe(true);
+    expect(isRetryable(new Error("감쌈", { cause: new HttpError(404, "https://x.test") }))).toBe(false);
+
+    const spy = vi.fn(async () => new Response("busy", { status: 503 }));
+    vi.stubGlobal("fetch", spy);
+    await expect(fetchText("https://x.test/a")).rejects.toBeInstanceOf(HttpError);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("http helpers", () => {
   it("fetchJson 은 JSON 을 파싱한다", async () => {
