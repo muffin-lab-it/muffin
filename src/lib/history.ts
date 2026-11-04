@@ -53,15 +53,22 @@ function write(records: ReportRecord[]) {
   }
 }
 
-export async function saveReport(input: ReportRecord["input"], report: Report, steps: ToolStep[]): Promise<ReportRecord> {
+/**
+ * id 는 스트림의 요청 id(result.id)를 넘기면 그대로 씁니다. 없으면 새로 만듭니다.
+ * 같은 id 가 이미 있으면 덮어쓰지 않고 기존 기록을 돌려줍니다 (다시 시도 · 두 번 눌림에도 한 번만 저장).
+ */
+export async function saveReport(input: ReportRecord["input"], report: Report, steps: ToolStep[], id?: string): Promise<ReportRecord> {
+  const records = read();
+  const existing = id ? records.find((r) => r.id === id) : undefined;
+  if (existing) return existing;
   const record: ReportRecord = {
-    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    id: id || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
     input,
     report,
     steps,
   };
-  write([record, ...read()]);
+  write([record, ...records]);
   return record;
 }
 

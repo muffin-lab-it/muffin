@@ -36,6 +36,18 @@ describe("history (localStorage)", () => {
     expect(await getReport(a.id)).toBeNull();
   });
 
+  it("id 를 넘기면 그 id 로 저장하고, 같은 id 가 이미 있으면 덮어쓰지 않고 기존 기록을 돌려준다", async () => {
+    const first = await saveReport({ question: "처음", depth: "easy" }, report, [], "req-1");
+    expect(first.id).toBe("req-1");
+    const again = await saveReport({ question: "다시", depth: "deep" }, report, [], "req-1");
+    expect(again).toEqual(first);
+    expect(await listReports()).toHaveLength(1);
+    expect((await getReport("req-1"))?.input.question).toBe("처음");
+    const fresh = await saveReport({ question: "새로", depth: "easy" }, report, []);
+    expect(fresh.id).not.toBe("req-1");
+    expect((await listReports()).map((r) => r.id)).toEqual([fresh.id, "req-1"]);
+  });
+
   it("0단계 전에 저장된 v1 기록도 v2 모양으로 읽고, 깨진 기록은 건너뛴다", async () => {
     const storage = fakeStorage();
     vi.stubGlobal("window", { localStorage: storage });
