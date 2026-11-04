@@ -233,6 +233,8 @@ grant select, insert, update, delete on table public.reports, public.runs, publi
 
 `RunLog` 에 `verification`(리포트 `verification` 의 status · numbers · why · advice · revisions)과 `intent`(`research()` 결과의 `plan.intent`)를 더해 `runs` 의 같은 칸에 넣습니다. 관리자 화면(4.7)의 검증 통과율 · 다시 쓰기 비율 · 의도별 요청 수가 이 두 칸을 씁니다.
 
+리더 임시 구현(11/5, `src/lib/runs.ts`): 서영의 구현이 오기 전까지 라우트 두 곳이 `recordRun(entry, req)` 하나만 부릅니다. 콘솔 로그(`logRun`)는 그대로 남기고, Supabase 환경 변수가 있으면 응답이 끝난 뒤 `after()` 로 같은 줄을 `runs` 에 upsert 합니다(2초 제한, 실패는 콘솔만). `client_id` 는 브라우저 id, `ip_hash` 는 호출 제한(4.5)이 채울 칸이라 비워 둡니다. `started` · `limited` 줄은 넣지 않습니다(4.5 v2 몫). 갈아 끼울 때는 `recordRun` 안을 서영 구현으로 바꾸거나 라우트의 호출을 `logRun` 으로 되돌리고 이 파일을 지우면 됩니다.
+
 ### 4.5 호출 제한 (서영)
 
 - 키 두 개를 함께 셉니다. 브라우저 키는 `readClientId(req.headers)` 값(없으면 IP 키만), IP 키는 `x-forwarded-for` 의 첫 IP 를 `RATE_LIMIT_SALT` 와 함께 sha256 한 값입니다. 원문 IP 는 저장 · 로그하지 않습니다.

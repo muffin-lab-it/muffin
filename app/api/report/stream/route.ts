@@ -3,8 +3,9 @@ import type { ToolStep } from "@/src/agent/context";
 import type { MuffinEvent } from "@/src/agent/events";
 import { isMockMode, mockResearch } from "@/src/agent/mock";
 import { research, type ResearchResult } from "@/src/agent/muffin";
-import { areas, depths, type Report } from "@/src/agent/schema";
-import { clip, logRun, newRunId, type RunLog } from "@/src/lib/log";
+import { areas, depths, type Intent, type Report } from "@/src/agent/schema";
+import { clip, newRunId, type RunLog } from "@/src/lib/log";
+import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 import { fitSpeed, getReplay, playReplay, publicStep, replayedReport, REPLAY_ID, SPEED_MAX, SPEED_MIN } from "@/src/lib/replay";
 
@@ -42,6 +43,7 @@ type Outcome = {
   rewrites: number;
   model?: string;
   usage?: ResearchResult["usage"];
+  intent?: Intent;
 };
 type Run = (onEvent: (event: MuffinEvent) => void) => Promise<Outcome>;
 type StreamContext = { id: string; started: number; at: string; mock: boolean; input: RunLog["input"]; headers: Record<string, string> };
@@ -58,12 +60,12 @@ export async function POST(req: Request) {
   if (raw && typeof raw === "object" && "replay" in raw) {
     const parsedReplay = replayBodySchema.safeParse(raw);
     if (!parsedReplay.success) {
-      logRun({ id, at, mock: true, ok: false, stage: "input", ms: Date.now() - started, error: "invalid replay body" });
+      recordRun({ id, at, mock: true, ok: false, stage: "input", ms: Date.now() - started, error: "invalid replay body" }, req);
       return Response.json({ error: "replay(녹화 id), speed(0.25~10) 를 확인하세요.", id }, { status: 400, headers });
     }
     const replay = getReplay(parsedReplay.data.replay);
     if (!replay) {
-      logRun({ id, at, mock: true, ok: false, stage: "input", ms: Date.now() - started, error: `unknown replay ${parsedReplay.data.replay}` });
+      recordRun({ id, at, mock: true, ok: false, stage: "input", ms: Date.now() - started, error: `unknown replay ${parsedReplay.data.replay}` }, req);
       return Response.json({ error: "저장된 실행을 찾을 수 없습니다.", id }, { status: 404, headers });
     }
     const input = { question: replay.question, depth: replay.depth, ...(replay.area ? { area: replay.area } : {}) };
@@ -71,24 +73,25 @@ export async function POST(req: Request) {
     const speed = fitSpeed(replay, parsedReplay.data.speed, STREAM_TIMEOUT_MS - 5_000);
     const run: Run = async (onEvent) => {
       await playReplay(replay, onEvent, { speed, signal: req.signal });
-      return { report: replayedReport(replay), steps: replay.steps, rewrites: replay.rewrites, model: `replay:${replay.id}` };
+      const planned = replay.events.find((e) => e.type === "plan");
+      return { report: replayedReport(replay), steps: replay.steps, rewrites: replay.rewrites, model: `replay:${replay.id}`, ...(planned && planned.type === "plan" ? { intent: planned.intent } : {}) };
     };
     return streamResponse(req, run, { id, started, at, mock: true, input, headers });
   }
 
   const parsed = bodySchema.safeParse(raw);
   if (!parsed.success) {
-    logRun({ id, at, mock, ok: false, stage: "input", ms: Date.now() - started, error: "invalid body" });
+    recordRun({ id, at, mock, ok: false, stage: "input", ms: Date.now() - started, error: "invalid body" }, req);
     return Response.json({ error: "question(필수), depth, area 를 확인하세요.", id }, { status: 400, headers });
   }
   const input = { ...parsed.data, question: clip(redactSecrets(parsed.data.question)) };
   if (!mock && !process.env.OPENAI_API_KEY) {
-    logRun({ id, at, mock, input, ok: false, stage: "config", ms: Date.now() - started, error: "OPENAI_API_KEY missing" });
+    recordRun({ id, at, mock, input, ok: false, stage: "config", ms: Date.now() - started, error: "OPENAI_API_KEY missing" }, req);
     return Response.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 503, headers });
   }
   const run: Run = async (onEvent) => {
     const result = await (mock ? mockResearch : research)(parsed.data, { onEvent });
-    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage };
+    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent };
   };
   return streamResponse(req, run, { id, started, at, mock, input, headers });
 }
@@ -103,7 +106,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
       const send = (event: MuffinEvent) => {
         if (!closed) controller.enqueue(encoder.encode(redactSecrets(JSON.stringify(event)) + "\n"));
       };
-      type Completion = Pick<RunLog, "ok" | "stage"> & Partial<Pick<RunLog, "error" | "model" | "usage" | "steps" | "rewrites" | "quality">>;
+      type Completion = Pick<RunLog, "ok" | "stage"> & Partial<Pick<RunLog, "error" | "model" | "usage" | "steps" | "rewrites" | "quality" | "verification" | "intent">>;
       const finish = (completion: Completion, terminal?: MuffinEvent, cancelled = false) => {
         if (closed) return;
         try {
@@ -113,7 +116,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
           clearTimeout(timer);
           req.signal.removeEventListener("abort", abort);
           if (!cancelled) controller.close();
-          logRun({ id, at, mock, input, ms: Date.now() - started, ...completion });
+          recordRun({ id, at, mock, input, ms: Date.now() - started, ...completion }, req);
         }
       };
       const abort = () => finish({ ok: false, stage: "agent", error: "client disconnected" });
@@ -147,6 +150,8 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
               steps: result.steps.map((step) => (step.error ? { ...step, error: clip(redactSecrets(step.error), 500) } : step)),
               rewrites: result.rewrites,
               quality: qualityOf(result.report),
+              verification: pickVerification(result.report.verification),
+              ...(result.intent ? { intent: result.intent } : {}),
             },
             { type: "report", report: result.report, steps, rewrites: result.rewrites, id },
           );
