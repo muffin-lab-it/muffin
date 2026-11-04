@@ -189,6 +189,7 @@ muffin/
 │  ├─ history/page.tsx               저장한 리포트 목록
 │  ├─ components/                    Sidebar, ReportView (+ 진행 화면, 검증 배지, 차트 예정)
 │  ├─ admin/                         실행 모니터링 (리더, ADMIN_PASSWORD 로그인): 상태 · 요청 추이 · 응답 시간 · tool 상태 · 이벤트 · 검증
+│  ├─ replay/                        리플레이 (리더, 시연용): 녹화된 실제 실행을 같은 이벤트로 다시 보기. /replay?id=<녹화>&speed=2
 │  └─ api/report/
 │     ├─ route.ts                    POST /api/report — 완료 후 JSON 한 번에 (백엔드)
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
@@ -219,6 +220,7 @@ muffin/
 │  │  ├─ _template/                  새 tool 시작용 템플릿 (index · run · fixture · test · README)
 │  │  ├─ fx/ etf/ news/ rate/ macro/ 같은 구성
 │  │  └─ calc/                       🧮 계산 tool (리더): 장부의 두 값으로 변동률 · 차이 · %p → C 번호 + lineage. 정제만 사용
+│  ├─ replays/                       리플레이 녹화 JSON(<id>.json) + manifest.json · index.ts (pnpm replay:record 가 생성, 리더)
 │  └─ lib/
 │     ├─ http.ts                     fetchJson / fetchText (타임아웃 · HttpError · redirect 옵션)
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
@@ -228,12 +230,15 @@ muffin/
 │     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 표 최근 7일 조회, DB 환경 변수 없거나 ?source=sample 이면 예시 데이터, 리더)
 │     ├─ admin-evals.ts              /admin 품질 평가 패널: evals 표(주간 평가 · 실험 결과) 최신 12줄 (리더)
 │     ├─ admin-status.ts             /admin 상용 AI 상태 패널: OpenAI 상태 페이지 JSON(Responses · Agents · Chat Completions · Codex) + 우리 실측 한 줄 판단 (리더)
+│     ├─ replay.ts                   리플레이: 녹화 형식(replaySchema) · 재생(playReplay, 원래 간격 ÷ 속도) · 녹화 시각 안내 (리더)
+│     ├─ replay-meta.ts              리플레이 목록용 가벼운 타입 · 시각 표기 (화면이 녹화 전체를 번들에 넣지 않게)
 │     ├─ eval-metrics.ts             평가 지표 이름 (Promptfoo 채점 · 요약 · 관리자 화면이 같이 씀)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/. 단계별 상세 · 근거 판정 보정 후보
 │  ├─ scoring.ts                     평가 채점 규칙 (코드 검사). eval.ts 와 promptfoo/ 가 같은 함수를 씀
 │  ├─ warm/                          캐시 예열: tool_cache 표의 호출을 같은 입력으로 다시 불러 저장 응답 갱신 (`pnpm warm`, 매시 Action, 리더)
+│  ├─ replay/                        리플레이 녹화: 실제로 한 번 돌려 진행 이벤트 + 리포트를 src/replays/<id>.json 으로 (`pnpm replay:record`, 리더)
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
 │  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
 │  ├─ judge/                         근거 판정 보정 세트 (pairs.json, 사람이 매긴 정답) + pnpm judge 로 정확도 재기 (형식: 폴더 README)
@@ -766,7 +771,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 - Vercel, `main` 머지 시 자동 배포 (서울 리전). 환경 변수는 Vercel 프로젝트 설정에만 입력합니다.
 - `/api/report` 는 tool 여러 개를 호출하므로 실행 시간이 깁니다. 라우트에 `export const maxDuration = 60;` 을 두고, tool 마다 타임아웃 8초(공통 래퍼 10초)를 지킵니다.
-- 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 저장한 실제 실행을 다시 보여주는 리플레이 모드를 둡니다 (고도화 기간).
+- 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 녹화한 실제 실행을 다시 보여 주는 **리플레이 모드**가 있습니다 (11/5). `pnpm replay:record --question "KODEX 200 지금 사도 돼?" --area etf --id etf-decision` 으로 실제로 한 번 돌려 `src/replays/<id>.json`(진행 이벤트 + 리포트)으로 남기고, `/replay` 화면(또는 `/replay?id=etf-decision&speed=2`)이 `/api/report/stream` 에 `{ replay, speed }` 로 요청해 같은 이벤트를 같은 간격으로 받아 다섯 단계와 리포트를 그대로 보여 줍니다. OpenAI · 데이터 API 를 부르지 않고, 리포트 상단과 화면에 녹화 시각을 밝혀 지금 값처럼 보이지 않게 하며, 로그는 mock 으로 남아 운영 통계에서 빠집니다. 녹화는 `pnpm test` 가 형식 · 권유 표현 0 을 검사합니다. 시연 질문마다 전날 한 번씩 녹화해 두면 됩니다.
 - tool 호출은 세 겹으로 지킵니다 (11/4, PR #65). 잠깐 끊긴 API 는 `defineTool` 이 tool 을 한 번 더 돌리고, 연속 실패한 API 는 회로 차단기가 1분간 호출을 건너뛰어 매번 10초를 기다리지 않게 하며, 그래도 실패하면 같은 호출의 마지막 성공 응답(24시간 안, Supabase `tool_cache` 표)을 대신 쓰고, 리포트 "확인하지 못한 것" 에 "조회가 실패해 N시간 전에 받은 응답을 썼습니다" 를 코드가 넣습니다 (/admin 이벤트에도 "저장된 응답 사용"). 시연 전에 `pnpm eval --no-judge` 로 시연 질문을 한 번 돌려 두면 캐시가 차서, 당일 API 가 끊겨도 리포트가 빈칸으로 나가지 않습니다.
 - 캐시 예열 (`pnpm warm`, `.github/workflows/warm.yml`): `tool_cache` 표에 있는 호출을 같은 입력으로 한 시간마다 다시 불러 저장 응답을 갓 받은 것으로 바꿉니다. 모델은 부르지 않아 비용이 없고, 표에 없는 입력은 예열할 수 없으니 시연 질문은 전날 한 번 돌려 둡니다. `/admin` 의 tool 상태는 실제 조회 성공률(저장 응답으로 나간 호출은 실패로 셈) · 저장 응답 · 회로 열림 횟수 · 마지막 실패 시각을 보여 주고, "상용 AI 상태" 패널은 OpenAI 상태 페이지(status.openai.com 공개 JSON)의 전체 상태 · 우리가 쓰는 구성 요소 · 진행 중 장애와 우리 실측(최근 1시간 요청 · 성공률 · 평균 응답)을 나란히 두고 한 줄로 판단합니다. 금융권이 벤더 상태와 자체 측정을 같이 보는 방식입니다.
 
