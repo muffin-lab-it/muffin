@@ -69,6 +69,13 @@ describe("assembleReport", () => {
     expect(checked.numbers.map((n) => n.check)).toEqual(["verified", "derived"]);
   });
 
+  it("대조 세부(matches)는 checks 와 같은 순서로 numbers 에 붙고, 없으면 칸이 없다", () => {
+    const r = assembleReport(output, [], { ...skipped, status: "pass" }, { checks: ["verified", "derived"], matches: [{ key: "rate", policy: "exact" }, undefined] });
+    expect(r.numbers[0]?.match).toEqual({ key: "rate", policy: "exact" });
+    expect(r.numbers[1]).not.toHaveProperty("match");
+    expect(reportSchema.parse(r).numbers[0]?.match?.policy).toBe("exact");
+  });
+
   it("모드 · 안내 · 차트는 준 것만 들어간다", () => {
     const plain = assembleReport(output, [], skipped);
     expect(plain.mode).toBe("research");

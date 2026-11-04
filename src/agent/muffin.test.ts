@@ -141,7 +141,7 @@ describe("research() 다섯 단계", () => {
     expect(result.rewrites).toBe(0);
     expect(result.report.mode).toBe("research");
     expect(result.report.notice).toBeUndefined();
-    expect(result.report.numbers).toEqual([{ ...good.numbers[0], check: "verified" }]);
+    expect(result.report.numbers).toEqual([{ ...good.numbers[0], check: "verified", match: expect.objectContaining({ key: expect.any(String), policy: expect.any(String) }) }]);
     expect(result.report.verification).toMatchObject({ status: "pass", numbers: { total: 1, verified: 1 }, revisions: 0, removed: [] });
     // 계산 결과는 장부에 남지만 url 이 없어 출처에는 들어가지 않는다
     expect(result.report.evidence.map((e) => e.id)).toEqual(["E1", "C1"]);

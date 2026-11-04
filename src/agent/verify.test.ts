@@ -529,6 +529,9 @@ describe("verify · applyVerification · summarizeVerification", () => {
       ["change 틀림", ""],
     ]);
     expect(applied.checks).toEqual(["verified", "verified"]);
+    // 어느 장부 값과 어떤 규칙으로 맞았는지도 남긴다 (화면의 "검증이 한 일")
+    expect(applied.matches).toHaveLength(2);
+    expect(applied.matches[0]).toEqual({ key: "rate", policy: "exact" });
     expect(applied.output.why[1]).toMatchObject({ basis: "none", refs: [], evidence: "데이터로 확인되지 않음" });
     expect(applied.output.impact).toEqual(["수입 물가가 오를 수 있습니다."]);
     expect(applied.output.dataGaps).toEqual(["금리 데이터 없음", "검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았습니다)"]);
@@ -621,6 +624,7 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(result.ok).toBe(true);
     const applied = applyVerification(report, result);
     expect(applied.checks).toEqual(["reported"]);
+    expect(applied.matches).toMatchObject([{ key: "title#text" }]);
     expect(summarizeVerification(applied, 0)).toMatchObject({ status: "pass", numbers: { total: 1, verified: 0, derived: 0, reported: 1, unverified: 0 } });
   });
 
