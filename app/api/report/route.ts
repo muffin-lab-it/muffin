@@ -3,7 +3,8 @@ import { z } from "zod";
 import { isMockMode, mockResearch } from "@/src/agent/mock";
 import { research, type ResearchResult } from "@/src/agent/muffin";
 import { areas, depths } from "@/src/agent/schema";
-import { clip, logRun, newRunId } from "@/src/lib/log";
+import { clip, newRunId } from "@/src/lib/log";
+import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 
 // tool 여러 개를 호출하므로 기본 10초보다 길게 둡니다.
@@ -35,13 +36,13 @@ export async function POST(req: Request) {
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    logRun({ id, at, ok: false, stage: "input", mock, ms: ms(), error: "invalid body" });
+    recordRun({ id, at, ok: false, stage: "input", mock, ms: ms(), error: "invalid body" }, req);
     return NextResponse.json({ error: "question(필수), depth, area 를 확인하세요.", id }, { status: 400 });
   }
   const input = { ...parsed.data, question: clip(redactSecrets(parsed.data.question)) };
 
   if (!mock && !process.env.OPENAI_API_KEY) {
-    logRun({ id, at, ok: false, stage: "config", mock, input, ms: ms(), error: "OPENAI_API_KEY missing" });
+    recordRun({ id, at, ok: false, stage: "config", mock, input, ms: ms(), error: "OPENAI_API_KEY missing" }, req);
     return NextResponse.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 500 });
   }
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     // MUFFIN_MOCK=1 이면 샘플 리포트. 프론트 개발용.
     const result = mock ? await mockResearch(parsed.data) : await research(parsed.data);
     const steps = result.steps.map((step) => step.error ? { ...step, error: "데이터를 확인하지 못했습니다." } : step);
-    logRun({
+    recordRun({
       id,
       at,
       ok: true,
@@ -62,12 +63,14 @@ export async function POST(req: Request) {
       steps: result.steps.map((step) => step.error ? { ...step, error: clip(redactSecrets(step.error), 500) } : step),
       rewrites: result.rewrites,
       quality: qualityOf(result.report),
-    });
+      verification: pickVerification(result.report.verification),
+      intent: result.plan.intent,
+    }, req);
     return NextResponse.json({ report: result.report, steps, rewrites: result.rewrites, id });
   } catch (err) {
     const diagnostic = clip(redactSecrets(err instanceof Error ? err.message : String(err)), 500);
     const message = "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-    logRun({ id, at, ok: false, stage: "agent", mock, input, ms: ms(), error: diagnostic });
+    recordRun({ id, at, ok: false, stage: "agent", mock, input, ms: ms(), error: diagnostic }, req);
     return NextResponse.json({ error: message, id }, { status: 500 });
   }
 }

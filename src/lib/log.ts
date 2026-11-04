@@ -3,6 +3,7 @@
  * 2단계에서 백엔드 팀이 같은 RunLog 를 데이터베이스에 저장합니다. 필드를 바꿀 때는 그쪽과 맞춥니다.
  */
 import type { ToolStep } from "../agent/context";
+import type { Intent, Verification } from "../agent/schema";
 
 export type RunStage = "input" | "config" | "agent" | "ok";
 
@@ -22,6 +23,10 @@ export type RunLog = {
   rewrites?: number;
   /** 리포트 품질 신호 */
   quality?: { numbers: number; why: number; whyUnsupported: number; dataGaps: number; sources: number };
+  /** 리포트 검증 요약 (명세 4.4). /admin 의 검증 통과율 · 다시 쓰기 비율 · 깊이별 비교가 씁니다 */
+  verification?: Pick<Verification, "status" | "numbers" | "why" | "advice" | "revisions">;
+  /** 분류가 정한 의도 (명세 4.4). /admin 의 의도별 요청 수 */
+  intent?: Intent;
   error?: string;
 };
 
