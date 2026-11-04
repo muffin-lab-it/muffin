@@ -195,3 +195,15 @@
 .evalHistory { display: grid; gap: 4px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 16px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .evalHistory li { display: grid; grid-template-columns: auto auto auto auto auto minmax(0, 1fr); gap: 12px; align-items: baseline; }
 .evalHistory a { justify-self: end; }
+
+/* 상용 AI 상태 패널: 왼쪽 벤더 상태, 오른쪽 우리 실측 */
+.vendorGrid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
+.vendorHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+.vendorDesc { font-size: 14px; line-height: 20px; font-weight: 500; }
+.vendorMeta { font-size: 12px; line-height: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.incidents { margin: 12px 0 0; padding-left: 18px; font-size: 13px; line-height: 20px; }
+.incidents a { color: inherit; }
+@media (max-width: 720px) {
+  .vendorGrid { grid-template-columns: 1fr; }
+}

@@ -58,6 +58,11 @@ function stepsFor(s: Scenario, i: number): ToolStep[] {
   return s.tools.map((tool, k) => {
     const [rate, error] = toolFailures[tool] ?? [0, ""];
     const failed = noise(i, 20 + k) < rate;
+    // 가끔은 조회가 실패했지만 저장 응답(tool_cache)으로 나간 줄, 더 드물게 회로가 열려 호출을 건너뛴 줄을 섞습니다
+    if (failed && k === 0 && i % 3 !== 0) {
+      const skipped = i % 5 === 0;
+      return { tool, status: "ok", ms: skipped ? 2 : between(i, 10 + k, [1_500, 2_200]), fallbackAgeMs: between(i, 30 + k, [15 * 60_000, 5 * 60 * 60_000]), ...(skipped ? { breaker: "open" as const } : {}) };
+    }
     return { tool, status: failed ? "error" : "ok", ms: between(i, 10 + k, toolMs[tool] ?? [300, 900]), ...(failed ? { error } : {}) };
   });
 }

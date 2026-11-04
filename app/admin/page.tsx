@@ -8,9 +8,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { labelFor } from "@/src/agent/events";
-import { BUDGET_MS, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RANGES, summarizeRuns, THRESHOLDS, type AdminEvent, type Health, type LoadedRuns, type RangeKey, type RunsSummary } from "@/src/lib/admin";
+import { BUDGET_MS, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RANGES, summarizeRuns, THRESHOLDS, windowStats, type AdminEvent, type Health, type LoadedRuns, type RangeKey, type RunsSummary, type WindowStat } from "@/src/lib/admin";
 import { isAdminAuthorized } from "@/src/lib/admin-auth";
 import { failedLabels, loadEvals, metricLines, withinRatio, type EvalRow, type LoadedEvals } from "@/src/lib/admin-evals";
+import { componentStatusLabels, healthOfComponent, healthOfImpact, healthOfIndicator, impactLabels, incidentStatusLabels, loadVendorStatus, vendorVerdict, type VendorStatus } from "@/src/lib/admin-status";
 import { redactSecrets } from "@/src/lib/redact";
 import styles from "./admin.module.css";
 import { AutoRefresh } from "./AutoRefresh";
@@ -50,8 +51,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
   const s = summarizeRuns(loaded.rows, now, range);
   const health = healthOf(s);
-  // 품질 평가(evals 표)는 실행 로그와 따로 읽습니다. 표가 없거나 실패해도 위 화면은 그대로 그립니다.
-  const evals = await loadEvals();
+  // 품질 평가(evals 표)와 OpenAI 상태 페이지는 실행 로그와 따로 읽습니다. 없거나 실패해도 위 화면은 그대로 그립니다.
+  const [evals, vendor] = await Promise.all([loadEvals(), loadVendorStatus()]);
+  const lastHour = windowStats(loaded.rows, now);
 
   return (
     <div className={styles.page}>
@@ -94,8 +96,89 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <StatusBanner s={s} health={health} />
       {s.total + s.limited === 0 ? <Empty range={range} real={loaded.source === "runs"} rowsInTable={loaded.rows.length} /> : <Dashboard s={s} health={health} now={now} />}
+      <VendorPanel vendor={vendor} lastHour={lastHour} now={now} />
       <EvalPanel evals={evals} />
     </div>
+  );
+}
+
+/**
+ * 상용 AI 상태: OpenAI 상태 페이지(공개 JSON)의 전체 상태 · 우리가 쓰는 구성 요소 · 진행 중 장애와, 우리 실측(최근 1시간 요청 · 성공률 · 평균 응답)을 나란히 둡니다.
+ * 외부가 "정상" 이어도 우리 쪽이 느리면 그게 진짜 상태라서 둘을 같이 보고 한 줄로 판단합니다 (vendorVerdict).
+ */
+function VendorPanel({ vendor, lastHour, now }: { vendor: VendorStatus; lastHour: WindowStat; now: Date }) {
+  const verdict = vendorVerdict(vendor, lastHour);
+  const h: Health = vendor.ok ? healthOfIndicator(vendor.indicator) : "idle";
+  return (
+    <Panel title="🤖 상용 AI 상태" sub="OpenAI 상태 페이지(status.openai.com) + 우리 실측(최근 1시간)">
+      <div className={styles.vendorGrid}>
+        <div>
+          {vendor.ok ? (
+            <>
+              <p className={styles.vendorHead}>
+                <span className={`${styles.pill} ${styles[h]}`}>
+                  <span className={styles.pillDot} aria-hidden="true" />
+                  {healthLabels[h]}
+                </span>
+                <span className={styles.vendorDesc}>{vendor.description}</span>
+                <span className={styles.vendorMeta}>
+                  {vendor.updatedAt ? `갱신 ${ago(vendor.updatedAt, now)} · ` : ""}읽는 데 {vendor.ms}ms
+                </span>
+              </p>
+              <ul className={styles.pills} aria-label="구성 요소">
+                {vendor.components.map((c) => {
+                  const ch = healthOfComponent(c.status);
+                  return (
+                    <li key={c.name} className={`${styles.pill} ${styles[ch]}`}>
+                      <span className={styles.pillDot} aria-hidden="true" />
+                      {c.name} · {componentStatusLabels[c.status] ?? c.status}
+                    </li>
+                  );
+                })}
+              </ul>
+              {vendor.incidents.length > 0 && (
+                <ol className={styles.incidents} aria-label="진행 중 장애">
+                  {vendor.incidents.map((i) => (
+                    <li key={`${i.name}:${i.updatedAt}`}>
+                      <span className={`${styles.badge} ${styles[healthOfImpact(i.impact)]}`}>{impactLabels[i.impact] ?? i.impact}</span>{" "}
+                      {i.url ? (
+                        <a href={i.url} target="_blank" rel="noreferrer">
+                          {i.name}
+                        </a>
+                      ) : (
+                        i.name
+                      )}
+                      {` · ${incidentStatusLabels[i.status] ?? i.status}`}
+                      {i.updatedAt ? ` · ${ago(i.updatedAt, now)}` : ""}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          ) : (
+            <p className={styles.note}>OpenAI 상태 페이지를 읽지 못했습니다 ({vendor.error}). 오른쪽 실측으로 판단하세요.</p>
+          )}
+        </div>
+        <dl className={styles.facts} aria-label="우리 실측 최근 1시간">
+          <div>
+            <dt>최근 1시간 요청</dt>
+            <dd>{count(lastHour.total)}건</dd>
+          </div>
+          <div>
+            <dt>성공률</dt>
+            <dd>{percent(lastHour.ok, lastHour.total)}</dd>
+          </div>
+          <div>
+            <dt>평균 응답</dt>
+            <dd>{lastHour.avgMs === null ? "-" : seconds(lastHour.avgMs)}</dd>
+          </div>
+          <div>
+            <dt>판단</dt>
+            <dd className={styles[`text_${verdict.health}`] ?? ""}>{verdict.text}</dd>
+          </div>
+        </dl>
+      </div>
+    </Panel>
   );
 }
 
@@ -348,7 +431,7 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
       </div>
 
       <div className={styles.gridSplit}>
-        <Panel title="🔍 tool 상태" sub={`정상 ${THRESHOLDS.tool[0] * 100}% 이상 · 주의 ${THRESHOLDS.tool[1] * 100}% 이상`}>
+        <Panel title="🔍 tool 상태" sub={`실제 조회 성공률 · 정상 ${THRESHOLDS.tool[0] * 100}% 이상 · 주의 ${THRESHOLDS.tool[1] * 100}% 이상 · 저장 응답으로 나간 호출은 실패로 셈`}>
           {s.tools.length ? (
             <ul className={styles.tools}>
               {s.tools.map((t) => {
@@ -357,12 +440,15 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
                   <li key={t.tool} className={styles.tool}>
                     <span className={`${styles.light} ${styles[h]}`} title={healthLabels[h]} />
                     <span className={styles.toolName}>{labelFor(t.tool)}</span>
-                    <span className={`${styles.toolRate} ${styles[`text_${h}`] ?? ""}`}>{percent(t.ok, t.calls)}</span>
-                    <span className={styles.toolMeta}>
+                    <span className={`${styles.toolRate} ${styles[`text_${h}`] ?? ""}`}>{percent(t.live, t.calls)}</span>
+                    <span className={styles.toolMeta} title={t.lastFail}>
                       {count(t.calls)}회 · 평균 {seconds(t.avgMs)}
+                      {t.fallbacks ? ` · 저장 응답 ${count(t.fallbacks)}회` : ""}
+                      {t.skipped ? ` · 회로 열림 ${count(t.skipped)}회` : ""}
+                      {t.lastFailAt ? ` · 마지막 실패 ${ago(t.lastFailAt, now)}` : ""}
                     </span>
                     <span className={styles.toolMeter} aria-hidden="true">
-                      <span className={styles[h]} style={{ width: `${(t.ok / t.calls) * 100}%` }} />
+                      <span className={styles[h]} style={{ width: `${(t.live / t.calls) * 100}%` }} />
                     </span>
                   </li>
                 );

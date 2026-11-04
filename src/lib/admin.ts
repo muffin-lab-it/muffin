@@ -52,7 +52,24 @@ export type RunRow = {
 };
 
 export type TimeStat = { count: number; avgMs: number; p90Ms: number };
-export type ToolStat = { tool: string; calls: number; ok: number; avgMs: number };
+export type ToolStat = {
+  tool: string;
+  calls: number;
+  /** 리포트가 데이터를 받은 호출 (저장 응답으로 나간 것 포함) */
+  ok: number;
+  /** 외부 API 가 실제로 답한 호출 (저장 응답 제외). tool 상태등은 이것으로 */
+  live: number;
+  /** 조회가 실패해 저장 응답(tool_cache)으로 나간 호출 */
+  fallbacks: number;
+  /** 회로 차단기가 열려 외부 호출을 건너뛴 호출 */
+  skipped: number;
+  avgMs: number;
+  /** 마지막으로 외부 조회가 실패한 시각과 사유 (저장 응답으로 나간 것 포함) */
+  lastFailAt?: string;
+  lastFail?: string;
+};
+/** 짧은 기간의 실측: 상용 AI 상태 페이지와 나란히 보는 "우리 쪽 헬시값" */
+export type WindowStat = { total: number; ok: number; avgMs: number | null };
 /** 막대 한 칸: start 부터 bucketMs 동안의 요청 */
 export type Bucket = { start: string; ok: number; failed: number; limited: number; avgMs: number | null };
 export type LatencyPoint = { at: string; ms: number; depth: string };
@@ -111,6 +128,27 @@ const failureEvent: Record<string, { level: EventLevel; detail: string }> = {
 };
 
 /** 실행 로그 줄들을 화면 숫자로 모읍니다. now 기준 최근 range 기간만 봅니다. */
+/**
+ * 기간 안의 요청을 셈할 수 있는 것만 고릅니다. Mock 은 빼고, started 로 남은 줄은 2분이 지났으면 끝난 기록 없이 멈춘 요청(실패),
+ * 아니면 아직 진행 중이라 뺍니다. 호출 제한(limited)은 따로 돌려줍니다.
+ */
+function countable(rows: RunRow[], since: number, until: number): { limited: RunRow[]; served: RunRow[] } {
+  const counted = rows.filter((r) => {
+    const t = Date.parse(r.at);
+    return t >= since && t <= until && !r.mock && (r.stage !== "started" || until - t > STALE_STARTED_MS);
+  });
+  return { limited: counted.filter((r) => r.stage === "limited"), served: counted.filter((r) => r.stage !== "limited") };
+}
+
+/** 최근 ms 동안의 요청 수 · 성공 · 리포트 평균 응답 (범위 밖 제외). 상용 AI 상태 옆에 두는 실측입니다 */
+export function windowStats(rows: RunRow[], now = new Date(), ms = HOUR): WindowStat {
+  const until = now.getTime();
+  const { served } = countable(rows, until - ms, until);
+  const ok = served.filter((r) => r.ok);
+  const stat = timeStat(ok.filter((r) => r.intent !== "out_of_scope").map((r) => r.ms));
+  return { total: served.length, ok: ok.length, avgMs: stat?.avgMs ?? null };
+}
+
 export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey = DEFAULT_RANGE): RunsSummary {
   const { ms: rangeMs, bucketMs } = RANGES[range];
   const until = now.getTime();
@@ -120,10 +158,7 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
     return t >= since && t <= until;
   });
   const real = inWindow.filter((r) => !r.mock);
-  // started 로 남은 줄: 2분이 지났으면 끝난 기록 없이 멈춘 요청(실패), 아니면 아직 진행 중이라 뺍니다.
-  const counted = real.filter((r) => r.stage !== "started" || until - Date.parse(r.at) > STALE_STARTED_MS);
-  const limited = counted.filter((r) => r.stage === "limited");
-  const served = counted.filter((r) => r.stage !== "limited");
+  const { limited, served } = countable(rows, since, until);
   const ok = served.filter((r) => r.ok);
   const failed = served.filter((r) => !r.ok);
   // 범위 밖 질문은 분류만 하고 2초 안에 끝나서 리포트 시간 · 토큰 · 검증 숫자를 흐립니다. 리포트를 만든 요청만 봅니다.
@@ -158,16 +193,37 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
   for (const r of served) if (r.intent) intentCounts.set(r.intent, (intentCounts.get(r.intent) ?? 0) + 1);
   const intents = [...intentCounts].map(([intent, count]) => ({ intent, count })).sort((a, b) => b.count - a.count || a.intent.localeCompare(b.intent));
 
-  const toolCalls = new Map<string, { calls: number; ok: number; ms: number }>();
-  for (const step of served.flatMap((r) => r.steps ?? [])) {
-    const t = toolCalls.get(step.tool) ?? { calls: 0, ok: 0, ms: 0 };
-    t.calls += 1;
-    t.ok += step.status === "ok" ? 1 : 0;
-    t.ms += step.ms;
-    toolCalls.set(step.tool, t);
+  const toolCalls = new Map<string, { calls: number; ok: number; live: number; fallbacks: number; skipped: number; ms: number; lastFailAt?: string; lastFail?: string }>();
+  for (const r of served) {
+    for (const step of r.steps ?? []) {
+      const t = toolCalls.get(step.tool) ?? { calls: 0, ok: 0, live: 0, fallbacks: 0, skipped: 0, ms: 0 };
+      const fallback = step.fallbackAgeMs !== undefined;
+      t.calls += 1;
+      t.ok += step.status === "ok" ? 1 : 0;
+      t.live += step.status === "ok" && !fallback ? 1 : 0;
+      t.fallbacks += fallback ? 1 : 0;
+      t.skipped += step.breaker === "open" ? 1 : 0;
+      t.ms += step.ms;
+      // 실패 = 외부 조회를 해 봤는데 안 된 것. 저장 응답으로 리포트가 나갔어도 API 쪽은 실패입니다.
+      // 회로가 열려 건너뛴 호출은 외부를 부르지 않았으므로 "마지막 실패" 시각을 옮기지 않습니다 (언제 실제로 실패했는지가 남게)
+      if ((step.status === "error" || fallback) && step.breaker !== "open" && (!t.lastFailAt || r.at > t.lastFailAt)) {
+        t.lastFailAt = r.at;
+        t.lastFail = step.status === "error" ? (step.error ?? "실패") : `조회 실패 · ${formatAge(step.fallbackAgeMs ?? 0)} 전 저장 응답 사용`;
+      }
+      toolCalls.set(step.tool, t);
+    }
   }
-  const tools = [...toolCalls]
-    .map(([tool, t]) => ({ tool, calls: t.calls, ok: t.ok, avgMs: Math.round(t.ms / t.calls) }))
+  const tools: ToolStat[] = [...toolCalls]
+    .map(([tool, t]) => ({
+      tool,
+      calls: t.calls,
+      ok: t.ok,
+      live: t.live,
+      fallbacks: t.fallbacks,
+      skipped: t.skipped,
+      avgMs: Math.round(t.ms / t.calls),
+      ...(t.lastFailAt ? { lastFailAt: t.lastFailAt, lastFail: t.lastFail } : {}),
+    }))
     .sort((a, b) => b.calls - a.calls || a.tool.localeCompare(b.tool));
 
   // 막대: 한국 시간 정각 경계로 자르고, 기간 시작이 첫 칸 안에 들어오도록 한 칸을 더 둡니다.
@@ -253,7 +309,8 @@ export function healthOf(s: RunsSummary) {
   const latency = atMost(s.time?.p90Ms ?? null, THRESHOLDS.p90Ms);
   const verification = atLeast(s.verification ? s.verification.pass / s.verification.checked : null, THRESHOLDS.pass);
   const advice: Health = s.verification ? (s.verification.advice === 0 ? "ok" : "bad") : "idle";
-  const tools: Record<string, Health> = Object.fromEntries(s.tools.map((t) => [t.tool, atLeast(t.ok / t.calls, THRESHOLDS.tool)]));
+  // tool 상태등은 외부 API 가 실제로 답한 비율입니다. 저장 응답으로 리포트가 나갔어도 API 는 실패한 것이라 넣지 않습니다
+  const tools: Record<string, Health> = Object.fromEntries(s.tools.map((t) => [t.tool, atLeast(t.live / t.calls, THRESHOLDS.tool)]));
   const overall = [success, latency, advice, verification === "bad" ? "warn" : verification].reduce<Health>(
     (worst, h) => (rank[h as Health] > rank[worst] ? (h as Health) : worst),
     "idle",
