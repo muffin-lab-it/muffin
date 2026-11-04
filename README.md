@@ -224,7 +224,7 @@ muffin/
 │     ├─ history.ts                  리포트 저장함 (localStorage → 서버, 백엔드)
 │     ├─ log.ts                      muffin.run 실행 로그
 │     ├─ db.ts                       Supabase 서버 클라이언트 getDb · 표 타입 (secret 키, 서버 전용. 리더)
-│     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 연결 전에는 예시 데이터, 리더)
+│     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 표 최근 7일 조회, DB 환경 변수 없거나 ?source=sample 이면 예시 데이터, 리더)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/. 단계별 상세 · 근거 판정 보정 후보
