@@ -234,7 +234,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 - 상태 기준(`src/lib/admin.ts` 의 `THRESHOLDS`): 성공률 95% 이상 정상 · 85% 이상 주의, 응답 시간 p90 45초 안 정상 · 예산 55초 안 주의, 검증 통과 90% · 75%, tool 성공률 95% · 85%, 남은 권유 표현은 1건이라도 장애. 전체 상태는 성공률 · 응답 시간 · 권유 표현 중 가장 나쁜 것이고, 검증은 전체를 주의까지만 올립니다. tool 실패는 리포트가 나가므로 tool 상태등과 이벤트에만 표시합니다.
 - 응답 시간 · 토큰 · 검증은 리포트를 만든 요청만 셉니다 (범위 밖 질문은 분류만 하고 끝나서 뺍니다). Mock 요청은 모든 숫자에서 빼고, 호출 제한(`limited`)은 성공률에서 따로 셉니다. 2분 넘게 `started` 로 남은 줄은 중간에 멈춘 실패로 셉니다.
 - 보호는 브라우저 기본 로그인 창(HTTP Basic)입니다. 비밀번호는 서버 전용 환경 변수 `ADMIN_PASSWORD` 하나이고 아이디는 보지 않습니다. 비어 있으면 `/admin` 은 404 입니다. `proxy.ts`(Next.js 16 의 proxy, 예전 middleware)가 `/admin` 앞에서 막고 페이지도 한 번 더 확인합니다. 검색 노출은 막습니다(noindex).
-- 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표가 연결되기 전(리더 `db.ts` · 마이그레이션, 서영 `runs` 저장)에는 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. 연결되면 `loadRuns` 안의 조회만 바꿉니다.
+- 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표의 최근 7일(가장 긴 기간, 끝은 화면을 그리는 시각으로 고정)을 시각 · id 순으로 1000줄씩 읽습니다. 다음 쪽은 줄 번호가 아니라 마지막 줄의 (시각, id) 뒤부터 이어 읽어, 읽는 중에 새 요청이 들어와도 같은 줄을 두 번 세거나 건너뛰지 않습니다(최대 10쪽, 그 뒤에 줄이 더 있는 것을 확인했을 때만 최신 것만 집계했다고 표시). `client_id` · `ip_hash` 는 읽지 않습니다. Supabase 환경 변수가 없으면 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. `/admin?source=sample` 로 예시 화면을 볼 수 있고 기간을 바꿔도 유지됩니다(스크린샷 · 시연 연습). 센 요청이 없으면 "아직 기록이 없습니다"에 표가 빈 것인지(7일 동안 0줄) 세지 않는 줄(Mock · 2분 안의 진행 중)뿐인지를 적고 예시 화면 링크를 보여 줍니다. 기록은 실행 로그 저장(4.4, 서영)이 들어온 뒤부터 쌓입니다. 조회가 실패하면(프로젝트 일시 정지 등) 안내문만 보여 줍니다.
 - 가드레일 작동 횟수는 아직 로그 칸이 없어 "남은 권유 표현"(`verification.advice`)으로 대신합니다.
 
 ## 5. 할 일과 완료 조건
@@ -271,7 +271,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 - `src/lib/client.ts` 의 `getClientId()`: `crypto.randomUUID()` 를 localStorage `muffin.client` 에 저장하고, 서버 렌더링에서는 빈 문자열을 돌려줍니다. `api.ts` 가 `X-Muffin-Client` 를 자동으로 붙이고, 429 의 `retryAfterSec` 를 에러 메시지에 반영합니다.
 - Supabase 새 조직 · 프로젝트 · 키를 만들고, `.env.local` 과 Vercel 환경 변수(`SUPABASE_URL` · `SUPABASE_SECRET_KEY` · `ALLOWED_ORIGINS` · `RATE_LIMIT_*` · `RATE_LIMIT_SALT`)에 넣습니다. `db.ts`(클라이언트 · 표 타입)와 마이그레이션 SQL 을 만들고 적용합니다.
 - `events.ts` · `schema.ts` 변경 창구와 AGENTS.md 관리, 응답 시간(55초) 줄이기를 맡습니다.
-- 관리자 화면 `/admin`(4.7)을 만들고 Vercel 환경 변수 `ADMIN_PASSWORD` 를 넣습니다. `runs` 가 연결되면 `loadRuns` 를 실제 조회로 바꿉니다.
+- 관리자 화면 `/admin`(4.7)을 만들고 Vercel 환경 변수 `ADMIN_PASSWORD` 를 넣습니다. `loadRuns` 는 `runs` 표를 읽습니다(11/4). 기록은 서영의 실행 로그 저장(4.4) 뒤부터 쌓입니다.
 
 ## 6. 순서
 
