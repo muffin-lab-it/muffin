@@ -1,7 +1,19 @@
 import type { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { config, proxy } from "@/proxy";
-import { EVENT_LIMIT, healthOf, loadRuns, parseRange, summarizeRuns, type RunRow } from "./admin";
+import { EVENT_LIMIT, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RUN_COLUMNS, summarizeRuns, type RunRow } from "./admin";
+
+// loadRuns 는 db.ts 로 runs 표를 읽습니다. 여기서는 Supabase 를 부르지 않고 조회 체인(from → select → gte → lte → [or] → order → order → limit)을 흉내 냅니다.
+const db = vi.hoisted(() => ({ enabled: vi.fn(() => false), from: vi.fn(), pages: [] as { data: unknown[] | null; error: { message: string } | null }[] }));
+vi.mock("./db", () => ({ dbEnabled: db.enabled, getDb: () => ({ from: db.from }) }));
+const query = { select: vi.fn(), gte: vi.fn(), lte: vi.fn(), or: vi.fn(), order: vi.fn(), limit: vi.fn() };
+query.select.mockReturnValue(query);
+query.gte.mockReturnValue(query);
+query.lte.mockReturnValue(query);
+query.or.mockReturnValue(query);
+query.order.mockReturnValue(query);
+query.limit.mockImplementation(async () => db.pages.shift() ?? { data: [], error: null });
+db.from.mockReturnValue(query);
 import { ADMIN_CHALLENGE, adminEnabled, isAdminAuthorized } from "./admin-auth";
 import { sampleRuns } from "./admin.sample";
 
@@ -285,9 +297,86 @@ describe("예시 데이터", () => {
     expect(summarizeRuns(rows, NOW, "24h").total).toBeGreaterThan(10);
   });
 
-  it("runs 표 연결 전이라 loadRuns 는 예시 데이터를 돌려준다", async () => {
+});
+
+describe("loadRuns (runs 표 조회)", () => {
+  afterEach(() => {
+    db.enabled.mockReturnValue(false);
+    db.pages = [];
+    db.from.mockClear();
+    for (const fn of Object.values(query)) fn.mockClear();
+  });
+
+  it("Supabase 환경 변수가 없으면 예시 데이터(no-db)이고 DB 를 부르지 않는다", async () => {
     const loaded = await loadRuns(NOW);
-    expect(loaded.source).toBe("sample");
-    expect(loaded.rows).toEqual(sampleRuns(NOW));
+    expect(loaded).toEqual({ source: "sample", reason: "no-db", rows: sampleRuns(NOW) });
+    expect(db.from).not.toHaveBeenCalled();
+  });
+
+  it("화면이 예시를 요청하면(?source=sample) DB 가 있어도 예시 데이터(requested)다", async () => {
+    db.enabled.mockReturnValue(true);
+    const loaded = await loadRuns(NOW, { source: "sample" });
+    expect(loaded).toMatchObject({ source: "sample", reason: "requested" });
+    expect(db.from).not.toHaveBeenCalled();
+  });
+
+  it("runs 표의 최근 7일(끝은 now 로 고정)을 시각 · id 순으로 읽고, client_id · ip_hash 는 읽지 않는다", async () => {
+    db.enabled.mockReturnValue(true);
+    const rows = [run({ id: "a", at: ago(5) }), run({ id: "b", at: ago(60), ok: false, stage: "agent", error: "timeout" })];
+    db.pages = [{ data: rows, error: null }];
+    const loaded = await loadRuns(NOW);
+    expect(loaded).toEqual({ source: "runs", rows, truncated: false });
+    expect(db.from).toHaveBeenCalledWith("runs");
+    expect(query.select).toHaveBeenCalledWith(RUN_COLUMNS);
+    expect(RUN_COLUMNS).not.toMatch(/client_id|ip_hash/);
+    expect(query.gte).toHaveBeenCalledWith("at", new Date(NOW.getTime() - 7 * 24 * 60 * 60_000).toISOString());
+    expect(query.lte).toHaveBeenCalledWith("at", NOW.toISOString());
+    expect(query.or).not.toHaveBeenCalled();
+    expect(query.order).toHaveBeenNthCalledWith(1, "at", { ascending: false });
+    expect(query.order).toHaveBeenNthCalledWith(2, "id", { ascending: false });
+    expect(query.limit).toHaveBeenCalledTimes(1);
+    expect(query.limit).toHaveBeenCalledWith(PAGE);
+  });
+
+  it("한 쪽(1000줄)이 꽉 차면 마지막 줄의 (시각, id) 뒤부터 이어 읽는다 (같은 시각의 줄이 경계에 걸려도 건너뛰지 않음)", async () => {
+    db.enabled.mockReturnValue(true);
+    // 같은 시각(at)의 줄이 경계에 걸린 경우: 커서가 id 까지 보므로 다음 쪽은 id 가 더 작은 줄부터 온다
+    const sameAt = ago(30);
+    const first = Array.from({ length: PAGE }, (_, i) => run({ id: `p0-${String(PAGE - i).padStart(4, "0")}`, at: sameAt }));
+    const boundary = first[first.length - 1]!;
+    db.pages = [{ data: first, error: null }, { data: [run({ id: "p0-0000", at: sameAt }), run({ id: "older", at: ago(PAGE + 5) })], error: null }];
+    const loaded = await loadRuns(NOW);
+    expect(loaded).toMatchObject({ source: "runs", truncated: false });
+    expect(loaded.rows).toHaveLength(PAGE + 2);
+    expect(query.or).toHaveBeenCalledTimes(1);
+    expect(query.or).toHaveBeenCalledWith(`at.lt."${boundary.at}",and(at.eq."${boundary.at}",id.lt."${boundary.id}")`);
+    // 끝 시각은 쪽마다 now 로 고정 (그 사이 들어온 새 줄은 오지 않음)
+    expect(query.lte).toHaveBeenCalledTimes(2);
+    expect(query.lte).toHaveBeenNthCalledWith(2, "at", NOW.toISOString());
+    expect(query.limit).toHaveBeenCalledTimes(2);
+  });
+
+  it("상한(10쪽)까지 꽉 찼으면 한 줄을 더 읽어 정말 더 있을 때만 truncated 다", async () => {
+    db.enabled.mockReturnValue(true);
+    const full = (page: number) => Array.from({ length: PAGE }, (_, i) => run({ id: `p${page}-${i}`, at: ago(page * PAGE + i) }));
+    db.pages = [...Array.from({ length: MAX_PAGES }, (_, p) => ({ data: full(p), error: null })), { data: [run({ id: "more" })], error: null }];
+    const capped = await loadRuns(NOW);
+    expect(capped).toMatchObject({ source: "runs", truncated: true });
+    expect(capped.rows).toHaveLength(PAGE * MAX_PAGES);
+    expect(query.limit).toHaveBeenCalledTimes(MAX_PAGES + 1);
+    expect(query.limit).toHaveBeenLastCalledWith(1);
+
+    query.limit.mockClear();
+    db.pages = [...Array.from({ length: MAX_PAGES }, (_, p) => ({ data: full(p), error: null })), { data: [], error: null }];
+    const exact = await loadRuns(NOW);
+    expect(exact).toMatchObject({ source: "runs", truncated: false });
+    expect(exact.rows).toHaveLength(PAGE * MAX_PAGES);
+    expect(query.limit).toHaveBeenCalledTimes(MAX_PAGES + 1);
+  });
+
+  it("조회 오류는 메시지만 담아 throw 한다 (화면이 안내문으로 보여 줌)", async () => {
+    db.enabled.mockReturnValue(true);
+    db.pages = [{ data: null, error: { message: "permission denied for table runs" } }];
+    await expect(loadRuns(NOW)).rejects.toThrow("runs 표 조회 실패: permission denied for table runs");
   });
 });

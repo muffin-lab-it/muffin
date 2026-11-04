@@ -1,12 +1,14 @@
 /**
  * /admin 실행 로그 집계. 리더 관리.
  *
- * 데이터는 Supabase runs 표입니다 (docs/web-spec.md 4.3 · 4.7). 표가 연결되기 전(은경 db.ts · 마이그레이션, 서영 runs 저장)에는
- * loadRuns 가 예시 데이터를 돌려주고 화면 맨 위에 예시 데이터라고 표시합니다. 연결되면 loadRuns 안의 조회만 바꿉니다.
+ * 데이터는 Supabase runs 표입니다 (docs/web-spec.md 4.3 · 4.7). loadRuns 가 최근 7일을 읽고(1000줄씩, 최대 10쪽),
+ * Supabase 환경 변수가 없거나 화면이 `?source=sample` 로 요청하면 예시 데이터를 돌려주며 화면 맨 위에 그렇게 표시합니다.
+ * 줄은 서영의 실행 로그 저장(4.4)이 넣습니다. 그 전에는 표가 비어 있어 "기록 없음" 으로 보입니다.
  */
 import type { ToolStep } from "../agent/context";
 import type { Verification } from "../agent/schema";
 import { sampleRuns } from "./admin.sample";
+import { dbEnabled, getDb } from "./db";
 
 const HOUR = 60 * 60_000;
 /** 화면이 고를 수 있는 기간과 막대 한 칸의 길이 */
@@ -255,9 +257,55 @@ export function healthOf(s: RunsSummary) {
   return { overall, success, latency, verification, advice, tools };
 }
 
-export type LoadedRuns = { source: "sample" | "runs"; rows: RunRow[] };
+export type LoadedRuns =
+  /** 예시 데이터. no-db 는 Supabase 환경 변수가 없는 것, requested 는 화면이 `?source=sample` 로 요청한 것 */
+  | { source: "sample"; reason: "no-db" | "requested"; rows: RunRow[] }
+  /** runs 표. truncated 는 최근 7일 기록이 PAGE × MAX_PAGES 를 넘어 최신 것만 읽은 것 */
+  | { source: "runs"; rows: RunRow[]; truncated: boolean };
 
-/** runs 표 연결 전에는 예시 데이터입니다. 연결되면 여기서 runs 의 최근 7일(가장 긴 기간)을 조회합니다. */
-export async function loadRuns(now = new Date()): Promise<LoadedRuns> {
-  return { source: "sample", rows: sampleRuns(now) };
+/** runs 표에서 읽는 칸. client_id · ip_hash 는 화면에 쓰지 않아 읽지 않습니다 */
+export const RUN_COLUMNS = "id, at, ok, stage, mock, input, ms, model, usage, steps, rewrites, verification, intent, error";
+/** 한 번에 읽는 줄 수 (Supabase 의 요청당 상한 1000). 7일치가 더 많으면 이어서 읽습니다 */
+export const PAGE = 1000;
+export const MAX_PAGES = 10;
+
+/** PostgREST 필터 값. 점 · 쉼표 · 괄호가 들어가는 값(시각 · id)은 따옴표로 감싸야 합니다 */
+const quote = (value: string) => `"${value.replace(/["\\]/g, (c) => `\\${c}`)}"`;
+
+/**
+ * runs 표의 최근 7일(가장 긴 기간)을 최신순으로 읽습니다. 기간 나누기는 summarizeRuns 가 합니다.
+ * 쪽 넘김은 줄 번호(offset)가 아니라 마지막 줄의 (시각, id) 뒤부터입니다. 읽는 중에 새 요청이 들어와도 같은 줄을 두 번 세거나 건너뛰지 않게
+ * 하려는 것이고, 끝 시각은 now 로 고정합니다. 상한(MAX_PAGES)까지 꽉 찼으면 한 줄을 더 읽어 정말 더 있는지 확인한 뒤에만 truncated 입니다.
+ * Supabase 환경 변수가 없으면 예시 데이터이고, 화면이 예시를 요청해도(스크린샷 · 시연 연습) 예시입니다. 조회 오류는 throw 해 화면이 알립니다.
+ */
+export async function loadRuns(now = new Date(), { source }: { source?: "sample" } = {}): Promise<LoadedRuns> {
+  if (source === "sample") return { source: "sample", reason: "requested", rows: sampleRuns(now) };
+  if (!dbEnabled()) return { source: "sample", reason: "no-db", rows: sampleRuns(now) };
+  const since = new Date(now.getTime() - RANGES["7d"].ms).toISOString();
+  const until = now.toISOString();
+  const db = getDb();
+  // after 가 있으면 그 줄 뒤부터: 시각이 더 이르거나, 같은 시각이면 id 가 더 작은 줄 (정렬과 같은 순서)
+  const fetchPage = (after: RunRow | undefined, limit: number) => {
+    let q = db.from("runs").select(RUN_COLUMNS).gte("at", since).lte("at", until);
+    if (after) q = q.or(`at.lt.${quote(after.at)},and(at.eq.${quote(after.at)},id.lt.${quote(after.id)})`);
+    return q.order("at", { ascending: false }).order("id", { ascending: false }).limit(limit);
+  };
+  const rows: RunRow[] = [];
+  let last: RunRow | undefined;
+  let full = false;
+  for (let n = 0; n < MAX_PAGES; n++) {
+    const { data, error } = await fetchPage(last, PAGE);
+    if (error) throw new Error(`runs 표 조회 실패: ${error.message}`);
+    rows.push(...(data ?? []));
+    full = (data?.length ?? 0) === PAGE;
+    if (!full) break;
+    last = data![data!.length - 1]!;
+  }
+  let truncated = false;
+  if (full) {
+    const { data, error } = await fetchPage(last, 1);
+    if (error) throw new Error(`runs 표 조회 실패: ${error.message}`);
+    truncated = (data?.length ?? 0) > 0;
+  }
+  return { source: "runs", rows, truncated };
 }

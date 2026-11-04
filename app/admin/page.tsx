@@ -1,6 +1,6 @@
 /**
  * 관리자 화면: 실행 모니터링 (최근 24시간 · 7일). 리더 관리. 보호는 proxy.ts + 아래 확인 (src/lib/admin-auth.ts).
- * 데이터는 src/lib/admin.ts 의 loadRuns. runs 표 연결 전에는 예시 데이터이고 맨 위에 그렇게 표시합니다.
+ * 데이터는 src/lib/admin.ts 의 loadRuns (runs 표 최근 7일). Supabase 환경 변수가 없거나 ?source=sample 이면 예시 데이터이고 맨 위에 그렇게 표시합니다.
  */
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -8,7 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { labelFor } from "@/src/agent/events";
-import { BUDGET_MS, healthOf, loadRuns, parseRange, RANGES, summarizeRuns, THRESHOLDS, type AdminEvent, type Health, type LoadedRuns, type RunsSummary } from "@/src/lib/admin";
+import { BUDGET_MS, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RANGES, summarizeRuns, THRESHOLDS, type AdminEvent, type Health, type LoadedRuns, type RangeKey, type RunsSummary } from "@/src/lib/admin";
 import { isAdminAuthorized } from "@/src/lib/admin-auth";
 import { redactSecrets } from "@/src/lib/redact";
 import styles from "./admin.module.css";
@@ -28,11 +28,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   // proxy.ts 가 먼저 막습니다. matcher 가 바뀌어도 열리지 않게 여기서 한 번 더 확인합니다.
   if (!isAdminAuthorized((await headers()).get("authorization"))) notFound();
 
-  const range = parseRange((await searchParams).range);
+  const params = await searchParams;
+  const range = parseRange(params.range);
+  // ?source=sample 은 예시 데이터로 화면을 보는 용도입니다 (스크린샷 · 시연 연습). 기본은 runs 표입니다.
+  const source = params.source === "sample" ? "sample" : undefined;
   const now = new Date();
   let loaded: LoadedRuns;
   try {
-    loaded = await loadRuns(now);
+    loaded = await loadRuns(now, { source });
   } catch (err) {
     const reason = redactSecrets(err instanceof Error ? err.message : String(err)).slice(0, 200);
     return (
@@ -60,7 +63,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <div className={styles.controls}>
           <nav className={styles.segment} aria-label="기간">
             {(Object.keys(RANGES) as (keyof typeof RANGES)[]).map((key) => (
-              <Link key={key} href={{ pathname: "/admin", query: { range: key } }} aria-current={key === range ? "page" : undefined}>
+              // 예시 모드(?source=sample)는 기간을 바꿔도 유지합니다
+              <Link key={key} href={{ pathname: "/admin", query: { range: key, ...(source ? { source } : {}) } }} aria-current={key === range ? "page" : undefined}>
                 {RANGES[key].label}
               </Link>
             ))}
@@ -71,12 +75,22 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       {loaded.source === "sample" && (
         <p className={styles.sample} role="note">
-          예시 데이터입니다. 실제 요청이 아닙니다. 실행 로그 DB(runs 표)가 연결되면 실제 기록으로 바뀝니다.
+          예시 데이터입니다. 실제 요청이 아닙니다.{" "}
+          {loaded.reason === "requested" ? (
+            <Link href={{ pathname: "/admin", query: { range } }}>실제 기록 보기</Link>
+          ) : (
+            "Supabase 환경 변수(SUPABASE_URL · SUPABASE_SECRET_KEY)가 없어 runs 표를 읽지 못했습니다."
+          )}
+        </p>
+      )}
+      {loaded.source === "runs" && loaded.truncated && (
+        <p className={styles.sample} role="note">
+          최근 7일 기록이 {count(PAGE * MAX_PAGES)}건을 넘어 최신 {count(loaded.rows.length)}건만 집계했습니다.
         </p>
       )}
 
       <StatusBanner s={s} health={health} />
-      {s.total + s.limited === 0 ? <Empty label={RANGES[range].label} /> : <Dashboard s={s} health={health} now={now} />}
+      {s.total + s.limited === 0 ? <Empty range={range} real={loaded.source === "runs"} rowsInTable={loaded.rows.length} /> : <Dashboard s={s} health={health} now={now} />}
     </div>
   );
 }
@@ -105,11 +119,23 @@ function StatusBanner({ s, health }: { s: RunsSummary; health: ReturnType<typeof
   );
 }
 
-function Empty({ label }: { label: string }) {
+/** 센 요청이 없을 때. 표 자체가 비었는지(7일 동안 0줄), 줄은 있지만 세지 않는 것(Mock · 2분 안의 진행 중)뿐인지 나눠 말합니다. */
+function Empty({ range, real, rowsInTable }: { range: RangeKey; real: boolean; rowsInTable: number }) {
+  const label = RANGES[range].label;
   return (
     <section className={styles.panel}>
       <h2 className={styles.panelTitle}>아직 기록이 없습니다</h2>
-      <p className={styles.note}>최근 {label} 동안 들어온 요청이 없습니다. 홈에서 리포트를 하나 만들면 여기에 쌓입니다.</p>
+      <p className={styles.note}>
+        {rowsInTable === 0
+          ? "최근 7일 동안 runs 표에 기록이 없습니다. 홈에서 리포트를 만들면 실행 로그 저장(명세 4.4)을 거쳐 여기에 쌓입니다."
+          : `최근 ${label} 동안 센 요청이 없습니다. Mock 요청과 2분 안의 진행 중 요청은 세지 않습니다.`}
+        {real && (
+          <>
+            {" "}
+            화면 구성은 <Link href={{ pathname: "/admin", query: { range, source: "sample" } }}>예시 데이터</Link>로 볼 수 있습니다.
+          </>
+        )}
+      </p>
     </section>
   );
 }
