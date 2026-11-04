@@ -2,7 +2,7 @@
  * Promptfoo 결과(-o 로 쓴 JSON)를 사람이 읽는 요약으로 (리더). 지표별 통과율을 기준(promptfooconfig.yaml 의 metadata.thresholds)과
  * 지난 번 결과(baseline)와 나란히 보여 주고, 기준 아래로 떨어진 지표를 돌려줍니다. run.ts 가 부르고, 테스트는 promptfoo.test.ts.
  */
-import { metricLabels, type Metric } from "./asserts";
+import { isMetric, metricLabels, metricOrder, type Metric } from "../../src/lib/eval-metrics";
 
 /** promptfoo 출력 JSON 중 쓰는 부분만 (0.125 기준) */
 export type PromptfooComponent = { pass: boolean; score: number; reason: string; assertion?: { type: string; metric?: string } };
@@ -25,8 +25,6 @@ export type PromptfooOutput = {
   results: { timestamp?: string; stats?: { successes: number; failures: number; errors: number }; results: PromptfooRow[] };
 };
 
-export const metricOrder: Metric[] = ["intent", "tools", "numbers", "refs", "why", "judge", "advice", "verification", "rewrites", "latency"];
-
 /** promptfooconfig.yaml 에 metadata.thresholds 가 없을 때 쓰는 값. 설정 파일이 기준의 원본입니다. */
 export const defaultThresholds: Record<Metric, number> = {
   intent: 0.8,
@@ -45,7 +43,6 @@ export type MetricRate = { pass: number; total: number; rate: number | null };
 export type Failed = { metric: Metric; rate: number; threshold: number };
 export type Summary = { markdown: string; failed: Failed[]; errors: number; questions: number; rates: Record<Metric, MetricRate> };
 
-const isMetric = (m: string | undefined): m is Metric => !!m && m in metricLabels;
 const pct = (r: number | null) => (r === null ? "-" : `${Math.round(r * 100)}%`);
 const delta = (now: number | null, before: number | null) => {
   if (now === null || before === null) return "-";
@@ -81,12 +78,21 @@ export function thresholdsOf(out: PromptfooOutput): Record<Metric, number> {
   return Object.fromEntries(metricOrder.map((m) => [m, typeof given[m] === "number" ? given[m] : defaultThresholds[m]])) as Record<Metric, number>;
 }
 
-/** 비교할 때 같이 보는 것: 쓴 모델(작성 단계, 깊이마다 다를 수 있음)과 토큰 합계 */
+export type Usage = { models: string[]; prompt: number; completion: number; avgMs: number | null };
+
+/** 비교할 때 같이 보는 것: 쓴 모델(작성 단계, 깊이마다 다를 수 있음) · 토큰 합계 · 평균 시간. evals 표에도 이대로 넣습니다 */
+export function usageOf(rows: PromptfooRow[]): Usage {
+  return {
+    models: [...new Set(rows.map((r) => r.response?.output?.model).filter((m): m is string => !!m))],
+    prompt: rows.reduce((s, r) => s + (r.tokenUsage?.prompt ?? 0), 0),
+    completion: rows.reduce((s, r) => s + (r.tokenUsage?.completion ?? 0), 0),
+    avgMs: rows.length ? Math.round(rows.reduce((s, r) => s + (r.latencyMs ?? 0), 0) / rows.length) : null,
+  };
+}
+
 function usageLine(rows: PromptfooRow[]): string {
-  const models = [...new Set(rows.map((r) => r.response?.output?.model).filter((m): m is string => !!m))];
-  const prompt = rows.reduce((s, r) => s + (r.tokenUsage?.prompt ?? 0), 0);
-  const completion = rows.reduce((s, r) => s + (r.tokenUsage?.completion ?? 0), 0);
-  const parts = [models.length ? `모델 ${models.join(" · ")}` : "", prompt + completion ? `토큰 입력 ${prompt.toLocaleString("en-US")} · 출력 ${completion.toLocaleString("en-US")}` : ""].filter(Boolean);
+  const u = usageOf(rows);
+  const parts = [u.models.length ? `모델 ${u.models.join(" · ")}` : "", u.prompt + u.completion ? `토큰 입력 ${u.prompt.toLocaleString("en-US")} · 출력 ${u.completion.toLocaleString("en-US")}` : ""].filter(Boolean);
   return parts.length ? `, ${parts.join(", ")}` : "";
 }
 

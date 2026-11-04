@@ -40,6 +40,31 @@ type RunRow = {
   error: string | null;
 };
 
+/** evals 한 줄. 평가(scripts/promptfoo/run.ts) 한 번의 요약입니다. 주간 Action 과 로컬 실행이 넣고 /admin 이 읽습니다. */
+type EvalRow = {
+  /** Action 은 GitHub run id, 로컬은 날짜-시각(-tag) */
+  id: string;
+  at: string; // ISO
+  source: "ci" | "local";
+  /** 모델 비교 같은 실험 이름. 주간 평가는 null */
+  tag: string | null;
+  /** 돌린 세트 (쉼표로 여러 개). null 이면 전부 */
+  set_name: string | null;
+  questions: number;
+  errors: number;
+  avg_ms: number | null;
+  /** 작성 단계에 쓴 모델들 */
+  models: string[] | null;
+  tokens: { prompt: number; completion: number } | null;
+  /** 지표마다 통과 수 · 전체 수 · 통과율 (src/lib/eval-metrics.ts 의 Metric 이 키) */
+  rates: Record<string, { pass: number; total: number; rate: number | null }>;
+  thresholds: Record<string, number>;
+  failed: { metric: string; rate: number; threshold: number }[];
+  run_url: string | null;
+  /** 요약 markdown */
+  summary: string | null;
+};
+
 /** 넣을 때(Insert)는 기본값이 있거나 null 이 되는 칸(Optional)을 빼도 됩니다. */
 type Table<Row, Optional extends keyof Row> = {
   Row: Row;
@@ -53,6 +78,7 @@ export type Database = {
     Tables: {
       reports: Table<ReportRow, "created_at" | "steps">;
       runs: Table<RunRow, Exclude<keyof RunRow, "id" | "at" | "ok" | "stage" | "ms">>;
+      evals: Table<EvalRow, "tag" | "set_name" | "avg_ms" | "models" | "tokens" | "run_url" | "summary">;
     };
     Views: { [_ in never]: never };
     Functions: { [_ in never]: never };

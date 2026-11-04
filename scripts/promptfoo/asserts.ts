@@ -4,7 +4,7 @@
  * tests.ts 가 질문마다 `file://asserts.ts:<이름>` 으로 고르고, summary.ts 가 metricLabels 순서로 표를 만듭니다.
  */
 import { createJudgeAgent, judgeWhy, judgeable, summarizeJudge, verdictMark } from "../../src/agent/judge";
-import { TIME_BUDGET_MS } from "../../src/agent/muffin";
+import { metricLabels, type Metric } from "../../src/lib/eval-metrics";
 import { checks, intentMatch, toolMatch } from "../scoring";
 import type { EvalOutput, EvalVars } from "./provider";
 
@@ -12,20 +12,8 @@ export type Grade = { pass: boolean; score: number; reason: string };
 /** promptfoo 가 넘기는 context 중 쓰는 것. vars 는 tests.ts 가 질문마다 넣은 값입니다. */
 export type AssertContext = { vars: EvalVars };
 
-/** 지표 이름(metric) 과 표에 쓰는 한국어 이름. latency 는 promptfoo 내장 assertion(type: latency)입니다. */
-export const metricLabels = {
-  intent: "의도 일치",
-  tools: "tool 선택",
-  numbers: "숫자 검증",
-  refs: "지어낸 번호 없음",
-  why: "원인 근거",
-  judge: "근거 판정",
-  advice: "권유 없음",
-  verification: "검증 통과",
-  rewrites: "다시 쓰기 없음",
-  latency: `${TIME_BUDGET_MS / 1000}초 안`,
-} as const;
-export type Metric = keyof typeof metricLabels;
+/** 지표 이름(metric) 과 한국어 이름은 src/lib/eval-metrics.ts 에 있습니다 (관리자 화면도 같이 씀). latency 는 promptfoo 내장 assertion 입니다. */
+export { metricLabels, type Metric };
 
 const grade = (pass: boolean, reason: string, score = pass ? 1 : 0): Grade => ({ pass, score, reason });
 

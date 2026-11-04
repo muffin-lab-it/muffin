@@ -44,6 +44,18 @@ export function promptfooEnv(base: Env, opts: RunOptions = {}): Env {
   return env;
 }
 
+/**
+ * 실험 이름(tag). --tag 가 없어도 깊이 · 모델을 바꾼 실행은 기본 설정과 비교할 수 없으므로 자동으로 이름을 붙입니다.
+ * tag 가 있으면 latest.json(주간 비교 기준)을 갱신하지 않고, evals 표에서도 주간 평가로 세지 않습니다.
+ */
+export function experimentTag(tag: string | undefined, opts: Pick<RunOptions, "depth" | "model" | "smallModel">): string | undefined {
+  if (tag) return tag;
+  if (opts.depth) return `depth-${opts.depth}`;
+  if (opts.model) return `model-${opts.model}`;
+  if (opts.smallModel) return `small-${opts.smallModel}`;
+  return undefined;
+}
+
 export type SpawnOutcome = { status: number | null; signal: NodeJS.Signals | null; error?: Error };
 
 /** 이번 실행이 실패했으면 그 이유, 제대로 끝났으면 null. 결과 파일은 실행 전에 지웠으므로 있으면 이번 것입니다 */

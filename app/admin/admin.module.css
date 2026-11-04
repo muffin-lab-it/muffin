@@ -181,3 +181,17 @@
   .bannerFacts { flex-basis: 100%; margin-left: 32px; white-space: normal; }
   .chart { grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: 144px auto; }
 }
+
+/* ---------- 품질 평가 (evals) ---------- */
+.evalHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.evalMeta { font-size: 12px; line-height: 16px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.evalMeta a, .evalHistory a { color: var(--accent); }
+.evalFailed { margin: 8px 0 0; font-size: 14px; line-height: 20px; color: var(--bad-ink); }
+.evalTable { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.evalTable th { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ink-2); }
+.evalTable td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); }
+.evalTable tr:last-child td { border-bottom: 0; }
+.evalTrend { margin-top: 12px; }
+.evalHistory { display: grid; gap: 4px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 16px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.evalHistory li { display: grid; grid-template-columns: auto auto auto auto auto minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.evalHistory a { justify-self: end; }
