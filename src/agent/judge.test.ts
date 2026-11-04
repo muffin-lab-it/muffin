@@ -113,11 +113,13 @@ describe("judgeable · judgeInput", () => {
     expect(text).toContain("당신은 Muffin");
   });
 
-  it("판정 Agent 는 작은 모델을 쓰고 이름이 고정이며, 환경 변수로 모델을 바꿀 수 있다", () => {
+  it("판정 Agent 는 작은 모델을 쓰고 이름이 고정이며, 분류 · 정제 모델(OPENAI_MODEL_SMALL)과 따로 OPENAI_MODEL_JUDGE 로만 바꿀 수 있다", () => {
     expect(createJudgeAgent().name).toBe("Muffin Judge");
     expect(createJudgeAgent().model).toBe("gpt-5.4-mini");
     vi.stubEnv("OPENAI_MODEL_SMALL", "gpt-test-small");
-    expect(createJudgeAgent().model).toBe("gpt-test-small");
+    expect(createJudgeAgent().model).toBe("gpt-5.4-mini");
+    vi.stubEnv("OPENAI_MODEL_JUDGE", "gpt-test-judge");
+    expect(createJudgeAgent().model).toBe("gpt-test-judge");
     expect(createJudgeAgent().modelSettings).toMatchObject({ timeoutMs: 15_000, retry: { maxRetries: 1 } });
   });
 });

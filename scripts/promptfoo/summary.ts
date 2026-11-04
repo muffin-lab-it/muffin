@@ -14,7 +14,9 @@ export type PromptfooRow = {
   error?: string | null;
   vars?: Record<string, unknown>;
   testCase?: { description?: string };
-  response?: { error?: string };
+  /** output 은 provider.ts 의 EvalOutput. 여기서는 모델 이름만 봅니다 */
+  response?: { error?: string; output?: { model?: string } | null };
+  tokenUsage?: { total?: number; prompt?: number; completion?: number };
   gradingResult?: { pass: boolean; componentResults?: PromptfooComponent[] } | null;
 };
 export type PromptfooOutput = {
@@ -79,7 +81,18 @@ export function thresholdsOf(out: PromptfooOutput): Record<Metric, number> {
   return Object.fromEntries(metricOrder.map((m) => [m, typeof given[m] === "number" ? given[m] : defaultThresholds[m]])) as Record<Metric, number>;
 }
 
-export function summarize(out: PromptfooOutput, { baseline, title = "리포트 평가 (Promptfoo)" }: { baseline?: PromptfooOutput; title?: string } = {}): Summary {
+/** 비교할 때 같이 보는 것: 쓴 모델(작성 단계, 깊이마다 다를 수 있음)과 토큰 합계 */
+function usageLine(rows: PromptfooRow[]): string {
+  const models = [...new Set(rows.map((r) => r.response?.output?.model).filter((m): m is string => !!m))];
+  const prompt = rows.reduce((s, r) => s + (r.tokenUsage?.prompt ?? 0), 0);
+  const completion = rows.reduce((s, r) => s + (r.tokenUsage?.completion ?? 0), 0);
+  const parts = [models.length ? `모델 ${models.join(" · ")}` : "", prompt + completion ? `토큰 입력 ${prompt.toLocaleString("en-US")} · 출력 ${completion.toLocaleString("en-US")}` : ""].filter(Boolean);
+  return parts.length ? `, ${parts.join(", ")}` : "";
+}
+
+export type SummarizeOptions = { baseline?: PromptfooOutput; title?: string; /** "지난 번" 열의 이름. 모델 비교처럼 특정 결과와 비교할 때 그 이름 */ baselineLabel?: string };
+
+export function summarize(out: PromptfooOutput, { baseline, title = "리포트 평가 (Promptfoo)", baselineLabel = "지난 번" }: SummarizeOptions = {}): Summary {
   const rows = out.results.results;
   const rates = metricRates(out);
   const thresholds = thresholdsOf(out);
@@ -93,7 +106,7 @@ export function summarize(out: PromptfooOutput, { baseline, title = "리포트 �
 
   const shown = metricOrder.filter((m) => rates[m].total > 0 || (base !== null && base[m].total > 0));
   const metricTable = [
-    `| 지표 | 통과 | 통과율 | 기준 | 지난 번 | 상태 |`,
+    `| 지표 | 통과 | 통과율 | 기준 | ${baselineLabel} | 상태 |`,
     `|---|---|---|---|---|---|`,
     ...shown.map((m) => {
       const r = rates[m];
@@ -145,7 +158,7 @@ export function summarize(out: PromptfooOutput, { baseline, title = "리포트 �
     "",
     headline,
     "",
-    `질문 ${rows.length}개 (오류 ${errorRows.length}), 리포트 평균 ${avgSec}초${baseline ? ", 지난 번과 비교" : ""}`,
+    `질문 ${rows.length}개 (오류 ${errorRows.length}), 리포트 평균 ${avgSec}초${usageLine(rows)}${baseline ? `, ${baselineLabel}과 비교${baseline.results.results.length ? ` (평균 ${(baseline.results.results.reduce((s, r) => s + (r.latencyMs ?? 0), 0) / baseline.results.results.length / 1000).toFixed(1)}초${usageLine(baseline.results.results)})` : ""}` : ""}`,
     "",
     "## 지표별 통과율",
     "",

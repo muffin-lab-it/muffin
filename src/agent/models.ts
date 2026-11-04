@@ -13,7 +13,10 @@ export const SMALL_MODEL = "gpt-5.4-mini";
 /**
  * 단계 · 깊이별 모델. 분류 · 정제는 입력이 짧고 판단이 단순해 빠른 작은 모델을 쓰고(OPENAI_MODEL_SMALL, 기본 SMALL_MODEL),
  * 조사 · 작성은 깊이를 따릅니다 (Deep Dive 만 상위 모델). .env 로 바꿀 수 있습니다.
- * OpenAI 가 gpt-4.1 계열 폐기를 공지(2026-10-14, 2027-01-14 종료)해서 조사 · 작성 기본값은 gpt-6 계열입니다. 3단계 모델 비교로 확정합니다.
+ * OpenAI 가 gpt-4.1 계열 폐기를 공지(2026-10-14, 2027-01-14 종료)해서 조사 · 작성 기본값은 gpt-6 계열입니다.
+ * 2026-11-04 모델 비교(Promptfoo, 같은 시각 19문항, `pnpm eval:promptfoo --model`): 기본값(luna · deep 은 sol) 평균 18.1초 · 다시 쓰기 1회,
+ * 모든 깊이 sol 22.1초 · 다시 쓰기 0회 · 토큰 +5%, 모든 깊이 mini 24.1초 · 다시 쓰기 10회 · 원인 근거 78% · 검증 통과 79% (기준 미달).
+ * 기본값을 유지합니다. 시간보다 품질이 먼저가 되면 standard 도 sol 로 올리는 것이 다음 후보입니다.
  */
 export function modelFor(depth: Depth, stage: ModelStage = "write"): string {
   if (stage === "plan" || stage === "edit") return process.env.OPENAI_MODEL_SMALL || SMALL_MODEL;

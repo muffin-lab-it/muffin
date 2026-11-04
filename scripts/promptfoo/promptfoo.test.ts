@@ -195,12 +195,28 @@ describe("summary.ts — 결과 요약", () => {
     expect(s.markdown).not.toContain("| 근거 판정 |");
   });
 
-  it("지난 결과가 있으면 통과율 차이를 p 로 보여 준다", () => {
+  it("지난 결과가 있으면 통과율 차이를 p 로 보여 주고, 열 이름을 바꿀 수 있다 (모델 비교)", () => {
     const baseline: PromptfooOutput = { results: { results: [row("common-fx-cause-1", [["intent", true, "ok"], ["tools", false, "x"]], 1000), row("common-news-status-1", [["intent", true, "ok"], ["tools", true, "ok"]], 1000)] } };
     const s = summarize(out, { baseline });
     expect(s.markdown).toContain("| 의도 일치 | 1/2 | 50% | 100% | 100% (-50p) | ❌ |");
     expect(s.markdown).toContain("| tool 선택 | 2/2 | 100% | 80% | 50% (+50p) | ✅ |");
-    expect(s.markdown).toContain("지난 번과 비교");
+    expect(s.markdown).toContain("지난 번과 비교 (평균 1.0초)");
+    const named = summarize(out, { baseline, baselineLabel: "2026-11-04-0237" });
+    expect(named.markdown).toContain("| 지표 | 통과 | 통과율 | 기준 | 2026-11-04-0237 | 상태 |");
+    expect(named.markdown).toContain("2026-11-04-0237과 비교");
+  });
+
+  it("쓴 모델과 토큰 합계를 머리에 적는다 (모델 비교에서 같이 봄)", () => {
+    const withUsage: PromptfooOutput = {
+      results: {
+        results: [
+          { ...row("q-1", [["intent", true, "ok"]], 20000), response: { output: { model: "gpt-6-luna" } }, tokenUsage: { total: 1500, prompt: 1000, completion: 500 } },
+          { ...row("q-2", [["intent", true, "ok"]], 30000), response: { output: { model: "gpt-6-sol" } }, tokenUsage: { total: 2500, prompt: 2000, completion: 500 } },
+        ],
+      },
+    };
+    const s = summarize(withUsage);
+    expect(s.markdown).toContain("질문 2개 (오류 0), 리포트 평균 25.0초, 모델 gpt-6-luna · gpt-6-sol, 토큰 입력 3,000 · 출력 1,000");
   });
 
   it("모두 기준 안이고 오류가 없으면 ✅ 한 줄로 시작한다", () => {
@@ -227,6 +243,13 @@ describe("runner.ts — promptfoo 실행 명령과 실패 판단", () => {
     const plain = promptfooEnv({}, { judge: true });
     expect(plain).not.toHaveProperty("MUFFIN_EVAL_SET");
     expect(plain).not.toHaveProperty("MUFFIN_EVAL_NO_JUDGE");
+    expect(plain).not.toHaveProperty("OPENAI_MODEL");
+  });
+
+  it("모델 비교: --model 은 조사 · 작성 모델을 모든 깊이에서, --small-model 은 분류 · 정제 모델을 바꾼다", () => {
+    const env = promptfooEnv({ OPENAI_MODEL: "gpt-6-luna" }, { model: "gpt-6-sol", smallModel: "gpt-6-luna" });
+    expect(env).toMatchObject({ OPENAI_MODEL: "gpt-6-sol", OPENAI_MODEL_DEEP: "gpt-6-sol", OPENAI_MODEL_SMALL: "gpt-6-luna" });
+    expect(promptfooEnv({ OPENAI_MODEL: "gpt-6-luna" }, {})).toMatchObject({ OPENAI_MODEL: "gpt-6-luna" });
   });
 
   it("exit 가 0 이 아니거나 결과 파일이 없거나 실행 자체가 안 되면 실패다 (이전 결과를 요약하지 않음)", () => {
