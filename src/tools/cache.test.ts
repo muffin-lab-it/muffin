@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAge } from "../lib/age";
-import { CACHE_MAX_AGE_MS, PRUNE_EVERY_MS, cacheKey, clearToolCache, recall, remember } from "./cache";
+import { CACHE_MAX_AGE_MS, MEMORY_MAX, PRUNE_EVERY_MS, cacheKey, clearToolCache, recall, remember } from "./cache";
 import type { ToolResult } from "./types";
 
 type Row = { key: string; tool: string; at: string; result: unknown };
@@ -217,6 +217,27 @@ describe("tool 응답 캐시", () => {
     db.state.enabled = true;
     db.state.rows.set(key, { key, tool: "get_fx_krw_rate", at: new Date(Date.now() - 2 * CACHE_MAX_AGE_MS).toISOString(), result });
     expect(await recall("get_fx_krw_rate", input)).toBeNull();
+  });
+
+  it("메모리는 상한을 넘기면 만료된 것부터, 그래도 넘으면 오래된 것부터 버린다", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-04T00:00:00Z"));
+    // 만료될 것 하나를 먼저
+    await remember("get_korean_economic_news", { q: "expired" }, result);
+    vi.setSystemTime(new Date("2026-11-05T01:00:00Z"));
+    for (let i = 0; i < MEMORY_MAX; i++) {
+      vi.setSystemTime(new Date(Date.parse("2026-11-05T01:00:00Z") + i * 1000));
+      await remember("get_korean_economic_news", { q: `q${i}` }, result);
+    }
+    // 상한 + 1 → 만료된 것이 빠져 상한에 맞음
+    expect(await recall("get_korean_economic_news", { q: "expired" })).toBeNull();
+    expect(await recall("get_korean_economic_news", { q: "q0" })).not.toBeNull();
+    // 하나 더 → 가장 오래된 q0 가 빠짐
+    vi.setSystemTime(new Date("2026-11-05T02:00:00Z"));
+    await remember("get_korean_economic_news", { q: "newest" }, result);
+    expect(await recall("get_korean_economic_news", { q: "q0" })).toBeNull();
+    expect(await recall("get_korean_economic_news", { q: "q1" })).not.toBeNull();
+    expect(await recall("get_korean_economic_news", { q: "newest" })).not.toBeNull();
   });
 
   it("나이는 분 · 시간 · 일로 읽는다", () => {

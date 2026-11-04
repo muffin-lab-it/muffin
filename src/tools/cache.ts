@@ -21,6 +21,8 @@ export const STORE_TIMEOUT_MS = 2_000;
 export const RECALL_TIMEOUT_MS = 1_500;
 /** 지난 줄 정리는 한 시간에 한 번 */
 export const PRUNE_EVERY_MS = 60 * 60_000;
+/** 메모리에 두는 최대 건수. 넘으면 만료된 것부터, 그래도 넘으면 오래된 것부터 버립니다 (뉴스 응답은 수만 자라 무한정 쌓이면 안 됨) */
+export const MEMORY_MAX = 300;
 
 /** TOOL_CACHE=0 이면 끕니다. 테스트(vitest.config.ts)는 꺼 두어 tool 테스트가 실패 동작을 그대로 확인합니다 */
 export function cacheEnabled(): boolean {
@@ -97,11 +99,21 @@ async function prune(db: Db, now: number): Promise<void> {
 }
 
 /** 성공한 응답을 기억합니다. 메모리는 바로, 표는 timeoutMs 안에서 기다립니다 (실패 · 지연은 무시) */
+/** 메모리 상한 유지: 만료된 항목을 버리고, 그래도 넘으면 오래된 순으로 버립니다 */
+function trimMemory(now: number): void {
+  if (memory.size <= MEMORY_MAX) return;
+  for (const [k, e] of memory) if (now - e.at > CACHE_MAX_AGE_MS) memory.delete(k);
+  if (memory.size <= MEMORY_MAX) return;
+  const oldest = [...memory.entries()].sort((a, b) => a[1].at - b[1].at);
+  for (const [k] of oldest.slice(0, memory.size - MEMORY_MAX)) memory.delete(k);
+}
+
 export async function remember(tool: string, input: unknown, result: ToolResult, { timeoutMs = STORE_TIMEOUT_MS } = {}): Promise<void> {
   if (!cacheEnabled()) return;
   const key = cacheKey(tool, input);
   const at = Date.now();
   memory.set(key, { at, result });
+  trimMemory(at);
   if (!dbEnabled()) return;
   let db: Db;
   try {
@@ -136,6 +148,7 @@ export async function recall(
     const at = Date.parse(data.at);
     if (!(now - at <= maxAgeMs) || (hit && hit.at >= at)) return mine;
     memory.set(key, { at, result: data.result });
+    trimMemory(now);
     return { result: data.result, ageMs: now - at };
   } catch {
     return mine;
