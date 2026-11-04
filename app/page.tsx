@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Area, Depth } from "@/src/agent/schema";
-import { createReport } from "@/src/lib/api";
-import { saveReport } from "@/src/lib/history";
+import { Progress } from "./components/Progress";
+import { ReportView } from "./components/ReportView";
+import { createHomeReport } from "./components/home-report";
 
 const areaOptions: { value: Area; label: string }[] = [
   { value: "fx", label: "💵 환율" },
@@ -22,38 +23,51 @@ const depthOptions: { value: Depth; label: string; hint: string }[] = [
 
 /**
  * 홈. 질문을 보내면 리포트를 저장함에 넣고 리포트 페이지로 이동합니다.
- * 로딩 중 화면은 "진행상황" 화면의 자리입니다. 스트리밍이 붙으면 tool 단계 목록으로 바뀝니다.
+ * 서버의 실제 이벤트를 표시하고 저장을 확인한 뒤 이동합니다.
  */
 export default function Home() {
   const router = useRouter();
   const [area, setArea] = useState<Area>("etf");
   const [depth, setDepth] = useState<Depth>("standard");
   const [question, setQuestion] = useState("KODEX 200 요즘 어때?");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [request] = useState(() => createHomeReport(undefined, url => router.push(url)));
+  const state = useSyncExternalStore(request.subscribe, request.getSnapshot, request.getSnapshot);
+  const questionField = useRef<HTMLTextAreaElement>(null);
+  const restoreFocus = useRef(false);
+
+  useEffect(() => () => request.detach(), [request]);
+  const coolingDown = state.retrySeconds > 0;
+  useEffect(() => {
+    if (!coolingDown) return;
+    const timer = window.setInterval(request.tick, 250);
+    return () => window.clearInterval(timer);
+  }, [request, coolingDown]);
+  useEffect(() => {
+    if (state.phase === "idle" && restoreFocus.current) {
+      restoreFocus.current = false;
+      questionField.current?.focus();
+    }
+  }, [state.phase]);
+
+  function editQuestion() {
+    restoreFocus.current = true;
+    request.edit();
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const { report, steps } = await createReport({ question, depth, area });
-      const record = await saveReport({ question, depth, area }, report, steps);
-      router.push(`/report/${record.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "알 수 없는 오류");
-      setLoading(false);
-    }
+    await request.start({ question, depth, area });
   }
 
-  if (loading) {
+  if (state.phase !== "idle" && state.input) {
     return (
-      <div className="progress" role="status" aria-live="polite">
-        <h1>🧁 Muffin이 리포트를 만들고 있어요…</h1>
-        <p className="sub">데이터를 확인하고 핵심 포인트를 분석 중이에요.</p>
-        <div className="bar" aria-hidden="true"><span /></div>
-        <p className="muted">질문: {question}</p>
-      </div>
+      <>
+        <Progress question={state.input.question} depth={state.input.depth} events={state.events}
+          error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
+          onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
+          onEditQuestion={editQuestion} onReturnHome={editQuestion} />
+        {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} />}
+      </>
     );
   }
 
@@ -87,13 +101,11 @@ export default function Home() {
         </fieldset>
         <label>
           질문
-          <textarea id="question" required maxLength={500} aria-describedby="question-limit" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="예: 오늘 원/달러 환율이 왜 내려갔는지 궁금해요." />
+          <textarea ref={questionField} id="question" required maxLength={500} aria-describedby="question-limit" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="예: 오늘 원/달러 환율이 왜 내려갔는지 궁금해요." />
           <small id="question-limit">최대 500자 · {question.length}/500</small>
         </label>
-        <button type="submit" disabled={loading || question.trim().length === 0}>✨ 오늘의 Muffin 만들기</button>
+        <button type="submit" disabled={coolingDown || question.trim().length === 0}>{coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "✨ 오늘의 Muffin 만들기"}</button>
       </form>
-
-      {error && <div className="error" role="alert">{error}</div>}
     </>
   );
 }
