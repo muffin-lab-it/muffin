@@ -16,8 +16,11 @@
  *  - 실패(응답 오류 · 데이터 부족)하면 게이트만 건너뛰고 리포트는 그대로 나갑니다. 실행 기록에는 calc_movement 로 남습니다.
  *
  * 환율 tool(서영)은 바꾸지 않고 같은 출처를 한 번 더 부릅니다. 정제 단계와 동시에 돌아서 응답 시간이 늘지 않습니다.
+ *  - Frankfurter 가 답하지 않으면(11/4 종일 멈춤) 같은 원천인 ECB 고시환율 90일 파일을 직접 읽습니다 (키 없음, 숫자 동일: EUR 교차).
+ *    90일 파일이라 이번 기간이 길면 기준 기간이 모자라 게이트를 건너뛸 수 있습니다.
+ *  - 받은 일별 환율은 최근 30일(이번 기간이 더 길면 그 기간)만 Movement.series 로 남겨 리포트 차트(chart.ts)에 씁니다.
  */
-import { fetchJson } from "../lib/http";
+import { fetchJson, fetchText } from "../lib/http";
 import { movementZ, round } from "../tools/calc/metrics";
 import type { ToolStep } from "./context";
 import { labelFor } from "./events";
@@ -36,6 +39,10 @@ export const MIN_DAILY_CHANGES = 30;
 /** 일별 환율 응답을 기다리는 최대 시간. 정제와 동시에 돌므로 보통은 기다리지 않습니다. */
 const TIMEOUT_MS = 4_000;
 const SERIES_URL = "https://api.frankfurter.dev/v2/rates";
+/** Frankfurter 의 원천. 최근 90일(약 64영업일) 고시환율, 유로 기준 */
+export const ECB_90D_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml";
+/** 차트에 남기는 일별 환율 기간 (달력 일수). 이번 기간이 더 길면 그 기간 */
+export const SERIES_DAYS = 30;
 
 export type MovementLevel = NonNullable<Report["movement"]>["level"];
 
@@ -54,8 +61,12 @@ export type Movement = {
   /** 이번 변화 ÷ 평소 폭. 부호는 변화 방향입니다 */
   zScore: number;
   level: MovementLevel;
-  /** 평소 폭을 정한 기준 기간 · 하루 변화 수와 일별 환율을 받은 주소 */
-  baseline: { from: string; to: string; changes: number; url: string };
+  /** 이번 기간 양 끝의 환율 (장부 값, 표시 단위 — JPY 는 100엔 기준) */
+  rates: { from: number; to: number };
+  /** 평소 폭을 정한 기준 기간 · 하루 변화 수와 일별 환율을 받은 주소 · 출처 이름 */
+  baseline: { from: string; to: string; changes: number; url: string; sourceName: string };
+  /** 최근 SERIES_DAYS 일(이번 기간이 더 길면 그 기간)의 일별 환율. 받은 단위 그대로 (JPY 는 1엔 기준) */
+  series: DailyRate[];
 };
 
 /** 게이트 한 번의 결과. 잴 대상이 없으면 step 이 없고, 재다가 실패하면 movement 가 null 이고 step 이 error 입니다. */
@@ -92,7 +103,7 @@ export const causeMap: Partial<Record<Area, CauseCandidate[]>> = {
 };
 
 type Target = { ref: string; pair: string; currency: string; from: string; to: string; fromRate: number; toRate: number };
-type DailyRate = { date: string; rate: number };
+export type DailyRate = { date: string; rate: number };
 
 const DAY_MS = 86_400_000;
 const isDate = (x: unknown): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x);
@@ -173,6 +184,28 @@ async function fetchDaily(url: string, currency: string): Promise<DailyRate[]> {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * ECB 90일 고시환율 파일에서 currency→KRW 일별 환율. ECB 는 유로 기준이라 KRW/EUR ÷ currency/EUR 로 교차합니다 (Frankfurter 가 하는 계산과 같음).
+ * 파일 모양이 다르거나 두 통화가 없으면 throw. from~to 사이만 돌려줍니다
+ */
+export function parseEcbDaily(xml: string, currency: string, from: string, to: string): DailyRate[] {
+  const out: DailyRate[] = [];
+  for (const day of xml.matchAll(/<Cube time=['"](\d{4}-\d{2}-\d{2})['"]>([\s\S]*?)<\/Cube>/g)) {
+    const date = day[1]!;
+    if (date < from || date > to) continue;
+    const rate = (code: string) => {
+      const m = day[2]!.match(new RegExp(`<Cube currency=['"]${code}['"] rate=['"]([0-9.]+)['"]`));
+      return m ? Number(m[1]) : NaN;
+    };
+    const krw = rate("KRW");
+    const base = currency === "EUR" ? 1 : rate(currency);
+    if (!(krw > 0) || !(base > 0)) throw new Error(`ECB 파일에 ${date} 의 KRW 또는 ${currency} 가 없습니다`);
+    out.push({ date, rate: krw / base });
+  }
+  if (out.length === 0) throw new Error("ECB 파일에서 일별 환율을 찾지 못했습니다");
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function levelOf(zScore: number): MovementLevel {
   const size = Math.abs(zScore);
   return size < NOTABLE_Z ? "normal" : size < EXTREME_Z ? "notable" : "extreme";
@@ -188,7 +221,7 @@ export function judge(z: number): { zScore: number; level: MovementLevel } {
 }
 
 /** 일별 환율로 이번 변화가 평소 폭의 몇 배인지 잽니다. 기준 기간의 하루 변화가 모자라면 throw 합니다. */
-function measure(target: Target, rows: DailyRate[], url: string): Movement {
+function measure(target: Target, rows: DailyRate[], url: string, sourceName: string): Movement {
   // 기준 기간은 이번 기간 시작일(비교 기준일)까지의 직전 90일입니다. 이번 기간의 변화는 넣지 않습니다.
   const baselineStart = shiftDate(target.from, -BASELINE_DAYS);
   const baseline = rows.filter((r) => r.date > baselineStart && r.date <= target.from);
@@ -202,6 +235,8 @@ function measure(target: Target, rows: DailyRate[], url: string): Movement {
   // 이번 변화는 장부의 두 값으로 구해 리포트의 숫자와 같게 합니다.
   const move = (target.toRate / target.fromRate - 1) * 100;
   const { z, typical } = movementZ(move, daily, steps);
+  // 차트용: 최신 기준일까지 SERIES_DAYS 일, 이번 기간이 더 길면 이번 기간 전체. 시작은 비교 기준일과 같아 차트의 변화가 리포트의 변화와 같은 기간입니다
+  const seriesStart = shiftDate(target.to, -Math.max(SERIES_DAYS, dayNumber(target.to) - dayNumber(target.from)));
   return {
     ref: target.ref,
     pair: target.pair,
@@ -209,8 +244,26 @@ function measure(target: Target, rows: DailyRate[], url: string): Movement {
     movePct: round(move, 2),
     typicalPct: round(typical, 2),
     ...judge(z),
-    baseline: { from: baseline[0]!.date, to: baseline.at(-1)!.date, changes: daily.length, url },
+    rates: { from: target.fromRate, to: target.toRate },
+    baseline: { from: baseline[0]!.date, to: baseline.at(-1)!.date, changes: daily.length, url, sourceName },
+    series: rows.filter((r) => r.date >= seriesStart && r.date <= target.to),
   };
+}
+
+/** 일별 환율: Frankfurter 를 먼저, 답하지 않으면 같은 원천인 ECB 90일 파일을 직접 (같은 숫자). 어느 쪽을 썼는지 주소 · 이름을 함께 돌려줍니다 */
+async function fetchSeries(currency: string, from: string, to: string): Promise<{ rows: DailyRate[]; url: string; sourceName: string }> {
+  const url = seriesUrl(currency, from, to);
+  try {
+    return { rows: await fetchDaily(url, currency), url, sourceName: "Frankfurter v2 일별 환율" };
+  } catch (primary) {
+    try {
+      const xml = await fetchText(ECB_90D_URL, { timeoutMs: TIMEOUT_MS });
+      return { rows: parseEcbDaily(xml, currency, from, to), url: ECB_90D_URL, sourceName: "ECB 고시환율 90일 (Frankfurter 의 원천, 유로 교차)" };
+    } catch (fallback) {
+      const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+      throw new Error(`${why(primary)} · ECB 파일도 실패: ${why(fallback)}`);
+    }
+  }
 }
 
 /**
@@ -228,8 +281,8 @@ export async function measureMovement(evidence: Evidence[], { question, area }: 
   const started = Date.now();
   const step = (status: ToolStep["status"], error?: string): ToolStep => ({ tool: MOVEMENT_TOOL, status, ms: Date.now() - started, ...(error ? { error } : {}) });
   try {
-    const url = seriesUrl(target.currency, shiftDate(target.from, -BASELINE_DAYS), target.to);
-    return { movement: measure(target, await fetchDaily(url, target.currency), url), step: step("ok") };
+    const { rows, url, sourceName } = await fetchSeries(target.currency, shiftDate(target.from, -BASELINE_DAYS), target.to);
+    return { movement: measure(target, rows, url, sourceName), step: step("ok") };
   } catch (err) {
     return { movement: null, step: step("error", err instanceof Error ? err.message : String(err)) };
   }
@@ -266,7 +319,7 @@ export function movementEvidence(m: Movement, id: string): Evidence {
       baselineCount: m.baseline.changes,
     },
     // 기준 기간 데이터는 조사의 환율 결과(E 번호)에 없어서 따로 받은 주소를 출처로 남깁니다 (원본 보기 · 출처 목록에서 열림).
-    source: { name: `Frankfurter v2 일별 환율 (${m.baseline.from} ~ ${m.period.to})`, url: m.baseline.url, asOf: m.period.to },
+    source: { name: `${m.baseline.sourceName} (${m.baseline.from} ~ ${m.period.to})`, url: m.baseline.url, asOf: m.period.to },
     note:
       `직전 ${BASELINE_DAYS}일(${m.baseline.from}~${m.baseline.to}) 하루 변화 ${m.baseline.changes}개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±${m.typicalPct.toFixed(2)}%. ` +
       `이번 변화 ${signedPct(m.movePct)} 는 평소 폭의 ${times(m.zScore)}배입니다`,

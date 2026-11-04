@@ -111,3 +111,24 @@ describe("사용한 Tool 목록", () => {
     expect(text).toContain("❌ 금리 확인 · 10000ms · 10초 안에 끝나지 않음 (timeout)");
   });
 });
+
+describe("최근 흐름 차트", () => {
+  it("charts 가 있으면 선 · 평소 폭 띠 · 뉴스 점과 설명 문장을 그린다", () => {
+    const $ = render(fixture());
+    expect($("h2").filter((_, el) => $(el).text() === "최근 흐름")).toHaveLength(1);
+    expect($("figure.chart svg path.chart-line")).toHaveLength(1);
+    expect($("figure.chart .chart-band rect")).toHaveLength(1);
+    expect($("figure.chart .chart-event circle")).toHaveLength(1);
+    expect($("figure.chart svg").attr("aria-label")).toContain("USD/KRW 최근 30일");
+    expect($(".chart-summary").text()).toContain("평소 폭 ±1.57%");
+    expect($(".chart-summary").text()).toContain("9/19 1,365 에서 10/19 1,392 (+2.00%)");
+    expect($(".chart-events li").text()).toContain("한은 기준금리 동결");
+  });
+
+  it("charts 가 없으면 차트 구역이 없다", () => {
+    const report = { ...fixture(), charts: undefined };
+    const $ = render(report);
+    expect($("figure.chart")).toHaveLength(0);
+    expect($("h2").filter((_, el) => $(el).text() === "최근 흐름")).toHaveLength(0);
+  });
+});
