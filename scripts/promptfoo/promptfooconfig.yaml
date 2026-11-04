@@ -1,0 +1,38 @@
+# 머핀 리포트 평가 (Promptfoo). 돌리는 방법은 scripts/promptfoo/README.md, 지표 뜻은 asserts.ts, 질문은 scripts/questions/*.json.
+# 레포 루트에서 `pnpm eval:promptfoo` 로 돌립니다 (run.ts 가 이 파일을 promptfoo 에 넘김).
+description: 머핀 리포트 평가 — 고정 질문 세트를 다섯 단계로 돌려 우리 검증기 · 근거 판정으로 채점
+
+prompts:
+  - '{{question}}'
+
+providers:
+  - id: file://provider.ts
+    label: muffin
+
+tests: file://tests.ts
+
+defaultTest:
+  options:
+    # expectTools 같은 배열 변수를 테스트 여러 개로 펼치지 않습니다
+    disableVarExpansion: true
+
+evaluateOptions:
+  # 동시에 돌리는 질문 수. 리포트 하나가 OpenAI 를 여러 번 부르므로 2 로 둡니다
+  maxConcurrency: 2
+  # 매번 실제로 돌립니다 (latency 지표도 캐시가 없어야 맞음)
+  cache: false
+
+metadata:
+  # 지표별 최소 통과율. summary.ts 가 아래로 떨어진 지표를 ❌ 로 표시하고 run.ts 가 exit 1 → GitHub Action 이 실패로 표시됩니다.
+  # 처음 값은 2026-11-03 common 세트 기준이고, 지시문을 고쳐 수치가 오르면 함께 올립니다 (README "품질 측정").
+  thresholds:
+    intent: 0.8
+    tools: 0.8
+    numbers: 0.8
+    refs: 1
+    why: 0.8
+    judge: 0.8
+    advice: 1
+    verification: 0.8
+    rewrites: 0.6
+    latency: 0.7

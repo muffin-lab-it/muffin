@@ -1,0 +1,69 @@
+# 주간 리포트 평가 (Promptfoo). 매주 금요일 09:00 KST 에 고정 질문 세트를 실제 키로 돌려 지표별 통과율을 냅니다.
+# 기준(scripts/promptfoo/promptfooconfig.yaml 의 thresholds) 아래로 떨어진 지표가 있으면 실행이 실패로 표시됩니다.
+# 요약은 실행 페이지(Summary)에, 결과 파일은 Artifacts 에 90일 남습니다. 지난 결과는 cache 로 넘겨 나란히 비교합니다.
+# 필요한 Secrets: OPENAI_API_KEY · FRED_API_KEY · ECOS_API_KEY · DATA_GO_KR_KEY (Settings → Secrets and variables → Actions)
+name: Weekly eval
+
+on:
+  schedule:
+    - cron: "0 0 * * 5" # 금요일 00:00 UTC = 09:00 KST
+  workflow_dispatch:
+    inputs:
+      set:
+        description: "질문 세트 (예: common 또는 common,etf). 비우면 전부"
+        required: false
+        default: ""
+      depth:
+        description: "깊이 (easy · standard · deep · all). 비우면 질문에 적힌 깊이"
+        required: false
+        default: ""
+
+concurrency:
+  group: weekly-eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: 지난 결과 복원 (나란히 비교용)
+        uses: actions/cache/restore@v4
+        with:
+          path: docs/eval/promptfoo/latest.json
+          key: promptfoo-latest-${{ github.run_id }}
+          restore-keys: promptfoo-latest-
+
+      - name: 평가 실행 (실제 OpenAI · 데이터 API 호출)
+        run: pnpm eval:promptfoo
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          MUFFIN_EVAL_SET: ${{ inputs.set }}
+          MUFFIN_EVAL_DEPTH: ${{ inputs.depth }}
+
+      - name: 결과 파일 보관 (90일)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptfoo-${{ github.run_id }}
+          path: docs/eval/promptfoo/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: 이번 결과를 다음 비교 기준으로
+        if: always() && hashFiles('docs/eval/promptfoo/latest.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: docs/eval/promptfoo/latest.json
+          key: promptfoo-latest-${{ github.run_id }}

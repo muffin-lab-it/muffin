@@ -13,6 +13,7 @@
     "tool": "tsx",
     "probe": "tsx scripts/probe.ts",
     "eval": "tsx scripts/eval.ts",
+    "eval:promptfoo": "tsx scripts/promptfoo/run.ts",
     "judge": "tsx scripts/judge/calibrate.ts"
   },
   "dependencies": {

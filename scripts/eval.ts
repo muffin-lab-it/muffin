@@ -14,12 +14,12 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findAdvice } from "../src/agent/guard";
 import { createJudgeAgent, judgeWhy, judgeable, summarizeJudge, verdictMark, type JudgeResult } from "../src/agent/judge";
 import { research, type ResearchResult, TIME_BUDGET_MS } from "../src/agent/muffin";
 import { areaTools } from "../src/agent/plan";
 import { depths, type Area, type Depth, type Evidence, type Report, type intents } from "../src/agent/schema";
 import { QUESTIONS_DIR, loadAllQuestionSets, loadQuestionSet } from "./questions/schema";
+import { checks, renderIntentMatch, renderToolMatch, toolMatch } from "./scoring";
 
 try {
   process.loadEnvFile(".env.local");
@@ -63,43 +63,6 @@ function depthsFor(q: Q): Depth[] {
   if (depthOpt === "all") return [...depths];
   if (depthOpt) return [depthOpt as Depth];
   return [q.depth ?? "standard"];
-}
-
-/** 조사 Agent 가 질문에 맞는 tool 을 골랐는지. expectTools 가 모두 호출됐으면 ✅, 범위 밖 질문은 tool 을 안 불렀을 때 ✅. */
-function toolMatch(q: Q, steps: { tool: string }[]): string {
-  const called = new Set(steps.map((s) => s.tool));
-  if (q.intent === "out_of_scope") return called.size === 0 ? "✅" : `❌ ${[...called].join(",")}`;
-  if (!q.expectTools?.length) return "-";
-  const missing = q.expectTools.filter((t) => !called.has(t));
-  return missing.length === 0 ? "✅" : `❌ ${missing.join(",")} 없음`;
-}
-
-/** 📋 분류가 질문 세트에 적힌 의도와 같은지. 분류 담당(서영)의 점수입니다. 세트에 intent 가 없으면 -. */
-function intentMatch(q: Q, plan: ResearchResult["plan"]): string {
-  if (!q.intent) return "-";
-  return plan.intent === q.intent ? "✅" : `❌ ${plan.intent}`;
-}
-
-/** 사람이 볼 때 같이 보는 자동 점검. 점수가 아니라 "눈여겨볼 것" 표시입니다. */
-function checks(report: Report, steps: { status: string }[]) {
-  const ids = new Set(report.evidence.map((e) => e.id));
-  const cited = [...report.numbers.map((n) => n.ref).filter((r): r is string => !!r), ...report.why.flatMap((w) => w.refs)];
-  return {
-    toolsOk: steps.filter((s) => s.status === "ok").length,
-    toolsFailed: steps.filter((s) => s.status === "error").length,
-    /** 검증을 통과해 남은 숫자 (✓ 장부 일치 / C 계산) 와 검증 실패로 뺀 숫자 */
-    verified: report.verification.numbers.verified,
-    derived: report.verification.numbers.derived,
-    removedNumbers: report.verification.removed.filter((r) => r.startsWith("숫자 ")).length,
-    status: report.verification.status,
-    whyTotal: report.why.length,
-    whyBasis: report.verification.why,
-    /** 장부에 없는 id 를 인용한 횟수 (지어낸 id) */
-    badRefs: cited.filter((id) => !ids.has(id)).length,
-    gaps: report.dataGaps.length,
-    sources: report.sources.length,
-    advice: findAdvice(report).length,
-  };
 }
 
 /** 📋 분류와 ✂️ 정제가 무엇을 했는지. 리포트에는 없지만 담당자가 자기 단계를 고칠 때 봐야 하는 것입니다. */
@@ -161,9 +124,10 @@ async function main() {
         // 평가는 품질을 보려는 것이라 마감 없이 돌립니다 (다시 쓰기를 건너뛰지 않음). 걸린 시간은 아래에 적습니다.
         const result = await research({ question: q.question, depth, area: q.area ?? undefined }, { deadline: Number.POSITIVE_INFINITY });
         const { report, steps, rewrites } = result;
+        // 채점 규칙은 scripts/scoring.ts 에 있고 Promptfoo 평가(scripts/promptfoo)도 같은 함수를 씁니다.
         const c = checks(report, steps);
-        const match = toolMatch(q, steps);
-        const intent = intentMatch(q, result.plan);
+        const match = renderToolMatch(toolMatch(q, steps));
+        const intent = renderIntentMatch(q, result.plan);
         const sec = ((Date.now() - started) / 1000).toFixed(1);
         // 근거 판정은 리포트가 나온 뒤 따로 부르므로 위 시간에 들어가지 않습니다.
         const judgeStarted = Date.now();

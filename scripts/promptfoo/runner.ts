@@ -1,0 +1,40 @@
+/**
+ * run.ts 가 쓰는 순수 함수 (리더). promptfoo 명령줄 · 환경 변수 만들기와 "이번 실행이 제대로 끝났는가" 판단을 모아 테스트합니다.
+ * promptfoo 는 설치 크기(536개 패키지 · 약 680MB) 때문에 package.json 에 넣지 않고 아래 버전으로 pnpm dlx 합니다 (scripts/promptfoo/README.md).
+ */
+export const PROMPTFOO_VERSION = "0.125.1";
+export const CONFIG = "scripts/promptfoo/promptfooconfig.yaml";
+export const OUT_DIR = "docs/eval/promptfoo";
+
+export type RunOptions = { set?: string; depth?: string; judge?: boolean; concurrency?: string };
+
+/** `pnpm --silent dlx promptfoo@<버전> eval …`. --silent 는 dlx 가 설치하며 찍는 peer 의존성 경고를 숨깁니다 (promptfoo 출력은 그대로) */
+export function promptfooArgs(outPath: string, opts: RunOptions = {}): string[] {
+  const args = ["--silent", "dlx", `promptfoo@${PROMPTFOO_VERSION}`, "eval", "-c", CONFIG, "-o", outPath, "--no-cache", "--no-progress-bar", "--no-share", "--no-table"];
+  if (opts.concurrency) args.push("-j", opts.concurrency);
+  return args;
+}
+
+/**
+ * promptfoo 에 넘길 환경 변수. 채점 실패는 exit 0 으로 두고(PROMPTFOO_FAILED_TEST_EXIT_CODE) 기준 판단은 summary 가 합니다.
+ * 그래서 exit 가 0 이 아니면 설치 · 설정 · 생성기 오류 같은 진짜 실패입니다.
+ */
+export type Env = Record<string, string | undefined>;
+
+export function promptfooEnv(base: Env, opts: RunOptions = {}): Env {
+  const env: Env = { ...base, PROMPTFOO_DISABLE_TELEMETRY: "1", PROMPTFOO_DISABLE_UPDATE: "1", PROMPTFOO_FAILED_TEST_EXIT_CODE: "0" };
+  if (opts.set) env.MUFFIN_EVAL_SET = opts.set;
+  if (opts.depth) env.MUFFIN_EVAL_DEPTH = opts.depth;
+  if (opts.judge === false) env.MUFFIN_EVAL_NO_JUDGE = "1";
+  return env;
+}
+
+export type SpawnOutcome = { status: number | null; signal: NodeJS.Signals | null; error?: Error };
+
+/** 이번 실행이 실패했으면 그 이유, 제대로 끝났으면 null. 결과 파일은 실행 전에 지웠으므로 있으면 이번 것입니다 */
+export function runFailure(run: SpawnOutcome, outExists: boolean): string | null {
+  if (run.error) return `promptfoo 를 실행하지 못했습니다: ${run.error.message}. pnpm 이 있는지, \`pnpm dlx promptfoo@${PROMPTFOO_VERSION} --version\` 이 되는지 확인하세요`;
+  if (run.status !== 0) return `promptfoo 가 실패했습니다 (exit ${run.status ?? run.signal ?? "?"}). 위 출력을 확인하세요 (아무 출력도 없으면 \`pnpm dlx promptfoo@${PROMPTFOO_VERSION} --version\` 으로 설치부터)`;
+  if (!outExists) return "promptfoo 는 끝났지만 결과 파일이 없습니다. 위 출력을 확인하세요";
+  return null;
+}
