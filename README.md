@@ -190,6 +190,7 @@ muffin/
 │  ├─ components/                    Sidebar, ReportView (+ 진행 화면, 검증 배지, 차트 예정)
 │  ├─ admin/                         실행 모니터링 (리더, ADMIN_PASSWORD 로그인): 상태 · 요청 추이 · 응답 시간 · tool 상태 · 이벤트 · 검증
 │  ├─ replay/                        리플레이 (리더, 시연용): 녹화된 실제 실행을 같은 이벤트로 다시 보기. /replay?id=<녹화>&speed=2
+│  ├─ components/ReportChart.tsx     리포트 차트 (리더): 최근 30일 선 · 평소 폭 띠 · 뉴스 점을 inline SVG 로 (데이터는 src/agent/chart.ts)
 │  └─ api/report/
 │     ├─ route.ts                    POST /api/report — 완료 후 JSON 한 번에 (백엔드)
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
@@ -775,6 +776,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 - `/api/report` 는 tool 여러 개를 호출하므로 실행 시간이 깁니다. 라우트에 `export const maxDuration = 60;` 을 두고, tool 마다 타임아웃 8초(공통 래퍼 10초)를 지킵니다.
 - 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 녹화한 실제 실행을 다시 보여 주는 **리플레이 모드**가 있습니다 (11/5). `pnpm replay:record --question "KODEX 200 지금 사도 돼?" --area etf --id etf-decision` 으로 실제로 한 번 돌려 `src/replays/<id>.json`(진행 이벤트 + 리포트)으로 남기고, `/replay` 화면(또는 `/replay?id=etf-decision&speed=2`)이 `/api/report/stream` 에 `{ replay, speed }` 로 요청해 같은 이벤트를 같은 간격으로 받아 다섯 단계와 리포트를 그대로 보여 줍니다. OpenAI · 데이터 API 를 부르지 않고, 리포트 상단과 화면에 녹화 시각을 밝혀 지금 값처럼 보이지 않게 하며, 로그는 mock 으로 남아 운영 통계에서 빠집니다. 녹화는 `pnpm test` 가 형식 · 권유 표현 0 을 검사합니다. 시연 질문마다 전날 한 번씩 녹화해 두면 됩니다.
 - tool 호출은 세 겹으로 지킵니다 (11/4, PR #65). 잠깐 끊긴 API 는 `defineTool` 이 tool 을 한 번 더 돌리고, 연속 실패한 API 는 회로 차단기가 1분간 호출을 건너뛰어 매번 10초를 기다리지 않게 하며, 그래도 실패하면 같은 호출의 마지막 성공 응답(24시간 안, Supabase `tool_cache` 표)을 대신 쓰고, 리포트 "확인하지 못한 것" 에 "조회가 실패해 N시간 전에 받은 응답을 썼습니다" 를 코드가 넣습니다 (/admin 이벤트에도 "저장된 응답 사용"). 시연 전에 `pnpm eval --no-judge` 로 시연 질문을 한 번 돌려 두면 캐시가 차서, 당일 API 가 끊겨도 리포트가 빈칸으로 나가지 않습니다.
+- 환율 차트 (11/5): 원인 질문에서 유의성 게이트가 받은 일별 환율로 `src/agent/chart.ts` 가 "최근 30일 선 · 평소 폭 띠(이번 기간 구간, ±폭) · 기간 안의 뉴스 점" 을 만들어 `Report.charts` 에 넣고, `ReportChart` 가 리포트 "최근 흐름" 에 그립니다. 숫자는 모두 코드가 계산한 것이고 선의 출처는 게이트의 C 번호, 뉴스 점은 기사의 E 번호입니다. 게이트의 일별 환율은 Frankfurter 가 답하지 않으면 같은 원천인 ECB 고시환율 90일 파일(키 없음, 유로 교차라 숫자 동일)로 받습니다. 환율 tool 자체는 그대로입니다.
 - 캐시 예열 (`pnpm warm`, `.github/workflows/warm.yml`): `tool_cache` 표에 있는 호출을 같은 입력으로 한 시간마다 다시 불러 저장 응답을 갓 받은 것으로 바꿉니다. 모델은 부르지 않아 비용이 없고, 표에 없는 입력은 예열할 수 없으니 시연 질문은 전날 한 번 돌려 둡니다. `/admin` 의 tool 상태는 실제 조회 성공률(저장 응답으로 나간 호출은 실패로 셈) · 저장 응답 · 회로 열림 횟수 · 마지막 실패 시각을 보여 주고, "상용 AI 상태" 패널은 OpenAI 상태 페이지(status.openai.com 공개 JSON)의 전체 상태 · 우리가 쓰는 구성 요소 · 진행 중 장애와 우리 실측(최근 1시간 요청 · 성공률 · 평균 응답)을 나란히 두고 한 줄로 판단합니다. 금융권이 벤더 상태와 자체 측정을 같이 보는 방식입니다.
 
 ---

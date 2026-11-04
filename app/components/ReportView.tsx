@@ -2,6 +2,7 @@ import type { ToolStep } from "@/src/agent/context";
 import { labelFor } from "@/src/agent/events";
 import { formatAge } from "@/src/lib/age";
 import type { Area, Report } from "@/src/agent/schema";
+import { ReportChart } from "./ReportChart";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 
 export const areaLabels: Record<Area, string> = {
@@ -52,6 +53,15 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
         </div>
         {report.numbers.length === 0 && <p className="report-muted">표시할 숫자를 확보하지 못했습니다.</p>}
       </section>
+
+      {report.charts && report.charts.length > 0 && (
+        <section>
+          <h2>최근 흐름</h2>
+          {report.charts.map((c, i) => (
+            <ReportChart key={i} chart={c} evidence={report.evidence} />
+          ))}
+        </section>
+      )}
 
       <section>
         <h2>왜 그럴까요?</h2>

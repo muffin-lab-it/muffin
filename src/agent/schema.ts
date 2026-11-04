@@ -177,6 +177,10 @@ export const chartSchema = z.object({
     }),
   ),
   events: z.array(z.object({ ref: z.string(), label: z.string(), at: z.string() })).optional().describe("차트 위에 표시할 뉴스 이벤트"),
+  /** 평소 폭 띠: from~to 구간에서 low~high 안이면 평소 범위 (유의성 게이트의 평소 폭). 화면이 선 뒤에 띠로 그립니다 */
+  band: z.object({ from: z.string(), to: z.string(), low: z.number(), high: z.number(), label: z.string() }).optional(),
+  /** 값의 단위 (예: "KRW per 1 USD") */
+  unit: z.string().optional(),
 });
 export type Chart = z.infer<typeof chartSchema>;
 

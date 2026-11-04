@@ -10,6 +10,7 @@
  */
 import { RunContext, withTrace, type Agent, type AgentOutputType } from "@openai/agents";
 import { muffinTools } from "../tools";
+import { fxChart } from "./chart";
 import { ResearchContext, type ToolStep } from "./context";
 import { createEditorAgent, editInput, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
@@ -129,6 +130,8 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   if (gateStep) ctx.addStep(gateStep);
   const movementId = movement ? ctx.nextCalcId() : "";
   if (movement) ctx.addEvidence([movementEvidence(movement, movementId)]);
+  // 게이트가 받은 일별 환율로 차트 (최근 30일 선 · 평소 폭 띠 · 기간 안의 뉴스 점). 코드가 만든 것이라 검증 대상이 아닙니다
+  const chart = movement ? fxChart(movement, movementId, ctx.evidence) : null;
   emit({ type: "stage", stage: "edit", status: "done" });
 
   // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다. 움직임을 쟀으면 [움직임 크기] 를 덧붙입니다.
@@ -172,6 +175,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
       checks: applied.checks,
       ...(movement ? { movement: movementSummary(movement) } : {}),
+      ...(chart ? { charts: [chart] } : {}),
     }),
     steps: ctx.steps,
     rewrites: revisions,

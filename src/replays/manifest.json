@@ -1,5 +1,14 @@
 [
   {
+    "id": "fx-cause",
+    "recordedAt": "2026-11-04T16:36:38.811Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "standard",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 25230
+  },
+  {
     "id": "rate-compare",
     "recordedAt": "2026-11-04T15:22:20.079Z",
     "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",

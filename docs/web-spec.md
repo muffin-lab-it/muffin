@@ -105,6 +105,7 @@ flowchart LR
 | `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`) | 숫자 카드, 배지, 원본 보기. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |
 | `why[]` (`basis`: data 📊 · news 📰 · none ❔, `refs`) | 원인, 아이콘, 원본 보기 | 소희 |
 | `evidence[]` (E1 · E3-1 · C1, `lineage`), `sources[]` | 원본 보기, 계산 계보, 출처 목록 | 소희 |
+| `charts[]` (11/5, 원인 질문 · 환율): `kind: "line"`, `title`, `unit`, `series[{ label, ref, points[{ t, v }] }]`, `band?{ from, to, low, high, label }`(평소 폭 띠), `events?[{ ref, label, at }]`(기간 안의 기사) | "최근 흐름" 구역의 선 차트 (`app/components/ReportChart.tsx`, inline SVG). 선의 `ref` 는 게이트의 C 번호, 뉴스 점의 `ref` 는 기사의 E 번호라 원본 보기로 이어짐. 숫자는 모두 코드가 계산 (`src/agent/chart.ts`) | 리더 |
 | `verification` | 검증 한 줄, 검사 후 제외한 항목. `revisionSkipped` 면 "시간이 부족해 한 번 더 검토하지 못했어요" 를 보여 줄 수 있음 | 소희(내용) · 은선(위치) |
 
 정제 단계의 사실 목록(facts)은 리포트에 들어 있지 않습니다.
