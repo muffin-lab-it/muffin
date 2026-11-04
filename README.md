@@ -227,11 +227,13 @@ muffin/
 │     ├─ db.ts                       Supabase 서버 클라이언트 getDb · 표 타입 (secret 키, 서버 전용. 리더)
 │     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 표 최근 7일 조회, DB 환경 변수 없거나 ?source=sample 이면 예시 데이터, 리더)
 │     ├─ admin-evals.ts              /admin 품질 평가 패널: evals 표(주간 평가 · 실험 결과) 최신 12줄 (리더)
+│     ├─ admin-status.ts             /admin 상용 AI 상태 패널: OpenAI 상태 페이지 JSON(Responses · Agents · Chat Completions · Codex) + 우리 실측 한 줄 판단 (리더)
 │     ├─ eval-metrics.ts             평가 지표 이름 (Promptfoo 채점 · 요약 · 관리자 화면이 같이 씀)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/. 단계별 상세 · 근거 판정 보정 후보
 │  ├─ scoring.ts                     평가 채점 규칙 (코드 검사). eval.ts 와 promptfoo/ 가 같은 함수를 씀
+│  ├─ warm/                          캐시 예열: tool_cache 표의 호출을 같은 입력으로 다시 불러 저장 응답 갱신 (`pnpm warm`, 매시 Action, 리더)
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
 │  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
 │  ├─ judge/                         근거 판정 보정 세트 (pairs.json, 사람이 매긴 정답) + pnpm judge 로 정확도 재기 (형식: 폴더 README)
@@ -765,7 +767,8 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 - Vercel, `main` 머지 시 자동 배포 (서울 리전). 환경 변수는 Vercel 프로젝트 설정에만 입력합니다.
 - `/api/report` 는 tool 여러 개를 호출하므로 실행 시간이 깁니다. 라우트에 `export const maxDuration = 60;` 을 두고, tool 마다 타임아웃 8초(공통 래퍼 10초)를 지킵니다.
 - 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 저장한 실제 실행을 다시 보여주는 리플레이 모드를 둡니다 (고도화 기간).
-- tool 호출은 세 겹으로 지킵니다 (11/4). 잠깐 끊긴 API 는 `defineTool` 이 tool 을 한 번 더 돌리고, 연속 실패한 API 는 회로 차단기가 1분간 호출을 건너뛰어 매번 10초를 기다리지 않게 하며, 그래도 실패하면 같은 호출의 마지막 성공 응답(24시간 안, Supabase `tool_cache` 표)을 대신 쓰고, 리포트 "확인하지 못한 것" 에 "조회가 실패해 N시간 전에 받은 응답을 썼습니다" 를 코드가 넣습니다 (/admin 이벤트에도 "저장된 응답 사용"). 시연 전에 `pnpm eval --no-judge` 로 시연 질문을 한 번 돌려 두면 캐시가 차서, 당일 API 가 끊겨도 리포트가 빈칸으로 나가지 않습니다.
+- tool 호출은 세 겹으로 지킵니다 (11/4, PR #65). 잠깐 끊긴 API 는 `defineTool` 이 tool 을 한 번 더 돌리고, 연속 실패한 API 는 회로 차단기가 1분간 호출을 건너뛰어 매번 10초를 기다리지 않게 하며, 그래도 실패하면 같은 호출의 마지막 성공 응답(24시간 안, Supabase `tool_cache` 표)을 대신 쓰고, 리포트 "확인하지 못한 것" 에 "조회가 실패해 N시간 전에 받은 응답을 썼습니다" 를 코드가 넣습니다 (/admin 이벤트에도 "저장된 응답 사용"). 시연 전에 `pnpm eval --no-judge` 로 시연 질문을 한 번 돌려 두면 캐시가 차서, 당일 API 가 끊겨도 리포트가 빈칸으로 나가지 않습니다.
+- 캐시 예열 (`pnpm warm`, `.github/workflows/warm.yml`): `tool_cache` 표에 있는 호출을 같은 입력으로 한 시간마다 다시 불러 저장 응답을 갓 받은 것으로 바꿉니다. 모델은 부르지 않아 비용이 없고, 표에 없는 입력은 예열할 수 없으니 시연 질문은 전날 한 번 돌려 둡니다. `/admin` 의 tool 상태는 실제 조회 성공률(저장 응답으로 나간 호출은 실패로 셈) · 저장 응답 · 회로 열림 횟수 · 마지막 실패 시각을 보여 주고, "상용 AI 상태" 패널은 OpenAI 상태 페이지(status.openai.com 공개 JSON)의 전체 상태 · 우리가 쓰는 구성 요소 · 진행 중 장애와 우리 실측(최근 1시간 요청 · 성공률 · 평균 응답)을 나란히 두고 한 줄로 판단합니다. 금융권이 벤더 상태와 자체 측정을 같이 보는 방식입니다.
 
 ---
 

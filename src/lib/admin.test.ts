@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { config, proxy } from "@/proxy";
-import { EVENT_LIMIT, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RUN_COLUMNS, summarizeRuns, type RunRow } from "./admin";
+import { EVENT_LIMIT, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RUN_COLUMNS, summarizeRuns, windowStats, type RunRow } from "./admin";
 
 // loadRuns 는 db.ts 로 runs 표를 읽습니다. 여기서는 Supabase 를 부르지 않고 조회 체인(from → select → gte → lte → [or] → order → order → limit)을 흉내 냅니다.
 const db = vi.hoisted(() => ({ enabled: vi.fn(() => false), from: vi.fn(), pages: [] as { data: unknown[] | null; error: { message: string } | null }[] }));
@@ -182,9 +182,38 @@ describe("summarizeRuns", () => {
       NOW,
     );
     expect(s.tools).toEqual([
-      { tool: "get_korean_economic_news", calls: 2, ok: 1, avgMs: 500 },
-      { tool: "get_fx_krw_rate", calls: 1, ok: 1, avgMs: 500 },
+      { tool: "get_korean_economic_news", calls: 2, ok: 1, live: 1, fallbacks: 0, skipped: 0, avgMs: 500, lastFailAt: s.tools[0]!.lastFailAt, lastFail: "본문 없음" },
+      { tool: "get_fx_krw_rate", calls: 1, ok: 1, live: 1, fallbacks: 0, skipped: 0, avgMs: 500 },
     ]);
+  });
+
+  it("저장 응답으로 나간 호출은 ok 에는 들지만 live 에는 안 들고, 회로 열림은 따로 세며, 상태등은 live 비율로 본다", () => {
+    const s = summarizeRuns(
+      [
+        run({ at: ago(5), steps: [{ tool: "get_fx_krw_rate", status: "ok", ms: 3, fallbackAgeMs: 2 * 60 * 60_000, breaker: "open" }] }),
+        run({ at: ago(50), steps: [{ tool: "get_fx_krw_rate", status: "ok", ms: 1_800, fallbackAgeMs: 60_000 }] }),
+        run({ at: ago(90), steps: [{ tool: "get_fx_krw_rate", status: "ok", ms: 600 }] }),
+      ],
+      NOW,
+    );
+    // 5분 전 호출은 회로가 열려 건너뛴 것이라 "마지막 실패" 는 실제로 조회해 본 50분 전
+    expect(s.tools[0]).toEqual({ tool: "get_fx_krw_rate", calls: 3, ok: 3, live: 1, fallbacks: 2, skipped: 1, avgMs: 801, lastFailAt: ago(50), lastFail: "조회 실패 · 1분 전 저장 응답 사용" });
+    expect(healthOf(s).tools).toEqual({ get_fx_krw_rate: "bad" });
+    expect(s.events.map((e) => e.detail)).toEqual(["회로 열림(호출 생략) · 2시간 전 응답 사용", "조회 실패 · 1분 전 응답 사용"]);
+  });
+
+  it("windowStats 는 최근 한 시간의 요청 · 성공 · 리포트 평균 응답을 낸다 (Mock · 호출 제한 · 범위 밖 제외)", () => {
+    const rows = [
+      run({ at: ago(10), ms: 20_000 }),
+      run({ at: ago(20), ms: 30_000 }),
+      run({ at: ago(30), ok: false, stage: "agent" }),
+      run({ at: ago(40), stage: "limited", ok: false }),
+      run({ at: ago(45), mock: true }),
+      run({ at: ago(50), intent: "out_of_scope", ms: 2_000 }),
+      run({ at: ago(70), ms: 40_000 }),
+    ];
+    expect(windowStats(rows, NOW)).toEqual({ total: 4, ok: 3, avgMs: 25_000 });
+    expect(windowStats([], NOW)).toEqual({ total: 0, ok: 0, avgMs: null });
   });
 
   it("막대는 한국 시간 정각 경계로 자르고 마지막 칸이 지금을 포함한다 (24시간 = 1시간 칸 25개)", () => {

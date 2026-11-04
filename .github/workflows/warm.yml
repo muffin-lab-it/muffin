@@ -1,0 +1,48 @@
+# tool 응답 캐시 예열. 한 시간마다 tool_cache 표의 호출(tool + 입력)을 같은 입력으로 다시 불러 저장 응답을 갓 받은 것으로 바꿉니다 (scripts/warm/run.ts).
+# 모델은 부르지 않아 비용이 없고, 시연 당일 외부 API 가 끊겨도 "1시간 전 조회 값" 으로 리포트가 나가게 합니다.
+# 표에 없는 입력은 예열할 수 없으니 시연 질문은 전날 `pnpm eval --no-judge` 로 한 번 돌려 둡니다. 결과 요약은 실행 페이지(Summary)에 남습니다.
+# 필요한 Secrets: FRED_API_KEY · ECOS_API_KEY · DATA_GO_KR_KEY · SUPABASE_URL · SUPABASE_SECRET_KEY (OPENAI_API_KEY 는 필요 없음)
+name: Warm tool cache
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "7 * * * *" # 매시 7분 (정각의 혼잡을 피함). GitHub 사정으로 몇 분 늦을 수 있음
+  workflow_dispatch:
+    inputs:
+      older_than:
+        description: "이 분(分)보다 오래된 줄만 (0 이면 전부)"
+        required: false
+        default: "30"
+      max:
+        description: "최대 줄 수"
+        required: false
+        default: "300"
+
+concurrency:
+  group: warm-tool-cache
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: 예열 (실제 데이터 API 호출, 모델 없음)
+        run: pnpm warm --older-than "${{ inputs.older_than || '30' }}" --max "${{ inputs.max || '300' }}"
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
