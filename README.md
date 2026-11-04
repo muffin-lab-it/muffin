@@ -239,6 +239,7 @@ muffin/
 │  ├─ scoring.ts                     평가 채점 규칙 (코드 검사). eval.ts 와 promptfoo/ 가 같은 함수를 씀
 │  ├─ warm/                          캐시 예열: tool_cache 표의 호출을 같은 입력으로 다시 불러 저장 응답 갱신 (`pnpm warm`, 매시 Action, 리더)
 │  ├─ replay/                        리플레이 녹화: 실제로 한 번 돌려 진행 이벤트 + 리포트를 src/replays/<id>.json 으로 (`pnpm replay:record`, 리더)
+│  ├─ baseline/                      Tool 없음 기준선: 같은 질문을 tool · 장부 · 검증 없이 물어본 답과 Muffin 을 같은 잣대로 비교 (`pnpm baseline`, 리더)
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
 │  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
 │  ├─ judge/                         근거 판정 보정 세트 (pairs.json, 사람이 매긴 정답) + pnpm judge 로 정확도 재기 (형식: 폴더 README)
@@ -722,6 +723,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 - **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 의도 일치(`intent`, 분류의 점수), 숫자의 증거 번호 채움, 원인 근거 종류, 원인마다 근거 판정(✓ supported · ✗ unsupported · ⚡ contradicted, `--no-judge` 로 끔), 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문마다 분류 결과와 정제가 고른 사실 · 뺀 항목도 적어 두므로 담당자는 자기 단계가 무엇을 했는지 볼 수 있습니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다. 주간 수치는 아래 Promptfoo 가 냅니다 (`pnpm eval` 은 단계별 상세와 근거 판정 보정 후보용으로 그대로 둡니다).
 - **1단계 (✅)**: 검증기가 숫자 검증 결과(✓ 장부 일치 / C 계산 / 제거)와 근거 종류를 자동으로 냅니다. 요약 표의 `숫자 ✓/C/제거` · `수정` · `검증` 열입니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
+- **Tool 없음 기준선** (`pnpm baseline`, 11/5): 같은 질문을 같은 모델에게 tool · 증거 장부 · 검증 없이 물어본 답과 Muffin 리포트를 같은 잣대로 잽니다 — 숫자 수, 근거로 확인된 숫자 비율(기준선은 장부가 없어 0), 출처 링크 수와 실제로 열리는 비율(접속 확인), 가장 최근 기준일, 권유 문장, "확인 못 했다" 고 밝힌 수, 시간 · 토큰. 결과는 `docs/eval/baseline/<날짜>.md` 에 요약 표 · 질문별 표 · 기준선 답 전문으로 남아 발표의 "tool 과 검증이 더하는 것" 장면에 씁니다. 기준선 지시문은 작성 단계와 같은 구성 · 같은 권유 금지 규칙이라 차이는 tool 과 검증에서만 납니다.
 - **Promptfoo · 주간 평가** (3단계 ✅, `pnpm eval:promptfoo` · `.github/workflows/eval.yml`): 같은 고정 질문 세트를 [Promptfoo](https://www.promptfoo.dev/) 로 돌립니다 (OpenAI 가 Evals 플랫폼을 2026-11-30 에 종료하고 공식 이전 경로로 안내하는 도구). `scripts/promptfoo/provider.ts` 가 질문마다 다섯 단계를 끝까지 돌리고, `asserts.ts` 의 채점 함수가 `scripts/scoring.ts`(`pnpm eval` 과 같은 코드 검사)와 `judge.ts`(근거 판정)를 그대로 불러 지표 10개를 냅니다: 의도 일치 · tool 선택 · 숫자 검증 · 지어낸 번호 없음 · 원인 근거 · 근거 판정 · 권유 없음 · 검증 통과 · 다시 쓰기 없음 · 55초 안. 지표별 최소 통과율은 `promptfooconfig.yaml` 의 `metadata.thresholds` 에 있고, 요약(`docs/eval/promptfoo/<날짜>.md`)이 지난 결과와 나란히 보여 줍니다. GitHub Action 이 매주 금요일 09:00(KST) 과 수동 실행(세트 · 깊이 선택)으로 돌려 요약을 실행 페이지에 쓰고 결과 파일을 90일 보관하며, 기준 아래로 떨어진 지표가 있으면 실행이 실패로 표시돼 알림이 옵니다. Action 에는 Secrets `OPENAI_API_KEY` · `FRED_API_KEY` · `ECOS_API_KEY` · `DATA_GO_KR_KEY` 가 필요합니다. promptfoo 는 설치 크기(536개 패키지 · 약 680MB) 때문에 `package.json` 에 넣지 않고 `pnpm dlx promptfoo@0.125.1` 로 버전을 고정해 부릅니다. 모델 비교는 같은 세트를 `--model` · `--small-model` 로 바꿔 돌리고 `--baseline` 으로 기본 모델 결과와 나란히 봅니다(`--tag` 로 파일 구분). 결과 요약은 Supabase `evals` 표에 한 줄씩 쌓여 `/admin` 의 "품질 평가" 패널에 보이고, 기준 미달이면 Action 이 요약과 고치는 순서를 담은 이슈(라벨 `eval`)를 엽니다. 지시문 수정은 리더가 로컬에서 Codex 초안으로 PR 을 올립니다. 자세한 것은 [`scripts/promptfoo/README.md`](scripts/promptfoo/README.md).
 
 측정 설계
