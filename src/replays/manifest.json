@@ -1,5 +1,41 @@
 [
   {
+    "id": "etf-decision-deep",
+    "recordedAt": "2026-11-04T16:54:14.538Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "deep",
+    "area": "etf",
+    "model": "gpt-6-sol",
+    "ms": 25209
+  },
+  {
+    "id": "etf-decision-easy",
+    "recordedAt": "2026-11-04T16:53:48.763Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "easy",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 24028
+  },
+  {
+    "id": "fx-cause-deep",
+    "recordedAt": "2026-11-04T16:53:17.471Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "deep",
+    "area": "fx",
+    "model": "gpt-6-sol",
+    "ms": 29829
+  },
+  {
+    "id": "fx-cause-easy",
+    "recordedAt": "2026-11-04T16:52:39.806Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "easy",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 36006
+  },
+  {
     "id": "fx-cause",
     "recordedAt": "2026-11-04T16:36:38.811Z",
     "question": "요즘 원달러 환율이 왜 이렇게 움직여?",

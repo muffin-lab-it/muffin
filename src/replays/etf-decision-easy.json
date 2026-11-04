@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "id": "etf-decision-easy",
+  "recordedAt": "2026-11-04T16:53:48.763Z",
+  "question": "KODEX 200 지금 사도 돼?",
+  "depth": "easy",
+  "area": "etf",
+  "model": "gpt-6-luna",
+  "ms": 24028,
+  "events": [
+    {
+      "t": 1,
+      "type": "stage",
+      "stage": "plan",
+      "status": "start"
+    },
+    {
+      "t": 2188,
+      "type": "plan",
+      "intent": "decision",
+      "mode": "decision_facts",
+      "tools": [
+        "get_etf_kr_price",
+        "get_korean_economic_news",
+        "get_rate_data"
+      ]
+    },
+    {
+      "t": 2188,
+      "type": "stage",
+      "stage": "plan",
+      "status": "done"
+    },
+    {
+      "t": 2188,
+      "type": "stage",
+      "stage": "research",
+      "status": "start"
+    },
+    {
+      "t": 12401,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 8299,
+        "fallbackAgeMs": 3026345
+      }
+    },
+    {
+      "t": 16033,
+      "type": "stage",
+      "stage": "research",
+      "status": "done"
+    },
+    {
+      "t": 16033,
+      "type": "stage",
+      "stage": "edit",
+      "status": "start"
+    },
+    {
+      "t": 18926,
+      "type": "stage",
+      "stage": "edit",
+      "status": "done"
+    },
+    {
+      "t": 18926,
+      "type": "stage",
+      "stage": "write",
+      "status": "start"
+    },
+    {
+      "t": 24024,
+      "type": "stage",
+      "stage": "write",
+      "status": "done"
+    },
+    {
+      "t": 24024,
+      "type": "stage",
+      "stage": "verify",
+      "status": "start"
+    },
+    {
+      "t": 24027,
+      "type": "verify",
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 2,
+          "verified": 2,
+          "derived": 0,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      }
+    },
+    {
+      "t": 24027,
+      "type": "stage",
+      "stage": "verify",
+      "status": "done"
+    }
+  ],
+  "report": {
+    "summary": "지금 매수할지는 판단을 대신할 수 없으며, 최신 시세도 확인되지 않아 확인된 과거 자료만으로는 결론을 내리기 어렵습니다. 2026-10-06~2026-11-03 가격 수익률은 -19.34%였습니다.",
+    "numbers": [
+      {
+        "label": "KODEX 200 종가",
+        "value": "89,325원",
+        "change": "당일 -3.89%",
+        "asOf": "2026-11-03",
+        "ref": "E1",
+        "check": "verified"
+      },
+      {
+        "label": "KODEX 200 가격 수익률",
+        "value": "-19.34%",
+        "change": "2026-10-06~2026-11-03",
+        "asOf": "2026-11-03",
+        "ref": "E1",
+        "check": "verified"
+      }
+    ],
+    "why": [],
+    "impact": [
+      "해당 기간의 가격 하락은 과거 성과를 보여줄 뿐, 향후 수익을 보장하거나 매수 시점을 결정해 주지는 않습니다.",
+      "매수 판단에는 투자 기간과 감내할 수 있는 손실, 자금 사정도 함께 고려되어야 합니다."
+    ],
+    "caveats": [
+      "시세는 T+1 공개 자료이며, 이번 조회 실패로 확인된 값은 2026-11-03 기준 직전 조회 값입니다. 지금 시점의 최신값은 확인되지 않았습니다.",
+      "기간 수익률은 분배금을 제외한 가격 기준입니다."
+    ],
+    "dataGaps": [
+      "현재 최신 시세가 확인되지 않았습니다.",
+      "투자 기간, 위험 감내 수준, 자금 사정이 확인되지 않아 개인 상황에 맞는 매수 판단은 할 수 없습니다.",
+      "국내 ETF 시세 확인: 조회가 실패해 50분 전에 받은 응답을 썼습니다 (데이터 기준일은 출처 그대로)"
+    ],
+    "nextTopics": [
+      "분배금 포함 총수익률",
+      "KODEX 200 추적 차이"
+    ],
+    "version": 2,
+    "mode": "decision_facts",
+    "notice": "투자 판단을 대신하지 않습니다. 아래는 판단에 필요한 사실만 정리한 것입니다.",
+    "sources": [
+      {
+        "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "url": "https://www.data.go.kr/data/15094806/openapi.do",
+        "asOf": "2026-11-03",
+        "id": "E1"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 110745,
+          "period.indexCloseFrom": 1095.83,
+          "period.returnPct": -19.34173100365705,
+          "period.indexReturnPct": -19.178157195915425,
+          "period.trackingDiffPp": -0.16357380774162422,
+          "period.high": 112805,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 50분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      }
+    ],
+    "verification": {
+      "status": "pass",
+      "numbers": {
+        "total": 2,
+        "verified": 2,
+        "derived": 0,
+        "reported": 0,
+        "unverified": 0
+      },
+      "why": {
+        "data": 0,
+        "news": 0,
+        "none": 0,
+        "unsupported": 0
+      },
+      "advice": 0,
+      "revisions": 0,
+      "removed": []
+    },
+    "disclosure": "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다."
+  },
+  "steps": [
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 8299,
+      "fallbackAgeMs": 3026345
+    }
+  ],
+  "rewrites": 0
+}

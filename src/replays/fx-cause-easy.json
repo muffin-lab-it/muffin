@@ -1,0 +1,671 @@
+{
+  "version": 1,
+  "id": "fx-cause-easy",
+  "recordedAt": "2026-11-04T16:52:39.806Z",
+  "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+  "depth": "easy",
+  "area": "fx",
+  "model": "gpt-6-luna",
+  "ms": 36006,
+  "events": [
+    {
+      "t": 1,
+      "type": "stage",
+      "stage": "plan",
+      "status": "start"
+    },
+    {
+      "t": 2838,
+      "type": "plan",
+      "intent": "cause",
+      "mode": "research",
+      "tools": [
+        "get_fx_krw_rate",
+        "get_korean_economic_news",
+        "get_rate_data",
+        "get_macro_indicators"
+      ]
+    },
+    {
+      "t": 2838,
+      "type": "stage",
+      "stage": "plan",
+      "status": "done"
+    },
+    {
+      "t": 2838,
+      "type": "stage",
+      "stage": "research",
+      "status": "start"
+    },
+    {
+      "t": 12465,
+      "type": "step",
+      "step": {
+        "tool": "get_korean_economic_news",
+        "status": "ok",
+        "ms": 2227
+      }
+    },
+    {
+      "t": 15979,
+      "type": "step",
+      "step": {
+        "tool": "get_fx_krw_rate",
+        "status": "ok",
+        "ms": 1196
+      }
+    },
+    {
+      "t": 19660,
+      "type": "step",
+      "step": {
+        "tool": "get_korean_economic_news",
+        "status": "ok",
+        "ms": 992
+      }
+    },
+    {
+      "t": 25734,
+      "type": "stage",
+      "stage": "research",
+      "status": "done"
+    },
+    {
+      "t": 25734,
+      "type": "stage",
+      "stage": "edit",
+      "status": "start"
+    },
+    {
+      "t": 30035,
+      "type": "step",
+      "step": {
+        "tool": "calc_movement",
+        "status": "ok",
+        "ms": 1230
+      }
+    },
+    {
+      "t": 30036,
+      "type": "stage",
+      "stage": "edit",
+      "status": "done"
+    },
+    {
+      "t": 30036,
+      "type": "stage",
+      "stage": "write",
+      "status": "start"
+    },
+    {
+      "t": 36004,
+      "type": "stage",
+      "stage": "write",
+      "status": "done"
+    },
+    {
+      "t": 36004,
+      "type": "stage",
+      "stage": "verify",
+      "status": "start"
+    },
+    {
+      "t": 36006,
+      "type": "verify",
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 2,
+          "verified": 1,
+          "derived": 1,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      }
+    },
+    {
+      "t": 36006,
+      "type": "stage",
+      "stage": "verify",
+      "status": "done"
+    }
+  ],
+  "report": {
+    "summary": "최근 30일 원/달러 환율은 0.34% 내려, 달러당 필요한 원화가 줄어드는 원화 강세였으며 평소 범위 안의 움직임입니다. 2026-11-04 기준 환율은 1,341.05원입니다.",
+    "numbers": [
+      {
+        "label": "USD/KRW",
+        "value": "1,341.05원",
+        "change": "2026-10-05 대비 30일 -0.34%",
+        "asOf": "2026-11-04",
+        "ref": "E2",
+        "check": "verified"
+      },
+      {
+        "label": "30일 환율 변화의 평소 움직임 대비 크기",
+        "value": "0.21배",
+        "change": "",
+        "asOf": "2026-11-04",
+        "ref": "C1",
+        "check": "derived"
+      }
+    ],
+    "why": [],
+    "impact": [
+      "원화 강세는 수입품의 원화 비용을 낮추는 방향으로 작용할 수 있습니다.",
+      "달러로 표시된 해외자산을 원화로 환산할 때는 환율 하락이 원화 환산 가치에 낮추는 방향으로 작용할 수 있습니다."
+    ],
+    "caveats": [
+      "환율은 일별 중간시장 기준이며 실시간 매수·매도 호가와 다를 수 있습니다.",
+      "뉴스는 제목만 확인됐고 기사 본문은 확보되지 않아, 구체적인 변동 원인이나 인과관계는 확인되지 않았습니다."
+    ],
+    "dataGaps": [
+      "최근 원/달러 환율 움직임의 구체적 원인을 확인하려면 관련 뉴스 본문과 금리·환율 등 원인 후보 자료가 필요합니다."
+    ],
+    "nextTopics": [
+      "미국 금리와 원/달러 환율",
+      "원화 환산 해외자산 가치"
+    ],
+    "version": 2,
+    "mode": "research",
+    "notice": "USD/KRW 30일 변화(-0.34%)는 직전 90일 기준 평소 폭(±1.65%)의 0.21배로, 평소 범위 안의 움직임입니다. 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있습니다.",
+    "sources": [
+      {
+        "name": "CBC뉴스",
+        "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE0tQ3VWcGVrT19TM2NzUDRLME5XSUdXTVp1d2FhcFU2VEY3T3d6OUVrcXpSY09GTlFjZEl5MmJqSWo2cGNxSVB0Wl9RS0FLR0dPZ3M0bEQ5cjg2RVhnVm9CMWhoN2puVGxl?oc=5",
+        "asOf": "2026-11-04T15:06:00.000Z",
+        "id": "E1-1"
+      },
+      {
+        "name": "블루밍비트",
+        "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE1hVUJxMGhhSDF0YzhiMDhKaktlNVFQcm1KSHh3WlYzUE8zcmRqUklnVUNxMl9FemFBcExXZlFNUkRib3FubHRya0FDQU80VXhh?oc=5",
+        "asOf": "2026-11-04T09:40:02.000Z",
+        "id": "E1-2"
+      },
+      {
+        "name": "베타뉴스",
+        "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE9QTmctcVpOTE5hWWVmb3ZuemRjdWxIYTZsQmR5ZlBseDNLd284S21ueXdXdlRxSjFXUmlMVHZQNW5MYXI5cm8yUXI4OUVxd0xqMi16NmowMnUtT216clhpQy02bGo?oc=5",
+        "asOf": "2026-11-04T09:01:02.000Z",
+        "id": "E1-3"
+      },
+      {
+        "name": "서울경제",
+        "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBWZmU1YVNJbHl1aTJHNFJqOFdsdEticG5uQ29UQkF0NW5IUnVOVzhmZWV6WktUc2QyR3ZzS1BZVER2SU9KN2Y0bklVRG5lcmdzUGfSAVNBVV95cUxQUlNUT3NiSzl2NnVmZjZPd3czeFBiOWtuR1d3Y05INjk1dzEwUmplZEcwSlhDSGhYV2N0UnZHOE5ac043QWYxV291UkJuNEV1Uzc5cw?oc=5",
+        "asOf": "2026-11-04T08:39:19.000Z",
+        "id": "E1-4"
+      },
+      {
+        "name": "매일경제 마켓",
+        "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1WZFNJTWNTVHJ4eW1fUGIyUVVKemZyN1ZYbDZWZUJjRmZDTkdyb0xiZHFGWVA5N0dYakdlTXI3ZW5uRHBROXktRnhNX09IMWpRSVE?oc=5",
+        "asOf": "2026-11-04T08:25:58.000Z",
+        "id": "E1-5"
+      },
+      {
+        "name": "Frankfurter v2",
+        "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-22&to=2026-11-05",
+        "asOf": "2026-11-04",
+        "id": "E2"
+      },
+      {
+        "name": "연합인포맥스",
+        "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTFA4ZE5aTy1yTXRvWlh4LUE4c1prajFlQU5ObTJGUXdMRnQzeVhBMC1FSjg2b0JWaVd3YmhJVE5kWkcxQVFSMmlXaURUZ2FyM1NYZDFlR2RWbVRzMlpsdWJuRXQwR1FpWC1SZERLdzlHbVU?oc=5",
+        "asOf": "2026-11-04T14:57:25.000Z",
+        "id": "E3-2"
+      },
+      {
+        "name": "Frankfurter v2 일별 환율 (2026-07-08 ~ 2026-11-04)",
+        "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-07-07&to=2026-11-04",
+        "asOf": "2026-11-04",
+        "id": "C1"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · CBC뉴스",
+        "values": {
+          "title": "[환율 마감] 원/달러 환율 1,341.5원 마감…미 중간선거 민주당 의회 장악 속 혼조세 마감 - CBC뉴스",
+          "publisher": "CBC뉴스",
+          "publishedAt": "2026-11-04T15:06:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "CBC뉴스",
+          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE0tQ3VWcGVrT19TM2NzUDRLME5XSUdXTVp1d2FhcFU2VEY3T3d6OUVrcXpSY09GTlFjZEl5MmJqSWo2cGNxSVB0Wl9RS0FLR0dPZ3M0bEQ5cjg2RVhnVm9CMWhoN2puVGxl?oc=5",
+          "asOf": "2026-11-04T15:06:00.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 블루밍비트",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다 - 블루밍비트",
+          "publisher": "블루밍비트",
+          "publishedAt": "2026-11-04T09:40:02.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "블루밍비트",
+          "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE1hVUJxMGhhSDF0YzhiMDhKaktlNVFQcm1KSHh3WlYzUE8zcmRqUklnVUNxMl9FemFBcExXZlFNUkRib3FubHRya0FDQU80VXhh?oc=5",
+          "asOf": "2026-11-04T09:40:02.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 베타뉴스",
+        "values": {
+          "title": "美 중간선거 민주당 의회 장악 유력...원·달러 환율, 0.5원 오른 1341.5원 마감 - 베타뉴스",
+          "publisher": "베타뉴스",
+          "publishedAt": "2026-11-04T09:01:02.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "베타뉴스",
+          "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE9QTmctcVpOTE5hWWVmb3ZuemRjdWxIYTZsQmR5ZlBseDNLd284S21ueXdXdlRxSjFXUmlMVHZQNW5MYXI5cm8yUXI4OUVxd0xqMi16NmowMnUtT216clhpQy02bGo?oc=5",
+          "asOf": "2026-11-04T09:01:02.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 서울경제",
+        "values": {
+          "title": "“수출 호조에 달러 쏟아져 1년내 환율 1270원 전망” - 서울경제",
+          "publisher": "서울경제",
+          "publishedAt": "2026-11-04T08:39:19.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "서울경제",
+          "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBWZmU1YVNJbHl1aTJHNFJqOFdsdEticG5uQ29UQkF0NW5IUnVOVzhmZWV6WktUc2QyR3ZzS1BZVER2SU9KN2Y0bklVRG5lcmdzUGfSAVNBVV95cUxQUlNUT3NiSzl2NnVmZjZPd3czeFBiOWtuR1d3Y05INjk1dzEwUmplZEcwSlhDSGhYV2N0UnZHOE5ac043QWYxV291UkJuNEV1Uzc5cw?oc=5",
+          "asOf": "2026-11-04T08:39:19.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 매일경제 마켓",
+        "values": {
+          "title": "고려아연 3분기 영업익 1천417억원·48%↓…환율 직격탄(종합) - 매일경제 마켓",
+          "publisher": "매일경제 마켓",
+          "publishedAt": "2026-11-04T08:25:58.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "매일경제 마켓",
+          "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1WZFNJTWNTVHJ4eW1fUGIyUVVKemZyN1ZYbDZWZUJjRmZDTkdyb0xiZHFGWVA5N0dYakdlTXI3ZW5uRHBROXktRnhNX09IMWpRSVE?oc=5",
+          "asOf": "2026-11-04T08:25:58.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E2",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1341.05,
+          "asOf": "2026-11-04",
+          "comparison.rate": 1345.67,
+          "comparison.asOf": "2026-10-05",
+          "change": -4.62,
+          "changePct": -0.34
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-22&to=2026-11-05",
+          "asOf": "2026-11-04"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      },
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · CBC뉴스",
+        "values": {
+          "title": "[환율 마감] 원/달러 환율 1,341.5원 마감…미 중간선거 민주당 의회 장악 속 혼조세 마감 - CBC뉴스",
+          "publisher": "CBC뉴스",
+          "publishedAt": "2026-11-04T15:06:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "CBC뉴스",
+          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE0tQ3VWcGVrT19TM2NzUDRLME5XSUdXTVp1d2FhcFU2VEY3T3d6OUVrcXpSY09GTlFjZEl5MmJqSWo2cGNxSVB0Wl9RS0FLR0dPZ3M0bEQ5cjg2RVhnVm9CMWhoN2puVGxl?oc=5",
+          "asOf": "2026-11-04T15:06:00.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합인포맥스",
+        "values": {
+          "title": "달러-원, 뉴욕장서 1,330원 후반대 거래 - 연합인포맥스",
+          "publisher": "연합인포맥스",
+          "publishedAt": "2026-11-04T14:57:25.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "연합인포맥스",
+          "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTFA4ZE5aTy1yTXRvWlh4LUE4c1prajFlQU5ObTJGUXdMRnQzeVhBMC1FSjg2b0JWaVd3YmhJVE5kWkcxQVFSMmlXaURUZ2FyM1NYZDFlR2RWbVRzMlpsdWJuRXQwR1FpWC1SZERLdzlHbVU?oc=5",
+          "asOf": "2026-11-04T14:57:25.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 블루밍비트",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다 - 블루밍비트",
+          "publisher": "블루밍비트",
+          "publishedAt": "2026-11-04T09:40:02.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "블루밍비트",
+          "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE1hVUJxMGhhSDF0YzhiMDhKaktlNVFQcm1KSHh3WlYzUE8zcmRqUklnVUNxMl9FemFBcExXZlFNUkRib3FubHRya0FDQU80VXhh?oc=5",
+          "asOf": "2026-11-04T09:40:02.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 베타뉴스",
+        "values": {
+          "title": "美 중간선거 민주당 의회 장악 유력...원·달러 환율, 0.5원 오른 1341.5원 마감 - 베타뉴스",
+          "publisher": "베타뉴스",
+          "publishedAt": "2026-11-04T09:01:02.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "베타뉴스",
+          "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE9QTmctcVpOTE5hWWVmb3ZuemRjdWxIYTZsQmR5ZlBseDNLd284S21ueXdXdlRxSjFXUmlMVHZQNW5MYXI5cm8yUXI4OUVxd0xqMi16NmowMnUtT216clhpQy02bGo?oc=5",
+          "asOf": "2026-11-04T09:01:02.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 서울경제",
+        "values": {
+          "title": "“수출 호조에 달러 쏟아져 1년내 환율 1270원 전망” - 서울경제",
+          "publisher": "서울경제",
+          "publishedAt": "2026-11-04T08:39:19.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "서울경제",
+          "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBWZmU1YVNJbHl1aTJHNFJqOFdsdEticG5uQ29UQkF0NW5IUnVOVzhmZWV6WktUc2QyR3ZzS1BZVER2SU9KN2Y0bklVRG5lcmdzUGfSAVNBVV95cUxQUlNUT3NiSzl2NnVmZjZPd3czeFBiOWtuR1d3Y05INjk1dzEwUmplZEcwSlhDSGhYV2N0UnZHOE5ac043QWYxV291UkJuNEV1Uzc5cw?oc=5",
+          "asOf": "2026-11-04T08:39:19.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_movement",
+        "label": "평소 움직임과 비교 · USD/KRW 30일 변화의 크기 (직전 90일 기준)",
+        "values": {
+          "movePct": -0.34,
+          "typicalMovePct": 1.65,
+          "zScore": -0.21,
+          "timesTypical": 0.21,
+          "level": "normal",
+          "periodDays": 30,
+          "baselineStart": "2026-07-08",
+          "baselineEnd": "2026-10-05",
+          "baselineCount": 89
+        },
+        "source": {
+          "name": "Frankfurter v2 일별 환율 (2026-07-08 ~ 2026-11-04)",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-07-07&to=2026-11-04",
+          "asOf": "2026-11-04"
+        },
+        "note": "직전 90일(2026-07-08~2026-10-05) 하루 변화 89개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±1.65%. 이번 변화 -0.34% 는 평소 폭의 0.21배입니다",
+        "lineage": {
+          "op": "zscore",
+          "inputs": [
+            "E2"
+          ]
+        }
+      }
+    ],
+    "verification": {
+      "status": "pass",
+      "numbers": {
+        "total": 2,
+        "verified": 1,
+        "derived": 1,
+        "reported": 0,
+        "unverified": 0
+      },
+      "why": {
+        "data": 0,
+        "news": 0,
+        "none": 0,
+        "unsupported": 0
+      },
+      "advice": 0,
+      "revisions": 0,
+      "removed": []
+    },
+    "movement": {
+      "ref": "E2",
+      "zScore": -0.21,
+      "window": 90,
+      "level": "normal"
+    },
+    "charts": [
+      {
+        "kind": "line",
+        "title": "USD/KRW 최근 30일",
+        "series": [
+          {
+            "label": "USD/KRW",
+            "ref": "C1",
+            "points": [
+              {
+                "t": "2026-10-05",
+                "v": 1345.67
+              },
+              {
+                "t": "2026-10-06",
+                "v": 1342.2
+              },
+              {
+                "t": "2026-10-07",
+                "v": 1339.64
+              },
+              {
+                "t": "2026-10-08",
+                "v": 1340.57
+              },
+              {
+                "t": "2026-10-09",
+                "v": 1342.03
+              },
+              {
+                "t": "2026-10-10",
+                "v": 1341.76
+              },
+              {
+                "t": "2026-10-11",
+                "v": 1341.82
+              },
+              {
+                "t": "2026-10-12",
+                "v": 1336.45
+              },
+              {
+                "t": "2026-10-13",
+                "v": 1339.24
+              },
+              {
+                "t": "2026-10-14",
+                "v": 1338.34
+              },
+              {
+                "t": "2026-10-15",
+                "v": 1343.27
+              },
+              {
+                "t": "2026-10-16",
+                "v": 1338.4
+              },
+              {
+                "t": "2026-10-17",
+                "v": 1336.97
+              },
+              {
+                "t": "2026-10-18",
+                "v": 1336.1
+              },
+              {
+                "t": "2026-10-19",
+                "v": 1332.2
+              },
+              {
+                "t": "2026-10-20",
+                "v": 1328.73
+              },
+              {
+                "t": "2026-10-21",
+                "v": 1326.44
+              },
+              {
+                "t": "2026-10-22",
+                "v": 1324.72
+              },
+              {
+                "t": "2026-10-23",
+                "v": 1324.46
+              },
+              {
+                "t": "2026-10-24",
+                "v": 1324.49
+              },
+              {
+                "t": "2026-10-25",
+                "v": 1324.49
+              },
+              {
+                "t": "2026-10-26",
+                "v": 1324.57
+              },
+              {
+                "t": "2026-10-27",
+                "v": 1325.87
+              },
+              {
+                "t": "2026-10-28",
+                "v": 1335.1
+              },
+              {
+                "t": "2026-10-29",
+                "v": 1336.34
+              },
+              {
+                "t": "2026-10-30",
+                "v": 1336.07
+              },
+              {
+                "t": "2026-10-31",
+                "v": 1335.81
+              },
+              {
+                "t": "2026-11-01",
+                "v": 1335.68
+              },
+              {
+                "t": "2026-11-02",
+                "v": 1339.11
+              },
+              {
+                "t": "2026-11-03",
+                "v": 1341.48
+              },
+              {
+                "t": "2026-11-04",
+                "v": 1341.05
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "ref": "E1-1",
+            "label": "[환율 마감] 원/달러 환율 1,341.5원 마감…",
+            "at": "2026-11-04"
+          },
+          {
+            "ref": "E1-2",
+            "label": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다 - …",
+            "at": "2026-11-04"
+          },
+          {
+            "ref": "E1-3",
+            "label": "美 중간선거 민주당 의회 장악 유력...원·달러 …",
+            "at": "2026-11-04"
+          },
+          {
+            "ref": "E1-4",
+            "label": "“수출 호조에 달러 쏟아져 1년내 환율 1270원…",
+            "at": "2026-11-04"
+          }
+        ],
+        "band": {
+          "from": "2026-10-05",
+          "to": "2026-11-04",
+          "low": 1323.47,
+          "high": 1367.87,
+          "label": "평소 폭 ±1.65% (직전 90일 기준)"
+        },
+        "unit": "KRW per 1 USD"
+      }
+    ],
+    "disclosure": "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다."
+  },
+  "steps": [
+    {
+      "tool": "get_korean_economic_news",
+      "status": "ok",
+      "ms": 2227
+    },
+    {
+      "tool": "get_fx_krw_rate",
+      "status": "ok",
+      "ms": 1196
+    },
+    {
+      "tool": "get_korean_economic_news",
+      "status": "ok",
+      "ms": 992
+    },
+    {
+      "tool": "calc_movement",
+      "status": "ok",
+      "ms": 1230
+    }
+  ],
+  "rewrites": 0
+}

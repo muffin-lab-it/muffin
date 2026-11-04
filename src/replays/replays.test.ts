@@ -22,7 +22,8 @@ describe("src/replays 녹화 파일", () => {
   });
 
   it("index.ts 와 manifest.json 은 파일 목록과 같다 (pnpm replay:record --check 로 다시 생성)", () => {
-    const ids = files.map((f) => f.replace(/\.json$/, ""));
+    // 파일 이름 정렬과 id 정렬이 다를 수 있어("a-b.json" 과 "a.json") id 로 맞춰 비교
+    const ids = files.map((f) => f.replace(/\.json$/, "")).sort();
     expect(Object.keys(replays).sort()).toEqual(ids);
     const expected = ids
       .map((id) => replayMeta(replaySchema.parse(replays[id])))

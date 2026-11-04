@@ -145,6 +145,7 @@
 .depths { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
 .depthHead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: 14px; line-height: 20px; font-weight: 500; }
 .depthNums { font-size: 12px; line-height: 20px; font-weight: 400; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.depthFacts { margin: 4px 0 0; font-size: 12px; line-height: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .depthTrack { position: relative; height: 8px; margin-top: 8px; border-radius: 999px; background: var(--surface-2); }
 .depthAvg { position: absolute; top: 0; bottom: 0; left: 0; border-radius: inherit; background: var(--fill); }
 .depthP90 { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
