@@ -35,6 +35,8 @@ describe("MF-02 진행 화면", () => {
     expect($("[data-section]").map((_, el) => $(el).attr("data-section")).get()).toEqual(["question", "progress", "story"]);
     const story = $("[data-section=story]").text();
     expect(story).toContain("확인할 계획");
+    expect(story).toContain("이렇게 조사할게요: 환율 확인 · 금리 확인");
+    expect(story).not.toContain("get_fx_krw_rate");
     expect($.text()).not.toContain("확인할 자료 ·");
     expect($.text()).not.toContain("단계마다 걸리는 시간은 달라요.");
     expect(story).not.toContain("환율을 확인하고 있어요");
@@ -42,6 +44,7 @@ describe("MF-02 진행 화면", () => {
   it("이벤트가 없으면 다섯 단계는 대기하고 임의로 시작하지 않는다", () => {
     const $ = render([]);
     expect($("li[data-state=waiting]")).toHaveLength(5);
+    expect($.text()).not.toContain("이렇게 조사할게요:");
     expect($("[role=status]").text()).toContain("준비");
     expect($("button")).toHaveLength(0);
   });
@@ -58,6 +61,7 @@ describe("MF-02 진행 화면", () => {
   it("범위 밖은 조사·정리·작성만 건너뛴다", () => {
     const $ = render([{ type: "plan", mode: "out_of_scope", intent: "out_of_scope", tools: [] }, { type: "stage", stage: "verify", status: "start" }]);
     expect($("li[data-state=skipped]")).toHaveLength(3);
+    expect($.text()).not.toContain("이렇게 조사할게요:");
     expect($("[aria-current=step]").text()).toContain("근거 확인하기");
   });
   it("도구 실패는 전체 실패가 아니며 내부 오류 상세를 노출하지 않는다", () => {

@@ -1,10 +1,12 @@
 "use client";
 
-import { labelFor, stages, type MuffinEvent, type Stage } from "@/src/agent/events";
+import { labelFor, stageLabels, stages, type MuffinEvent, type Stage } from "@/src/agent/events";
 import Link from "next/link";
 import styles from "./Progress.module.css";
 import type { ReactNode } from "react";
 import type { Depth } from "@/src/agent/schema";
+
+const skippedStages: readonly Stage[] = ["research", "edit", "write"];
 
 type StageStatus = "waiting" | "active" | "done" | "skipped";
 export type ProgressError = { message: string; id?: string; status?: number; kind?: "network" | "save"; retryAfterSec?: number };
@@ -36,7 +38,7 @@ export function progressFromEvents(events: readonly MuffinEvent[]) {
       case "plan":
         plan = event;
         if (event.mode === "out_of_scope") {
-          for (const stage of ["research", "edit", "write"] as const) status[stage] = "skipped";
+          for (const stage of skippedStages) status[stage] = "skipped";
         }
         break;
       case "step": steps.push(event.step); break;
@@ -45,7 +47,7 @@ export function progressFromEvents(events: readonly MuffinEvent[]) {
       case "report":
         complete = true;
         for (const stage of stages) {
-          status[stage] = event.report.mode === "out_of_scope" && ["research", "edit", "write"].includes(stage) ? "skipped" : "done";
+          status[stage] = event.report.mode === "out_of_scope" && skippedStages.includes(stage) ? "skipped" : "done";
         }
         break;
     }
@@ -54,9 +56,6 @@ export function progressFromEvents(events: readonly MuffinEvent[]) {
 }
 
 const statusLabels = { waiting: "대기", active: "진행 중", done: "완료", skipped: "건너뜀" };
-const labels: Record<Stage, string> = {
-  plan: "질문 살펴보기", research: "자료 찾기", edit: "핵심 추리기", write: "답변 쓰기", verify: "근거 확인하기",
-};
 const activeLabels: Record<Stage, string> = {
   plan: "질문을 살펴보고 있어요", research: "필요한 자료를 찾고 있어요", edit: "핵심 내용을 추리고 있어요", write: "답변을 쓰고 있어요", verify: "숫자와 근거를 확인하고 있어요",
 };
@@ -122,7 +121,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
           {!error && !scope && !state.complete && <p className={styles.timing}><span aria-hidden="true">⏱️</span> 최대 1분간 조사해요</p>}
         </div>
         <p className={styles.current} role="status" aria-live="polite" aria-atomic="true">
-          {!error && <span className={`${styles.indicator} ${styles.pulse}`} aria-hidden="true" />}{announcement}
+          {announcement}
         </p>
 
         <div className={styles.progressHeading}><span>완료 단계 기준{error ? error.kind === "save" ? " · 저장 실패" : " · 중단됨" : ""}</span><strong>{percent}%</strong></div>
@@ -134,7 +133,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
             const interrupted = !!error && status === "active";
             return <li key={stage} className={styles.stage} data-state={interrupted ? "interrupted" : status} aria-current={!error && status === "active" ? "step" : undefined}>
               <span className={styles.marker} aria-hidden="true">{interrupted ? "!" : status === "done" ? "✓" : status === "skipped" ? "—" : ""}</span>
-              <span className={styles.label}>{labels[stage]}</span>
+              <span className={styles.label}>{stageLabels[stage]}</span>
               <span className={styles.state}>{interrupted ? "중단" : error && status === "waiting" ? "미실행" : statusLabels[status]}</span>
             </li>;
           })}
@@ -154,6 +153,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
         <p className={styles.story} aria-live="polite">{story}</p>
         {(state.plan || state.steps.length > 0 || verification) && <div className={styles.storyData}>
 
+          {!scope && !!state.plan?.tools.length && <p className={styles.hint}>이렇게 조사할게요: {state.plan.tools.map(labelFor).join(" · ")}</p>}
           {scope && <p className={styles.hint}>지원 범위 밖의 질문이라 자료 찾기·핵심 추리기·답변 쓰기를 건너뛰었어요.</p>}
           {state.steps.length > 0 && <details className={styles.details}><summary>자료 확인 내역 · {state.steps.length}건</summary><ul>{state.steps.map((step, index) => <li key={index}>
             <span>{labelFor(step.tool)}</span><span>{step.status === "ok" ? "확인 완료" : "확인 실패"} · {(step.ms / 1000).toFixed(1)}초</span>
