@@ -222,6 +222,7 @@ describe("POST /api/report/stream", () => {
   it("리플레이: 없는 녹화는 404, 속도 범위 밖은 400 (스트림을 열지 않음)", async () => {
     const missing = await POST(request({ replay: "nope-nope" }));
     expect(missing.status).toBe(404);
+    expect((await POST(request({ replay: "constructor" }))).status).toBe(404);
     expect(await missing.json()).toEqual({ error: "저장된 실행을 찾을 수 없습니다.", id: "test-request-id" });
     const bad = await POST(request({ replay: "fixture-replay", speed: 99 }));
     expect(bad.status).toBe(400);

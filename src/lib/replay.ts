@@ -72,8 +72,9 @@ export function getReplay(id: string): Replay | undefined {
   if (!REPLAY_ID.test(id)) return undefined;
   const hit = parsed.get(id);
   if (hit) return hit;
+  // "constructor" 같은 id 가 프로토타입 속성을 타지 않게 자기 속성만 봅니다
+  if (!Object.hasOwn(replays, id)) return undefined;
   const raw = (replays as Record<string, unknown>)[id];
-  if (raw === undefined) return undefined;
   const r = replaySchema.parse(raw);
   parsed.set(id, r);
   return r;

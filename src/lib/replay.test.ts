@@ -40,6 +40,8 @@ describe("리플레이", () => {
     expect(r?.report).toEqual(reportSchema.parse((sample as { report: unknown }).report));
     expect(getReplay("nope")).toBeUndefined();
     expect(getReplay("Bad Id!")).toBeUndefined();
+    expect(getReplay("constructor")).toBeUndefined(); // 프로토타입 속성은 녹화가 아님
+    expect(getReplay("hasownproperty")).toBeUndefined();
     expect(() => getReplay("broken")).toThrow();
   });
 
