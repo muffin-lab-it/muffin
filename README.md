@@ -700,7 +700,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 | 역할 | 기본 (0단계부터) | 환경 변수 |
 |---|---|---|
 | 분류 · 정제 | `gpt-5.4-mini` | `OPENAI_MODEL_SMALL` |
-| 근거 판정 (3단계) | `gpt-5.4-mini` | `OPENAI_MODEL_SMALL` |
+| 근거 판정 (3단계) | `gpt-5.4-mini` | `OPENAI_MODEL_JUDGE` (채점자라 분류 · 정제와 따로) |
 | 조사 · 작성 (Easy / Standard) | `gpt-6-luna` | `OPENAI_MODEL` |
 | 작성 (Deep Dive) | `gpt-6-sol` | `OPENAI_MODEL_DEEP` |
 

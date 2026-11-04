@@ -29,7 +29,7 @@ pnpm dlx promptfoo@0.125.1 view            # 질문별 리포트 전문 · 채�
 
 ## 모델 비교
 
-같은 세트를 모델만 바꿔 돌리고 기본 모델 결과와 나란히 봅니다. `--model` 은 조사 · 작성 모델을 모든 깊이에서 바꾸고(`OPENAI_MODEL` · `OPENAI_MODEL_DEEP`), `--small-model` 은 분류 · 정제(`OPENAI_MODEL_SMALL`)를 바꿉니다. `--tag` 를 붙이면 결과 파일 이름에 들어가고 `latest.json` 은 갱신하지 않습니다 (주간 비교 기준을 흐리지 않게).
+같은 세트를 모델만 바꿔 돌리고 기본 모델 결과와 나란히 봅니다. `--model` 은 조사 · 작성 모델을 모든 깊이에서 바꾸고(`OPENAI_MODEL` · `OPENAI_MODEL_DEEP`), `--small-model` 은 분류 · 정제(`OPENAI_MODEL_SMALL`)를 바꿉니다. 근거 판정(채점자)은 `OPENAI_MODEL_JUDGE` 로만 바뀌므로 비교하는 동안 그대로입니다. `--tag` 를 붙이면 결과 파일 이름에 들어가고 `latest.json` 은 갱신하지 않습니다 (주간 비교 기준을 흐리지 않게).
 
 ```bash
 pnpm eval:promptfoo                                                              # 기본 모델 (luna · deep 은 sol · 분류 · 정제 mini)

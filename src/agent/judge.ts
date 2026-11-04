@@ -78,7 +78,8 @@ export function judgeInstructions(): string {
 export function createJudgeAgent() {
   return new Agent<unknown, typeof judgeSchema>({
     name: "Muffin Judge",
-    model: process.env.OPENAI_MODEL_SMALL || SMALL_MODEL,
+    // 판정은 채점자라 분류 · 정제의 OPENAI_MODEL_SMALL 을 따르지 않습니다. 모델 비교(--small-model)에서 채점자까지 바뀌면 차이를 리포트 품질로 읽을 수 없어서입니다.
+    model: process.env.OPENAI_MODEL_JUDGE || SMALL_MODEL,
     instructions: judgeInstructions(),
     outputType: judgeSchema,
     modelSettings: { timeoutMs: CALL_TIMEOUT_MS, retry: { maxRetries: 1, policy: retryTimeoutOnce } },
