@@ -63,6 +63,24 @@ export type FetchOptions = {
   redirect?: "follow" | "error";
 };
 
+/**
+ * 다시 시도할 만한 실패인지. 시간 초과 · 연결 실패 · 5xx 는 잠깐 뒤에 성공할 수 있고, 4xx(키 · 파라미터 문제)와 429(호출 한도)는
+ * 바로 다시 해도 같습니다. 여기서는 재시도하지 않고(한 번 부르면 한 번만 요청) defineTool 이 tool 실행 단위로 한 번 더 시도합니다.
+ */
+export function isRetryable(err: unknown): boolean {
+  if (err instanceof HttpError) return err.status >= 500;
+  if (!err || typeof err !== "object") return false;
+  const { name, message, cause } = err as { name?: unknown; message?: unknown; cause?: unknown };
+  if (name === "TimeoutError" || name === "AbortError") return true;
+  if (cause !== undefined && cause !== err && isRetryable(cause)) return true;
+  if (typeof message !== "string") return false;
+  // tool 이 HttpError 를 "FRED API 요청 실패 (503)" · "HTTP 503 …" 처럼 감싼 경우. 상태 코드가 괄호 안이나 HTTP 뒤에 온 것만 봅니다
+  if (/(?:HTTP\s*5\d\d\b|\(\s*5\d\d\s*\))/.test(message)) return true;
+  // "ECOS API 요청 실패" 처럼 상태 코드 없이 끝나는 메시지는 tool 이 시간 초과 · 연결 실패를 감싼 것입니다 (HTTP 오류면 코드가 붙음, src/tools/rate)
+  if (/요청 실패\s*$/.test(message)) return true;
+  return /fetch failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|socket hang up|aborted due to timeout/i.test(message);
+}
+
 async function doFetch(url: string, { headers, timeoutMs = 8_000, redirect = "follow" }: FetchOptions): Promise<Response> {
   const res = await fetch(url, { headers, redirect, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new HttpError(res.status, url, await res.text().catch(() => ""));

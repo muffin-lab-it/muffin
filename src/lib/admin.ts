@@ -7,6 +7,7 @@
  */
 import type { ToolStep } from "../agent/context";
 import type { Verification } from "../agent/schema";
+import { formatAge } from "./age";
 import { sampleRuns } from "./admin.sample";
 import { dbEnabled, getDb } from "./db";
 
@@ -56,7 +57,7 @@ export type ToolStat = { tool: string; calls: number; ok: number; avgMs: number 
 export type Bucket = { start: string; ok: number; failed: number; limited: number; avgMs: number | null };
 export type LatencyPoint = { at: string; ms: number; depth: string };
 export type EventLevel = "bad" | "warn" | "info";
-/** kind: agent(조사 중 오류) · started(중간에 멈춤) · input · config · limited(호출 제한) · tool(tool 실패, 리포트는 나감) */
+/** kind: agent(조사 중 오류) · started(중간에 멈춤) · input · config · limited(호출 제한) · tool(tool 실패, 리포트는 나감) · cache(조회 실패로 저장된 응답 사용) */
 export type AdminEvent = { id: string; at: string; level: EventLevel; kind: string; question: string; detail: string; tool?: string };
 
 export type RunsSummary = {
@@ -196,6 +197,9 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
     (r.steps ?? []).forEach((step, k) => {
       if (step.status === "error") {
         events.push({ id: `${r.id}:${k}`, at: r.at, level: "warn", kind: "tool", tool: step.tool, question: clip(r.input?.question ?? "", 80), detail: clip(step.error ?? "", 160) });
+      } else if (step.fallbackAgeMs !== undefined) {
+        // 조회는 실패했지만 저장된 응답으로 리포트가 나간 경우. 외부 API 상태를 보는 신호라 정보로 남깁니다.
+        events.push({ id: `${r.id}:${k}`, at: r.at, level: "info", kind: "cache", tool: step.tool, question: clip(r.input?.question ?? "", 80), detail: `${step.breaker === "open" ? "회로 열림(호출 생략)" : "조회 실패"} · ${formatAge(step.fallbackAgeMs)} 전 응답 사용` });
       }
     });
   }

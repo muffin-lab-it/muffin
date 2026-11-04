@@ -1,3 +1,6 @@
+import { formatAge } from "../lib/age";
+import type { ToolStep } from "./context";
+import { labelFor } from "./events";
 import type { Evidence, NumberCheck, Report, ReportMode, Verification, WriterOutput } from "./schema";
 
 /** AI 생성 고지 (AI 기본법). 리포트 상단과 History 에 같이 남습니다. */
@@ -52,6 +55,19 @@ export function sourcesFrom(evidence: Evidence[]): Report["sources"] {
  * 작성 출력 + 증거 장부 + 검증 결과 → 최종 리포트.
  * numbers 의 check 는 검증기(1단계)가 정하고, 건너뛰었으면 모두 unverified 라 화면에서 회색으로만 보입니다.
  */
+/**
+ * 조회가 실패해 저장된 응답(src/tools/cache.ts)을 쓴 tool 을 "확인하지 못한 것" 에 한 줄씩 넣습니다.
+ * 모델이 장부 note 를 빠뜨려도 사용자에게 보이게 코드가 넣는 것이고, 검증 뒤에 붙이므로 검증 대상이 아닙니다. 같은 tool 이 여러 번이면 가장 오래된 나이 하나.
+ */
+export function fallbackGaps(steps: ToolStep[]): string[] {
+  const oldest = new Map<string, number>();
+  for (const s of steps) {
+    if (s.status !== "ok" || s.fallbackAgeMs === undefined) continue;
+    oldest.set(s.tool, Math.max(oldest.get(s.tool) ?? 0, s.fallbackAgeMs));
+  }
+  return [...oldest].map(([tool, age]) => `${labelFor(tool)}: 조회가 실패해 ${formatAge(age)} 전에 받은 응답을 썼습니다 (데이터 기준일은 출처 그대로)`);
+}
+
 export function assembleReport(
   output: WriterOutput,
   evidence: Evidence[],

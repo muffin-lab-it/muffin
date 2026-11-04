@@ -213,7 +213,8 @@ muffin/
 │  │  ├─ mock.ts  fixtures/          MUFFIN_MOCK=1: 샘플 리포트 v2 + 다섯 단계 이벤트 순서 재현
 │  ├─ tools/                         팀원 (자기 폴더만)
 │  │  ├─ index.ts                    레지스트리 (리더)
-│  │  ├─ define.ts                   defineTool 공통 래퍼: 타임아웃 · 에러 · 출처 · 증거 번호 · 실행 기록 (리더)
+│  │  ├─ define.ts                   defineTool 공통 래퍼: 타임아웃 · 폴백 · 에러 · 출처 · 증거 번호 · 실행 기록 (리더)
+│  │  ├─ cache.ts                    tool 응답 캐시: 같은 호출의 마지막 성공 응답(24시간) — 조회 실패 시 폴백, Supabase tool_cache 표 (리더)
 │  │  ├─ types.ts                    ToolResult / Source
 │  │  ├─ _template/                  새 tool 시작용 템플릿 (index · run · fixture · test · README)
 │  │  ├─ fx/ etf/ news/ rate/ macro/ 같은 구성
@@ -590,14 +591,14 @@ export const rateTool = defineTool({
 
 | 해 줌 (리더 담당, 모든 tool 동일) | 안 해 줌 (tool 담당자 몫) |
 |---|---|
-| `fetchJson` / `fetchText`: 타임아웃 8초, 2xx 아니면 상태코드 담긴 `HttpError`, 2xx 인데 JSON 이 아니면(점검 페이지) 페이지 제목을 담은 `ResponseFormatError`, `redirect: "error"` 옵션 | 응답 파싱 (JSON 구조 읽기, RSS/XML/CSV 해석) |
-| `defineTool`: execute 가 throw 하면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 어떤 데이터를 어떤 파라미터로 받을지 |
+| `fetchJson` / `fetchText`: 타임아웃 8초, 2xx 아니면 상태코드 담긴 `HttpError`, 2xx 인데 JSON 이 아니면(점검 페이지) 페이지 제목을 담은 `ResponseFormatError`, `redirect: "error"` 옵션. 요청은 한 번만 보냅니다 | 응답 파싱 (JSON 구조 읽기, RSS/XML/CSV 해석) |
+| `defineTool`: 연결 실패 · 5xx 로 빨리 실패하면 execute 를 한 번 더 돌리고(4xx · 429 는 안 함), 같은 tool 이 5분 안에 2번 실패하면 1분간 호출을 건너뛰었다가 3초 제한으로 한 번 찔러 봄(회로 차단기), 그래도 실패하거나 10초를 넘기면 같은 입력으로 마지막에 성공한 응답(24시간 안)을 대신 쓰고 장부 note 에 "N시간 전 응답" 이라고 적음. 그것도 없으면 Agent 를 멈추지 않고 모델에 "이 tool 은 실패" 전달 | 어떤 데이터를 어떤 파라미터로 받을지 |
 | `defineTool`: 반환한 `source` 를 자동 수집해 리포트 출처에 반드시 포함 | `description` 작성 |
 | `defineTool`: 결과에 증거 번호(`E1`…)를 붙여 장부에 기록, tool 별 실행 시간 · 성공 여부 기록 | 장부에 올릴 핵심 값 고르기 (`evidence`, 선택. 생략하면 data 의 200자 이하 원시값을 중첩 3단계까지) |
 | | 값 계산은 Calc Tool 이 담당. 각 tool 은 원본 값과 기준일을 정확히 돌려주는 데 집중 |
 | 에러 메시지에 섞인 `.env` 키 값(`*_KEY`) 자동 가리기 | |
 
-그래서 tool 안에서는 **실패하면 그냥 throw** 하면 됩니다. 빈 값을 돌려주거나 try/catch 로 삼키지 마세요. 숫자는 받은 그대로 돌려줍니다. 반올림하거나 단위를 바꾸지 않습니다.
+그래서 tool 안에서는 **실패하면 그냥 throw** 하면 됩니다. 빈 값을 돌려주거나 try/catch 로 삼키지 마세요. 에러를 우리말 메시지로 감쌀 때는 `throw new Error("ECOS API 요청 실패", { cause: err })` 처럼 원인을 붙여 주세요. 래퍼가 원인을 보고 재시도 · 회로 차단기를 결정합니다 (상태 코드가 붙은 "요청 실패 (503)" 도 알아봅니다). 숫자는 받은 그대로 돌려줍니다. 반올림하거나 단위를 바꾸지 않습니다.
 
 ### 3. description 작성 팁
 
@@ -764,6 +765,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 - Vercel, `main` 머지 시 자동 배포 (서울 리전). 환경 변수는 Vercel 프로젝트 설정에만 입력합니다.
 - `/api/report` 는 tool 여러 개를 호출하므로 실행 시간이 깁니다. 라우트에 `export const maxDuration = 60;` 을 두고, tool 마다 타임아웃 8초(공통 래퍼 10초)를 지킵니다.
 - 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 저장한 실제 실행을 다시 보여주는 리플레이 모드를 둡니다 (고도화 기간).
+- tool 호출은 세 겹으로 지킵니다 (11/4). 잠깐 끊긴 API 는 `defineTool` 이 tool 을 한 번 더 돌리고, 연속 실패한 API 는 회로 차단기가 1분간 호출을 건너뛰어 매번 10초를 기다리지 않게 하며, 그래도 실패하면 같은 호출의 마지막 성공 응답(24시간 안, Supabase `tool_cache` 표)을 대신 쓰고, 리포트 "확인하지 못한 것" 에 "조회가 실패해 N시간 전에 받은 응답을 썼습니다" 를 코드가 넣습니다 (/admin 이벤트에도 "저장된 응답 사용"). 시연 전에 `pnpm eval --no-judge` 로 시연 질문을 한 번 돌려 두면 캐시가 차서, 당일 API 가 끊겨도 리포트가 빈칸으로 나가지 않습니다.
 
 ---
 

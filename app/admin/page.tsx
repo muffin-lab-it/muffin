@@ -291,7 +291,9 @@ function Panel({ title, sub, legend, children, className = "" }: { title: string
 }
 
 function eventTitle(e: AdminEvent): string {
-  return e.kind === "tool" && e.tool ? `${labelFor(e.tool)} 실패 · 리포트는 나감` : (eventTitles[e.kind] ?? e.kind);
+  if (e.kind === "tool" && e.tool) return `${labelFor(e.tool)} 실패 · 리포트는 나감`;
+  if (e.kind === "cache" && e.tool) return `${labelFor(e.tool)} · 저장된 응답 사용`;
+  return eventTitles[e.kind] ?? e.kind;
 }
 
 function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<typeof healthOf>; now: Date }) {

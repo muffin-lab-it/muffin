@@ -7,6 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ToolStep } from "../agent/context";
 import type { Area, Depth, Intent, Report, Verification } from "../agent/schema";
+import type { ToolResult } from "../tools/types";
 
 /** reports 한 줄. id 는 리포트 생성 요청 id 를 그대로 씁니다. */
 type ReportRow = {
@@ -65,6 +66,15 @@ type EvalRow = {
   summary: string | null;
 };
 
+/** tool_cache 한 줄. 같은 호출(tool + 입력)의 마지막 성공 응답 (src/tools/cache.ts). 조회가 실패하면 폴백으로 씁니다. */
+type ToolCacheRow = {
+  /** tool 이름 + 입력(키 정렬한 JSON) */
+  key: string;
+  tool: string;
+  at: string; // ISO, 이 응답을 받은 시각
+  result: ToolResult;
+};
+
 /** 넣을 때(Insert)는 기본값이 있거나 null 이 되는 칸(Optional)을 빼도 됩니다. */
 type Table<Row, Optional extends keyof Row> = {
   Row: Row;
@@ -79,6 +89,7 @@ export type Database = {
       reports: Table<ReportRow, "created_at" | "steps">;
       runs: Table<RunRow, Exclude<keyof RunRow, "id" | "at" | "ok" | "stage" | "ms">>;
       evals: Table<EvalRow, "tag" | "set_name" | "avg_ms" | "models" | "tokens" | "run_url" | "summary">;
+      tool_cache: Table<ToolCacheRow, never>;
     };
     Views: { [_ in never]: never };
     Functions: { [_ in never]: never };
