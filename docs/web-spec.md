@@ -187,13 +187,33 @@ create index runs_at on public.runs (at desc);
 create index runs_client_at on public.runs (client_id, at desc);
 create index runs_ip_at on public.runs (ip_hash, at desc);
 
+create table public.evals (            -- 평가(scripts/promptfoo/run.ts) 한 번의 요약. 주간 Action 과 로컬 실행이 넣고 /admin 이 읽음 (11/4, 별도 마이그레이션)
+  id text primary key,                 -- Action 은 GitHub run id, 로컬은 날짜-시각(-tag)
+  at timestamptz not null,
+  source text not null,                -- ci | local
+  tag text,                            -- 모델 비교 같은 실험 이름. 주간 평가는 null
+  set_name text,                       -- 돌린 세트. null 이면 전부
+  questions integer not null,
+  errors integer not null,
+  avg_ms integer,
+  models jsonb,                        -- 작성 단계에 쓴 모델들
+  tokens jsonb,                        -- { prompt, completion }
+  rates jsonb not null,                -- { intent: { pass, total, rate }, ... }
+  thresholds jsonb not null,
+  failed jsonb not null,               -- [{ metric, rate, threshold }]
+  run_url text,
+  summary text                         -- 요약 markdown
+);
+create index evals_at on public.evals (at desc);
+
 -- 줄 접근: RLS 를 켜고 정책은 만들지 않습니다. secret 키(service_role)는 RLS 를 거치지 않습니다.
 alter table public.reports enable row level security;
 alter table public.runs enable row level security;
+alter table public.evals enable row level security;
 
 -- 표 접근: 브라우저용 역할(anon · authenticated)에는 주지 않고 secret 키(service_role)에만 줍니다.
-revoke all on table public.reports, public.runs from anon, authenticated;
-grant select, insert, update, delete on table public.reports, public.runs to service_role;
+revoke all on table public.reports, public.runs, public.evals from anon, authenticated;
+grant select, insert, update, delete on table public.reports, public.runs, public.evals to service_role;
 ```
 
 ### 4.4 실행 로그 (서영)
@@ -236,6 +256,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 - 보호는 브라우저 기본 로그인 창(HTTP Basic)입니다. 비밀번호는 서버 전용 환경 변수 `ADMIN_PASSWORD` 하나이고 아이디는 보지 않습니다. 비어 있으면 `/admin` 은 404 입니다. `proxy.ts`(Next.js 16 의 proxy, 예전 middleware)가 `/admin` 앞에서 막고 페이지도 한 번 더 확인합니다. 검색 노출은 막습니다(noindex).
 - 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표의 최근 7일(가장 긴 기간, 끝은 화면을 그리는 시각으로 고정)을 시각 · id 순으로 1000줄씩 읽습니다. 다음 쪽은 줄 번호가 아니라 마지막 줄의 (시각, id) 뒤부터 이어 읽어, 읽는 중에 새 요청이 들어와도 같은 줄을 두 번 세거나 건너뛰지 않습니다(최대 10쪽, 그 뒤에 줄이 더 있는 것을 확인했을 때만 최신 것만 집계했다고 표시). `client_id` · `ip_hash` 는 읽지 않습니다. Supabase 환경 변수가 없으면 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. `/admin?source=sample` 로 예시 화면을 볼 수 있고 기간을 바꿔도 유지됩니다(스크린샷 · 시연 연습). 센 요청이 없으면 "아직 기록이 없습니다"에 표가 빈 것인지(7일 동안 0줄) 세지 않는 줄(Mock · 2분 안의 진행 중)뿐인지를 적고 예시 화면 링크를 보여 줍니다. 기록은 실행 로그 저장(4.4, 서영)이 들어온 뒤부터 쌓입니다. 조회가 실패하면(프로젝트 일시 정지 등) 안내문만 보여 줍니다.
 - 가드레일 작동 횟수는 아직 로그 칸이 없어 "남은 권유 표현"(`verification.advice`)으로 대신합니다.
+- 품질 평가 패널(11/4): `evals` 표(4.3)의 최신 12줄을 `src/lib/admin-evals.ts` 의 `loadEvals` 로 읽습니다. 주간 평가(Action 에서 전체 세트를 돌린 것, tag · set_name 없음)의 최신 결과를 지표별 통과율 · 기준 · 상태 표로 보여 주고, 주간 평가끼리 "기준 안 지표 비율" 추이를 그리며, 세트 일부만 고른 수동 실행 · 로컬 · 실험(tag) 실행은 전체 세트와 비교할 수 없어 기록 목록에만 둡니다. 주간 평가는 최근 기록과 따로 읽어, 실험 실행이 많아도 밀려 사라지지 않습니다. 깊이 · 모델을 바꾼 실행은 `run.ts` 가 실험 이름(tag)을 자동으로 붙여 주간 줄에서 빠집니다. 주간 평가가 아직 없으면 그렇게 적고 기록만 보여 줍니다. 로컬 실행의 id 는 promptfoo 의 evalId 라 같은 분에 두 번 돌려도 겹치지 않습니다. 표가 없거나 조회가 실패하면 패널 안에 안내문만 보이고 나머지 화면은 그대로입니다. 줄은 `scripts/promptfoo/run.ts` 가 Supabase 환경 변수가 있을 때 넣습니다 (Action 에는 Secrets `SUPABASE_URL` · `SUPABASE_SECRET_KEY` 필요).
 
 ## 5. 할 일과 완료 조건
 

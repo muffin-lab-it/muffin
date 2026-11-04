@@ -29,7 +29,7 @@ pnpm dlx promptfoo@0.125.1 view            # 질문별 리포트 전문 · 채�
 
 ## 모델 비교
 
-같은 세트를 모델만 바꿔 돌리고 기본 모델 결과와 나란히 봅니다. `--model` 은 조사 · 작성 모델을 모든 깊이에서 바꾸고(`OPENAI_MODEL` · `OPENAI_MODEL_DEEP`), `--small-model` 은 분류 · 정제(`OPENAI_MODEL_SMALL`)를 바꿉니다. 근거 판정(채점자)은 `OPENAI_MODEL_JUDGE` 로만 바뀌므로 비교하는 동안 그대로입니다. `--tag` 를 붙이면 결과 파일 이름에 들어가고 `latest.json` 은 갱신하지 않습니다 (주간 비교 기준을 흐리지 않게).
+같은 세트를 모델만 바꿔 돌리고 기본 모델 결과와 나란히 봅니다. `--model` 은 조사 · 작성 모델을 모든 깊이에서 바꾸고(`OPENAI_MODEL` · `OPENAI_MODEL_DEEP`), `--small-model` 은 분류 · 정제(`OPENAI_MODEL_SMALL`)를 바꿉니다. 근거 판정(채점자)은 `OPENAI_MODEL_JUDGE` 로만 바뀌므로 비교하는 동안 그대로입니다. `--tag` 를 붙이면 결과 파일 이름에 들어가고 `latest.json` 은 갱신하지 않습니다 (주간 비교 기준을 흐리지 않게). `--tag` 가 없어도 깊이 · 모델을 바꾼 실행은 `depth-all` · `model-gpt-6-sol` 처럼 이름이 자동으로 붙고, 세트 일부(`--set`)만 돌린 실행도 `latest.json` 을 갱신하지 않습니다. `/admin` 의 주간 평가 줄도 전체 세트를 기본 설정으로 돌린 Action 실행만 셉니다.
 
 ```bash
 pnpm eval:promptfoo                                                              # 기본 모델 (luna · deep 은 sol · 분류 · 정제 mini)
@@ -60,14 +60,18 @@ pnpm eval:promptfoo --model gpt-5.4-mini --tag mini --baseline docs/eval/promptf
 
 질문을 더하는 방법은 `scripts/questions/README.md` 입니다. 세트 파일만 고치면 다음 실행에 바로 들어갑니다.
 
+## 결과 저장과 /admin
+
+`run.ts` 는 Supabase 환경 변수(`SUPABASE_URL` · `SUPABASE_SECRET_KEY`)가 있으면 요약 한 줄을 `evals` 표에 넣습니다(`publish.ts`, `--no-publish` 로 끔). 지표별 통과율 · 기준 · 미달 지표 · 질문 수 · 평균 시간 · 모델 · 토큰 · 요약 markdown 이 들어가고, Action 은 GitHub run id 와 실행 주소를, 로컬은 날짜-시각(-tag)을 id 로 씁니다. `/admin` 의 "품질 평가" 패널이 이 표를 최신순으로 읽어 주간 평가의 최신 결과와 추이, 로컬 · 실험 기록을 보여 줍니다 (명세 4.7). 표 정의는 `supabase/migrations/*_evals.sql`, 넣지 못해도 평가 결과(exit 코드)는 그대로입니다.
+
 ## GitHub Action
 
 `.github/workflows/eval.yml` 이 매주 금요일 09:00(KST) 에 전부 돌리고, Actions 탭에서 "Weekly eval → Run workflow" 로 세트 · 깊이를 골라 바로 돌릴 수도 있습니다.
 
 - 요약은 실행 페이지의 Summary 에, `docs/eval/promptfoo/` 전체는 Artifacts 에 90일 남습니다.
 - 지난 실행의 `latest.json` 을 cache 로 넘겨 "지난 번" 열을 채웁니다.
-- 기준 아래 지표나 오류가 있으면 실행이 실패(빨강)로 표시되고 GitHub 알림이 옵니다.
-- 필요한 Secrets (Settings → Secrets and variables → Actions): `OPENAI_API_KEY`, `FRED_API_KEY`, `ECOS_API_KEY`, `DATA_GO_KR_KEY`. 환율(Frankfurter)과 뉴스는 키가 없습니다.
+- 기준 아래 지표나 오류가 있으면 실행이 실패(빨강)로 표시되고 GitHub 알림이 오며, 그 실행의 요약(`current.md`)과 고치는 순서를 담은 이슈(라벨 `eval`)를 자동으로 엽니다 (세트 일부 · 깊이를 바꾼 수동 실행도 같음). 지시문 수정은 리더가 로컬에서(Codex 초안 가능) PR 로 올립니다.
+- 필요한 Secrets (Settings → Secrets and variables → Actions): `OPENAI_API_KEY`, `FRED_API_KEY`, `ECOS_API_KEY`, `DATA_GO_KR_KEY`, 그리고 결과 저장용 `SUPABASE_URL` · `SUPABASE_SECRET_KEY`. 환율(Frankfurter)과 뉴스는 키가 없습니다.
 
 ## promptfoo 를 package.json 에 넣지 않은 이유
 
