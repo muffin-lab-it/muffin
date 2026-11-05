@@ -32,8 +32,9 @@ export const judgeSchema = z.object({
   verdicts: z.array(
     z.object({
       index: z.number().int().describe("[원인 목록] 의 번호 (1부터)"),
+      // reason 을 verdict 보다 먼저 두어 근거를 적은 뒤 결론을 내리게 합니다 (11/5 보정: 반대라고 써 놓고 supported 라 답하는 일이 잦았음)
+      reason: z.string().describe("한 문장. 어느 장부 항목(id)의 무엇이 근거인지. 이 문장의 결론이 verdict 와 같아야 함"),
       verdict: z.enum(judgeVerdicts),
-      reason: z.string().describe("한 문장. 어느 장부 항목(id)의 무엇이 근거인지"),
     }),
   ),
 });
@@ -67,7 +68,17 @@ export const judgeRules = `[역할: 근거 판정]
   제목이 그 숫자와 시점을 똑같이 말해도 전망은 사실이 아니므로 supported 가 아닙니다. "A 가 …으로 전망했다고 보도됐다" 처럼 전망 주체를 밝혀 옮긴 주장만 supported 입니다.
 - 인과(때문에 · 영향으로 · 배경으로)를 주장하면: 장부에 원인 쪽 데이터와 결과 쪽 데이터가 둘 다 있고 방향이 맞거나, 기사 제목이 그 인과를 말하면 supported.
   결과 쪽 데이터만 있으면 unsupported 입니다. "A 인 상태에서 B 가 일어났다" 처럼 같이 일어난 사실만 말하면 둘 다 장부에 있을 때 supported 입니다.
-- reason 은 한 문장으로, 근거가 된 장부 항목의 id 와 값(또는 제목의 핵심 구절)을 듭니다.
+- 장부 항목에 "크기 비교(코드)" · "값 비교(코드)" 줄이 있으면 코드가 부호까지 보고 계산한 것이니 그 결과를 그대로 씁니다. 음수끼리의 크기를 직접 재지 않습니다.
+- 주장이 둘 이상의 사실을 담으면 모두 장부에 있어야 supported 입니다. 하나라도 장부에 없으면 unsupported, 하나라도 장부와 반대면 contradicted 입니다.
+  예: "관세정책과 AI 산업 불확실성이 다뤄졌다" 인데 제목에 관세정책만 있으면 unsupported.
+- 주장이 "…는 확인되지 않았다" · "…까지는 말하지 않는다" · "단정할 수는 없다" 처럼 스스로 한계를 밝힌 부분은 판정에서 뺍니다. 단정한 부분만 봅니다.
+  예: "제목은 농산물 대책을 다루지만 물가 원인은 설명하지 않는다" 는 제목이 농산물 대책이면 supported 입니다.
+- "양립한다" · "모순되지 않는다" 는 뒷받침이 아닙니다. 원인(수출 달러 유입 · 외국인 매도 …)을 장부가 말하지 않으면, 결과 방향이 맞아도 unsupported 입니다.
+- 교과서 같은 일반 법칙("금리가 오르면 통화가 강세다")은 장부 값이 그 방향이어도 unsupported 입니다. 장부는 사례 하나일 뿐 법칙을 보여 주지 않습니다.
+- 물가: 지수 값이 올랐거나 yoy 가 양수면 물가는 오른 것입니다. 상승률이 낮아진 것(둔화)은 "물가가 내렸다" 의 근거가 아니라 반대 근거라 contradicted 입니다.
+- 제목이 주장과 반대 상태를 말하면 contradicted 입니다 (변동성이 커졌다 ↔ 안정됐다, 위험하다 ↔ 안전하다, 미부과 ↔ 부과, 하락 ↔ 상승).
+- reason 은 한 문장으로, 근거가 된 장부 항목의 id 와 값(또는 제목의 핵심 구절)을 듭니다. reason 을 먼저 쓰고 그 결론을 verdict 로 옮깁니다.
+  reason 이 "맞지 않다 · 반대다 · 뒷받침되지 않는다" 로 끝나면 verdict 는 supported 일 수 없습니다.
 - [원인 목록] 의 항목마다 하나씩, 번호 순서대로 모두 답합니다. 없는 번호를 만들지 않습니다.`;
 
 export function judgeInstructions(): string {
@@ -124,10 +135,113 @@ export function directionHint(e: Evidence): string | undefined {
   return `${amount} ${currency} 를 사는 데 드는 원화가 ${from} → ${to} 로 ${up ? "늘어남" : "줄어듦"} = ${currency} ${up ? "강세" : "약세"} · 원화 ${up ? "약세" : "강세"}`;
 }
 
+const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const higher = (a: number, b: number) => (a > b ? "높음" : a < b ? "낮음" : "같음");
+
+/**
+ * 물가 · 고용 지표의 종류. tool 의 indicator(cpi · unemployment)를 먼저 보고, 씨앗 쌍처럼 이름만 있으면 indicator · indicatorName 의 이름으로 가립니다.
+ * label 은 보지 않습니다 (tool 의 label 이 늘 "물가·고용 지표 확인" 이라 실업률도 물가로 읽힘).
+ */
+function macroKind(e: Evidence): "cpi" | "unemployment" | "other" {
+  const text = `${e.values.indicator ?? ""} ${e.values.indicatorName ?? ""}`;
+  if (e.values.indicator === "unemployment" || /실업|unemployment/i.test(text)) return "unemployment";
+  if (e.values.indicator === "cpi" || /물가|cpi/i.test(text)) return "cpi";
+  return "other";
+}
+
+/**
+ * 한 항목 안의 값 비교를 코드가 적어 줍니다. 모델은 음수끼리의 크기(-3.61 > -4.37)와 "둔화 ≠ 하락" 을 자주 틀립니다 (보정 세트 11/5).
+ *  - 수준 vs 비교 시점 (rate · comparisonRate): 올랐음 · 내렸음
+ *  - ETF 수익률 vs 지수 수익률 (period.returnPct · period.indexReturnPct): 어느 쪽이 높은지 (덜 떨어진 쪽이 높음)
+ *  - 종가 vs NAV (latest.close · latest.nav): 괴리율 부호
+ *  - 지수 값 · 상승률 (latest.value · previousMonth.value · yoy): 물가는 올랐는지, 상승률은 둔화인지
+ */
+export function valueHints(e: Evidence): string[] {
+  const v = e.values;
+  const out: string[] = [];
+  const rate = num(v.rate);
+  const prev = num(v.comparisonRate ?? v["comparison.rate"]);
+  if (e.tool !== areaTools.fx && rate !== undefined && prev !== undefined) out.push(`rate ${prev} → ${rate}: ${rate > prev ? "올랐음" : rate < prev ? "내렸음" : "변화 없음"}`);
+  const r = num(v["period.returnPct"]);
+  const i = num(v["period.indexReturnPct"]);
+  if (r !== undefined && i !== undefined) out.push(`ETF 수익률 ${r} 은 지수 수익률 ${i} 보다 ${higher(r, i)}${r < 0 && i < 0 ? (r > i ? " (덜 떨어짐)" : r < i ? " (더 떨어짐)" : "") : ""}`);
+  const close = num(v["latest.close"]);
+  const nav = num(v["latest.nav"]);
+  if (close !== undefined && nav !== undefined) out.push(`종가 ${close} 는 NAV ${nav} 보다 ${higher(close, nav)} → 괴리율 ${close > nav ? "양수" : close < nav ? "음수" : "0"}`);
+  // 물가 · 고용 지표 (get_macro_indicators 의 실제 키 latest.previousMonth.value · latest.previousYear.change, 씨앗 쌍의 previousMonth.value · latest.yoy 도 받음).
+  // 지표에 따라 말을 바꿉니다: 물가(cpi)는 "물가 상승 · 둔화", 실업률(unemployment)은 "실업률이 높음". 변화 단위는 tool 의 changeUnit 을 따릅니다 (% 또는 %p).
+  const latest = num(v["latest.value"]);
+  const before = num(v["latest.previousMonth.value"] ?? v["previousMonth.value"]);
+  const mom = num(v["latest.previousMonth.change"]);
+  const yoy = num(v["latest.previousYear.change"] ?? v["latest.yoy"]);
+  const prevYoy = num(v["previousMonth.yoy"]);
+  if (latest === undefined && yoy === undefined) return out;
+  const kind = macroKind(e);
+  const subject = kind === "cpi" ? "물가 지수" : kind === "unemployment" ? "실업률" : String(v.indicatorName ?? v.indicator ?? "지표");
+  const unit = v.changeUnit === "percentage_points" ? "%p" : "%";
+  const signed = (x: number) => `${x > 0 ? "+" : ""}${x}${unit}`;
+  if (latest !== undefined && before !== undefined) {
+    out.push(`${subject} ${before} → ${latest}: ${latest > before ? "올랐음" : latest < before ? "내렸음" : "같음"}${mom !== undefined ? ` (전월 대비 ${signed(mom)})` : ""}`);
+  }
+  if (yoy !== undefined) {
+    const vs =
+      yoy > 0 ? (kind === "cpi" ? "전년보다 올랐음(물가 상승)" : kind === "unemployment" ? "전년보다 실업률이 높음" : "전년보다 높음")
+      : yoy < 0 ? (kind === "cpi" ? "전년보다 내렸음(물가 하락)" : kind === "unemployment" ? "전년보다 실업률이 낮음" : "전년보다 낮음")
+      : "전년과 같음";
+    const slow = kind === "cpi" && prevYoy !== undefined ? ` · 상승률은 ${prevYoy} → ${yoy} 로 ${yoy < prevYoy ? "둔화(물가가 내린 것은 아님)" : yoy > prevYoy ? "가속" : "같음"}` : "";
+    out.push(`전년 대비 ${signed(yoy)}: ${vs}${slow}`);
+  }
+  return out;
+}
+
+/**
+ * 여러 항목이 같은 숫자 키를 가질 때 크기 비교를 코드가 적어 줍니다 (예: 두 ETF 의 period.returnPct).
+ * 견줄 수 있는 것끼리만: 같은 tool, 단위(unit)가 둘 다 있으면 같아야 하고, 통화쌍(pair)이나 지표(indicator)가 둘 다 있으면 같아야 합니다
+ * (환율의 rate 1,341 과 금리의 rate 3.88 을 나란히 두지 않게). 같은 값은 "=" 로 적고 "가장 높음" 을 붙이지 않습니다.
+ */
+export function comparisonHints(ledger: Evidence[]): string[] {
+  if (ledger.length < 2) return [];
+  const comparable = (a: Evidence, b: Evidence) => {
+    if (a.tool !== b.tool) return false;
+    for (const key of ["unit", "pair", "indicator"]) {
+      const x = a.values[key];
+      const y = b.values[key];
+      if (x !== undefined && y !== undefined && x !== y) return false;
+    }
+    return true;
+  };
+  const groups: Evidence[][] = [];
+  for (const e of ledger) {
+    const g = groups.find((xs) => xs.every((x) => comparable(x, e)));
+    if (g) g.push(e);
+    else groups.push([e]);
+  }
+  const out: string[] = [];
+  for (const group of groups.filter((g) => g.length >= 2)) {
+    const keys = new Map<string, { id: string; value: number }[]>();
+    for (const e of group) {
+      for (const [k, raw] of Object.entries(e.values)) {
+        const value = num(raw);
+        if (value === undefined || /date|month|days/i.test(k)) continue;
+        keys.set(k, [...(keys.get(k) ?? []), { id: e.id, value }]);
+      }
+    }
+    for (const [k, xs] of keys) {
+      if (xs.length < 2) continue;
+      const sorted = [...xs].sort((a, b) => b.value - a.value);
+      const parts = sorted.map((x, i) => (i === 0 ? `${x.id} ${x.value}` : `${x.value === sorted[i - 1]!.value ? "=" : ">"} ${x.id} ${x.value}`));
+      const top = sorted.filter((x) => x.value === sorted[0]!.value);
+      out.push(`${k}: ${parts.join(" ")} (${top.length > 1 ? `${top.map((x) => x.id).join(" · ")} 같음` : `${sorted[0]!.id} 이 가장 높음`})`);
+    }
+  }
+  return out;
+}
+
 function ledgerLine(e: Evidence, indent = ""): string {
   const lines = [`${indent}- ${e.id} · ${e.label} · 기준일 ${e.source.asOf}`, `${indent}  values: ${JSON.stringify(e.values)}`];
   const direction = directionHint(e);
   if (direction) lines.push(`${indent}  방향(코드): ${direction}`);
+  for (const hint of valueHints(e)) lines.push(`${indent}  값 비교(코드): ${hint}`);
   if (e.note) lines.push(`${indent}  note: ${e.note}`);
   if (e.lineage) lines.push(`${indent}  계산: ${e.lineage.op} ← ${e.lineage.inputs.join(", ")}`);
   return lines.join("\n");
@@ -147,6 +261,7 @@ export function judgeInput(items: JudgeItem[], evidence: Evidence[]): string {
       `   basis: ${i.why.basis} · refs: ${i.refs.join(", ")}`,
       `   [장부 항목] 이 항목이 인용한 증거입니다. 이것만 보고 판정합니다.`,
       ...ledger.map((e) => ledgerLine(e, "   ")),
+      ...comparisonHints(ledger).map((h) => `   크기 비교(코드): ${h}`),
     ].join("\n");
   });
   return `[원인 목록] 작성 단계가 쓴 원인입니다. 항목마다 claim 이 그 항목 아래의 장부 항목으로 뒷받침되는지 판정합니다.\n\n${list.join("\n\n")}`;

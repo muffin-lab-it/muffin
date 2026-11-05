@@ -10,7 +10,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 });
 
 import { run } from "@openai/agents";
-import { alignVerdicts, createJudgeAgent, directionHint, judgeInput, judgeInstructions, judgeSchema, judgeWhy, judgeable, summarizeJudge, verdictMark } from "./judge";
+import { alignVerdicts, comparisonHints, createJudgeAgent, directionHint, judgeable, judgeInput, judgeInstructions, judgeSchema, judgeWhy, summarizeJudge, valueHints, verdictMark } from "./judge";
 import type { Evidence, WriterOutput } from "./schema";
 
 const runMock = run as unknown as ReturnType<typeof vi.fn>;
@@ -170,5 +170,51 @@ describe("alignVerdicts · judgeWhy", () => {
     expect(judgeSchema.safeParse({ verdicts: [{ index: 1, verdict: "maybe", reason: "" }] }).success).toBe(false);
     expect(judgeSchema.safeParse({ verdicts: [{ index: 1, verdict: "contradicted", reason: "E1 changePct -0.93" }] }).success).toBe(true);
     expect(verdictMark).toEqual({ supported: "✓", unsupported: "✗", contradicted: "⚡", skipped: "-", missing: "?" });
+  });
+});
+
+describe("코드가 적어 주는 값 비교 (보정 11/5)", () => {
+  it("reason 이 verdict 보다 먼저 온다 (근거를 적은 뒤 결론)", () => {
+    expect(Object.keys(judgeSchema.shape.verdicts.element.shape)).toEqual(["index", "reason", "verdict"]);
+  });
+
+  it("한 항목 안의 비교: 금리 수준 변화 · ETF 대 지수 · 종가 대 NAV · 물가 지수와 둔화", () => {
+    const rate: Evidence = { id: "E3", tool: "get_rate_data", label: "금리 확인 · FRED", values: { indicator: "DFF", rate: 3.88, comparisonRate: 3.63, changePp: 0.25 }, source: { name: "FRED", url: "https://fred.stlouisfed.org/series/DFF", asOf: "2026-10-16" } };
+    expect(valueHints(rate)).toEqual(["rate 3.63 → 3.88: 올랐음"]);
+    const etf: Evidence = { id: "E6", tool: "get_etf_kr_price", label: "ETF", values: { "period.returnPct": -3.61, "period.indexReturnPct": -4.37, "latest.close": 110745, "latest.nav": 110640.5 }, source: { name: "KRX", url: "https://x", asOf: "2026-11-02" } };
+    expect(valueHints(etf)).toEqual(["ETF 수익률 -3.61 은 지수 수익률 -4.37 보다 높음 (덜 떨어짐)", "종가 110745 는 NAV 110640.5 보다 높음 → 괴리율 양수"]);
+    const cpi: Evidence = { id: "E5", tool: "get_macro_indicators", label: "물가", values: { indicator: "소비자물가지수(CPI)", "latest.value": 116.2, "latest.yoy": 2.4, "previousMonth.value": 115.9, "previousMonth.yoy": 3.1 }, source: { name: "ECOS", url: "https://x", asOf: "2026-09" } };
+    expect(valueHints(cpi)).toEqual(["물가 지수 115.9 → 116.2: 올랐음", "전년 대비 +2.4%: 전년보다 올랐음(물가 상승) · 상승률은 3.1 → 2.4 로 둔화(물가가 내린 것은 아님)"]);
+    // 실제 물가 tool 의 키 (latest.previousMonth.value · latest.previousMonth.change · latest.previousYear.change), 변화 단위는 changeUnit
+    const real: Evidence = { ...cpi, values: { indicator: "cpi", indicatorName: "소비자물가지수 총지수", unit: "2020=100", changeUnit: "percent", "latest.month": "202610", "latest.value": 120.73, "latest.previousMonth.month": "202609", "latest.previousMonth.value": 120.43, "latest.previousMonth.change": 0.25, "latest.previousYear.value": 118.1, "latest.previousYear.change": 2.23 } };
+    expect(valueHints(real)).toEqual(["물가 지수 120.43 → 120.73: 올랐음 (전월 대비 +0.25%)", "전년 대비 +2.23%: 전년보다 올랐음(물가 상승)"]);
+    // 실업률은 물가로 읽지 않고, 변화는 %p 로 적는다 (label 은 둘 다 "물가·고용 지표 확인" 이라 indicator 로 가림)
+    const jobless: Evidence = { ...cpi, label: "물가·고용 지표 확인 · 한국은행 ECOS — 실업률", values: { indicator: "unemployment", indicatorName: "실업률", unit: "%", changeUnit: "percentage_points", "latest.value": 4.2, "latest.previousMonth.value": 4.1, "latest.previousMonth.change": 0.1, "latest.previousYear.value": 3.9, "latest.previousYear.change": 0.3 } };
+    expect(valueHints(jobless)).toEqual(["실업률 4.1 → 4.2: 올랐음 (전월 대비 +0.1%p)", "전년 대비 +0.3%p: 전년보다 실업률이 높음"]);
+    expect(valueHints({ ...jobless, values: { ...jobless.values, "latest.previousYear.change": -0.2 } })[1]).toBe("전년 대비 -0.2%p: 전년보다 실업률이 낮음");
+    // 환율은 방향(코드) 줄이 따로 있어 rate 비교를 다시 적지 않는다
+    expect(valueHints({ ...rate, tool: "get_fx_krw_rate", values: { pair: "USD/KRW", rate: 1341.05, "comparison.rate": 1345.67 } })).toEqual([]);
+  });
+
+  it("여러 항목의 같은 숫자 키는 크기 순으로 적는다 (음수끼리도 부호대로)", () => {
+    const a: Evidence = { id: "E1", tool: "get_etf_kr_price", label: "KODEX 200", values: { name: "KODEX 200", "period.returnPct": -14.36, "period.days": 90, "latest.date": "2026-11-03" }, source: { name: "KRX", url: "https://x", asOf: "2026-11-03" } };
+    const b: Evidence = { id: "E2", tool: "get_etf_kr_price", label: "TIGER 200", values: { name: "TIGER 200", "period.returnPct": -14.79, "period.days": 90, "latest.date": "2026-11-03" }, source: { name: "KRX", url: "https://x", asOf: "2026-11-03" } };
+    expect(comparisonHints([a, b])).toEqual(["period.returnPct: E1 -14.36 > E2 -14.79 (E1 이 가장 높음)"]);
+    expect(comparisonHints([a])).toEqual([]);
+    // 같은 값은 = 로, "가장 높음" 대신 "같음"
+    const c: Evidence = { ...b, id: "E3", values: { ...b.values, "period.returnPct": -14.36 } };
+    expect(comparisonHints([a, c])).toEqual(["period.returnPct: E1 -14.36 = E3 -14.36 (E1 · E3 같음)"]);
+    // 견줄 수 없는 것은 비교하지 않음: 다른 tool(환율 rate 와 금리 rate), 다른 통화쌍, 다른 단위
+    const fx: Evidence = { id: "E4", tool: "get_fx_krw_rate", label: "환율", values: { pair: "USD/KRW", unit: "KRW per 1 USD", rate: 1392.4 }, source: { name: "F", url: "https://x", asOf: "2026-10-19" } };
+    const rate: Evidence = { id: "E5", tool: "get_rate_data", label: "금리", values: { indicator: "DFF", unit: "%", rate: 3.88 }, source: { name: "FRED", url: "https://x", asOf: "2026-10-16" } };
+    const jpy: Evidence = { ...fx, id: "E6", values: { pair: "JPY(100)/KRW", unit: "KRW per 100 JPY", rate: 912.4 } };
+    expect(comparisonHints([fx, rate])).toEqual([]);
+    expect(comparisonHints([fx, jpy])).toEqual([]);
+    const kr: Evidence = { ...rate, id: "E7", values: { indicator: "BOK", unit: "%", rate: 3.0 } };
+    expect(comparisonHints([rate, kr])).toEqual([]); // 지표가 다르면 비교하지 않음 (한미 금리 차이는 계산 tool 의 몫)
+    const kr2: Evidence = { ...rate, id: "E8", values: { indicator: "DFF", unit: "%", rate: 3.63 } };
+    expect(comparisonHints([rate, kr2])).toEqual(["rate: E5 3.88 > E8 3.63 (E5 이 가장 높음)"]);
+    const input = judgeInput(judgeable([{ claim: "KODEX 가 TIGER 보다 낮았다", evidence: "", basis: "data", refs: ["E1", "E2"] }], [a, b]), [a, b]);
+    expect(input).toContain("크기 비교(코드): period.returnPct: E1 -14.36 > E2 -14.79");
   });
 });
