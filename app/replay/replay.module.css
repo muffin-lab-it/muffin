@@ -1,0 +1,16 @@
+/* 리플레이 화면 (리더, 시연용). 나머지 모양은 app/globals.css 의 공용 클래스(.chips · .chip-static · .report-head · .progress) */
+.list { display: grid; gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
+.item { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.question { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.secondary { opacity: 0.75; }
+.linkButton { display: inline-flex; align-items: center; padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: inherit; }
+.banner { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: #fff7e6; color: #7a4b00; font-size: 14px; line-height: 20px; }
+.stages { display: grid; gap: 8px; margin: 16px 0; padding: 0; list-style: none; counter-reset: stage; }
+.stage { display: grid; grid-template-columns: 24px 1fr; gap: 2px 8px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; line-height: 20px; }
+.stage small { grid-column: 2; color: var(--ink-2, #6b7280); font-size: 12px; line-height: 16px; }
+.stageMark { font-weight: 700; text-align: center; }
+.pending { opacity: 0.55; }
+.active { border-color: #f5b041; background: #fffaf0; }
+.done .stageMark { color: #16a34a; }
+.steps { grid-column: 2; margin: 4px 0 0; padding-left: 0; list-style: none; font-size: 13px; line-height: 20px; }

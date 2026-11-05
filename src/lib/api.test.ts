@@ -41,6 +41,14 @@ describe("streamReport", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/report/stream", expect.objectContaining({ method: "POST" }));
   });
 
+  it("리플레이 요청 { replay, speed } 도 같은 라우트에 그대로 보낸다", async () => {
+    const spy = vi.fn(async () => new Response('{"type":"report","report":{},"steps":[],"rewrites":0,"id":"r1"}\n', { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    await streamReport({ replay: "etf-decision", speed: 2 }, () => {});
+    const [, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ replay: "etf-decision", speed: 2 });
+  });
+
   it("error 이벤트면 메시지와 요청 id 로 throw 한다", async () => {
     vi.stubGlobal("fetch", async () => streamed(ndjson([{ type: "error", message: "Agent 실패", id: "run-2" }]), 1000));
     await expect(streamReport({ question: "q", depth: "easy" }, () => {})).rejects.toThrow("Agent 실패 (요청 id: run-2)");

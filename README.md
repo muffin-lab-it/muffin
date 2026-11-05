@@ -189,6 +189,9 @@ muffin/
 │  ├─ history/page.tsx               저장한 리포트 목록
 │  ├─ components/                    Sidebar, ReportView (+ 진행 화면, 검증 배지, 차트 예정)
 │  ├─ admin/                         실행 모니터링 (리더, ADMIN_PASSWORD 로그인): 상태 · 요청 추이 · 응답 시간 · tool 상태 · 이벤트 · 검증
+│  ├─ replay/                        리플레이 (리더, 시연용): 녹화된 실제 실행을 같은 이벤트로 다시 보기. /replay?id=<녹화>&speed=2
+│  ├─ components/ReportChart.tsx     리포트 차트 (리더): 최근 30일 선 · 평소 폭 띠 · 뉴스 점을 inline SVG 로 (데이터는 src/agent/chart.ts)
+│  ├─ compare/                       깊이별 비교 (리더, 시연용): 같은 질문의 Easy · Standard · Deep 리포트를 나란히. 녹화 재생 또는 실시간, "차이 한눈에" 표
 │  └─ api/report/
 │     ├─ route.ts                    POST /api/report — 완료 후 JSON 한 번에 (백엔드)
 │     └─ stream/route.ts             (예정, 백엔드) POST /api/report/stream — NDJSON 이벤트 스트림
@@ -219,6 +222,7 @@ muffin/
 │  │  ├─ _template/                  새 tool 시작용 템플릿 (index · run · fixture · test · README)
 │  │  ├─ fx/ etf/ news/ rate/ macro/ 같은 구성
 │  │  └─ calc/                       🧮 계산 tool (리더): 장부의 두 값으로 변동률 · 차이 · %p → C 번호 + lineage. 정제만 사용
+│  ├─ replays/                       리플레이 녹화 JSON(<id>.json) + manifest.json · index.ts (pnpm replay:record 가 생성, 리더)
 │  └─ lib/
 │     ├─ http.ts                     fetchJson / fetchText (타임아웃 · HttpError · redirect 옵션)
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
@@ -228,12 +232,17 @@ muffin/
 │     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 표 최근 7일 조회, DB 환경 변수 없거나 ?source=sample 이면 예시 데이터, 리더)
 │     ├─ admin-evals.ts              /admin 품질 평가 패널: evals 표(주간 평가 · 실험 결과) 최신 12줄 (리더)
 │     ├─ admin-status.ts             /admin 상용 AI 상태 패널: OpenAI 상태 페이지 JSON(Responses · Agents · Chat Completions · Codex) + 우리 실측 한 줄 판단 (리더)
+│     ├─ replay.ts                   리플레이: 녹화 형식(replaySchema) · 재생(playReplay, 원래 간격 ÷ 속도) · 녹화 시각 안내 (리더)
+│     ├─ replay-meta.ts              리플레이 목록용 가벼운 타입 · 시각 표기 (화면이 녹화 전체를 번들에 넣지 않게)
+│     ├─ compare.ts                  깊이별 비교: 같은 질문의 녹화 묶기 · 리포트 차이 요약(글자 수 · 숫자 카드 · 원인 · 출처 · 시간) (리더)
 │     ├─ eval-metrics.ts             평가 지표 이름 (Promptfoo 채점 · 요약 · 관리자 화면이 같이 씀)
 │     └─ redact.ts                   에러 메시지의 키 가리기
 ├─ scripts/
 │  ├─ eval.ts                        리포트 평가 (OpenAI 실제 호출, 로컬) → docs/eval/. 단계별 상세 · 근거 판정 보정 후보
 │  ├─ scoring.ts                     평가 채점 규칙 (코드 검사). eval.ts 와 promptfoo/ 가 같은 함수를 씀
 │  ├─ warm/                          캐시 예열: tool_cache 표의 호출을 같은 입력으로 다시 불러 저장 응답 갱신 (`pnpm warm`, 매시 Action, 리더)
+│  ├─ replay/                        리플레이 녹화: 실제로 한 번 돌려 진행 이벤트 + 리포트를 src/replays/<id>.json 으로 (`pnpm replay:record`, 리더)
+│  ├─ baseline/                      Tool 없음 기준선: 같은 질문을 tool · 장부 · 검증 없이 물어본 답과 Muffin 을 같은 잣대로 비교 (`pnpm baseline`, 리더)
 │  ├─ probe.ts                       데이터 소스 후보 응답 확인
 │  ├─ questions/                     고정 질문 세트. <영역>.json 은 담당 팀원 · common.json 은 리더 · decision.json 은 권유 유도 (형식: 폴더 README)
 │  ├─ judge/                         근거 판정 보정 세트 (pairs.json, 사람이 매긴 정답) + pnpm judge 로 정확도 재기 (형식: 폴더 README)
@@ -684,7 +693,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 - **권유** (1단계 ✅): `guard.ts` 의 표현 목록을 작성 Agent 의 SDK output guardrail 로 걸어 Traces 에 남기고, 코드 검증도 같은 목록을 씁니다. 수정 뒤에도 남으면 그 항목(why · impact · caveats · nextTopics · dataGaps · numbers 의 label)을 빼고 `removed` 에 적습니다 (문장 원문은 `removed` 에도 남기지 않음). summary 는 권유 문장만 지우고, 전부 권유면 안내 문장으로 바꿉니다. `advice` 는 처리 뒤에도 남은 수(목표 0)입니다.
 - **표시 원칙 (fail-closed)** (1단계 ✅): 검증을 통과하지 못한 숫자는 리포트에 나가지 않고 `verification.removed` 와 `dataGaps` ("검증을 통과하지 못해 뺀 숫자 N개") 에 기록됩니다. 남은 숫자는 `verified`(✓) 또는 `derived`(계산) 입니다. `unverified` 회색은 0단계 · v1 기록에만 남습니다.
 - **방향** (2단계): 숫자가 있는 문장은 숫자 정책이 방향까지 봅니다. "1.06% 올랐다" 인데 장부가 -1.06% 면 맞는 값이 없어 실패합니다. 숫자 없는 문장("환율이 올랐다")은 "올해는 올랐지만 최근 30일은 내렸다" 처럼 기간이 섞이면 코드가 맞는 문장까지 지우므로, 아래 근거 판정(3단계)에서 봅니다. 대신 원인 질문에는 유의성 게이트가 이번 기간의 실제 방향을 작성에게 알려, 질문이 반대 방향을 전제하면 첫 문장에서 바로잡게 합니다.
-- **근거 판정** (3단계 ✅ 평가에서, `judge.ts`): 원인 `claim` 이 `refs` 의 장부 항목으로 뒷받침되는지 작은 모델(`gpt-5.4-mini`)이 `supported / unsupported / contradicted` 로 판정합니다. 숫자에는 쓰지 않고(검증기 몫), 장부에 없는 지식으로 판정하지 않으며, `basis` 가 `none` 이거나 refs 가 장부에 없는 항목은 건너뜁니다. 지금은 `pnpm eval` 의 "근거 판정 ✓/✗/⚡" 열과 원인마다 붙는 판정 줄로만 보고, 사람이 정답을 매긴 보정 세트(`scripts/judge/pairs.json`, `pnpm judge`)로 정확도를 잽니다. 평가가 남기는 `docs/eval/<날짜>.pairs.json` 이 보정 세트의 후보입니다. 한국어 150~200쌍에서 보정한 뒤 실행 중에도 켜고, 그때 `verification.why.unsupported` 를 채웁니다.
+- **근거 판정** (3단계 ✅ 평가에서, `judge.ts`): 원인 `claim` 이 `refs` 의 장부 항목으로 뒷받침되는지 작은 모델(`gpt-5.4-mini`)이 `supported / unsupported / contradicted` 로 판정합니다. 숫자에는 쓰지 않고(검증기 몫), 장부에 없는 지식으로 판정하지 않으며, `basis` 가 `none` 이거나 refs 가 장부에 없는 항목은 건너뜁니다. 지금은 `pnpm eval` 의 "근거 판정 ✓/✗/⚡" 열과 원인마다 붙는 판정 줄로만 보고, 사람이 정답을 매긴 보정 세트(`scripts/judge/pairs.json`, `pnpm judge`)로 정확도를 잽니다. 평가가 남기는 `docs/eval/<날짜>.pairs.json` 이 보정 세트의 후보이고, `pnpm judge:draft` 로 라벨을 매겨 쌍으로 만듭니다. 11/5 기준 98쌍에서 정확도 95.9%(contradicted 재현율 93%)입니다. 판정기는 근거 문장을 먼저 쓰고 결론을 내리며, 음수 크기 · 종가 대 NAV · 물가 둔화 같은 값 비교는 코드가 미리 적어 줍니다. 150쌍을 넘기면 실행 중에도 켜고, 그때 `verification.why.unsupported` 를 채웁니다.
 - **유의성 게이트** (2단계 ✅ 환율, `movement.ts`): 원인 질문(`cause`)의 주제가 환율이고 장부에 환율 결과가 있으면, 정제와 동시에 같은 출처(Frankfurter)에서 이번 기간 직전 90일의 일별 환율을 받아 평소 폭을 정합니다. 평소 폭 = 하루 변화율의 표준편차 × √(이번 기간 관측 수), z-score = 이번 변화 ÷ 평소 폭입니다 (`metrics.ts` 의 `movementZ`). |z| 가 1 미만이면 평소 범위(`normal`), 2 미만이면 평소보다 큼(`notable`), 그 이상이면 드물게 큼(`extreme`)입니다. 결과는 장부에 `C` 번호(`calc_movement`)로 올라가고, 작성 입력 끝에 `[움직임 크기]` 가 붙고, 리포트의 `notice` · `movement` 에 들어갑니다. 평소 범위면 작성은 첫 문장에서 그렇게 말하고 원인을 단정하지 않습니다. 받기에 실패하면 게이트만 건너뛰고 실행 기록에 남깁니다. 주제는 관심 영역으로 정합니다: 환율이면 재고, ETF · 금리 · 물가면 재지 않습니다 (ETF 원인 질문에서 조사가 환율을 보조로 받아도 리포트가 환율 이야기로 흐르지 않게). 영역이 없거나 경제뉴스면 질문에 환율 낱말이 있고 다른 주제(ETF · 지수 · 금리 · 물가) 낱말이 없을 때만 잽니다. 질문에 통화(달러 · 엔 · 유로)가 나오면 그 통화의 결과를 잽니다. 2025-03 ~ 2026-11 의 USD/KRW 30일 변화를 날짜마다 재 보면 평소 범위 49% · 큼 30% · 드묾 21% 입니다. ETF · 금리 · 물가는 아직 재지 않습니다.
 - **원인 지도** (2단계 ✅ 환율, `movement.ts` 의 `causeMap`): 큰 움직임의 원인을 확인할 후보와 그 근거가 되는 데이터입니다. 환율은 한미 금리 차이(금리 tool), 국내외 경제 뉴스(뉴스 tool), 다른 통화 대비 흐름(다른 통화쌍의 환율)입니다. 게이트가 `notable` · `extreme` 이면 작성이 후보마다 장부 근거를 보고, 뒷받침하면 `why`, 맞지 않으면 `caveats`("이 요인으로는 설명되지 않음"), 근거가 없으면 `dataGaps` 에 적습니다. 근거는 이번 기간에 맞는 것만 씁니다: 기간 안에 나온 기사, 같은 기간의 다른 통화쌍, 기간 시작 이후의 금리. 정제가 무관하다고 뺀 항목은 다시 넣지 않고, 비교 기간이 다른 금리는 변화폭이 아니라 지금 수준만 근거로 쓰게 합니다.
 
@@ -717,6 +726,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 - **지금**: `pnpm eval` 이 고정 질문 세트(`scripts/questions/*.json`)를 돌려 `docs/eval/` 에 결과를 모읍니다. 의도 일치(`intent`, 분류의 점수), 숫자의 증거 번호 채움, 원인 근거 종류, 원인마다 근거 판정(✓ supported · ✗ unsupported · ⚡ contradicted, `--no-judge` 로 끔), 지어낸 번호, tool 선택 일치(`expectTools`), 권유 표현, 응답 시간을 셉니다. 질문마다 분류 결과와 정제가 고른 사실 · 뺀 항목도 적어 두므로 담당자는 자기 단계가 무엇을 했는지 볼 수 있습니다. 질문 세트의 형식과 담당은 [`scripts/questions/README.md`](scripts/questions/README.md), 형식 검사는 `pnpm test` 가 합니다. 주간 수치는 아래 Promptfoo 가 냅니다 (`pnpm eval` 은 단계별 상세와 근거 판정 보정 후보용으로 그대로 둡니다).
 - **1단계 (✅)**: 검증기가 숫자 검증 결과(✓ 장부 일치 / C 계산 / 제거)와 근거 종류를 자동으로 냅니다. 요약 표의 `숫자 ✓/C/제거` · `수정` · `검증` 열입니다. 지시문을 고치기 **전에** 현재 수치를 먼저 기록합니다.
+- **Tool 없음 기준선** (`pnpm baseline`, 11/5): 같은 질문을 같은 모델에게 tool · 증거 장부 · 검증 없이 물어본 답과 Muffin 리포트를 같은 잣대로 잽니다 — 숫자 수, 근거로 확인된 숫자 비율(기준선은 장부가 없어 0), 출처 링크 수와 실제로 열리는 비율(접속 확인), 가장 최근 기준일, 권유 문장, "확인 못 했다" 고 밝힌 수, 시간 · 토큰. 결과는 `docs/eval/baseline/<날짜>.md` 에 요약 표 · 질문별 표 · 기준선 답 전문으로 남아 발표의 "tool 과 검증이 더하는 것" 장면에 씁니다. 기준선 지시문은 작성 단계와 같은 구성 · 같은 권유 금지 규칙이라 차이는 tool 과 검증에서만 납니다.
 - **Promptfoo · 주간 평가** (3단계 ✅, `pnpm eval:promptfoo` · `.github/workflows/eval.yml`): 같은 고정 질문 세트를 [Promptfoo](https://www.promptfoo.dev/) 로 돌립니다 (OpenAI 가 Evals 플랫폼을 2026-11-30 에 종료하고 공식 이전 경로로 안내하는 도구). `scripts/promptfoo/provider.ts` 가 질문마다 다섯 단계를 끝까지 돌리고, `asserts.ts` 의 채점 함수가 `scripts/scoring.ts`(`pnpm eval` 과 같은 코드 검사)와 `judge.ts`(근거 판정)를 그대로 불러 지표 10개를 냅니다: 의도 일치 · tool 선택 · 숫자 검증 · 지어낸 번호 없음 · 원인 근거 · 근거 판정 · 권유 없음 · 검증 통과 · 다시 쓰기 없음 · 55초 안. 지표별 최소 통과율은 `promptfooconfig.yaml` 의 `metadata.thresholds` 에 있고, 요약(`docs/eval/promptfoo/<날짜>.md`)이 지난 결과와 나란히 보여 줍니다. GitHub Action 이 매주 금요일 09:00(KST) 과 수동 실행(세트 · 깊이 선택)으로 돌려 요약을 실행 페이지에 쓰고 결과 파일을 90일 보관하며, 기준 아래로 떨어진 지표가 있으면 실행이 실패로 표시돼 알림이 옵니다. Action 에는 Secrets `OPENAI_API_KEY` · `FRED_API_KEY` · `ECOS_API_KEY` · `DATA_GO_KR_KEY` 가 필요합니다. promptfoo 는 설치 크기(536개 패키지 · 약 680MB) 때문에 `package.json` 에 넣지 않고 `pnpm dlx promptfoo@0.125.1` 로 버전을 고정해 부릅니다. 모델 비교는 같은 세트를 `--model` · `--small-model` 로 바꿔 돌리고 `--baseline` 으로 기본 모델 결과와 나란히 봅니다(`--tag` 로 파일 구분). 결과 요약은 Supabase `evals` 표에 한 줄씩 쌓여 `/admin` 의 "품질 평가" 패널에 보이고, 기준 미달이면 Action 이 요약과 고치는 순서를 담은 이슈(라벨 `eval`)를 엽니다. 지시문 수정은 리더가 로컬에서 Codex 초안으로 PR 을 올립니다. 자세한 것은 [`scripts/promptfoo/README.md`](scripts/promptfoo/README.md).
 
 측정 설계
@@ -766,8 +776,12 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 
 - Vercel, `main` 머지 시 자동 배포 (서울 리전). 환경 변수는 Vercel 프로젝트 설정에만 입력합니다.
 - `/api/report` 는 tool 여러 개를 호출하므로 실행 시간이 깁니다. 라우트에 `export const maxDuration = 60;` 을 두고, tool 마다 타임아웃 8초(공통 래퍼 10초)를 지킵니다.
-- 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 저장한 실제 실행을 다시 보여주는 리플레이 모드를 둡니다 (고도화 기간).
+- 발표 당일은 실시간 데이터로 시연하되, 외부 API 나 OpenAI 가 느릴 때를 대비해 미리 녹화한 실제 실행을 다시 보여 주는 **리플레이 모드**가 있습니다 (11/5). `pnpm replay:record --question "KODEX 200 지금 사도 돼?" --area etf --id etf-decision` 으로 실제로 한 번 돌려 `src/replays/<id>.json`(진행 이벤트 + 리포트)으로 남기고, `/replay` 화면(또는 `/replay?id=etf-decision&speed=2`)이 `/api/report/stream` 에 `{ replay, speed }` 로 요청해 같은 이벤트를 같은 간격으로 받아 다섯 단계와 리포트를 그대로 보여 줍니다. OpenAI · 데이터 API 를 부르지 않고, 리포트 상단과 화면에 녹화 시각을 밝혀 지금 값처럼 보이지 않게 하며, 로그는 mock 으로 남아 운영 통계에서 빠집니다. 녹화는 `pnpm test` 가 형식 · 권유 표현 0 을 검사합니다. 시연 질문마다 전날 한 번씩 녹화해 두면 됩니다.
 - tool 호출은 세 겹으로 지킵니다 (11/4, PR #65). 잠깐 끊긴 API 는 `defineTool` 이 tool 을 한 번 더 돌리고, 연속 실패한 API 는 회로 차단기가 1분간 호출을 건너뛰어 매번 10초를 기다리지 않게 하며, 그래도 실패하면 같은 호출의 마지막 성공 응답(24시간 안, Supabase `tool_cache` 표)을 대신 쓰고, 리포트 "확인하지 못한 것" 에 "조회가 실패해 N시간 전에 받은 응답을 썼습니다" 를 코드가 넣습니다 (/admin 이벤트에도 "저장된 응답 사용"). 시연 전에 `pnpm eval --no-judge` 로 시연 질문을 한 번 돌려 두면 캐시가 차서, 당일 API 가 끊겨도 리포트가 빈칸으로 나가지 않습니다.
+- 실행 로그 저장 (11/5, 리더 임시): 명세 4.4 의 `runs` 저장은 서영님 몫인데 아직 들어오지 않아, 리포트 라우트 두 곳이 `recordRun`(`src/lib/runs.ts`) 하나로 콘솔 로그와 Supabase `runs` upsert(응답 뒤, 2초 제한)를 같이 합니다. 그래서 `/admin` 이 실제 기록(검증 결과 · 의도 포함)을 보여 줍니다. 서영님 구현이 오면 `recordRun` 안을 바꾸거나 호출을 `logRun` 으로 되돌리면 됩니다.
+- 검증 설명 (11/5): 검증기가 숫자 카드마다 "장부의 어느 키와 어떤 규칙(정확히 · 표기 반올림 · 단위 환산 · 허용 오차)으로 맞았는지" 를 `numbers[].match` 로 적고, 리포트 검증 구역의 "검증이 한 일 보기" 가 숫자마다 한 줄(값 대조 → `E1 의 rate 값과 정확히 일치`, 계산값 → 계보, 기사 보도 → 공식 데이터 아님)과 원인의 근거 종류 · 다시 쓰기 · 제외한 항목 수를 풀어 보여 줍니다. 화면은 읽기만 하고 판단은 모두 검증기 코드가 합니다.
+- 깊이별 비교 (11/5, `/compare`): 같은 질문을 Easy · Standard · Deep Dive 로 만든 리포트를 두세 열로 나란히 보여 줍니다. 녹화(같은 질문에 깊이가 둘 이상인 리플레이)를 재생하거나 실시간으로 깊이마다 따로 만들고, 다 끝나면 "차이 한눈에" 표(글자 수 · 숫자 카드 · 원인 · 영향 · 주의점 · 더해볼 것 · 출처 · 응답 시간)를 보여 줍니다. 진행 화면은 은선님의 `Progress` 를 그대로 씁니다. `/compare?question=<질문>&speed=4` 로 열면 바로 재생. `/admin` 의 "깊이별 비교" 패널에는 리포트당 평균 숫자 카드 · 원인 · 다시 쓰기 비율 · 토큰이 깊이마다 붙습니다.
+- 환율 차트 (11/5): 원인 질문에서 유의성 게이트가 받은 일별 환율로 `src/agent/chart.ts` 가 "최근 30일 선 · 평소 폭 띠(이번 기간 구간, ±폭) · 기간 안의 뉴스 점" 을 만들어 `Report.charts` 에 넣고, `ReportChart` 가 리포트 "최근 흐름" 에 그립니다. 숫자는 모두 코드가 계산한 것이고 선의 출처는 게이트의 C 번호, 뉴스 점은 기사의 E 번호입니다. 게이트의 일별 환율은 Frankfurter 가 답하지 않으면 같은 원천인 ECB 고시환율 90일 파일(키 없음, 유로 교차라 숫자 동일)로 받습니다. 환율 tool 자체는 그대로입니다.
 - 캐시 예열 (`pnpm warm`, `.github/workflows/warm.yml`): `tool_cache` 표에 있는 호출을 같은 입력으로 한 시간마다 다시 불러 저장 응답을 갓 받은 것으로 바꿉니다. 모델은 부르지 않아 비용이 없고, 표에 없는 입력은 예열할 수 없으니 시연 질문은 전날 한 번 돌려 둡니다. `/admin` 의 tool 상태는 실제 조회 성공률(저장 응답으로 나간 호출은 실패로 셈) · 저장 응답 · 회로 열림 횟수 · 마지막 실패 시각을 보여 주고, "상용 AI 상태" 패널은 OpenAI 상태 페이지(status.openai.com 공개 JSON)의 전체 상태 · 우리가 쓰는 구성 요소 · 진행 중 장애와 우리 실측(최근 1시간 요청 · 성공률 · 평균 응답)을 나란히 두고 한 줄로 판단합니다. 금융권이 벤더 상태와 자체 측정을 같이 보는 방식입니다.
 
 ---

@@ -76,6 +76,8 @@ export function assembleReport(
     mode?: ReportMode;
     notice?: string;
     checks?: NumberCheck[];
+    /** checks 와 같은 순서의 대조 세부 (장부 키 · 규칙) */
+    matches?: Report["numbers"][number]["match"][];
     movement?: Report["movement"];
     charts?: Report["charts"];
   } = {},
@@ -85,7 +87,7 @@ export function assembleReport(
     mode: opts.mode ?? "research",
     ...(opts.notice ? { notice: opts.notice } : {}),
     summary: output.summary,
-    numbers: output.numbers.map((n, i) => ({ ...n, check: opts.checks?.[i] ?? "unverified" })),
+    numbers: output.numbers.map((n, i) => ({ ...n, check: opts.checks?.[i] ?? "unverified", ...(opts.matches?.[i] ? { match: opts.matches[i] } : {}) })),
     why: output.why,
     impact: output.impact,
     caveats: output.caveats,

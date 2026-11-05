@@ -79,6 +79,7 @@ flowchart LR
 - 55초 제한(`STREAM_TIMEOUT_MS`): 넘으면 `error` 이벤트 "조사 시간이 초과되었습니다…" 를 보내고 닫습니다. 실제 소요는 30~60초입니다.
 - 에러 · 이벤트 · 로그는 `redactSecrets` 를 거칩니다 (이미 있음).
 - `MUFFIN_MOCK=1` 이면 같은 라우트가 키 없이 샘플 리포트와 다섯 단계 이벤트를 지연을 두고 보냅니다. 질문에 "사도 돼" 가 있으면 판단 요청 샘플입니다.
+- 리플레이(11/5, 리더): 바디가 `{ replay: "<녹화 id>", speed?: 0.25~10 }` 이면 녹화된 실제 실행(`src/replays/<id>.json`, `src/lib/replay.ts`)의 stage · plan · step · verify 이벤트를 원래 간격(÷speed, 간격 상한 15초)으로 보내고 `report` 로 끝냅니다. OpenAI · tool 을 부르지 않고 키도 필요 없습니다. 없는 id 는 404 `{ error: "저장된 실행을 찾을 수 없습니다.", id }`, 속도 범위 밖은 400. 요청한 속도로 55초 안에 못 끝나면 끝날 만큼 속도를 올립니다 (`fitSpeed`). 리포트 `notice` 앞에 "🎞️ 저장된 실행 다시 보기 · M/D HH:MM 에 실제로 만든 리포트입니다. 지금 데이터가 아닙니다." 가 붙고, 로그는 `mock: true` · `model: "replay:<id>"` 로 남아 운영 통계에서 빠집니다. 화면은 `/replay`(목록 · 재생, `?id=&speed=` 로 바로 재생)이고, 홈의 진행 화면도 같은 이벤트라 `streamReport({ replay, speed })` 로 붙일 수 있습니다. 녹화는 `pnpm replay:record --question … --area … --id …`, 형식 검사는 `pnpm test`.
 
 ### 3.2 스트림 이벤트 (`src/agent/events.ts`, 한 줄에 JSON 하나)
 
@@ -101,9 +102,10 @@ flowchart LR
 | `mode` (research · decision_facts · out_of_scope), `notice`, `movement` | 상단 배너. 문구는 서버가 준 것을 그대로. `notice` 는 판단 요청 · 범위 밖, 그리고 원인 질문(research 모드)의 움직임 크기에서 옵니다 (예: "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임입니다."). `movement`(`level`: normal · notable · extreme)는 같은 내용의 값이라 배지 색 등에 쓸 수 있음 | 하니 |
 | `disclosure` | AI 생성 고지, 리포트 하단 고정 | 하니 |
 | `summary`, `impact[]`, `caveats[]`, `dataGaps[]`, `nextTopics[]` | 각 칸 | 은선 |
-| `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`) | 숫자 카드, 배지, 원본 보기. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |
+| `numbers[]` (`check`: verified 값 대조 · derived 계산값 · reported 기사 보도 · unverified 미검증, `ref`, `match?{ key, policy }` 11/5: 장부의 어느 키와 어떤 규칙(exact · rounded · scaled · tolerance)으로 맞았는지, 검증기가 적음) | 숫자 카드, 배지, 원본 보기. 검증 구역의 "검증이 한 일 보기" 가 `match` · `lineage` 로 숫자마다 한 줄씩 풀어 씀. reported 는 뉴스 제목에 나온 숫자라 공식 데이터로 확인한 것이 아님을 배지로 알림. unverified 는 예전(v1) 기록에서만 나옴 | 소희 |
 | `why[]` (`basis`: data 📊 · news 📰 · none ❔, `refs`) | 원인, 아이콘, 원본 보기 | 소희 |
 | `evidence[]` (E1 · E3-1 · C1, `lineage`), `sources[]` | 원본 보기, 계산 계보, 출처 목록 | 소희 |
+| `charts[]` (11/5, 원인 질문 · 환율): `kind: "line"`, `title`, `unit`, `series[{ label, ref, points[{ t, v }] }]`, `band?{ from, to, low, high, label }`(평소 폭 띠), `events?[{ ref, label, at }]`(기간 안의 기사) | "최근 흐름" 구역의 선 차트 (`app/components/ReportChart.tsx`, inline SVG). 선의 `ref` 는 게이트의 C 번호, 뉴스 점의 `ref` 는 기사의 E 번호라 원본 보기로 이어짐. 숫자는 모두 코드가 계산 (`src/agent/chart.ts`) | 리더 |
 | `verification` | 검증 한 줄, 검사 후 제외한 항목. `revisionSkipped` 면 "시간이 부족해 한 번 더 검토하지 못했어요" 를 보여 줄 수 있음 | 소희(내용) · 은선(위치) |
 
 정제 단계의 사실 목록(facts)은 리포트에 들어 있지 않습니다.
@@ -231,6 +233,8 @@ grant select, insert, update, delete on table public.reports, public.runs, publi
 
 `RunLog` 에 `verification`(리포트 `verification` 의 status · numbers · why · advice · revisions)과 `intent`(`research()` 결과의 `plan.intent`)를 더해 `runs` 의 같은 칸에 넣습니다. 관리자 화면(4.7)의 검증 통과율 · 다시 쓰기 비율 · 의도별 요청 수가 이 두 칸을 씁니다.
 
+리더 임시 구현(11/5, `src/lib/runs.ts`): 서영의 구현이 오기 전까지 라우트 두 곳이 `recordRun(entry, req)` 하나만 부릅니다. 콘솔 로그(`logRun`)는 그대로 남기고, Supabase 환경 변수가 있으면 응답이 끝난 뒤 `after()` 로 같은 줄을 `runs` 에 upsert 합니다(2초 제한, 실패는 콘솔만). `client_id` 는 브라우저 id, `ip_hash` 는 호출 제한(4.5)이 채울 칸이라 비워 둡니다. `started` · `limited` 줄은 넣지 않습니다(4.5 v2 몫). 갈아 끼울 때는 `recordRun` 안을 서영 구현으로 바꾸거나 라우트의 호출을 `logRun` 으로 되돌리고 이 파일을 지우면 됩니다.
+
 ### 4.5 호출 제한 (서영)
 
 - 키 두 개를 함께 셉니다. 브라우저 키는 `readClientId(req.headers)` 값(없으면 IP 키만), IP 키는 `x-forwarded-for` 의 첫 IP 를 `RATE_LIMIT_SALT` 와 함께 sha256 한 값입니다. 원문 IP 는 저장 · 로그하지 않습니다.
@@ -266,6 +270,7 @@ export async function readJsonLimited(req: Request, maxBytes: number): Promise<u
 - 데이터는 `src/lib/admin.ts` 의 `loadRuns` 하나로 읽습니다. `runs` 표의 최근 7일(가장 긴 기간, 끝은 화면을 그리는 시각으로 고정)을 시각 · id 순으로 1000줄씩 읽습니다. 다음 쪽은 줄 번호가 아니라 마지막 줄의 (시각, id) 뒤부터 이어 읽어, 읽는 중에 새 요청이 들어와도 같은 줄을 두 번 세거나 건너뛰지 않습니다(최대 10쪽, 그 뒤에 줄이 더 있는 것을 확인했을 때만 최신 것만 집계했다고 표시). `client_id` · `ip_hash` 는 읽지 않습니다. Supabase 환경 변수가 없으면 예시 데이터를 보여 주고 화면 맨 위에 "예시 데이터"라고 표시합니다. `/admin?source=sample` 로 예시 화면을 볼 수 있고 기간을 바꿔도 유지됩니다(스크린샷 · 시연 연습). 센 요청이 없으면 "아직 기록이 없습니다"에 표가 빈 것인지(7일 동안 0줄) 세지 않는 줄(Mock · 2분 안의 진행 중)뿐인지를 적고 예시 화면 링크를 보여 줍니다. 기록은 실행 로그 저장(4.4, 서영)이 들어온 뒤부터 쌓입니다. 조회가 실패하면(프로젝트 일시 정지 등) 안내문만 보여 줍니다.
 - 가드레일 작동 횟수는 아직 로그 칸이 없어 "남은 권유 표현"(`verification.advice`)으로 대신합니다.
 - tool 상태(11/4, PR #65 뒤): 성공률은 외부 API 가 실제로 답한 비율(`live / calls`)이고, 조회가 실패해 저장 응답(`tool_cache`)으로 나간 호출 · 회로 차단기가 열려 건너뛴 호출 · 마지막 실패 시각을 같이 보여 줍니다 (`ToolStat` 의 `live` · `fallbacks` · `skipped` · `lastFailAt`). 저장 응답으로 리포트가 나갔어도 API 쪽은 실패로 셉니다.
+- 깊이별 비교(11/5): `byDepth` 가 응답 시간에 더해 리포트당 평균 토큰 · 숫자 카드(`verification.numbers.total`) · 원인 수(`verification.why` 가 있는 기록만) · 다시 쓰기 비율을 냅니다 (`DepthStat`). 시연용 나란히 보기는 `/compare` (리더, `src/lib/compare.ts`): 같은 질문에 깊이가 둘 이상인 녹화를 묶어 재생하거나 실시간으로 깊이마다 따로 만들고 "차이 한눈에" 표를 보여 줍니다.
 - 상용 AI 상태 패널(11/4): `src/lib/admin-status.ts` 의 `loadVendorStatus` 가 OpenAI 상태 페이지의 Statuspage 호환 JSON(`status.openai.com/api/v2/summary.json`, 키 없음, 4초 제한)을 읽어 전체 상태 · 우리가 쓰는 구성 요소(Responses · Agents · Chat Completions · Codex) · 진행 중 장애를 보여 주고, 오른쪽에 `windowStats` 의 최근 1시간 실측(요청 · 성공률 · 리포트 평균 응답)을 나란히 둡니다. `vendorVerdict` 가 둘을 합쳐 한 줄로 판단합니다 (벤더 장애 → 장애, 벤더 정상인데 우리 실패 85% 미만 → 우리 쪽 확인, 요청 3건 미만이면 보류). 상태 페이지를 못 읽어도 실측은 그대로 그립니다.
 - 캐시 예열(11/4): `scripts/warm/run.ts`(`pnpm warm`)가 `tool_cache` 표의 호출을 같은 입력으로 다시 불러 저장 응답을 갱신합니다. `.github/workflows/warm.yml` 이 매시 7분에 돌리고 결과 요약을 실행 페이지에 남깁니다. 모델은 부르지 않습니다.
 - 품질 평가 패널(11/4): `evals` 표(4.3)의 최신 12줄을 `src/lib/admin-evals.ts` 의 `loadEvals` 로 읽습니다. 주간 평가(Action 에서 전체 세트를 돌린 것, tag · set_name 없음)의 최신 결과를 지표별 통과율 · 기준 · 상태 표로 보여 주고, 주간 평가끼리 "기준 안 지표 비율" 추이를 그리며, 세트 일부만 고른 수동 실행 · 로컬 · 실험(tag) 실행은 전체 세트와 비교할 수 없어 기록 목록에만 둡니다. 주간 평가는 최근 기록과 따로 읽어, 실험 실행이 많아도 밀려 사라지지 않습니다. 깊이 · 모델을 바꾼 실행은 `run.ts` 가 실험 이름(tag)을 자동으로 붙여 주간 줄에서 빠집니다. 주간 평가가 아직 없으면 그렇게 적고 기록만 보여 줍니다. 로컬 실행의 id 는 promptfoo 의 evalId 라 같은 분에 두 번 돌려도 겹치지 않습니다. 표가 없거나 조회가 실패하면 패널 안에 안내문만 보이고 나머지 화면은 그대로입니다. 줄은 `scripts/promptfoo/run.ts` 가 Supabase 환경 변수가 있을 때 넣습니다 (Action 에는 Secrets `SUPABASE_URL` · `SUPABASE_SECRET_KEY` 필요).

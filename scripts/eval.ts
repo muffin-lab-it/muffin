@@ -102,6 +102,7 @@ function render(report: Report, judged: JudgeResult[] | null): string {
     `**출처**\n${report.sources.map((s) => `- ${s.id} ${s.name} · ${s.asOf} · ${s.url}`).join("\n") || "- (없음)"}`,
     `**증거 장부**\n${report.evidence.map((e) => `- ${e.id} ${e.label}: ${JSON.stringify(e.values)}`).join("\n") || "- (없음)"}`,
     `**검증**\n${JSON.stringify(report.verification)}`,
+    `**차트**\n${(report.charts ?? []).map((c) => `- ${c.title}: 점 ${c.series[0]?.points.length ?? 0}개 (${c.series[0]?.points[0]?.t ?? "?"} ~ ${c.series[0]?.points.at(-1)?.t ?? "?"})${c.band ? ` · ${c.band.label} ${c.band.low}~${c.band.high}` : ""}${c.events?.length ? ` · 뉴스 점 ${c.events.length}개` : ""}`).join("\n") || "- (없음)"}`,
     `**더해볼 것**\n${report.nextTopics.join(" · ") || "(없음)"}`,
   ].join("\n\n");
 }

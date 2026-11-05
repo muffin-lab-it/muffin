@@ -34,10 +34,10 @@ export async function mockResearch(input: ResearchInput, { onEvent }: ResearchOp
   const calcSteps = steps.filter(isEditStep);
   const tick = total / (steps.length + 5);
 
-  const { movement, notice, ...sampleReport } = reportSchema.parse(sample.report);
+  const { movement, notice, charts, ...sampleReport } = reportSchema.parse(sample.report);
   const gateIds = new Set(sampleReport.evidence.filter((e) => e.tool === MOVEMENT_TOOL).map((e) => e.id));
   const report = gate
-    ? sampleReport
+    ? { ...sampleReport, ...(charts ? { charts } : {}) }
     : { ...sampleReport, evidence: sampleReport.evidence.filter((e) => !gateIds.has(e.id)), sources: sampleReport.sources.filter((s) => !gateIds.has(s.id)) };
   const mode = intent === "decision" ? modeFor(intent) : report.mode;
   const tools = [...new Set(dataSteps.map((s) => s.tool))];

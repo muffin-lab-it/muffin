@@ -96,6 +96,10 @@ export type WriterOutput = z.infer<typeof writerSchema>;
  */
 export const numberChecks = ["verified", "derived", "reported", "unverified"] as const;
 export type NumberCheck = (typeof numberChecks)[number];
+/** 값이 장부와 맞은 규칙. exact 정확히 · rounded 표기 반올림 · scaled 단위 환산 · tolerance 허용 오차(0.1%) 안 */
+export const matchPolicies = ["exact", "rounded", "scaled", "tolerance"] as const;
+/** 검증이 적는 대조 세부: 장부 항목(ref)의 어느 키와 어떤 규칙으로 맞았는지. 화면의 "검증이 한 일" 에 씁니다 */
+export const numberMatchSchema = z.object({ key: z.string(), policy: z.enum(matchPolicies) });
 
 /** 증거 장부 한 줄. tool 결과(출처 단위)마다 하나. 리포트의 ref / refs 가 가리키는 대상이고, 화면의 "원본 보기" 가 됩니다. */
 export const evidenceSchema = z.object({
@@ -177,6 +181,10 @@ export const chartSchema = z.object({
     }),
   ),
   events: z.array(z.object({ ref: z.string(), label: z.string(), at: z.string() })).optional().describe("차트 위에 표시할 뉴스 이벤트"),
+  /** 평소 폭 띠: from~to 구간에서 low~high 안이면 평소 범위 (유의성 게이트의 평소 폭). 화면이 선 뒤에 띠로 그립니다 */
+  band: z.object({ from: z.string(), to: z.string(), low: z.number(), high: z.number(), label: z.string() }).optional(),
+  /** 값의 단위 (예: "KRW per 1 USD") */
+  unit: z.string().optional(),
 });
 export type Chart = z.infer<typeof chartSchema>;
 
@@ -192,7 +200,7 @@ export const reportSchema = writerSchema.extend({
   version: z.literal(2),
   mode: z.enum(reportModes),
   notice: z.string().optional().describe("모드에 따른 상단 안내 (판단 요청 모드 등)"),
-  numbers: z.array(numberItem.extend({ check: z.enum(numberChecks) })),
+  numbers: z.array(numberItem.extend({ check: z.enum(numberChecks), match: numberMatchSchema.optional() })),
   sources: z.array(sourceSchema.extend({ id: z.string() })).describe("증거 장부에서 코드가 생성. 모델이 쓰지 않는다"),
   evidence: z.array(evidenceSchema),
   verification: verificationSchema,

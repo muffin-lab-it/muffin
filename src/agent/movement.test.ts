@@ -1,20 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { muffinTools } from "../tools";
 import { stdev } from "../tools/calc/metrics";
-import {
-  causeMap,
-  currencyOf,
-  isFxQuestion,
-  judge,
-  levelOf,
-  measureMovement,
-  movementEvidence,
-  movementNote,
-  movementNotice,
-  movementSummary,
-  seriesUrl,
-  type Movement,
-} from "./movement";
+import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, seriesUrl, type Movement } from "./movement";
 import type { Evidence, WriterOutput } from "./schema";
 import { verify } from "./verify";
 
@@ -98,9 +85,36 @@ describe("유의성 게이트: measureMovement", () => {
       typicalPct: Number(typical.toFixed(2)),
       zScore: Number((move / typical).toFixed(2)),
       level: "normal",
-      baseline: { from: "2026-07-06", to: "2026-10-03", changes: 89, url: seriesUrl("USD", "2026-07-05", "2026-11-02") },
+      rates: { from: 1353.71, to: 1339.36 },
+      baseline: { from: "2026-07-06", to: "2026-10-03", changes: 89, url: seriesUrl("USD", "2026-07-05", "2026-11-02"), sourceName: "Frankfurter v2 일별 환율" },
+      series: expect.any(Array),
     });
+    // 차트용 일별 환율: 비교 기준일부터 최신 기준일까지 (리포트의 30일 변화와 같은 기간), 받은 단위 그대로
+    expect(movement!.series[0]!.date).toBe("2026-10-03");
+    expect(movement!.series.at(-1)!.date).toBe("2026-11-02");
+    expect(movement!.series).toHaveLength(31);
     expect(step).toMatchObject({ tool: "calc_movement", status: "ok" });
+  });
+
+  it("Frankfurter 가 답하지 않으면 같은 원천인 ECB 90일 파일(유로 교차)로 잰다", async () => {
+    const rows = dailyRows();
+    const xml = `<?xml version="1.0"?><gesmes:Envelope><Cube>${rows
+      .map((r) => `<Cube time="${r.date}"><Cube currency="USD" rate="1.1"/><Cube currency="JPY" rate="170"/><Cube currency="KRW" rate="${(r.rate * 1.1).toFixed(4)}"/></Cube>`)
+      .join("")}</Cube></gesmes:Envelope>`;
+    const fetchMock = vi.fn(async (url: string | URL | Request) =>
+      String(url).includes("frankfurter") ? new Response("down", { status: 503 }) : new Response(xml, { status: 200, headers: { "Content-Type": "text/xml" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { movement, step } = await measureMovement([fxEvidence("E1")], ASK);
+    expect(step).toMatchObject({ tool: "calc_movement", status: "ok" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String((fetchMock.mock.calls[1] as unknown[])[0])).toBe(ECB_90D_URL);
+    expect(movement).toMatchObject({ level: "normal", baseline: { url: ECB_90D_URL, sourceName: expect.stringContaining("ECB") } });
+    // 교차 계산한 값이 Frankfurter 값과 같으므로 평소 폭도 같다
+    expect(movement!.typicalPct).toBe(Number((stdev(BASELINE) * Math.sqrt(30)).toFixed(2)));
+    expect(movement!.series.at(-1)!.rate).toBeCloseTo(rows.at(-1)!.rate, 2);
+    expect(parseEcbDaily(xml, "EUR", "2026-11-01", "2026-11-02").map((r) => r.rate)).toEqual(rows.slice(-2).map((r) => Number((r.rate * 1.1).toFixed(4))));
+    expect(() => parseEcbDaily("<Cube/>", "USD", "2026-01-01", "2026-12-31")).toThrow("찾지 못했습니다");
   });
 
   it("평소 폭의 1배 미만은 평소 범위, 2배 미만은 큰 편, 그 이상은 드문 움직임 (방향과 무관)", async () => {
@@ -206,7 +220,9 @@ const normal: Movement = {
   typicalPct: 1.69,
   zScore: -0.63,
   level: "normal",
-  baseline: { from: "2026-07-06", to: "2026-10-03", changes: 89, url: seriesUrl("USD", "2026-07-05", "2026-11-02") },
+  rates: { from: 1353.71, to: 1339.36 },
+  baseline: { from: "2026-07-06", to: "2026-10-03", changes: 89, url: seriesUrl("USD", "2026-07-05", "2026-11-02"), sourceName: "Frankfurter v2 일별 환율" },
+  series: [],
 };
 const notable: Movement = { ...normal, movePct: 2.71, zScore: 1.6, level: "notable" };
 

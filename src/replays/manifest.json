@@ -1,0 +1,65 @@
+[
+  {
+    "id": "fx-cause",
+    "recordedAt": "2026-11-04T17:20:11.305Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "standard",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 29209
+  },
+  {
+    "id": "etf-decision-deep",
+    "recordedAt": "2026-11-04T16:54:14.538Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "deep",
+    "area": "etf",
+    "model": "gpt-6-sol",
+    "ms": 25209
+  },
+  {
+    "id": "etf-decision-easy",
+    "recordedAt": "2026-11-04T16:53:48.763Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "easy",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 24028
+  },
+  {
+    "id": "fx-cause-deep",
+    "recordedAt": "2026-11-04T16:53:17.471Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "deep",
+    "area": "fx",
+    "model": "gpt-6-sol",
+    "ms": 29829
+  },
+  {
+    "id": "fx-cause-easy",
+    "recordedAt": "2026-11-04T16:52:39.806Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "easy",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 36006
+  },
+  {
+    "id": "rate-compare",
+    "recordedAt": "2026-11-04T15:22:20.079Z",
+    "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",
+    "depth": "standard",
+    "area": "rate",
+    "model": "gpt-6-luna",
+    "ms": 20446
+  },
+  {
+    "id": "etf-decision",
+    "recordedAt": "2026-11-04T15:21:56.730Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "standard",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 21451
+  }
+]

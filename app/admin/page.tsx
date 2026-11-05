@@ -507,7 +507,7 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
           )}
         </Panel>
 
-        <Panel title="깊이별 응답 시간" sub={`막대는 평균, 눈금은 p90 · 끝은 60초`}>
+        <Panel title="깊이별 비교" sub={`막대는 평균 응답, 눈금은 p90 · 끝은 60초. 아래 줄은 리포트당 평균`}>
           {s.byDepth.length ? (
             <ul className={styles.depths}>
               {s.byDepth.map((d) => (
@@ -518,6 +518,10 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
                       평균 {seconds(d.avgMs)} · p90 {seconds(d.p90Ms)} · {count(d.count)}건
                     </span>
                   </div>
+                  <p className={styles.depthFacts}>
+                    {d.numbers !== null ? `숫자 ${d.numbers}개 · 원인 ${d.why === null ? "-" : `${d.why}개`} · 다시 쓰기 ${percent(d.rewritten ?? 0, 1)}` : "검증 기록 없음"}
+                    {d.tokens ? ` · 토큰 ${count(d.tokens.input)}/${count(d.tokens.output)}` : ""}
+                  </p>
                   <div className={styles.depthTrack} aria-hidden="true">
                     <span className={`${styles.depthAvg} ${styles[`depth_${d.depth}`] ?? ""}`} style={{ width: `${Math.min(100, (d.avgMs / 60_000) * 100)}%` }} />
                     <span className={styles.depthP90} style={{ left: `${Math.min(100, (d.p90Ms / 60_000) * 100)}%` }} />

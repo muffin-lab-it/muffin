@@ -133,11 +133,28 @@ describe("summarizeRuns", () => {
       NOW,
     );
     expect(s.time).toEqual({ count: 11, avgMs: 51_091, p90Ms: 90_000 });
-    expect(s.byDepth).toEqual([
+    expect(s.byDepth.map(({ depth, count, avgMs, p90Ms }) => ({ depth, count, avgMs, p90Ms }))).toEqual([
       { depth: "easy", count: 1, avgMs: 12_000, p90Ms: 12_000 },
       { depth: "standard", count: 10, avgMs: 55_000, p90Ms: 90_000 },
     ]);
     expect(s.points).toHaveLength(11);
+  });
+
+  it("깊이별 비교: 리포트당 평균 토큰 · 숫자 카드 · 원인 수 · 다시 쓰기 비율", () => {
+    const s = summarizeRuns(
+      [
+        run({ input: { question: "q", depth: "easy" }, usage: { requests: 3, inputTokens: 8_000, outputTokens: 900 }, verification: verification("pass", 2) }),
+        run({ input: { question: "q", depth: "easy" }, usage: { requests: 3, inputTokens: 10_000, outputTokens: 1_100 }, verification: verification("partial", 4, 1, 1) }),
+        run({ input: { question: "q", depth: "deep" }, usage: { requests: 4, inputTokens: 30_000, outputTokens: 2_500 }, verification: { ...verification("pass", 6), why: { data: 2, news: 2, none: 1, unsupported: 0 } } }),
+        run({ input: { question: "q", depth: "deep" }, verification: verification("skipped", 0) }),
+      ],
+      NOW,
+    );
+    const easy = s.byDepth.find((d) => d.depth === "easy")!;
+    const deep = s.byDepth.find((d) => d.depth === "deep")!;
+    expect(easy).toMatchObject({ count: 2, tokens: { input: 9_000, output: 1_000 }, numbers: 3, rewritten: 0.5 });
+    expect(deep).toMatchObject({ count: 2, tokens: { input: 30_000, output: 2_500 }, numbers: 6, why: 5, rewritten: 0 });
+    expect(easy.why).toBeNull(); // why 가 없는 예전 기록
   });
 
   it("토큰은 리포트를 만든 요청당 평균이다", () => {

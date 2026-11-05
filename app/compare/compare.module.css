@@ -1,0 +1,20 @@
+/* 깊이별 비교 화면 (리더, 시연용). 공용 모양은 app/globals.css */
+.h2 { margin: 24px 0 8px; font-size: 16px; }
+.list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.item { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.question { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.secondary { opacity: 0.75; }
+.liveForm { display: grid; gap: 12px; }
+.banner { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: #fff7e6; color: #7a4b00; font-size: 14px; line-height: 20px; }
+.columns { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 16px; align-items: start; }
+.col { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.colHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.colHead small { color: var(--ink-3); }
+.stats { margin-top: 24px; }
+.stats table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.stats th, .stats td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; font-variant-numeric: tabular-nums; }
+.stats th[scope="row"] { color: var(--ink-2); font-weight: 500; }
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; }
+}

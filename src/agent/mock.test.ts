@@ -80,7 +80,11 @@ describe("mockResearch", () => {
       expect(r.report.notice).toBeUndefined();
       expect(r.steps.map((s) => s.tool)).not.toContain("calc_movement");
       expect(r.report.evidence.map((e) => e.tool)).not.toContain("calc_movement");
+      // 샘플의 환율 차트도 게이트가 없는 질문에는 보이지 않는다
+      expect(r.report.charts).toBeUndefined();
     }
+    const fx = await mockResearch({ question: "요즘 원달러 환율이 왜 이렇게 움직여?", depth: "standard", area: "fx" });
+    expect(fx.report.charts?.[0]?.band?.label).toContain("±1.57%");
   });
 
   it("onEvent 없이도 동작한다", async () => {

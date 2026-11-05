@@ -57,6 +57,57 @@ export function EvidenceReference({ evidenceId, evidence }: {
   );
 }
 
+const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" } as const;
+const policyLabels = { exact: "정확히 일치", rounded: "표기 반올림과 일치", scaled: "단위를 환산해 일치", tolerance: "허용 오차 0.1% 안에서 일치" } as const;
+
+/** 숫자 카드 하나를 검증이 어떻게 확인했는지 한 줄 */
+export function numberCheckDetail(n: Report["numbers"][number], evidence: Evidence[]): string {
+  const entry = evidence.find((e) => e.id === n.ref);
+  const ref = n.ref ?? "근거 번호 없음";
+  if (n.check === "verified") return n.match ? `${ref} 의 ${n.match.key} 값과 ${policyLabels[n.match.policy]}` : `${ref} 의 장부 값과 일치`;
+  if (n.check === "derived") {
+    const lineage = entry?.lineage;
+    return lineage ? `${ref} 계산값 (${lineage.op} ← ${lineage.inputs.join(", ")})${n.match ? ` · ${n.match.key} 와 ${policyLabels[n.match.policy]}` : ""}` : `${ref} 계산값`;
+  }
+  if (n.check === "reported") {
+    const where = n.match ? `${ref} 의 ${n.match.key.replace(/#text$/, "")} 와 ${policyLabels[n.match.policy]}` : `${ref} 기사 제목에 나온 숫자`;
+    return `${where} (보도일 뿐 공식 데이터로 확인한 것이 아님)`;
+  }
+  return "검증기를 거치지 않았거나 대조하지 못함";
+}
+
+/**
+ * 검증이 한 일을 풀어 보여 줍니다 (숫자마다 어느 장부 값과 어떤 규칙으로 맞았는지 · 원인의 근거 종류 · 다시 쓰기 · 제외한 항목 수).
+ * 데이터는 모두 검증기(src/agent/verify.ts)가 리포트에 적어 둔 것이고 화면은 읽기만 합니다.
+ */
+export function VerificationDetail({ report }: { report: Report }) {
+  const v = report.verification;
+  return (
+    <details className="evidence-detail verification-detail">
+      <summary>검증이 한 일 보기</summary>
+      <div className="evidence-content">
+        <p className="report-muted">규칙: 숫자는 tool 이 돌려준 장부 값과 하나하나 대조하고, 장부에 없는 숫자와 투자 권유 표현은 뺍니다. 계산값은 계산 도구의 결과(C 번호)이고, 기사 보도는 기사 제목의 숫자라 공식 데이터는 아닙니다.</p>
+        {report.numbers.length > 0 ? (
+          <ol className="verification-list">
+            {report.numbers.map((n, i) => (
+              <li key={i}>
+                <b>{n.label}</b> {n.value} → <span className={`report-badge check-${n.check}`}>{checkLabels[n.check]}</span> {numberCheckDetail(n, report.evidence)}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="report-muted">숫자 카드가 없습니다.</p>
+        )}
+        <p>원인 {report.why.length}개: 데이터 인용 {v.why.data} · 보도 기반 {v.why.news} · 근거 부족 {v.why.none}</p>
+        <p>
+          다시 쓰기 {v.revisions}회{v.revisionSkipped ? " · 마감이 가까워 다시 쓰지 않고 걸린 항목을 바로 뺐습니다" : ""} · 검사 후 제외 {v.removed.length}개
+          {v.removed.length > 0 ? " (아래 「검사 후 제외한 항목」)" : ""}
+        </p>
+      </div>
+    </details>
+  );
+}
+
 export function ReportVerification({ report }: { report: Report }) {
   const verification = report.verification;
   const skipped = verification.status === "skipped";
@@ -74,6 +125,7 @@ export function ReportVerification({ report }: { report: Report }) {
           <p>숫자 {verification.numbers.total}개 중 값 대조 {verification.numbers.verified}개 · 계산값 {verification.numbers.derived}개 · 기사 보도 {verification.numbers.reported ?? 0}개 · 미검증 {verification.numbers.unverified}개</p>
           <p className="report-muted">값 대조는 인용한 원본 값과의 일치 검사입니다. 날짜·단위·지표의 의미와 원인 관계 전체의 정확성을 보장하지 않습니다.</p>
           <p className="report-muted">권유 표현 패턴 감지 {verification.advice}건 · 수정 {verification.revisions}회 · 제외 항목 {verification.removed.length}개</p>
+          <VerificationDetail report={report} />
         </>
       )}
       <p className="report-disclosure">{report.disclosure}</p>
