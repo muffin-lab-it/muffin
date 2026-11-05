@@ -15,6 +15,7 @@
     "eval": "tsx scripts/eval.ts",
     "eval:promptfoo": "tsx scripts/promptfoo/run.ts",
     "judge": "tsx scripts/judge/calibrate.ts",
+    "judge:draft": "tsx scripts/judge/draft.ts",
     "warm": "tsx scripts/warm/run.ts",
     "replay:record": "tsx scripts/replay/record.ts",
     "baseline": "tsx scripts/baseline/run.ts"

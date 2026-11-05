@@ -1119,5 +1119,3145 @@
     "expected": "unsupported",
     "note": "결과(수익률)만 있고 외국인 매도 데이터가 없음",
     "source": "seed (리더, 2026-11-03)"
+  },
+  {
+    "id": "common-fx-cause-1-easy-1",
+    "area": "fx",
+    "claim": "기사들은 환율을 움직인 요인으로 서로 다른 힘을 전했습니다. 연합뉴스는 미 국채 금리와 달러 지수 하락이 환율을 낮추는 압력을 줬다고 보도했고, 한국경제는 외국인의 환헤지용 달러 선물 매수가 현물 달러 수요를 키울 수 있다고 소개했습니다.",
+    "evidence": "연합뉴스는 미 국채 금리·달러 지수 하락의 하방 압력을, 한국경제는 환헤지용 달러 선물 매수의 현물 달러 수요 확대 가능성을 전했습니다.",
+    "basis": "news",
+    "refs": [
+      "E3-2",
+      "E3-1"
+    ],
+    "ledger": [
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목은 환율 상승 · 코스피와 동반 상승만 말하고 국채 금리 · 달러 지수 · 환헤지 선물 매수는 없음",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [easy]"
+  },
+  {
+    "id": "common-fx-cause-1-easy-2",
+    "area": "fx",
+    "claim": "다른 시장 설명으로는 수출기업의 달러 환전 수요가 외국인 자금 유출과 개인의 해외투자 수요보다 컸다는 분석도 있습니다. 보도된 설명들이 엇갈려, 어느 요인이 최근 움직임을 가장 크게 만들었는지는 단정하기 어렵습니다.",
+    "evidence": "씨티은행 분석은 수출기업의 달러 환전 수요가 외국인 자금 유출과 개인의 해외투자 수요를 웃돌았다고 설명했습니다.",
+    "basis": "news",
+    "refs": [
+      "E3-3"
+    ],
+    "ledger": [
+      {
+        "id": "E3-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "씨티의 하락 전망 제목뿐, 수출기업 환전 수요와 다른 수요의 비교는 없음",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [easy]"
+  },
+  {
+    "id": "common-fx-cause-1-deep-1",
+    "area": "fx",
+    "claim": "미국 중간선거 개표 흐름에 따른 미 국채 금리와 달러 지수 하락이 당일 환율을 낮추는 압력으로 보도됐습니다. 다만 당일 마감 상승을 포함한 전체 움직임의 원인으로 단정할 수는 없습니다.",
+    "evidence": "2026-11-04 연합뉴스 기사 내용은 미 국채 금리·달러 지수 하락을 하방 요인으로 설명하지만, 기사 제목의 당일 마감환율은 1,341.5원으로 전일 대비 0.5원 상승입니다.",
+    "basis": "news",
+    "refs": [
+      "E3-2"
+    ],
+    "ledger": [
+      {
+        "id": "E3-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 0.5원 상승인데 주장은 하락 압력 보도 (같은 제목의 다른 쌍과 같은 기준, 모델은 supported → contradicted 로 흔들림)",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep]"
+  },
+  {
+    "id": "common-fx-cause-1-deep-2",
+    "area": "fx",
+    "claim": "수출기업의 달러 유입과 환전 수요는 원화 강세를 뒷받침하는 요인으로 분석됐습니다.",
+    "evidence": "2026-11-04 한국경제와 연합뉴스가 수출기업 수요를 거론했습니다. 같은 날 USD/KRW 기준환율은 1,341.05원이지만, 이 수치만으로 해당 요인의 기여도는 알 수 없습니다.",
+    "basis": "news",
+    "refs": [
+      "E3-1",
+      "E3-3",
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1341.05,
+          "asOf": "2026-11-04",
+          "comparison.rate": 1345.67,
+          "comparison.asOf": "2026-10-05",
+          "change": -4.62,
+          "changePct": -0.34
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-22&to=2026-11-05",
+          "asOf": "2026-11-04"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      },
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "수출기업 달러 유입 · 환전 수요 분석은 제목에도 환율 값에도 없음",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep]"
+  },
+  {
+    "id": "common-fx-cause-1-deep-3",
+    "area": "fx",
+    "claim": "외국인의 환헤지·자금 유출과 개인의 해외투자 수요는 원화 강세를 제한할 수 있는 상충 요인으로 거론됐습니다. 어느 쪽이 더 크게 작용했는지는 검증되지 않았습니다.",
+    "evidence": "2026-11-04 한국경제는 외국인 환헤지 수요를, 연합뉴스가 인용한 씨티은행 분석은 외국인 자금 유출과 개인 해외투자 수요를 거론했습니다. 기여도를 비교한 수치는 확인되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E3-1",
+      "E3-3"
+    ],
+    "ledger": [
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E3-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "환헤지 · 자금 유출 · 해외투자 수요 거론은 제목에 없음",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep]"
+  },
+  {
+    "id": "common-news-status-1-easy-1",
+    "area": "news",
+    "claim": "연합뉴스는 국고채 금리가 일제히 하락했다고 보도했습니다.",
+    "evidence": "연합뉴스 기사 제목에 국고채 금리가 일제히 하락했다고 나옵니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국고채 금리 일제히 하락…3년물 연 3.714%",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:40:33.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104149000008",
+          "asOf": "2026-11-04T07:40:33.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 '국고채 금리 일제히 하락'",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [easy]"
+  },
+  {
+    "id": "common-news-status-1-easy-2",
+    "area": "news",
+    "claim": "연합뉴스는 티메프 피해 기업을 위한 특별 만기 연장과 가산금리 미부과 조치를 보도했습니다.",
+    "evidence": "기사 제목에 특별 만기 연장과 가산금리 미부과가 명시돼 있습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "중기부, 티메프 피해 기업 특별만기연장…가산금리 미부과",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T03:00:04.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104043700030",
+          "asOf": "2026-11-04T03:00:04.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 '특별만기연장…가산금리 미부과'",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [easy]"
+  },
+  {
+    "id": "common-news-status-1-deep-1",
+    "area": "news",
+    "claim": "연합인포맥스는 미국 금리 하락과 외국인 매수를 국고채 금리 하락의 배경으로 거론했지만, 제목만으로 인과관계를 확정할 수는 없습니다.",
+    "evidence": "연합뉴스의 국고채 금리 하락 기사 제목에 마감 금리 연 3.71%가 제시됐고, 연합인포맥스 제목에는 미국 금리 하락과 외국인 매수가 함께 언급됐습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1",
+      "E2-5"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국고채 금리 일제히 하락…3년물 연 3.714%",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:40:33.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104149000008",
+          "asOf": "2026-11-04T07:40:33.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E2-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합인포맥스",
+        "values": {
+          "title": "[채권-마감] 블루웨이브에 美금리 하락·外人 매수…국고 3년 2.2bp↓ - 연합인포맥스",
+          "publisher": "연합인포맥스",
+          "publishedAt": "2026-11-04T09:45:58.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "연합인포맥스",
+          "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE95b3RwNTd4M3RFZFRmaGQzdGZmc1A0bjg4RzJxdk1ibGFpZ1hkOUUzbXdDZjNVYzhqZWVPTmw1Qm1nN2pnWTRZMGNYNUkweWRjV2J4R3U2VmN1MXQtUm1mNV9kMkszOXgwNnpnZGJFQzM?oc=5",
+          "asOf": "2026-11-04T09:45:58.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "E2-5 제목 '美금리 하락·外人 매수…국고 3년 2.2bp↓' 가 배경 두 가지를 그대로 담음",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [deep]"
+  },
+  {
+    "id": "common-macro-cause-1-deep-1",
+    "area": "macro",
+    "claim": "스페셜타임스는 가공식품과 외식비 상승을 물가 상승의 주요 원인으로 지목했습니다.",
+    "evidence": "2026-11-03 스페셜타임스 기사 제목의 주장입니다. 기사 본문과 품목별 기여도는 확인되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-2"
+    ],
+    "ledger": [
+      {
+        "id": "E2-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 스페셜타임스",
+        "values": {
+          "title": "10월 소비자물가 2.8% 상승, 가공식품·외식비 상승이 주요 원인 - 스페셜타임스",
+          "publisher": "스페셜타임스",
+          "publishedAt": "2026-11-03T00:44:36.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "스페셜타임스",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFAwR2N0MGhxWnE4cnkwbVlDLThXSzFnc0tpalVHNnNMRHlUcDYzSFBLZ0ZxTUFhOVNNM2RCSFZLS3dVeVI4SUh1d1JDdDFlSGNQbDhIdVA3MTl3OHg0bVBGVU80SGxjazJMYzZCM1J6X3pVYmc?oc=5",
+          "asOf": "2026-11-03T00:44:36.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 3건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목이 가공식품 · 외식비 상승을 주요 원인으로 명시",
+    "source": "2026-11-04-1753.md#최근 우리나라 물가가 왜 올랐어? [deep]"
+  },
+  {
+    "id": "etf-status-2-deep-1",
+    "area": "etf",
+    "claim": "괴리율이 음수인 것은 종가가 NAV보다 낮기 때문입니다. 다만 할인 상태가 발생한 시장 원인까지 확인된 것은 아닙니다.",
+    "evidence": "2026-11-03 종가 25,010원, NAV 25,049.19원, 두 값의 차이 39.19원",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · TIGER 미국S&P500 괴리 금액",
+        "values": {
+          "change": 39.19,
+          "from": 25010,
+          "to": 25049.19
+        },
+        "source": {
+          "name": "TIGER 미국S&P500 괴리 금액",
+          "url": "",
+          "asOf": "2026-11-03"
+        },
+        "note": "E1.latest.nav 25049.19 − E1.latest.close 25010 = 39.19. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "diff",
+          "inputs": [
+            "E1"
+          ]
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "latest.close 25,010 < latest.nav 25,049.19, premiumPct 음수",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 괴리율이랑 순자산 규모 알려줘 [deep]"
+  },
+  {
+    "id": "etf-cause-1-deep-1",
+    "area": "etf",
+    "claim": "최근 코스피 변동성의 가능한 배경으로 AI 수익성 우려, 미국 중간선거 불확실성, 글로벌 반도체주 변동이 거론됐습니다. 석 달 하락 전체의 원인으로 확인된 것은 아닙니다.",
+    "evidence": "2026-11-04 연합뉴스 보도가 이 요인들을 거론했습니다. KODEX 200의 2026-08-05~2026-11-03 가격 수익률 -14.36%를 시기별로 설명하는 근거는 확보되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-4",
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      },
+      {
+        "id": "E2-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "널뛰는 코스피, 日변동성 3개월래 최대…VI 발동도 증가세(종합)",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:20:42.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104076651008",
+          "asOf": "2026-11-04T07:20:42.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목은 변동성 확대만, AI 수익성 · 중간선거 · 반도체주 원인은 없음",
+    "source": "2026-11-04-1753.md#KODEX 200이 최근 석 달 동안 왜 이렇게 움직였어? [deep]"
+  },
+  {
+    "id": "etf-cause-2-easy-1",
+    "area": "etf",
+    "claim": "ETF 수익률은 분배금을 제외한 가격 기준으로 집계되며, 환헤지가 없으면 원화 환율 변동도 지수와의 차이에 섞일 수 있습니다.",
+    "evidence": "해당 ETF 수익률은 분배금을 뺀 가격 기준이며, 환헤지가 없으면 환율 변동이 추적 차이에 섞일 수 있다고 안내되어 있습니다.",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "장부 note 에 '분배금을 뺀 가격 기준' · '환헤지가 없으면 추적 차이에 환율 변동이 섞임' 명시",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나? [easy]"
+  },
+  {
+    "id": "etf-cause-2-deep-1",
+    "area": "etf",
+    "claim": "현지 통화 기준 지수와 ETF를 비교할 때 환율은 수익률 차이를 낳을 수 있지만, 이번 차이에서 환율의 실제 기여도는 확인되지 않았습니다.",
+    "evidence": "E1의 해당 기간 ETF 가격 수익률은 -3.72%, 지수 수익률은 -3.20%이며, E1 주석은 환헤지가 없으면 추적 차이에 환율 변동이 섞일 수 있다고 명시합니다.",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "note 의 환율 섞임 설명과 '기여도는 확인되지 않음' 단서가 일치",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나? [deep]"
+  },
+  {
+    "id": "etf-compare-1-deep-1",
+    "area": "etf",
+    "claim": "두 ETF가 함께 하락한 배경에는 공통으로 추종하는 코스피 200의 하락이 있습니다.",
+    "evidence": "2026-08-05~2026-11-03 코스피 200 -14.72%, KODEX 200 -14.36%, TIGER 200 -14.79%.",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 1분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "E2",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89155,
+          "latest.change": -2770,
+          "latest.changePct": -3.01,
+          "latest.nav": 89176.11,
+          "latest.premiumPct": -0.023672259308014875,
+          "latest.open": 90045,
+          "latest.high": 90550,
+          "latest.low": 88560,
+          "latest.volume": 13292961,
+          "latest.tradeValue": 1189935169278,
+          "latest.netAssets": 9002327862789,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104625,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.786140979689366,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": -0.06233273967165509,
+          "period.high": 115020,
+          "period.low": 83410
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 2시간 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      }
+    ],
+    "expected": "supported",
+    "note": "두 ETF period.returnPct 가 모두 음수이고 indexReturnPct 도 -14.72 로 함께 하락",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep]"
+  },
+  {
+    "id": "etf-compare-1-deep-2",
+    "area": "etf",
+    "claim": "상품 간 수익률 차이는 같은 기간 각 ETF의 지수 대비 가격 수익률 차이와 방향이 일치하지만, 그 차이가 발생한 구체적 원인까지 확인되지는 않습니다.",
+    "evidence": "KODEX 200의 지수 대비 차이 0.37%p, TIGER 200은 -0.06%p이며, TIGER 200에서 KODEX 200을 뺀 수익률 차이는 -0.43%p입니다.",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "E2",
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 1분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "E2",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89155,
+          "latest.change": -2770,
+          "latest.changePct": -3.01,
+          "latest.nav": 89176.11,
+          "latest.premiumPct": -0.023672259308014875,
+          "latest.open": 90045,
+          "latest.high": 90550,
+          "latest.low": 88560,
+          "latest.volume": 13292961,
+          "latest.tradeValue": 1189935169278,
+          "latest.netAssets": 9002327862789,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104625,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.786140979689366,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": -0.06233273967165509,
+          "period.high": 115020,
+          "period.low": 83410
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 2시간 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · KODEX 200 vs TIGER 200 최근 3개월 수익률 차이",
+        "values": {
+          "changePp": -0.428519,
+          "from": -14.35762224352828,
+          "to": -14.786140979689366,
+          "unit": "%"
+        },
+        "source": {
+          "name": "KODEX 200 vs TIGER 200 최근 3개월 수익률 차이",
+          "url": "",
+          "asOf": "2026-11-03"
+        },
+        "note": "E2.period.returnPct -14.786140979689366 − E1.period.returnPct -14.35762224352828 = -0.428519%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "diff",
+          "inputs": [
+            "E1",
+            "E2"
+          ]
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "C1 -0.43%p 로 KODEX 가 TIGER 보다 높고 추적 차이(0.37 vs -0.06)도 KODEX 쪽이 높아 방향 일치. 원인 미확인은 주장도 그렇게 말함 (모델은 unsupported)",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep]"
+  },
+  {
+    "id": "news-status-1-easy-1",
+    "area": "news",
+    "claim": "미국 정책과 AI 산업 관련 불확실성이 기사 소재로 다뤄졌습니다.",
+    "evidence": "한국경제 기사는 미국 중간선거 이후 AI 데이터센터 규제 우려와 관련 기업의 투자·주가 전망을 다뤘고, 연합뉴스 기사는 미국 관세정책 유지 전망과 대중국 견제 가능성을 전했습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1",
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "선거 리스크 제거에 매수 기회?…\"테슬라·스페이스X 는 위험\" [박신영의 개장전 요것만]",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:19:07.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611056800i",
+          "asOf": "2026-11-04T15:19:07.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "코트라 \"미국 관세정책 유지 전망…쟁점법안 거부권 가능성\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T14:48:59.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104185300003",
+          "asOf": "2026-11-04T14:48:59.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "관세정책(정책)은 제목에 있으나 AI 산업 불확실성은 없음",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [easy]"
+  },
+  {
+    "id": "news-status-1-easy-2",
+    "area": "news",
+    "claim": "국내에서는 집값 발언을 둘러싼 보도 논란과 중고거래·중고 패션 시장의 성장 및 플랫폼 재편도 다뤄졌습니다.",
+    "evidence": "연합뉴스 기사는 대통령 집값 발언 관련 반박과 보도 제목 논란을, 한국경제 기사는 중고거래·중고 패션 시장과 플랫폼 사업 재편을 다뤘습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-3",
+      "E1-4"
+    ],
+    "ledger": [
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "李대통령, '대통령 집값 발언 강남만 맞았다' 보도에 \"가짜뉴스\"(종합)",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T13:28:23.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104050951001",
+          "asOf": "2026-11-04T13:28:23.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "\"중고백 3900만원에 팔았어요\"…MZ 열광한 '이곳' 정체",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T13:12:24.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611044235g",
+          "asOf": "2026-11-04T13:12:24.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "집값 발언 논란은 있으나 중고거래 시장 성장 · 플랫폼 재편은 제목에 없음",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [easy]"
+  },
+  {
+    "id": "news-status-1-standard-1",
+    "area": "news",
+    "claim": "미국 관련 기사들은 AI 데이터센터 사업 전망과 정책 변수를 함께 다룹니다.",
+    "evidence": "한국경제 기사는 AI 데이터센터 규제 우려와 AMD 실적, 시장·애널리스트의 엇갈린 전망을 다룹니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "선거 리스크 제거에 매수 기회?…\"테슬라·스페이스X 는 위험\" [박신영의 개장전 요것만]",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:19:07.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611056800i",
+          "asOf": "2026-11-04T15:19:07.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "테슬라 · 스페이스X 제목, AI 데이터센터 · 정책 변수 없음",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [standard]"
+  },
+  {
+    "id": "news-status-1-standard-2",
+    "area": "news",
+    "claim": "미국 관세와 대중국 정책의 지속 여부도 통상 관련 보도 주제로 나타납니다.",
+    "evidence": "연합뉴스는 코트라가 미국 관세정책과 대중국 견제 기조가 유지될 것으로 전망했다고 전합니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "코트라 \"미국 관세정책 유지 전망…쟁점법안 거부권 가능성\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T14:48:59.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104185300003",
+          "asOf": "2026-11-04T14:48:59.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "관세정책 유지 전망은 있으나 대중국 정책은 제목에 없음 (경계 사례, 모델은 supported)",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [standard]"
+  },
+  {
+    "id": "news-status-1-standard-3",
+    "area": "news",
+    "claim": "소비·서비스 분야에서는 중고 패션 거래 확대와 상조업의 사업 방식 변화가 보도됐습니다.",
+    "evidence": "한국경제 기사들은 리커머스 이용 확대와 플랫폼 변화, 후불상조·플랫폼형 운영 계획을 다룹니다.",
+    "basis": "news",
+    "refs": [
+      "E1-4",
+      "E1-5"
+    ],
+    "ledger": [
+      {
+        "id": "E1-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "\"중고백 3900만원에 팔았어요\"…MZ 열광한 '이곳' 정체",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T13:12:24.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611044235g",
+          "asOf": "2026-11-04T13:12:24.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "150억에 회사 넘긴 노현정 남편…장례식장 647곳 손잡은 이유",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T12:07:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110466527",
+          "asOf": "2026-11-04T12:07:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "중고백 · 장례식장 제목으로 거래 확대 · 상조업 사업 방식 변화까지는 알 수 없음",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [standard]"
+  },
+  {
+    "id": "news-cause-1-standard-1",
+    "area": "news",
+    "claim": "확인된 보도는 농산물 가격 안정 대책을 다루지만, 물가 변동의 원인을 직접 설명하지는 않습니다.",
+    "evidence": "연합뉴스 보도 제목은 농산물가격안정제 지원 품목 확대 주장을 전하며, 정제된 사실은 농산물 수급·가격 안정 대책을 다뤘다고 요약합니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "최동익 전남광주시의원 \"농산물가격안정제 지원 품목 확대\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T05:58:50.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104116000054",
+          "asOf": "2026-11-04T05:58:50.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 1건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목이 농산물가격안정제 지원 품목 확대이고, 물가 원인은 없다는 주장도 맞음",
+    "source": "2026-11-04-1753.md#요즘 물가가 변하는 이유를 뉴스에서는 뭐라고 해? [standard]"
+  },
+  {
+    "id": "news-cause-1-deep-1",
+    "area": "news",
+    "claim": "미국 민주당은 관세정책과 이란 전쟁이 미국 물가 상승의 원인이라고 주장했습니다.",
+    "evidence": "2026-11-04 한국경제 기사에 소개된 정치권 주장입니다. 원인과 영향을 검증할 물가 수치는 확인되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-1"
+    ],
+    "ledger": [
+      {
+        "id": "E2-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "선거 리스크 제거에 매수 기회?…\"테슬라·스페이스X 는 위험\" [박신영의 개장전 요것만]",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:19:07.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611056800i",
+          "asOf": "2026-11-04T15:19:07.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "테슬라 · 스페이스X 제목, 민주당 · 관세 · 이란 전쟁 없음",
+    "source": "2026-11-04-1753.md#요즘 물가가 변하는 이유를 뉴스에서는 뭐라고 해? [deep]"
+  },
+  {
+    "id": "news-cause-2-easy-1",
+    "area": "news",
+    "claim": "한국경제는 외국인 투자자의 환헤지 수요가 원·달러 환율을 밀어 올릴 수 있다고 전했습니다. 반면 반도체 수출로 들어온 달러와 경상수지 흑자는 다른 대외 변수의 영향을 상쇄하며 원화 강세를 이끌었다는 시장 관계자 분석도 소개했습니다.",
+    "evidence": "기사 내용에 따르면 외국인 환헤지 수요는 환율 상승 요인, 수출 달러와 경상수지 흑자는 원화 강세 요인으로 제시됐습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목은 코스피 · 환율 동반 상승만",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [easy]"
+  },
+  {
+    "id": "news-cause-2-easy-2",
+    "area": "news",
+    "claim": "연합뉴스는 미국 중간선거 결과 전망에 따른 미 국채 금리·달러 지수 하락이 환율 하락 압력으로 작용했다고 보도했습니다. 재정 우려 완화 가능성과 AI 투자 심리에 따른 달러 수요 감소도 배경으로 전했습니다.",
+    "evidence": "기사에서 미 국채 금리와 달러 지수 하락, 달러 수요 감소가 환율 하락 압력의 배경으로 제시됐습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 환율 0.5원 상승, 주장은 하락 압력 보도",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [easy]"
+  },
+  {
+    "id": "news-cause-2-easy-3",
+    "area": "news",
+    "claim": "연합뉴스가 전한 씨티은행 분석은 수출기업의 환전 수요가 외국인 배당금 송금과 국내 개인의 해외투자 수요를 웃돌아 원화 강세가 이어진다고 설명했습니다.",
+    "evidence": "기사에서 수출기업의 환전 수요와 외국인 배당금 송금·국내 개인의 해외투자 수요를 비교해 원화 강세 배경으로 들었습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-3"
+    ],
+    "ledger": [
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "씨티 하락 전망 제목뿐, 환전 수요 비교 분석 없음",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [easy]"
+  },
+  {
+    "id": "news-cause-2-standard-1",
+    "area": "news",
+    "claim": "외국인 투자자의 환헤지 수요가 주식 매수와 환율 상승이 함께 나타난 배경으로 거론됐습니다.",
+    "evidence": "한국경제 보도에서 외국인 환헤지 수요를 배경으로 들었습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "환헤지 수요 거론은 제목에 없음",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [standard]"
+  },
+  {
+    "id": "news-cause-2-standard-2",
+    "area": "news",
+    "claim": "미 중간선거 결과 전망에 따른 미 국채 금리·달러 지수 하락이 원/달러 환율에 하락 압력을 준 것으로 보도됐습니다. 미국 재정 우려 완화 가능성과 AI 투자 심리에 따른 달러 수요 감소도 복합 요인으로 언급됐습니다.",
+    "evidence": "연합뉴스 보도에서 미 국채 금리와 달러 지수 하락, 재정 우려 및 AI 투자 심리를 요인으로 제시했습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 상승, 주장은 하락 압력 보도 (모델은 unsupported)",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [standard]"
+  },
+  {
+    "id": "news-cause-2-standard-3",
+    "area": "news",
+    "claim": "수출기업의 환전 수요가 외국인 자금 유출과 국내 개인의 해외투자 수요보다 커 원화 강세가 이어진다는 씨티은행 분석이 전해졌습니다. 반도체 수출 달러와 경상수지 흑자도 원화를 강하게 하는 변수로 설명됐습니다.",
+    "evidence": "연합뉴스가 씨티은행 분석을 전했고, 한국경제는 반도체 수출 달러와 경상수지 흑자를 원화 강세 변수로 설명했습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1",
+      "E1-3"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목에 수출기업 환전 수요 · 경상수지 흑자 없음",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [standard]"
+  },
+  {
+    "id": "news-cause-2-deep-1",
+    "area": "news",
+    "claim": "연합뉴스는 미국 중간선거 개표 흐름에 따른 미 국채 금리와 달러 지수 하락이 원·달러 환율에 하방 압력을 줬다고 보도했습니다.",
+    "evidence": "2026-11-04 연합뉴스 보도에 제시된 원인 분석이며, 실제 영향의 크기는 확인되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 상승, 주장은 하방 압력 보도 (모델은 unsupported)",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [deep]"
+  },
+  {
+    "id": "news-cause-2-deep-2",
+    "area": "news",
+    "claim": "한국경제는 외국인 투자자의 환헤지 수요를 환율 움직임의 배경으로 거론하고, 수출기업이 벌어들인 달러가 원화 강세에 영향을 줬다는 외환시장 관계자의 분석을 전했습니다.",
+    "evidence": "2026-11-04 한국경제 보도와 기사에 인용된 관계자의 견해입니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "환헤지 · 수출기업 달러 분석은 제목에 없음",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [deep]"
+  },
+  {
+    "id": "news-cause-2-deep-3",
+    "area": "news",
+    "claim": "씨티은행은 수출기업의 환전 수요가 외국인 자금 유출과 국내 개인의 해외투자 수요를 웃돌아 원화 강세가 이어진다고 분석했습니다.",
+    "evidence": "2026-11-04 연합뉴스가 전한 씨티은행의 분석입니다. 수요 간 규모 비교는 독립 검증되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-3"
+    ],
+    "ledger": [
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "씨티 전망 제목은 원화 강세 방향과 맞지만 환전 수요 > 유출 메커니즘은 없음 (모델은 contradicted)",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [deep]"
+  },
+  {
+    "id": "news-compare-1-easy-1",
+    "area": "news",
+    "claim": "확인된 표본에서는 한국경제 기사가 선거 이후 투자와 시장 반응에, 연합뉴스 기사가 관세정책 전망에 초점을 둡니다.",
+    "evidence": "한국경제 기사 제목은 대미 투자 셈법, 테슬라·스페이스X 위험, 월가 반응을 다뤘고, 연합뉴스 기사 제목은 미국 관세정책 유지 전망과 쟁점 법안 거부권 가능성을 다룹니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1",
+      "E1-2",
+      "E1-3",
+      "E1-4"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "\"레임덕이 화난 오리 된다\"…트럼프 참패에도 대미투자 셈법 복잡",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T16:07:32.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611056810i",
+          "asOf": "2026-11-04T16:07:32.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "선거 리스크 제거에 매수 기회?…\"테슬라·스페이스X 는 위험\" [박신영의 개장전 요것만]",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:19:07.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611056800i",
+          "asOf": "2026-11-04T15:19:07.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "美 민주당 압승에 월가 축포?…다우·나스닥 2% 넘게 급등",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:10:06.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611046798i",
+          "asOf": "2026-11-04T15:10:06.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "코트라 \"미국 관세정책 유지 전망…쟁점법안 거부권 가능성\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T14:48:59.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104185300003",
+          "asOf": "2026-11-04T14:48:59.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "한국경제 3건이 선거 · 시장 반응, 연합뉴스 1건이 관세정책",
+    "source": "2026-11-04-1753.md#연합뉴스랑 한국경제는 요즘 다루는 경제 뉴스가 달라? [easy]"
+  },
+  {
+    "id": "news-compare-2-standard-1",
+    "area": "news",
+    "claim": "금리 기사에서는 국고채 시장에서 금리가 하락했다는 소식을 전했습니다.",
+    "evidence": "연합뉴스는 국고채 금리가 일제히 하락했다고 보도했습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-1"
+    ],
+    "ledger": [
+      {
+        "id": "E2-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국고채 금리 일제히 하락…3년물 연 3.714%",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:40:33.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104149000008",
+          "asOf": "2026-11-04T07:40:33.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 '국고채 금리 일제히 하락'",
+    "source": "2026-11-04-1753.md#금리 뉴스랑 물가 뉴스는 어떤 차이가 있어? [standard]"
+  },
+  {
+    "id": "news-compare-2-standard-2",
+    "area": "news",
+    "claim": "농산물 가격안정제 관련 기사는 농산물 지원 품목 확대 요구를 다루며, 전체 물가 지표나 물가 상승률을 설명하지는 않습니다.",
+    "evidence": "기사 제목은 농산물가격안정제 지원 품목 확대 요구를 다룹니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "최동익 전남광주시의원 \"농산물가격안정제 지원 품목 확대\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T05:58:50.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104116000054",
+          "asOf": "2026-11-04T05:58:50.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 1건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목은 지원 품목 확대이고 물가 지표 설명은 없음",
+    "source": "2026-11-04-1753.md#금리 뉴스랑 물가 뉴스는 어떤 차이가 있어? [standard]"
+  },
+  {
+    "id": "common-fx-cause-1-standard-1",
+    "area": "fx",
+    "claim": "보도 제목들은 미국 중간선거·재정·글로벌 기술주 관련 불확실성과 위험회피 심리를 단기 변동성 또는 환율 상승의 배경으로 제시합니다. 다만 이번 30일 하락의 원인으로 확인된 것은 아닙니다.",
+    "evidence": "관련 내용을 담은 보도 제목이 확인됐지만, 기사 본문은 확보되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2",
+      "E1-5"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 글로벌이코노믹",
+        "values": {
+          "title": "[美 중간선거] 美 재정·글로벌 기술주 불확실성에 원·달러 환율 단기 변동성 커져 - 글로벌이코노믹",
+          "publisher": "글로벌이코노믹",
+          "publishedAt": "2026-11-03T04:41:54.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "글로벌이코노믹",
+          "url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxQZmNfN2lKOGZUY3BxMWNCVDhydTZ4d1NYLVF2RXRUTjBINHRWUUZuUWstMjRMUTNDbGNFN1luNTFEdW83NHNoMEY4VWFKR0tLTUFXdGI1MVRkZkZ0NC0xWWVxQmp2azgxS3JNUEduMmI2MzItZVlRdDhjdFdtN0dYREtoSGI?oc=5",
+          "asOf": "2026-11-03T04:41:54.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 직썰",
+        "values": {
+          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승 - 직썰",
+          "publisher": "직썰",
+          "publishedAt": "2026-11-03T00:57:26.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "직썰",
+          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1sYThQY28yMW1yQV9kdXhLQ2lCel80aHFvU3dOTWVRMXlSLUpiSjZuQ1Q1MWNteERpamFBR2NGcWUyVDVNVURoSkl1dUpEaldMWE5WZ2JpTzF3YjV6aXhQYl9TeGNkVWF40gFsQVVfeXFMTWUtaDY0cTJUU2lNdmZzQ1dmNmJOVUc3bC1rME9JR2ZOdmdvNVczaTNXdVdETHdacDQ1QUVyY2VkWHJVZGV2eFJIUjFRdWVLbHlXclVUMUVGWW5MUjZkWjVYSmdVLWQxclRQSkYx?oc=5",
+          "asOf": "2026-11-03T00:57:26.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목에 불확실성 · 위험회피 심리 상승이 명시",
+    "source": "2026-11-03-0613.md#요즘 원달러 환율이 왜 이렇게 움직여? [standard]"
+  },
+  {
+    "id": "common-fx-cause-1-standard-2",
+    "area": "fx",
+    "claim": "다른 보도 제목은 달러 등 주요 통화의 전반적 약세와 원화 강세의 숨 고르기를 언급해, 시장 흐름이 한 방향으로만 움직이지 않았음을 시사합니다.",
+    "evidence": "달러 등 통화 약세와 원화 강세 숨 고르기를 언급한 보도 제목이 확인됐습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1",
+      "E1-4"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 투어코리아",
+        "values": {
+          "title": "[종합 환율] 11월 3일 장중 달러 엔 유로 위안 등 전반적 약세 - 투어코리아",
+          "publisher": "투어코리아",
+          "publishedAt": "2026-11-03T05:31:31.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "투어코리아",
+          "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE5IdVlGRldBdFF1Q1RHX3dYQlNLcHdDa3VCcURyV2hmRzE3b2JaZDBLS3FFUUpIOTFuMW9Ra1A5X25SdHFVRWhBcFprZU9mcHJodjJiWkljc0NWQjloSjZ3eDNkWDh5NDA4QVlQejl3?oc=5",
+          "asOf": "2026-11-03T05:31:31.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 이투데이",
+        "values": {
+          "title": "다시 1340원대로 오른 원·달러 환율, 전문가들 “원화 강세 숨고르기” - 이투데이",
+          "publisher": "이투데이",
+          "publishedAt": "2026-11-03T02:38:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "이투데이",
+          "url": "https://news.google.com/rss/articles/CBMiVEFVX3lxTFBOMEVUWDFnb3NqMG1Mc1BzR1ZhZnlLa2NWRmdweWw5ek9uQUc5cWYwbTd4TkpoRHhnVXdHa1pLb1hvaDNHS3lOQ0drM0hLTnl6UjFwUw?oc=5",
+          "asOf": "2026-11-03T02:38:00.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 '전반적 약세' · '원화 강세 숨고르기'",
+    "source": "2026-11-03-0613.md#요즘 원달러 환율이 왜 이렇게 움직여? [standard]"
+  },
+  {
+    "id": "common-news-status-1-standard-1",
+    "area": "news",
+    "claim": "보도에 인용된 시장 분석가들은 국고채 금리 하락 배경으로 위험회피 심리를 들었습니다.",
+    "evidence": "연합뉴스가 시장 분석가의 설명으로 위험회피 심리를 보도했습니다. 기사 속 수치는 별도 검증되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국채 금리 내릴 때 CP 금리 상승…연말 단기자금 경색 신호일까",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-03T00:47:39.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261103053600008",
+          "asOf": "2026-11-03T00:47:39.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 2건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목에 위험회피 심리 없음",
+    "source": "2026-11-03-0613.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [standard]"
+  },
+  {
+    "id": "common-news-status-1-standard-2",
+    "area": "news",
+    "claim": "보도에 인용된 시장 분석가들은 CP 금리 상승 배경으로 추가 긴축 우려와 연말 자금 수요 등을 들었습니다.",
+    "evidence": "연합뉴스가 시장 분석가의 설명으로 추가 긴축 우려와 연말 자금 수요 등을 보도했습니다. 기사 속 수치는 별도 검증되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국채 금리 내릴 때 CP 금리 상승…연말 단기자금 경색 신호일까",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-03T00:47:39.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261103053600008",
+          "asOf": "2026-11-03T00:47:39.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 2건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "연말 단기자금 경색은 있으나 추가 긴축 우려는 없음",
+    "source": "2026-11-03-0613.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [standard]"
+  },
+  {
+    "id": "common-news-status-1-easy-1-flip",
+    "area": "news",
+    "claim": "연합뉴스는 국고채 금리가 일제히 상승했다고 보도했습니다.",
+    "evidence": "연합뉴스 기사 제목에 국고채 금리가 일제히 하락했다고 나옵니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국고채 금리 일제히 하락…3년물 연 3.714%",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:40:33.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104149000008",
+          "asOf": "2026-11-04T07:40:33.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 하락",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [easy] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-news-status-1-easy-2-flip",
+    "area": "news",
+    "claim": "중기부는 티메프 피해 기업에 가산금리를 부과하기로 했다고 보도됐습니다.",
+    "evidence": "기사 제목에 특별 만기 연장과 가산금리 미부과가 명시돼 있습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "중기부, 티메프 피해 기업 특별만기연장…가산금리 미부과",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T03:00:04.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104043700030",
+          "asOf": "2026-11-04T03:00:04.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 가산금리 미부과",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [easy] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-news-status-1-deep-1-flip",
+    "area": "news",
+    "claim": "연합인포맥스는 미국 금리 상승과 외국인 매도를 국고채 금리 상승의 배경으로 거론했습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E2-5"
+    ],
+    "ledger": [
+      {
+        "id": "E2-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합인포맥스",
+        "values": {
+          "title": "[채권-마감] 블루웨이브에 美금리 하락·外人 매수…국고 3년 2.2bp↓ - 연합인포맥스",
+          "publisher": "연합인포맥스",
+          "publishedAt": "2026-11-04T09:45:58.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "연합인포맥스",
+          "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE95b3RwNTd4M3RFZFRmaGQzdGZmc1A0bjg4RzJxdk1ibGFpZ1hkOUUzbXdDZjNVYzhqZWVPTmw1Qm1nN2pnWTRZMGNYNUkweWRjV2J4R3U2VmN1MXQtUm1mNV9kMkszOXgwNnpnZGJFQzM?oc=5",
+          "asOf": "2026-11-04T09:45:58.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 美금리 하락 · 外人 매수 · 국고 3년 2.2bp↓",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-news-status-1-deep-1-over",
+    "area": "news",
+    "claim": "국고채 금리 하락은 한국은행의 기준금리 인하 때문입니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국고채 금리 일제히 하락…3년물 연 3.714%",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:40:33.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104149000008",
+          "asOf": "2026-11-04T07:40:33.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목에 기준금리 인하 없음",
+    "source": "2026-11-04-1753.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [deep] · 변형(over): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-macro-cause-1-deep-1-flip",
+    "area": "macro",
+    "claim": "스페셜타임스는 에너지 가격 하락으로 10월 소비자물가가 내렸다고 보도했습니다.",
+    "evidence": "2026-11-03 스페셜타임스 기사 제목의 주장입니다. 기사 본문과 품목별 기여도는 확인되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-2"
+    ],
+    "ledger": [
+      {
+        "id": "E2-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 스페셜타임스",
+        "values": {
+          "title": "10월 소비자물가 2.8% 상승, 가공식품·외식비 상승이 주요 원인 - 스페셜타임스",
+          "publisher": "스페셜타임스",
+          "publishedAt": "2026-11-03T00:44:36.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "스페셜타임스",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFAwR2N0MGhxWnE4cnkwbVlDLThXSzFnc0tpalVHNnNMRHlUcDYzSFBLZ0ZxTUFhOVNNM2RCSFZLS3dVeVI4SUh1d1JDdDFlSGNQbDhIdVA3MTl3OHg0bVBGVU80SGxjazJMYzZCM1J6X3pVYmc?oc=5",
+          "asOf": "2026-11-03T00:44:36.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 3건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 2.8% 상승 · 가공식품 · 외식비",
+    "source": "2026-11-04-1753.md#최근 우리나라 물가가 왜 올랐어? [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-status-2-deep-1-flip",
+    "area": "etf",
+    "claim": "TIGER 미국S&P500 은 종가가 NAV 보다 높아 괴리율이 양수입니다.",
+    "evidence": "2026-11-03 종가 25,010원, NAV 25,049.19원, 두 값의 차이 39.19원",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · TIGER 미국S&P500 괴리 금액",
+        "values": {
+          "change": 39.19,
+          "from": 25010,
+          "to": 25049.19
+        },
+        "source": {
+          "name": "TIGER 미국S&P500 괴리 금액",
+          "url": "",
+          "asOf": "2026-11-03"
+        },
+        "note": "E1.latest.nav 25049.19 − E1.latest.close 25010 = 39.19. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "diff",
+          "inputs": [
+            "E1"
+          ]
+        }
+      }
+    ],
+    "expected": "contradicted",
+    "note": "close 25,010 < nav 25,049.19",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 괴리율이랑 순자산 규모 알려줘 [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-status-2-deep-1-over",
+    "area": "etf",
+    "claim": "괴리율이 음수인 것은 외국인이 이 ETF 를 대량 매도했기 때문입니다.",
+    "evidence": "2026-11-03 종가 25,010원, NAV 25,049.19원, 두 값의 차이 39.19원",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · TIGER 미국S&P500 괴리 금액",
+        "values": {
+          "change": 39.19,
+          "from": 25010,
+          "to": 25049.19
+        },
+        "source": {
+          "name": "TIGER 미국S&P500 괴리 금액",
+          "url": "",
+          "asOf": "2026-11-03"
+        },
+        "note": "E1.latest.nav 25049.19 − E1.latest.close 25010 = 39.19. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "diff",
+          "inputs": [
+            "E1"
+          ]
+        }
+      }
+    ],
+    "expected": "unsupported",
+    "note": "장부에 매매 주체 정보 없음",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 괴리율이랑 순자산 규모 알려줘 [deep] · 변형(over): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-status-2-deep-1-sup2",
+    "area": "etf",
+    "claim": "TIGER 미국S&P500 의 직전 영업일 종가는 전일보다 1.36% 내렸습니다.",
+    "evidence": "",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "latest.changePct -1.36",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 괴리율이랑 순자산 규모 알려줘 [deep] · 변형(sup2): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-cause-2-easy-1-flip",
+    "area": "etf",
+    "claim": "ETF 기간 수익률은 분배금을 포함한 총수익 기준으로 집계됩니다.",
+    "evidence": "해당 ETF 수익률은 분배금을 뺀 가격 기준이며, 환헤지가 없으면 환율 변동이 추적 차이에 섞일 수 있다고 안내되어 있습니다.",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-03",
+          "latest.close": 25010,
+          "latest.change": -345,
+          "latest.changePct": -1.36,
+          "latest.nav": 25049.19,
+          "latest.premiumPct": -0.15645216472069035,
+          "latest.open": 25185,
+          "latest.high": 25195,
+          "latest.low": 24965,
+          "latest.volume": 43736957,
+          "latest.tradeValue": 1096160531214,
+          "latest.netAssets": 20698148444428,
+          "latest.indexClose": 7568.92,
+          "period.from": "2026-10-06",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 25975,
+          "period.indexCloseFrom": 7818.93,
+          "period.returnPct": -3.7151106833493763,
+          "period.indexReturnPct": -3.197496332618399,
+          "period.trackingDiffPp": -0.5176143507309772,
+          "period.high": 26060,
+          "period.low": 24965
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "note 는 분배금을 뺀 가격 기준",
+    "source": "2026-11-04-1753.md#TIGER 미국S&P500 수익률이 S&P500 지수랑 왜 차이 나? [easy] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-cause-1-deep-1-flip",
+    "area": "etf",
+    "claim": "코스피 하루 변동성이 석 달 만에 가장 낮아졌다고 보도됐습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E2-4"
+    ],
+    "ledger": [
+      {
+        "id": "E2-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "널뛰는 코스피, 日변동성 3개월래 최대…VI 발동도 증가세(종합)",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:20:42.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104076651008",
+          "asOf": "2026-11-04T07:20:42.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 日변동성 3개월래 최대",
+    "source": "2026-11-04-1753.md#KODEX 200이 최근 석 달 동안 왜 이렇게 움직였어? [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-compare-1-deep-1-flip",
+    "area": "etf",
+    "claim": "두 ETF 는 코스피 200 이 오르는 동안 함께 올랐습니다.",
+    "evidence": "2026-08-05~2026-11-03 코스피 200 -14.72%, KODEX 200 -14.36%, TIGER 200 -14.79%.",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 1분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "E2",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89155,
+          "latest.change": -2770,
+          "latest.changePct": -3.01,
+          "latest.nav": 89176.11,
+          "latest.premiumPct": -0.023672259308014875,
+          "latest.open": 90045,
+          "latest.high": 90550,
+          "latest.low": 88560,
+          "latest.volume": 13292961,
+          "latest.tradeValue": 1189935169278,
+          "latest.netAssets": 9002327862789,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104625,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.786140979689366,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": -0.06233273967165509,
+          "period.high": 115020,
+          "period.low": 83410
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 2시간 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "수익률 · 지수 모두 음수",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-compare-1-deep-1-over",
+    "area": "etf",
+    "claim": "두 ETF 가 함께 하락한 것은 외국인 순매도 때문입니다.",
+    "evidence": "2026-08-05~2026-11-03 코스피 200 -14.72%, KODEX 200 -14.36%, TIGER 200 -14.79%.",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 1분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "E2",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89155,
+          "latest.change": -2770,
+          "latest.changePct": -3.01,
+          "latest.nav": 89176.11,
+          "latest.premiumPct": -0.023672259308014875,
+          "latest.open": 90045,
+          "latest.high": 90550,
+          "latest.low": 88560,
+          "latest.volume": 13292961,
+          "latest.tradeValue": 1189935169278,
+          "latest.netAssets": 9002327862789,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104625,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.786140979689366,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": -0.06233273967165509,
+          "period.high": 115020,
+          "period.low": 83410
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 2시간 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "장부에 외국인 매매 없음",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep] · 변형(over): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-compare-1-deep-1-num",
+    "area": "etf",
+    "claim": "코스피 200 은 최근 석 달 동안 14% 넘게 내렸습니다.",
+    "evidence": "",
+    "basis": "data",
+    "refs": [
+      "E1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 1분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      }
+    ],
+    "expected": "supported",
+    "note": "period.indexReturnPct -14.72",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep] · 변형(num): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-compare-1-deep-2-flip",
+    "area": "etf",
+    "claim": "KODEX 200 의 최근 3개월 수익률이 TIGER 200 보다 낮았습니다.",
+    "evidence": "KODEX 200의 지수 대비 차이 0.37%p, TIGER 200은 -0.06%p이며, TIGER 200에서 KODEX 200을 뺀 수익률 차이는 -0.43%p입니다.",
+    "basis": "data",
+    "refs": [
+      "E1",
+      "E2",
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89325,
+          "latest.change": -3620,
+          "latest.changePct": -3.89,
+          "latest.nav": 89438.56,
+          "latest.premiumPct": -0.12696984387941584,
+          "latest.open": 90320,
+          "latest.high": 90805,
+          "latest.low": 88810,
+          "latest.volume": 22746346,
+          "latest.tradeValue": 2039242673839,
+          "latest.netAssets": 22077908603382,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104300,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.35762224352828,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": 0.3661859964894312,
+          "period.high": 114710,
+          "period.low": 83045
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 1분 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "E2",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-03",
+          "latest.close": 89155,
+          "latest.change": -2770,
+          "latest.changePct": -3.01,
+          "latest.nav": 89176.11,
+          "latest.premiumPct": -0.023672259308014875,
+          "latest.open": 90045,
+          "latest.high": 90550,
+          "latest.low": 88560,
+          "latest.volume": 13292961,
+          "latest.tradeValue": 1189935169278,
+          "latest.netAssets": 9002327862789,
+          "latest.indexClose": 885.67,
+          "period.from": "2026-08-05",
+          "period.to": "2026-11-03",
+          "period.closeFrom": 104625,
+          "period.indexCloseFrom": 1038.59,
+          "period.returnPct": -14.786140979689366,
+          "period.indexReturnPct": -14.72380824001771,
+          "period.trackingDiffPp": -0.06233273967165509,
+          "period.high": 115020,
+          "period.low": 83410
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-03"
+        },
+        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다. 이번 조회는 실패해 2시간 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서 이 값을 \"지금 값\" 이 아니라 \"직전 조회 값\" 으로 쓸 것 (확인하지 못한 것 목록에는 자동으로 적힙니다)."
+      },
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · KODEX 200 vs TIGER 200 최근 3개월 수익률 차이",
+        "values": {
+          "changePp": -0.428519,
+          "from": -14.35762224352828,
+          "to": -14.786140979689366,
+          "unit": "%"
+        },
+        "source": {
+          "name": "KODEX 200 vs TIGER 200 최근 3개월 수익률 차이",
+          "url": "",
+          "asOf": "2026-11-03"
+        },
+        "note": "E2.period.returnPct -14.786140979689366 − E1.period.returnPct -14.35762224352828 = -0.428519%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "diff",
+          "inputs": [
+            "E1",
+            "E2"
+          ]
+        }
+      }
+    ],
+    "expected": "contradicted",
+    "note": "C1: KODEX -14.36 > TIGER -14.79",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "etf-compare-1-deep-2-sup",
+    "area": "etf",
+    "claim": "KODEX 200 과 TIGER 200 의 최근 3개월 수익률 차이는 0.5%p 미만입니다.",
+    "evidence": "",
+    "basis": "data",
+    "refs": [
+      "C1"
+    ],
+    "ledger": [
+      {
+        "id": "C1",
+        "tool": "calc_metrics",
+        "label": "계산 · KODEX 200 vs TIGER 200 최근 3개월 수익률 차이",
+        "values": {
+          "changePp": -0.428519,
+          "from": -14.35762224352828,
+          "to": -14.786140979689366,
+          "unit": "%"
+        },
+        "source": {
+          "name": "KODEX 200 vs TIGER 200 최근 3개월 수익률 차이",
+          "url": "",
+          "asOf": "2026-11-03"
+        },
+        "note": "E2.period.returnPct -14.786140979689366 − E1.period.returnPct -14.35762224352828 = -0.428519%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+        "lineage": {
+          "op": "diff",
+          "inputs": [
+            "E1",
+            "E2"
+          ]
+        }
+      }
+    ],
+    "expected": "supported",
+    "note": "C1 changePp -0.43",
+    "source": "2026-11-04-1753.md#KODEX 200이랑 TIGER 200 최근 3개월 수익률 비교해줘 [deep] · 변형(sup): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-compare-2-standard-1-flip",
+    "area": "news",
+    "claim": "금리 기사에서는 국고채 금리가 상승했다는 소식을 전했습니다.",
+    "evidence": "연합뉴스는 국고채 금리가 일제히 하락했다고 보도했습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-1"
+    ],
+    "ledger": [
+      {
+        "id": "E2-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국고채 금리 일제히 하락…3년물 연 3.714%",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:40:33.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104149000008",
+          "asOf": "2026-11-04T07:40:33.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 3건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 일제히 하락",
+    "source": "2026-11-04-1753.md#금리 뉴스랑 물가 뉴스는 어떤 차이가 있어? [standard] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-cause-1-standard-1-over",
+    "area": "news",
+    "claim": "농산물가격안정제 확대가 10월 물가 상승률을 0.3%p 낮췄습니다.",
+    "evidence": "연합뉴스 보도 제목은 농산물가격안정제 지원 품목 확대 주장을 전하며, 정제된 사실은 농산물 수급·가격 안정 대책을 다뤘다고 요약합니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "최동익 전남광주시의원 \"농산물가격안정제 지원 품목 확대\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T05:58:50.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104116000054",
+          "asOf": "2026-11-04T05:58:50.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 1건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목에 효과 수치 없음",
+    "source": "2026-11-04-1753.md#요즘 물가가 변하는 이유를 뉴스에서는 뭐라고 해? [standard] · 변형(over): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-fx-cause-1-standard-1-flip",
+    "area": "fx",
+    "claim": "보도 제목들은 불확실성이 해소돼 환율이 안정됐다고 전했습니다.",
+    "evidence": "관련 내용을 담은 보도 제목이 확인됐지만, 기사 본문은 확보되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2",
+      "E1-5"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 글로벌이코노믹",
+        "values": {
+          "title": "[美 중간선거] 美 재정·글로벌 기술주 불확실성에 원·달러 환율 단기 변동성 커져 - 글로벌이코노믹",
+          "publisher": "글로벌이코노믹",
+          "publishedAt": "2026-11-03T04:41:54.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "글로벌이코노믹",
+          "url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxQZmNfN2lKOGZUY3BxMWNCVDhydTZ4d1NYLVF2RXRUTjBINHRWUUZuUWstMjRMUTNDbGNFN1luNTFEdW83NHNoMEY4VWFKR0tLTUFXdGI1MVRkZkZ0NC0xWWVxQmp2azgxS3JNUEduMmI2MzItZVlRdDhjdFdtN0dYREtoSGI?oc=5",
+          "asOf": "2026-11-03T04:41:54.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      },
+      {
+        "id": "E1-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 직썰",
+        "values": {
+          "title": "원·달러 환율, 1346.0원 출발…위험회피 심리에 상승 - 직썰",
+          "publisher": "직썰",
+          "publishedAt": "2026-11-03T00:57:26.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "직썰",
+          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1sYThQY28yMW1yQV9kdXhLQ2lCel80aHFvU3dOTWVRMXlSLUpiSjZuQ1Q1MWNteERpamFBR2NGcWUyVDVNVURoSkl1dUpEaldMWE5WZ2JpTzF3YjV6aXhQYl9TeGNkVWF40gFsQVVfeXFMTWUtaDY0cTJUU2lNdmZzQ1dmNmJOVUc3bC1rME9JR2ZOdmdvNVczaTNXdVdETHdacDQ1QUVyY2VkWHJVZGV2eFJIUjFRdWVLbHlXclVUMUVGWW5MUjZkWjVYSmdVLWQxclRQSkYx?oc=5",
+          "asOf": "2026-11-03T00:57:26.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 불확실성에 변동성 커짐 · 위험회피에 상승",
+    "source": "2026-11-03-0613.md#요즘 원달러 환율이 왜 이렇게 움직여? [standard] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-fx-cause-1-standard-2-flip",
+    "area": "fx",
+    "claim": "11월 3일 장중 달러 등 주요 통화가 전반적으로 강세였다고 보도됐습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 투어코리아",
+        "values": {
+          "title": "[종합 환율] 11월 3일 장중 달러 엔 유로 위안 등 전반적 약세 - 투어코리아",
+          "publisher": "투어코리아",
+          "publishedAt": "2026-11-03T05:31:31.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "투어코리아",
+          "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE5IdVlGRldBdFF1Q1RHX3dYQlNLcHdDa3VCcURyV2hmRzE3b2JaZDBLS3FFUUpIOTFuMW9Ra1A5X25SdHFVRWhBcFprZU9mcHJodjJiWkljc0NWQjloSjZ3eDNkWDh5NDA4QVlQejl3?oc=5",
+          "asOf": "2026-11-03T05:31:31.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 0건 확보했습니다. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목 '전반적 약세'",
+    "source": "2026-11-03-0613.md#요즘 원달러 환율이 왜 이렇게 움직여? [standard] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-fx-cause-1-deep-1-flip",
+    "area": "fx",
+    "claim": "연합뉴스는 미 중간선거 민주당 우세 소식에 환율이 내렸다고 보도했습니다.",
+    "evidence": "2026-11-04 연합뉴스 기사 내용은 미 국채 금리·달러 지수 하락을 하방 요인으로 설명하지만, 기사 제목의 당일 마감환율은 1,341.5원으로 전일 대비 0.5원 상승입니다.",
+    "basis": "news",
+    "refs": [
+      "E3-2"
+    ],
+    "ledger": [
+      {
+        "id": "E3-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 0.5원 오른",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-fx-cause-1-deep-2-data",
+    "area": "fx",
+    "claim": "원·달러 환율은 최근 30일 동안 소폭 내렸습니다.",
+    "evidence": "",
+    "basis": "data",
+    "refs": [
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1341.05,
+          "asOf": "2026-11-04",
+          "comparison.rate": 1345.67,
+          "comparison.asOf": "2026-10-05",
+          "change": -4.62,
+          "changePct": -0.34
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-22&to=2026-11-05",
+          "asOf": "2026-11-04"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "changePct -0.34",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep] · 변형(data): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-fx-cause-1-deep-2-dataflip",
+    "area": "fx",
+    "claim": "원·달러 환율은 최근 30일 동안 올랐습니다.",
+    "evidence": "",
+    "basis": "data",
+    "refs": [
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1341.05,
+          "asOf": "2026-11-04",
+          "comparison.rate": 1345.67,
+          "comparison.asOf": "2026-10-05",
+          "change": -4.62,
+          "changePct": -0.34
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-22&to=2026-11-05",
+          "asOf": "2026-11-04"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "changePct -0.34",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep] · 변형(dataflip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-fx-cause-1-deep-2-dataover",
+    "area": "fx",
+    "claim": "원·달러 환율이 내린 것은 외국인 주식 매수 자금이 들어왔기 때문입니다.",
+    "evidence": "",
+    "basis": "data",
+    "refs": [
+      "E2"
+    ],
+    "ledger": [
+      {
+        "id": "E2",
+        "tool": "get_fx_krw_rate",
+        "label": "환율 확인 · Frankfurter v2",
+        "values": {
+          "pair": "USD/KRW",
+          "unit": "KRW per 1 USD",
+          "rate": 1341.05,
+          "asOf": "2026-11-04",
+          "comparison.rate": 1345.67,
+          "comparison.asOf": "2026-10-05",
+          "change": -4.62,
+          "changePct": -0.34
+        },
+        "source": {
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-09-22&to=2026-11-05",
+          "asOf": "2026-11-04"
+        },
+        "note": "일별 mid-market 기준환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "환율 값만 있고 자금 흐름 없음",
+    "source": "2026-11-04-1753.md#요즘 원달러 환율이 왜 이렇게 움직여? [deep] · 변형(dataover): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-cause-2-easy-2-sup",
+    "area": "news",
+    "claim": "연합뉴스는 미 중간선거에서 민주당이 우세한 가운데 환율이 0.5원 오른 1,341.5원으로 마감했다고 보도했습니다.",
+    "evidence": "기사에서 미 국채 금리와 달러 지수 하락, 달러 수요 감소가 환율 하락 압력의 배경으로 제시됐습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "미 중간선거 민주당 우세에…환율 0.5원 오른 1,341.5원",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T07:27:28.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104141900002",
+          "asOf": "2026-11-04T07:27:28.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 그대로",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [easy] · 변형(sup): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-status-1-easy-1-sup",
+    "area": "news",
+    "claim": "코트라는 미국 관세정책이 유지될 것으로 전망했다고 보도됐습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "코트라 \"미국 관세정책 유지 전망…쟁점법안 거부권 가능성\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T14:48:59.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104185300003",
+          "asOf": "2026-11-04T14:48:59.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "E1-2 제목",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [easy] · 변형(sup): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-cause-1-deep-1-flip",
+    "area": "news",
+    "claim": "기사는 테슬라와 스페이스X 를 선거 리스크 제거 이후 안전한 매수 대상으로 소개했습니다.",
+    "evidence": "2026-11-04 한국경제 기사에 소개된 정치권 주장입니다. 원인과 영향을 검증할 물가 수치는 확인되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E2-1"
+    ],
+    "ledger": [
+      {
+        "id": "E2-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "선거 리스크 제거에 매수 기회?…\"테슬라·스페이스X 는 위험\" [박신영의 개장전 요것만]",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:19:07.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611056800i",
+          "asOf": "2026-11-04T15:19:07.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목 '테슬라·스페이스X 는 위험'",
+    "source": "2026-11-04-1753.md#요즘 물가가 변하는 이유를 뉴스에서는 뭐라고 해? [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-cause-2-standard-1-sup",
+    "area": "news",
+    "claim": "한국경제는 코스피가 오를 때 원·달러 환율도 함께 올랐다고 보도했습니다.",
+    "evidence": "한국경제 보도에서 외국인 환헤지 수요를 배경으로 들었습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-1"
+    ],
+    "ledger": [
+      {
+        "id": "E1-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "코스피 뛸 때, 원·달러 환율도 같이 뛰었다",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T09:13:01.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110463211",
+          "asOf": "2026-11-04T09:13:01.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 그대로",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [standard] · 변형(sup): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-cause-2-deep-3-sup",
+    "area": "news",
+    "claim": "씨티는 원·달러 환율이 6~12개월 안에 1,270원으로 내릴 것으로 전망했습니다.",
+    "evidence": "2026-11-04 연합뉴스가 전한 씨티은행의 분석입니다. 수요 간 규모 비교는 독립 검증되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-3"
+    ],
+    "ledger": [
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "제목 그대로",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [deep] · 변형(sup): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-cause-2-deep-3-flip",
+    "area": "news",
+    "claim": "씨티는 원·달러 환율이 6~12개월 안에 1,400원대로 오를 것으로 전망했습니다.",
+    "evidence": "2026-11-04 연합뉴스가 전한 씨티은행의 분석입니다. 수요 간 규모 비교는 독립 검증되지 않았습니다.",
+    "basis": "news",
+    "refs": [
+      "E1-3"
+    ],
+    "ledger": [
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "씨티 \"환율, 6∼12개월 내 1,270원으로 하락 전망\"",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-04T06:32:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261104131300002",
+          "asOf": "2026-11-04T06:32:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 4건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목은 1,270원 하락 전망",
+    "source": "2026-11-04-1753.md#환율이 움직이는 이유를 뉴스에서는 뭐라고 해? [deep] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "common-news-status-1-standard-1-flip",
+    "area": "news",
+    "claim": "보도는 국채 금리가 오르는 동안 CP 금리가 내렸다고 전했습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E1-2"
+    ],
+    "ledger": [
+      {
+        "id": "E1-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 연합뉴스",
+        "values": {
+          "title": "국채 금리 내릴 때 CP 금리 상승…연말 단기자금 경색 신호일까",
+          "publisher": "연합뉴스",
+          "publishedAt": "2026-11-03T00:47:39.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/AKR20261103053600008",
+          "asOf": "2026-11-03T00:47:39.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: partial. 요청 5건 중 2건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "contradicted",
+    "note": "제목: 국채 금리 내릴 때 CP 금리 상승",
+    "source": "2026-11-03-0613.md#이번 주 경제 뉴스에서 금리 관련 이슈 정리해줘 [standard] · 변형(flip): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-compare-1-easy-1-over",
+    "area": "news",
+    "claim": "한국경제는 미국 민주당 압승이 코스피 급등을 이끌었다고 분석했습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E1-3"
+    ],
+    "ledger": [
+      {
+        "id": "E1-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "美 민주당 압승에 월가 축포?…다우·나스닥 2% 넘게 급등",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T15:10:06.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/202611046798i",
+          "asOf": "2026-11-04T15:10:06.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 기사 본문은 요청하지 않았습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "unsupported",
+    "note": "제목은 다우 · 나스닥 급등, 코스피 아님",
+    "source": "2026-11-04-1753.md#연합뉴스랑 한국경제는 요즘 다루는 경제 뉴스가 달라? [easy] · 변형(over): 주장만 바꿈, 장부는 실제 응답 그대로"
+  },
+  {
+    "id": "news-status-1-standard-3-sup",
+    "area": "news",
+    "claim": "장례식장 647곳과 손잡은 회사가 150억 원에 매각됐다는 보도가 있습니다.",
+    "evidence": "",
+    "basis": "news",
+    "refs": [
+      "E1-5"
+    ],
+    "ledger": [
+      {
+        "id": "E1-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국경제",
+        "values": {
+          "title": "150억에 회사 넘긴 노현정 남편…장례식장 647곳 손잡은 이유",
+          "publisher": "한국경제",
+          "publishedAt": "2026-11-04T12:07:34.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국경제",
+          "url": "https://www.hankyung.com/article/2026110466527",
+          "asOf": "2026-11-04T12:07:34.000Z"
+        },
+        "note": "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다. 본문 추출 상태: complete. 요청 5건 중 5건 확보했습니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+      }
+    ],
+    "expected": "supported",
+    "note": "E1-5 제목",
+    "source": "2026-11-04-1753.md#요즘 경제 뉴스에서는 어떤 얘기가 많이 나와? [standard] · 변형(sup): 주장만 바꿈, 장부는 실제 응답 그대로"
   }
 ]
