@@ -139,6 +139,17 @@ const num = (v: unknown): number | undefined => (typeof v === "number" && Number
 const higher = (a: number, b: number) => (a > b ? "높음" : a < b ? "낮음" : "같음");
 
 /**
+ * 물가 · 고용 지표의 종류. tool 의 indicator(cpi · unemployment)를 먼저 보고, 씨앗 쌍처럼 이름만 있으면 indicator · indicatorName 의 이름으로 가립니다.
+ * label 은 보지 않습니다 (tool 의 label 이 늘 "물가·고용 지표 확인" 이라 실업률도 물가로 읽힘).
+ */
+function macroKind(e: Evidence): "cpi" | "unemployment" | "other" {
+  const text = `${e.values.indicator ?? ""} ${e.values.indicatorName ?? ""}`;
+  if (e.values.indicator === "unemployment" || /실업|unemployment/i.test(text)) return "unemployment";
+  if (e.values.indicator === "cpi" || /물가|cpi/i.test(text)) return "cpi";
+  return "other";
+}
+
+/**
  * 한 항목 안의 값 비교를 코드가 적어 줍니다. 모델은 음수끼리의 크기(-3.61 > -4.37)와 "둔화 ≠ 하락" 을 자주 틀립니다 (보정 세트 11/5).
  *  - 수준 vs 비교 시점 (rate · comparisonRate): 올랐음 · 내렸음
  *  - ETF 수익률 vs 지수 수익률 (period.returnPct · period.indexReturnPct): 어느 쪽이 높은지 (덜 떨어진 쪽이 높음)
@@ -157,14 +168,29 @@ export function valueHints(e: Evidence): string[] {
   const close = num(v["latest.close"]);
   const nav = num(v["latest.nav"]);
   if (close !== undefined && nav !== undefined) out.push(`종가 ${close} 는 NAV ${nav} 보다 ${higher(close, nav)} → 괴리율 ${close > nav ? "양수" : close < nav ? "음수" : "0"}`);
-  // 물가 · 고용 지표 (get_macro_indicators 의 실제 키 latest.previousMonth.value · latest.previousYear.change, 씨앗 쌍의 previousMonth.value · latest.yoy 도 받음)
+  // 물가 · 고용 지표 (get_macro_indicators 의 실제 키 latest.previousMonth.value · latest.previousYear.change, 씨앗 쌍의 previousMonth.value · latest.yoy 도 받음).
+  // 지표에 따라 말을 바꿉니다: 물가(cpi)는 "물가 상승 · 둔화", 실업률(unemployment)은 "실업률이 높음". 변화 단위는 tool 의 changeUnit 을 따릅니다 (% 또는 %p).
   const latest = num(v["latest.value"]);
   const before = num(v["latest.previousMonth.value"] ?? v["previousMonth.value"]);
   const mom = num(v["latest.previousMonth.change"]);
   const yoy = num(v["latest.previousYear.change"] ?? v["latest.yoy"]);
   const prevYoy = num(v["previousMonth.yoy"]);
-  if (latest !== undefined && before !== undefined) out.push(`지수 ${before} → ${latest}: ${latest > before ? "올랐음" : latest < before ? "내렸음" : "같음"}${mom !== undefined ? ` (전월 대비 ${mom > 0 ? "+" : ""}${mom}%)` : ""}`);
-  if (yoy !== undefined) out.push(`전년 대비 ${yoy}%: ${yoy > 0 ? "전년보다 올랐음(물가 상승)" : yoy < 0 ? "전년보다 내렸음" : "같음"}${prevYoy !== undefined ? ` · 상승률은 ${prevYoy} → ${yoy} 로 ${yoy < prevYoy ? "둔화(물가가 내린 것은 아님)" : yoy > prevYoy ? "가속" : "같음"}` : ""}`);
+  if (latest === undefined && yoy === undefined) return out;
+  const kind = macroKind(e);
+  const subject = kind === "cpi" ? "물가 지수" : kind === "unemployment" ? "실업률" : String(v.indicatorName ?? v.indicator ?? "지표");
+  const unit = v.changeUnit === "percentage_points" ? "%p" : "%";
+  const signed = (x: number) => `${x > 0 ? "+" : ""}${x}${unit}`;
+  if (latest !== undefined && before !== undefined) {
+    out.push(`${subject} ${before} → ${latest}: ${latest > before ? "올랐음" : latest < before ? "내렸음" : "같음"}${mom !== undefined ? ` (전월 대비 ${signed(mom)})` : ""}`);
+  }
+  if (yoy !== undefined) {
+    const vs =
+      yoy > 0 ? (kind === "cpi" ? "전년보다 올랐음(물가 상승)" : kind === "unemployment" ? "전년보다 실업률이 높음" : "전년보다 높음")
+      : yoy < 0 ? (kind === "cpi" ? "전년보다 내렸음(물가 하락)" : kind === "unemployment" ? "전년보다 실업률이 낮음" : "전년보다 낮음")
+      : "전년과 같음";
+    const slow = kind === "cpi" && prevYoy !== undefined ? ` · 상승률은 ${prevYoy} → ${yoy} 로 ${yoy < prevYoy ? "둔화(물가가 내린 것은 아님)" : yoy > prevYoy ? "가속" : "같음"}` : "";
+    out.push(`전년 대비 ${signed(yoy)}: ${vs}${slow}`);
+  }
   return out;
 }
 

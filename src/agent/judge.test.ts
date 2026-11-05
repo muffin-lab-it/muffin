@@ -183,11 +183,15 @@ describe("코드가 적어 주는 값 비교 (보정 11/5)", () => {
     expect(valueHints(rate)).toEqual(["rate 3.63 → 3.88: 올랐음"]);
     const etf: Evidence = { id: "E6", tool: "get_etf_kr_price", label: "ETF", values: { "period.returnPct": -3.61, "period.indexReturnPct": -4.37, "latest.close": 110745, "latest.nav": 110640.5 }, source: { name: "KRX", url: "https://x", asOf: "2026-11-02" } };
     expect(valueHints(etf)).toEqual(["ETF 수익률 -3.61 은 지수 수익률 -4.37 보다 높음 (덜 떨어짐)", "종가 110745 는 NAV 110640.5 보다 높음 → 괴리율 양수"]);
-    const cpi: Evidence = { id: "E5", tool: "get_macro_indicators", label: "물가", values: { "latest.value": 116.2, "latest.yoy": 2.4, "previousMonth.value": 115.9, "previousMonth.yoy": 3.1 }, source: { name: "ECOS", url: "https://x", asOf: "2026-09" } };
-    expect(valueHints(cpi)).toEqual(["지수 115.9 → 116.2: 올랐음", "전년 대비 2.4%: 전년보다 올랐음(물가 상승) · 상승률은 3.1 → 2.4 로 둔화(물가가 내린 것은 아님)"]);
-    // 실제 물가 tool 의 키 (latest.previousMonth.value · latest.previousMonth.change · latest.previousYear.change)
-    const real: Evidence = { ...cpi, values: { indicator: "cpi", unit: "2020=100", "latest.month": "202610", "latest.value": 120.73, "latest.previousMonth.month": "202609", "latest.previousMonth.value": 120.43, "latest.previousMonth.change": 0.25, "latest.previousYear.value": 118.1, "latest.previousYear.change": 2.23 } };
-    expect(valueHints(real)).toEqual(["지수 120.43 → 120.73: 올랐음 (전월 대비 +0.25%)", "전년 대비 2.23%: 전년보다 올랐음(물가 상승)"]);
+    const cpi: Evidence = { id: "E5", tool: "get_macro_indicators", label: "물가", values: { indicator: "소비자물가지수(CPI)", "latest.value": 116.2, "latest.yoy": 2.4, "previousMonth.value": 115.9, "previousMonth.yoy": 3.1 }, source: { name: "ECOS", url: "https://x", asOf: "2026-09" } };
+    expect(valueHints(cpi)).toEqual(["물가 지수 115.9 → 116.2: 올랐음", "전년 대비 +2.4%: 전년보다 올랐음(물가 상승) · 상승률은 3.1 → 2.4 로 둔화(물가가 내린 것은 아님)"]);
+    // 실제 물가 tool 의 키 (latest.previousMonth.value · latest.previousMonth.change · latest.previousYear.change), 변화 단위는 changeUnit
+    const real: Evidence = { ...cpi, values: { indicator: "cpi", indicatorName: "소비자물가지수 총지수", unit: "2020=100", changeUnit: "percent", "latest.month": "202610", "latest.value": 120.73, "latest.previousMonth.month": "202609", "latest.previousMonth.value": 120.43, "latest.previousMonth.change": 0.25, "latest.previousYear.value": 118.1, "latest.previousYear.change": 2.23 } };
+    expect(valueHints(real)).toEqual(["물가 지수 120.43 → 120.73: 올랐음 (전월 대비 +0.25%)", "전년 대비 +2.23%: 전년보다 올랐음(물가 상승)"]);
+    // 실업률은 물가로 읽지 않고, 변화는 %p 로 적는다 (label 은 둘 다 "물가·고용 지표 확인" 이라 indicator 로 가림)
+    const jobless: Evidence = { ...cpi, label: "물가·고용 지표 확인 · 한국은행 ECOS — 실업률", values: { indicator: "unemployment", indicatorName: "실업률", unit: "%", changeUnit: "percentage_points", "latest.value": 4.2, "latest.previousMonth.value": 4.1, "latest.previousMonth.change": 0.1, "latest.previousYear.value": 3.9, "latest.previousYear.change": 0.3 } };
+    expect(valueHints(jobless)).toEqual(["실업률 4.1 → 4.2: 올랐음 (전월 대비 +0.1%p)", "전년 대비 +0.3%p: 전년보다 실업률이 높음"]);
+    expect(valueHints({ ...jobless, values: { ...jobless.values, "latest.previousYear.change": -0.2 } })[1]).toBe("전년 대비 -0.2%p: 전년보다 실업률이 낮음");
     // 환율은 방향(코드) 줄이 따로 있어 rate 비교를 다시 적지 않는다
     expect(valueHints({ ...rate, tool: "get_fx_krw_rate", values: { pair: "USD/KRW", rate: 1341.05, "comparison.rate": 1345.67 } })).toEqual([]);
   });
