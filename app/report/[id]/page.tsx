@@ -55,9 +55,8 @@ export default function ReportPage() {
           <span className="chip-static">{depthLabels[input.depth]}</span>
           <span className="chip-static muted">{new Date(record.createdAt).toLocaleString("ko-KR")}</span>
         </div>
-        <p className="sub">{input.question}</p>
       </div>
-      <ReportView report={record.report} steps={record.steps} area={input.area} />
+      <ReportView report={record.report} steps={record.steps} area={input.area} question={input.question} />
     </>
   );
 }

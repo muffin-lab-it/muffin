@@ -100,6 +100,13 @@ describe("리포트 증거 표시 계약", () => {
 });
 
 describe("읽기 중심 리포트", () => {
+  it("사용자 질문을 요약 앞의 별도 카드에 원문 그대로 표시한다", () => {
+    const question = "미국 금리가 오르면 내 생활에는 어떤 영향이 있나요?";
+    const $ = load(renderToStaticMarkup(<ReportView report={fixture()} question={question} />));
+    expect($('.report > section').first().attr('aria-label')).toBe('나의 질문');
+    expect($('[aria-label="나의 질문"] blockquote').text()).toBe(question);
+    expect(render(fixture())('[aria-label="나의 질문"]')).toHaveLength(0);
+  });
   it("검사 내역과 제외 항목은 기본적으로 접고, 주의점과 자료 부족 원문은 노출한다", () => {
     const report = fixture();
     const $ = render(report);

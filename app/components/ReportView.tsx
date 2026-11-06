@@ -27,11 +27,17 @@ function direction(change: string): "up" | "down" | "flat" {
  * 리포트 한 장. 홈과 리포트 상세가 같이 씁니다.
  * 프론트 팀은 이 컴포넌트를 기준으로 디자인을 올리면 됩니다. 데이터 모양은 src/agent/schema.ts.
  */
-export function ReportView({ report, steps, area }: { report: Report; steps?: ToolStep[]; area?: Area }) {
+export function ReportView({ report, steps, area, question }: { report: Report; steps?: ToolStep[]; area?: Area; question?: string }) {
   const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" };
   const basisLabels = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
   return (
     <div className={`report ${styles.report}`}>
+      {question && (
+        <section className={styles.questionCard} aria-label="나의 질문">
+          <h2>나의 질문</h2>
+          <blockquote>{question}</blockquote>
+        </section>
+      )}
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <span className={styles.eyebrow}>A LITTLE RESEARCH FOR YOUR DAY</span>
@@ -55,8 +61,11 @@ export function ReportView({ report, steps, area }: { report: Report; steps?: To
               <div className="num" key={i}>
                 <small>{n.label}</small>
                 <b>{n.value}</b>
-                <i className={direction(n.change)}>{n.change}{n.asOf ? ` · ${n.asOf}` : ""}</i>
-                <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                {n.change && <i className={direction(n.change)}>{n.change}</i>}
+                <div className={styles.metricMeta}>
+                  <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                  {n.asOf && <span className={styles.metricDate}>{n.asOf}</span>}
+                </div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} />
               </div>
             );

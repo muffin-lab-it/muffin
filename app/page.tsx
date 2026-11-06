@@ -66,7 +66,7 @@ export default function Home() {
           error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
           onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
           onEditQuestion={editQuestion} onReturnHome={editQuestion} />
-        {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} />}
+        {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} question={state.input.question} />}
       </>
     );
   }
