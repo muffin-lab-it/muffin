@@ -5,8 +5,8 @@ import { labelFor } from "@/src/agent/events";
 import { formatAge } from "@/src/lib/age";
 import type { Area, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
-import { ReportSummary } from "./ReportSummary";
-import { EvidenceReference, ReportReadingNotice, ReportVerification, SourceLink } from "./ReportEvidence";
+import { ReportEvidenceScope } from "./ReportEvidenceScope";
+import { EvidenceRecord, EvidenceReference, ReportReadingNotice, ReportVerification, SourceLink } from "./ReportEvidence";
 
 export const areaLabels: Record<Area, string> = {
   fx: "환율",
@@ -31,6 +31,7 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
   const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" };
   const basisLabels = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
   return (
+    <ReportEvidenceScope>
     <div className={`report ${styles.report}`}>
       {question && (
         <section className={styles.questionCard} aria-label="나의 질문">
@@ -40,14 +41,12 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
       )}
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>A LITTLE RESEARCH FOR YOUR DAY</span>
           <h2>한입 요약</h2>
-          <ReportSummary key={report.summary} text={report.summary} />
+          <h3 className={styles.headlinePlaceholder}>핵심을 한 문장으로 정리할 자리예요.</h3>
+          <p className={styles.summaryBody}>{report.summary}</p>
         </div>
         <div className={styles.heroArt} aria-hidden="true">
-          <span className={styles.artCaption}>FRESH FROM THE LAB</span>
           <Image src="/report-v3/mascot.webp" alt="" fill unoptimized />
-          <span className={styles.artLabel}>갓 정리한 오늘의 리포트</span>
         </div>
       </section>
       <ReportReadingNotice report={report} />
@@ -86,15 +85,13 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
                   <li key={i}>
                     <span className={`report-badge basis-${w.basis}`}>{basisLabels[w.basis]}</span>{" "}
                     {w.claim}
-                    <details className="evidence-detail reason-detail">
-                      <summary>설명 근거 보기</summary>
-                      <small className="evidence">근거: {w.evidence}</small>
+                    <div className={styles.reasonRefs}>
                       {w.refs.length === 0 ? (
                         <p className="evidence-missing">인용한 근거 번호가 없습니다.</p>
                       ) : w.refs.map((ref, index) => (
                         <EvidenceReference key={`${ref}-${index}`} evidenceId={ref} evidence={report.evidence} />
                       ))}
-                    </details>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -118,7 +115,7 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
         <aside className={styles.aside} aria-label="출처와 참고 사항">
           <section>
             <details className={styles.sourceList}>
-              <summary>출처 모아보기 ({report.sources.length})</summary>
+              <summary>출처와 근거 ({report.sources.length})</summary>
               <ul>
                 {report.sources.map((s, i) => (
                   <li key={i}>
@@ -127,6 +124,19 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
                 ))}
               </ul>
               {report.sources.length === 0 && <p className="report-muted">확보한 출처가 없습니다.</p>}
+              {report.why.length > 0 && (
+                <div className={styles.reasonEvidence}>
+                  <h3>설명의 근거</h3>
+                  {report.why.map((reason, i) => (
+                    <div key={i}>
+                      <p><b>{reason.claim}</b></p>
+                      <p>{reason.evidence}</p>
+                      {reason.refs.length === 0 && <p className="evidence-missing">인용한 근거 번호가 없습니다.</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {report.evidence.map((entry) => <EvidenceRecord key={entry.id} entry={entry} evidence={report.evidence} />)}
             </details>
           </section>
 
@@ -147,34 +157,36 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
               )}
             </section>
           )}
+          <details className={styles.technicalDetails}>
+            <summary>리포트 상세 정보 <span>검사 내역·제외 항목·자료 조회 기록</span></summary>
+            <ReportVerification report={report} />
+            {report.verification.removed.length > 0 && (
+              <section className="fine">
+                <h2>검사 후 제외한 항목</h2>
+                <ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul>
+              </section>
+            )}
+            {steps && steps.length > 0 && (
+              <section className="fine">
+                <h2>사용한 Tool</h2>
+                <ul>
+                  {steps.map((s, i) => (
+                    <li key={i}>
+                      {s.status === "ok" ? (s.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(s.tool)} · {s.ms}ms
+                      {s.fallbackAgeMs !== undefined ? ` · 저장된 응답(${formatAge(s.fallbackAgeMs)} 전)` : ""}
+                      {s.breaker === "open" ? " · 회로 열림(호출 생략)" : ""}
+                      {s.error ? ` · ${s.error}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </details>
         </aside>
       </div>
-      <details className={styles.technicalDetails}>
-        <summary>리포트 상세 정보 <span>검사 내역·제외 항목·자료 조회 기록</span></summary>
-        <ReportVerification report={report} />
-        {report.verification.removed.length > 0 && (
-          <section className="fine">
-            <h2>검사 후 제외한 항목</h2>
-            <ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul>
-          </section>
-        )}
-        {steps && steps.length > 0 && (
-          <section className="fine">
-            <h2>사용한 Tool</h2>
-            <ul>
-              {steps.map((s, i) => (
-                <li key={i}>
-                  {s.status === "ok" ? (s.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(s.tool)} · {s.ms}ms
-                  {s.fallbackAgeMs !== undefined ? ` · 저장된 응답(${formatAge(s.fallbackAgeMs)} 전)` : ""}
-                  {s.breaker === "open" ? " · 회로 열림(호출 생략)" : ""}
-                  {s.error ? ` · ${s.error}` : ""}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </details>
+
       <p className="report-disclosure">{report.disclosure}</p>
     </div>
+    </ReportEvidenceScope>
   );
 }

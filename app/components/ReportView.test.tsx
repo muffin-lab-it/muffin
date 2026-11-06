@@ -46,8 +46,11 @@ describe("리포트 증거 표시 계약", () => {
     // 같은 URL·기준일의 sources 대표만 남아 있어도 E99 원본을 잃으면 안 된다.
     report.sources = [{ id: "E1", ...original.source }];
     const $ = render(report);
-    const panel = $(".num .evidence-detail");
-    expect(panel.find("summary").text()).toBe("출처·기준일 보기");
+    const target = decodeURIComponent($(".num .evidence-link").attr("href")!.slice(1));
+    const panel = $(".evidence-record").filter((_, el) => $(el).attr("id") === target);
+    expect(panel).toHaveLength(1);
+    expect(panel.parents("aside")).toHaveLength(1);
+    expect($(".num details")).toHaveLength(0);
     expect(panel.text()).toContain("근거 번호: E99");
     expect(panel.find(".evidence-title").text()).toBe("별도 관측값");
     expect(panel.find("dd").text()).toBe("1444");
@@ -76,8 +79,8 @@ describe("리포트 증거 표시 계약", () => {
     report.evidence[0].values = { text: "<script>alert(1)</script>" };
     const $ = render(report);
     expect($("script")).toHaveLength(0);
-    expect($(".num dd").first().text()).toBe("<script>alert(1)</script>");
-    expect($(".num a").first().attr("rel")).toBe("noopener noreferrer");
+    expect($(".evidence-record dd").first().text()).toBe("<script>alert(1)</script>");
+    expect($(".evidence-record a").first().attr("rel")).toBe("noopener noreferrer");
   });
 
   it("v1 저장 기록 정규화 후 미검증과 원본 부재가 표시된다", () => {
@@ -93,13 +96,33 @@ describe("리포트 증거 표시 계약", () => {
     report.numbers = [{ ...report.numbers[0], ref: "C1", check: "derived" }];
     report.evidence = [{ ...report.evidence[0], id: "C1", values: {}, lineage: { op: "spread", inputs: ["E404"] } }];
     const $ = render(report);
-    expect($(".num").text()).toContain("공개된 원본 값이 없습니다");
+    expect($(".evidence-record").text()).toContain("공개된 원본 값이 없습니다");
     expect($(".evidence-lineage").text()).toContain("E404 (근거를 찾을 수 없음)");
     expect($(".evidence-lineage").text()).toContain("재계산 검증을 보장하지 않습니다");
   });
 });
 
 describe("읽기 중심 리포트", () => {
+  it("핵심 요약 자리는 안내 문구이고 실제 서버 요약은 별도 본문으로 보존한다", () => {
+    const $ = render(fixture());
+    expect($("h3").text()).toContain("핵심을 한 문장으로 정리할 자리예요.");
+    expect($(".report").text()).toContain(fixture().summary);
+    expect($(".report-verification").parents("aside")).toHaveLength(1);
+    expect($(".num details, .chart details, .reason-detail")).toHaveLength(0);
+  });
+
+  it("여러 리포트의 출처 링크가 각자의 자료 패널에만 연결된다", () => {
+    const $ = load(renderToStaticMarkup(<><ReportView report={fixture()} /><ReportView report={fixture()} /></>));
+    const ids = $(".evidence-record").map((_, el) => $(el).attr("id")).get();
+    expect(new Set(ids).size).toBe(ids.length);
+    $(".report").each((_, report) => {
+      const targets = new Set($(report).find(".evidence-record").map((_, el) => $(el).attr("id")).get());
+      $(report).find(".evidence-link").each((_, link) => {
+        expect(targets.has(decodeURIComponent($(link).attr("href")!.slice(1)))).toBe(true);
+      });
+    });
+  });
+
   it("사용자 질문을 요약 앞의 별도 카드에 원문 그대로 표시한다", () => {
     const question = "미국 금리가 오르면 내 생활에는 어떤 영향이 있나요?";
     const $ = load(renderToStaticMarkup(<ReportView report={fixture()} question={question} />));

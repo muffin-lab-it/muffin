@@ -1,4 +1,7 @@
+"use client";
+
 import type { Evidence, Report } from "@/src/agent/schema";
+import { ReportEvidenceLink, useEvidenceTarget } from "./ReportEvidenceScope";
 
 /** 장부나 저장 기록에서 온 URL도 웹 주소인 경우에만 링크로 표시합니다. */
 export function SourceLink({ url, name }: { url: string; name: string }) {
@@ -21,6 +24,7 @@ export function EvidenceReference({ evidenceId, evidence }: {
   evidence: Evidence[];
 }) {
   const entry = evidence.find((item) => item.id === evidenceId);
+  const targetId = useEvidenceTarget(evidenceId ?? "missing");
   if (!entry) {
     return (
       <p className="evidence-missing">
@@ -28,9 +32,22 @@ export function EvidenceReference({ evidenceId, evidence }: {
       </p>
     );
   }
+  if (targetId) return <ReportEvidenceLink targetId={targetId} label={`출처 ${entry.id}`} />;
   return (
     <details className="evidence-detail">
       <summary>출처·기준일 보기</summary>
+      <EvidenceContent entry={entry} evidence={evidence} />
+    </details>
+  );
+}
+
+export function EvidenceRecord({ entry, evidence }: { entry: Evidence; evidence: Evidence[] }) {
+  const id = useEvidenceTarget(entry.id);
+  return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} /></div>;
+}
+
+function EvidenceContent({ entry, evidence }: { entry: Evidence; evidence: Evidence[] }) {
+  return (
       <div className="evidence-content">
         <p className="evidence-title">{entry.label}</p>
         <p className="report-muted">근거 번호: {entry.id}</p>
@@ -54,7 +71,6 @@ export function EvidenceReference({ evidenceId, evidence }: {
           </div>
         )}
       </div>
-    </details>
   );
 }
 
@@ -116,7 +132,7 @@ export function ReportReadingNotice({ report }: { report: Report }) {
         <p><strong>검사 미실행</strong> · 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
       )}
       {report.verification.status === "partial" && (
-        <p><strong>일부 확인 필요</strong> · 확인 범위에 한계가 있어요. 자료의 출처와 하단 리포트 상세 정보를 함께 확인해 주세요.</p>
+        <p><strong>일부 확인 필요</strong> · 확인 범위에 한계가 있어요. 자료의 출처와 리포트 상세 정보를 함께 확인해 주세요.</p>
       )}
       {report.notice && <p className="report-notice">{report.notice}</p>}
     </div>
