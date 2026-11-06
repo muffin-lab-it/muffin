@@ -21,6 +21,8 @@ export type ProgressProps = {
   error?: ProgressError;
   onRetry?: () => void;
   onEditQuestion?: () => void;
+  /** 홈 자체에서 표시할 때 같은 URL 이동 대신 입력 화면으로 돌아갑니다. */
+  onReturnHome?: () => void;
 };
 
 /** 실제 이벤트로 화면 상태를 만듭니다. 시간만으로 단계를 진행시키지 않습니다. */
@@ -66,7 +68,7 @@ const depthCopy: Record<Depth, string> = {
   deep: "근거와 배경을 더 자세히 살펴 정리해 드릴게요.",
 };
 
-export function Progress({ question, depth, titleIcon = "🧁", events, error: connectionError, onRetry, onEditQuestion }: ProgressProps) {
+export function Progress({ question, depth, titleIcon = "🧁", events, error: connectionError, onRetry, onEditQuestion, onReturnHome }: ProgressProps) {
   const state = progressFromEvents(events);
   const error = connectionError ?? state.error;
   const current = stages.find(stage => state.status[stage] === "active");
@@ -143,7 +145,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
           <div className={styles.actions}>
             {onRetry && !noRetry && <button type="button" disabled={waitSeconds > 0} onClick={onRetry}>{waitSeconds > 0 ? `${waitSeconds}초 후 다시 시도` : error.kind === "save" ? "저장 다시 시도" : "다시 시도"}</button>}
             {onEditQuestion && error.kind !== "save" && ![403, 503].includes(error.status ?? 0) && <button type="button" className={styles.secondary} onClick={onEditQuestion}>질문 수정</button>}
-            {[403, 503].includes(error.status ?? 0) && <Link href="/">홈으로 돌아가기</Link>}
+            {[403, 503].includes(error.status ?? 0) && (onReturnHome ? <button type="button" onClick={onReturnHome}>홈으로 돌아가기</button> : <Link href="/">홈으로 돌아가기</Link>)}
           </div>
           {error.id && <details className={styles.request}><summary>오류 정보</summary>요청 ID: {error.id}</details>}
         </div>}
