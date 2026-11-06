@@ -1,7 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Evidence, Report } from "@/src/agent/schema";
-import { ReportEvidenceLink, useEvidenceTarget } from "./ReportEvidenceScope";
+import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
 
 /** 장부나 저장 기록에서 온 URL도 웹 주소인 경우에만 링크로 표시합니다. */
 export function SourceLink({ url, name }: { url: string; name: string }) {
@@ -19,7 +20,9 @@ export function SourceLink({ url, name }: { url: string; name: string }) {
   );
 }
 
-export function EvidenceReference({ evidenceId, evidence }: {
+export function EvidenceReference({ evidenceId, evidence, label = "자료 출처 자세히 보기", children }: {
+  children?: ReactNode;
+  label?: string;
   evidenceId: string | null;
   evidence: Evidence[];
 }) {
@@ -27,12 +30,15 @@ export function EvidenceReference({ evidenceId, evidence }: {
   const targetId = useEvidenceTarget(evidenceId ?? "missing");
   if (!entry) {
     return (
+      <>
+      {children}
       <p className="evidence-missing">
         {evidenceId ? `${evidenceId} · 근거를 찾을 수 없음` : "근거 번호 없음 · 원본을 대조할 수 없습니다."}
       </p>
+      </>
     );
   }
-  if (targetId) return <ReportEvidenceLink targetId={targetId} label={`출처 ${entry.id}`} />;
+  if (targetId) return <ReportEvidenceLink targetId={targetId} label={label} className={children ? "metric-value-link" : ""}>{children}</ReportEvidenceLink>;
   return (
     <details className="evidence-detail">
       <summary>출처·기준일 보기</summary>
@@ -50,10 +56,13 @@ function EvidenceContent({ entry, evidence }: { entry: Evidence; evidence: Evide
   return (
       <div className="evidence-content">
         <p className="evidence-title">{entry.label}</p>
-        <p className="report-muted">근거 번호: {entry.id}</p>
-        <p><SourceLink url={entry.source.url} name={entry.source.name} /></p>
-        <p>출처 기준일: {entry.source.asOf || "제공되지 않음"}</p>
-        <p className="report-muted">도구 응답에서 추린 핵심 값입니다.</p>
+        <p className="evidence-help">{entry.lineage
+          ? "여러 자료를 조합한 계산값이에요. 아래 계산 내역에서 사용한 자료를 확인하세요."
+          : "리포트 작성에 참고한 원본 값이에요. 출처를 누르면 원문에서 맥락을 확인할 수 있어요."}</p>
+        <div className="evidence-source">
+          <p><SourceLink url={entry.source.url} name={entry.source.name} /></p>
+          <p><strong>기준일</strong> {entry.source.asOf || "제공되지 않음"}</p>
+        </div>
         {Object.keys(entry.values).length > 0 ? (
           <dl className="evidence-values">
             {Object.entries(entry.values).map(([key, value]) => (
@@ -61,6 +70,7 @@ function EvidenceContent({ entry, evidence }: { entry: Evidence; evidence: Evide
             ))}
           </dl>
         ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
+        <p className="evidence-id">근거 번호: {entry.id}</p>
         {entry.lineage && (
           <div className="evidence-lineage">
             <p>계산 연산: {entry.lineage.op}</p>
@@ -101,9 +111,15 @@ export function VerificationDetail({ report }: { report: Report }) {
   const v = report.verification;
   return (
     <details className="evidence-detail verification-detail">
-      <summary>검증이 한 일 보기</summary>
+      <summary>숫자를 어떻게 확인했나요?</summary>
       <div className="evidence-content">
-        <p className="report-muted">규칙: 숫자는 tool 이 돌려준 장부 값과 하나하나 대조하고, 장부에 없는 숫자와 투자 권유 표현은 뺍니다. 계산값은 계산 도구의 결과(C 번호)이고, 기사 보도는 기사 제목의 숫자라 공식 데이터는 아닙니다.</p>
+        <p className="evidence-help">각 숫자가 어떤 원본 값과 맞았는지 확인하는 기록이에요. 아래에서 관심 있는 숫자의 이름을 찾아보세요.</p>
+        <dl className="verification-guide">
+          <div><dt>값 대조</dt><dd>인용한 자료의 값과 맞춰 보았어요.</dd></div>
+          <div><dt>계산값</dt><dd>자료를 조합한 계산 결과를 사용했어요.</dd></div>
+          <div><dt>기사 보도</dt><dd>기사에 나온 숫자예요. 공식 통계 확인과는 달라요.</dd></div>
+          <div><dt>미검증</dt><dd>원본 값과의 대조가 확인되지 않았어요.</dd></div>
+        </dl>
         {report.numbers.length > 0 ? (
           <ol className="verification-list">
             {report.numbers.map((n, i) => (
@@ -132,7 +148,15 @@ export function ReportReadingNotice({ report }: { report: Report }) {
         <p><strong>검사 미실행</strong> · 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
       )}
       {report.verification.status === "partial" && (
-        <p><strong>일부 확인 필요</strong> · 확인 범위에 한계가 있어요. 자료의 출처와 리포트 상세 정보를 함께 확인해 주세요.</p>
+        <div className="verification-notice">
+          <strong>일부 확인 필요</strong>
+          <ul>
+            {report.verification.removed.length > 0 && <li>검사 과정에서 제외하거나 조정한 항목이 {report.verification.removed.length}개 있어요.</li>}
+            {report.verification.advice > 0 && <li>권유로 해석될 수 있는 표현이 {report.verification.advice}건 남아 있어요.</li>}
+            {report.verification.removed.length === 0 && report.verification.advice === 0 && <li>저장된 검사 결과가 부분 확인 상태예요. 구체적인 사유는 기록에서 확인해 주세요.</li>}
+          </ul>
+          <p>인용한 자료는 <ReportSectionLink name="sources" label="출처와 근거" />, 처리 내역은 <ReportSectionLink name="verification" label="리포트 상세 정보" />에서 확인하세요.</p>
+        </div>
       )}
       {report.notice && <p className="report-notice">{report.notice}</p>}
     </div>
@@ -146,14 +170,20 @@ export function ReportVerification({ report }: { report: Report }) {
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
       <div className="verification-heading">
-        <h2>이 리포트의 확인 범위</h2>
+        <h2>1. 검사 결과 읽기</h2>
         <span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span>
       </div>
       {skipped ? (
         <p>이 리포트는 검증기를 거치지 않았습니다. 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
       ) : (
         <>
-          <p>숫자 {verification.numbers.total}개 중 값 대조 {verification.numbers.verified}개 · 계산값 {verification.numbers.derived}개 · 기사 보도 {verification.numbers.reported ?? 0}개 · 미검증 {verification.numbers.unverified}개</p>
+          <p className="evidence-help">총 {verification.numbers.total}개 숫자를 아래 방식으로 확인했어요. 이 분류는 정보의 최신 여부를 뜻하지 않아요.</p>
+          <dl className="verification-stats">
+            <div><dt>값 대조</dt><dd>{verification.numbers.verified}개</dd></div>
+            <div><dt>계산값</dt><dd>{verification.numbers.derived}개</dd></div>
+            <div><dt>기사 보도</dt><dd>{verification.numbers.reported ?? 0}개</dd></div>
+            <div><dt>미검증</dt><dd>{verification.numbers.unverified}개</dd></div>
+          </dl>
           <p className="report-muted">값 대조는 인용한 원본 값과의 일치 검사입니다. 날짜·단위·지표의 의미와 원인 관계 전체의 정확성을 보장하지 않습니다.</p>
           <p className="report-muted">권유 표현 패턴 감지 {verification.advice}건 · 수정 {verification.revisions}회 · 제외 항목 {verification.removed.length}개</p>
           <VerificationDetail report={report} />

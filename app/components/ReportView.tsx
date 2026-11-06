@@ -1,11 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./ReportView.module.css";
 import type { ToolStep } from "@/src/agent/context";
 import { labelFor } from "@/src/agent/events";
 import { formatAge } from "@/src/lib/age";
 import type { Area, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
-import { ReportEvidenceScope } from "./ReportEvidenceScope";
+import { ReportEvidenceScope, ReasonEvidenceLink, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceRecord, EvidenceReference, ReportReadingNotice, ReportVerification, SourceLink } from "./ReportEvidence";
 
 export const areaLabels: Record<Area, string> = {
@@ -59,92 +60,21 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
             return (
               <div className="num" key={i}>
                 <small>{n.label}</small>
-                <b>{n.value}</b>
+                <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`}><b>{n.value}</b></EvidenceReference>
                 {n.change && <i className={direction(n.change)}>{n.change}</i>}
                 <div className={styles.metricMeta}>
+                  <span className={styles.metricDate}>기준일 <strong>{n.asOf || "미제공"}</strong></span>
                   <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
-                  {n.asOf && <span className={styles.metricDate}>{n.asOf}</span>}
                 </div>
-                <EvidenceReference evidenceId={n.ref} evidence={report.evidence} />
               </div>
             );
           })}
         </div>
+        {report.numbers.length > 0 && <p className={styles.sectionHint}>밑줄이 있는 숫자를 누르면 원본 데이터와 출처를 볼 수 있어요. 기준일은 자료마다 달라요.</p>}
         {report.numbers.length === 0 && <p className="report-muted">표시할 숫자를 확보하지 못했습니다.</p>}
       </section>
 
       <div className={styles.columns}>
-        <div className={styles.story}>
-          <section>
-            <h2>왜 그럴까요?</h2>
-            {report.why.length === 0 ? (
-              <p className="muted">이 질문의 원인을 설명할 데이터가 아직 없습니다.</p>
-            ) : (
-              <ul>
-                {report.why.map((w, i) => (
-                  <li key={i}>
-                    <span className={`report-badge basis-${w.basis}`}>{basisLabels[w.basis]}</span>{" "}
-                    {w.claim}
-                    <div className={styles.reasonRefs}>
-                      {w.refs.length === 0 ? (
-                        <p className="evidence-missing">인용한 근거 번호가 없습니다.</p>
-                      ) : w.refs.map((ref, index) => (
-                        <EvidenceReference key={`${ref}-${index}`} evidenceId={ref} evidence={report.evidence} />
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section>
-            <h2>{area ? `내가 선택한 ${areaLabels[area]}에 무슨 영향인가요?` : "나에게 미치는 영향"}</h2>
-            <ul>{report.impact.map((w, i) => <li key={i}>{w}</li>)}</ul>
-          </section>
-
-          {report.charts && report.charts.length > 0 && (
-            <section>
-              <h2>최근 흐름</h2>
-              {report.charts.map((c, i) => (
-                <ReportChart key={i} chart={c} evidence={report.evidence} />
-              ))}
-            </section>
-          )}
-        </div>
-        <aside className={styles.aside} aria-label="출처와 참고 사항">
-          <section>
-            <details className={styles.sourceList}>
-              <summary>출처와 근거 ({report.sources.length})</summary>
-              <ul>
-                {report.sources.map((s, i) => (
-                  <li key={i}>
-                    <SourceLink url={s.url} name={s.name} /> · {s.asOf || "기준일 미제공"}
-                  </li>
-                ))}
-              </ul>
-              {report.sources.length === 0 && <p className="report-muted">확보한 출처가 없습니다.</p>}
-              {report.why.length > 0 && (
-                <div className={styles.reasonEvidence}>
-                  <h3>설명의 근거</h3>
-                  {report.why.map((reason, i) => (
-                    <div key={i}>
-                      <p><b>{reason.claim}</b></p>
-                      <p>{reason.evidence}</p>
-                      {reason.refs.length === 0 && <p className="evidence-missing">인용한 근거 번호가 없습니다.</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {report.evidence.map((entry) => <EvidenceRecord key={entry.id} entry={entry} evidence={report.evidence} />)}
-            </details>
-          </section>
-
-          <section>
-            <h2>더해볼 것</h2>
-            <div className="chips">{report.nextTopics.map((t, i) => <span className="chip-static" key={i}>{t}</span>)}</div>
-          </section>
-
           {(report.caveats.length > 0 || report.dataGaps.length > 0) && (
             <section className={`fine ${styles.readingNotes}`} aria-label="읽기 전에 알아둘 점">
               <h2>읽기 전에 알아둘 점</h2>
@@ -157,19 +87,102 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
               )}
             </section>
           )}
+
+        <div className={styles.story}>
+          <section>
+            <h2>변화의 배경</h2>
+            {report.why.length === 0 ? (
+              <p className="muted">이 질문의 원인을 설명할 데이터가 아직 없습니다.</p>
+            ) : (
+              <ul>
+                {report.why.map((w, i) => (
+                  <li key={i}>
+                    <span className={`report-badge basis-${w.basis}`}>{basisLabels[w.basis]}</span>{" "}
+                    <ReasonEvidenceLink index={i}>{w.claim}</ReasonEvidenceLink>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {report.why.length > 0 && <p className={styles.sectionHint}>밑줄이 있는 설명을 누르면 참고한 근거를 읽을 수 있어요.</p>}
+          </section>
+
+          <section>
+            <h2>내 생활에 미치는 영향</h2>
+            <ul>{report.impact.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          </section>
+
+          {report.charts && report.charts.length > 0 && (
+            <section>
+              <h2>숫자의 변화 추이</h2>
+              {report.charts.map((c, i) => (
+                <ReportChart key={i} chart={c} evidence={report.evidence} />
+              ))}
+            </section>
+          )}
+        </div>
+        <aside className={styles.aside} aria-label="출처와 참고 사항">
+          <section>
+            <details className={styles.sourceList}>
+              <summary>출처와 근거 ({report.sources.length})</summary>
+              <ReportSectionTarget name="sources">
+                <p className={styles.sectionHint}>설명을 이해하고 → 데이터를 비교하고 → 원문에서 맥락을 확인해 보세요.</p>
+                <nav className={styles.sourceIndex} aria-label="자료 읽는 순서">
+                  <ReportSectionLink name="reasons" label="1 설명 이해하기" />
+                  <ReportSectionLink name="data" label="2 데이터 비교하기" />
+                  <ReportSectionLink name="originals" label="3 원문 읽기" />
+                </nav>
+              </ReportSectionTarget>
+              {report.why.length > 0 ? (
+                <div className={styles.reasonEvidence}>
+                  <ReportSectionTarget name="reasons"><h3>1. 설명 이해하기</h3></ReportSectionTarget>
+                  <p className="report-muted">아래는 각 설명에 참고한 내용이에요. 자료를 인용했다는 사실만으로 원인 관계가 확정되는 것은 아니에요.</p>
+                  {report.why.map((reason, i) => (
+                    <ReasonEvidenceTarget key={i} index={i}>
+                      <p><b>{reason.claim}</b></p>
+                      <p>{reason.evidence}</p>
+                      {reason.refs.map((ref, index) => (
+                        <EvidenceReference key={`${ref}-${index}`} evidenceId={ref} evidence={report.evidence} label={`${report.evidence.find((entry) => entry.id === ref)?.label ?? "자료"} · 원본 확인 →`} />
+                      ))}
+                      {reason.refs.length === 0 && <p className="evidence-missing">인용한 근거 번호가 없습니다.</p>}
+                    </ReasonEvidenceTarget>
+                  ))}
+                </div>
+              ) : <ReportSectionTarget name="reasons"><h3>1. 설명 이해하기</h3><p className="report-muted">확보한 설명이 없습니다.</p></ReportSectionTarget>}
+              <ReportSectionTarget name="data"><h3>2. 데이터 비교하기</h3><p className={styles.sectionHint}>항목명·값·기준일을 함께 보세요. 서로 다른 시점의 자료일 수 있어요.</p></ReportSectionTarget>
+              {report.evidence.map((entry) => <EvidenceRecord key={entry.id} entry={entry} evidence={report.evidence} />)}
+              {report.evidence.length === 0 && <p className="report-muted">공개된 원본 데이터가 없습니다.</p>}
+              <ReportSectionTarget name="originals"><h3>3. 원문 읽기</h3><p className={styles.sectionHint}>제목을 누르면 원문이 새 탭으로 열려요. 발행일과 지표의 정의를 함께 확인해 보세요.</p>
+              <ul>
+                {report.sources.map((s, i) => (
+                  <li key={i}>
+                    <SourceLink url={s.url} name={s.name} /> · {s.asOf || "기준일 미제공"}
+                  </li>
+                ))}
+              </ul>
+              {report.sources.length === 0 && <p className="report-muted">확보한 출처가 없습니다.</p>}
+              </ReportSectionTarget>
+            </details>
+          </section>
+
+          {report.nextTopics.length > 0 && <section className={styles.nextTopics}>
+            <h2>이어서 알아볼까요?</h2>
+            <p className={styles.sectionHint}>궁금한 주제를 고르면 새 질문으로 이어져요. 질문을 확인한 뒤 리포트를 만들어 보세요.</p>
+            <div>{report.nextTopics.map((t, i) => <Link key={i} href={`/?question=${encodeURIComponent(t)}${area ? `&area=${area}` : ""}`} className={styles.topicLink}>{t}<span aria-hidden="true">→</span></Link>)}</div>
+          </section>}
+
           <details className={styles.technicalDetails}>
             <summary>리포트 상세 정보 <span>검사 내역·제외 항목·자료 조회 기록</span></summary>
-            <ReportVerification report={report} />
-            {report.verification.removed.length > 0 && (
+            <p className={styles.sectionHint}>검사 결과 → 제외·조정 내역 → 자료 조회 기록 순서로 살펴보세요. 자동 검사 기록이며, 리포트 전체의 정확성을 보증하지는 않아요.</p>
+            <ReportSectionTarget name="verification"><ReportVerification report={report} /></ReportSectionTarget>
               <section className="fine">
-                <h2>검사 후 제외한 항목</h2>
-                <ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                <h2>2. 검사 후 제외한 항목</h2>
+                <p className={styles.sectionHint}>출처와 맞지 않거나 표현을 조정해야 해서 처리한 내역이에요. 아래 사유를 확인해 주세요.</p>
+                {report.verification.removed.length > 0 ? <ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p className="report-muted">기록된 제외·조정 항목이 없습니다.</p>}
               </section>
-            )}
-            {steps && steps.length > 0 && (
               <section className="fine">
-                <h2>사용한 Tool</h2>
-                <ul>
+                <h2>3. 자료 조회 기록</h2>
+                <p className={styles.sectionHint}>조회 성공·실패와 저장된 응답 사용 여부예요. 조회 성공이 자료의 최신성을 뜻하지는 않아요.</p>
+                {steps && steps.length > 0 ? <ul>
                   {steps.map((s, i) => (
                     <li key={i}>
                       {s.status === "ok" ? (s.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(s.tool)} · {s.ms}ms
@@ -178,9 +191,8 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
                       {s.error ? ` · ${s.error}` : ""}
                     </li>
                   ))}
-                </ul>
+                </ul> : <p className="report-muted">이 리포트에 저장된 조회 기록이 없습니다.</p>}
               </section>
-            )}
           </details>
         </aside>
       </div>
