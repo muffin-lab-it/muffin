@@ -30,9 +30,10 @@ export function EvidenceReference({ evidenceId, evidence }: {
   }
   return (
     <details className="evidence-detail">
-      <summary>원본 보기 · {entry.id}</summary>
+      <summary>출처·기준일 보기</summary>
       <div className="evidence-content">
         <p className="evidence-title">{entry.label}</p>
+        <p className="report-muted">근거 번호: {entry.id}</p>
         <p><SourceLink url={entry.source.url} name={entry.source.name} /></p>
         <p>출처 기준일: {entry.source.asOf || "제공되지 않음"}</p>
         <p className="report-muted">도구 응답에서 추린 핵심 값입니다.</p>
@@ -108,6 +109,20 @@ export function VerificationDetail({ report }: { report: Report }) {
   );
 }
 
+export function ReportReadingNotice({ report }: { report: Report }) {
+  return (
+    <div className="report-reading-notice">
+      {report.verification.status === "skipped" && (
+        <p><strong>검사 미실행</strong> · 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
+      )}
+      {report.verification.status === "partial" && (
+        <p><strong>일부 확인 필요</strong> · 확인 범위에 한계가 있어요. 자료의 출처와 하단 리포트 상세 정보를 함께 확인해 주세요.</p>
+      )}
+      {report.notice && <p className="report-notice">{report.notice}</p>}
+    </div>
+  );
+}
+
 export function ReportVerification({ report }: { report: Report }) {
   const verification = report.verification;
   const skipped = verification.status === "skipped";
@@ -128,8 +143,6 @@ export function ReportVerification({ report }: { report: Report }) {
           <VerificationDetail report={report} />
         </>
       )}
-      <p className="report-disclosure">{report.disclosure}</p>
-      {report.notice && <p className="report-notice">{report.notice}</p>}
     </section>
   );
 }

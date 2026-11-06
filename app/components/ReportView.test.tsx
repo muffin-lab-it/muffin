@@ -47,7 +47,8 @@ describe("리포트 증거 표시 계약", () => {
     report.sources = [{ id: "E1", ...original.source }];
     const $ = render(report);
     const panel = $(".num .evidence-detail");
-    expect(panel.find("summary").text()).toBe("원본 보기 · E99");
+    expect(panel.find("summary").text()).toBe("출처·기준일 보기");
+    expect(panel.text()).toContain("근거 번호: E99");
     expect(panel.find(".evidence-title").text()).toBe("별도 관측값");
     expect(panel.find("dd").text()).toBe("1444");
     expect(panel.find("a").attr("href")).toBe(original.source.url);
@@ -83,7 +84,7 @@ describe("리포트 증거 표시 계약", () => {
     const report = normalizeReport(legacy.report);
     const $ = render(report);
     expect($(".status-skipped").text()).toBe("검사 미실행");
-    expect($(".check-verified, .check-derived, .evidence-detail")).toHaveLength(0);
+    expect($(".check-verified, .check-derived, .num .evidence-detail, .verification-detail")).toHaveLength(0);
     expect($(".num .evidence-missing")).toHaveLength(report.numbers.length);
   });
 
@@ -95,6 +96,42 @@ describe("리포트 증거 표시 계약", () => {
     expect($(".num").text()).toContain("공개된 원본 값이 없습니다");
     expect($(".evidence-lineage").text()).toContain("E404 (근거를 찾을 수 없음)");
     expect($(".evidence-lineage").text()).toContain("재계산 검증을 보장하지 않습니다");
+  });
+});
+
+describe("읽기 중심 리포트", () => {
+  it("검사 내역과 제외 항목은 기본적으로 접고, 주의점과 자료 부족 원문은 노출한다", () => {
+    const report = fixture();
+    const $ = render(report);
+    const details = $(".report-verification").parent("details");
+    expect(details.attr("open")).toBeUndefined();
+    expect(details.children("summary").text()).toContain("리포트 상세 정보");
+    expect(details.text()).toContain(report.verification.removed[0]);
+    const notes = $('[aria-label="읽기 전에 알아둘 점"]');
+    expect(notes.parents("details")).toHaveLength(0);
+    for (const text of [...report.caveats, ...report.dataGaps]) expect(notes.text()).toContain(text);
+    expect($(".report-reading-notice").text()).toContain("일부 확인 필요");
+    expect($(".report-reading-notice").parents("details")).toHaveLength(0);
+  });
+
+  it("검사 미실행, 서버 안내, AI 고지는 상세를 열지 않아도 확인할 수 있다", () => {
+    const report = fixture();
+    report.verification.status = "skipped";
+    report.notice = "추가 자료가 없어 원인을 단정할 수 없습니다.";
+    const $ = render(report);
+    expect($(".report-reading-notice").text()).toContain("검사 미실행");
+    expect($(".report-notice").text()).toBe(report.notice);
+    expect($(".report-disclosure").text()).toBe(report.disclosure);
+    expect($(".report-notice, .report-disclosure").parents("details")).toHaveLength(0);
+  });
+
+  it("긴 요약과 단위가 포함된 숫자의 원문을 잘라내지 않는다", () => {
+    const report = fixture();
+    report.summary = "긴 요약도 기준일과 단위를 생략하지 않습니다. ".repeat(20);
+    report.numbers[0].value = "1조 2,345억 6,789만 원";
+    const $ = render(report);
+    expect($(".report").text()).toContain(report.summary);
+    expect($(".num b").first().text()).toBe(report.numbers[0].value);
   });
 });
 
