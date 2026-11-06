@@ -90,7 +90,11 @@ export function ReportChart({ chart, evidence }: { chart: Chart; evidence: Evide
           ))}
         </ol>
       )}
-      <p className="chart-summary">{summary}</p>
+      <div className="chart-summary">
+        <p><strong>{fmtDate(from.t)} → {fmtDate(last.t)}</strong>{change !== null ? ` · ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "상승" : Number(change) < 0 ? "하락" : "변화 없음"}` : " · 시작값이 0이라 변화율을 표시하지 않았어요."}</p>
+        {band && <p className="chart-legend">보라색 영역: {band.label}</p>}
+        {events.length > 0 && <p className="chart-legend">빨간 점: 해당 시점의 관련 뉴스</p>}
+      </div>
     </figure>
   );
 }
