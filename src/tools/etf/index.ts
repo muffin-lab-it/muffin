@@ -125,19 +125,27 @@ type Call = { key: string; deadline: number };
 async function fetchWithRetry(call: Call, url: string): Promise<ApiResponse> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // 단계마다 첫 시도도 남은 시간을 봅니다. 앞 단계가 예산을 거의 다 썼으면 새로 보내지 않고 시간 초과로 끝냅니다 (예산을 늘리지 않음).
     const remaining = call.deadline - Date.now();
-    if (attempt > 1 && remaining < MIN_ATTEMPT_MS) break;
+    if (remaining < MIN_ATTEMPT_MS) {
+      lastErr ??= Object.assign(new Error(`ETF 조회 시간 예산(${EXECUTE_BUDGET_MS / 1000}초)을 다 써서 더 요청하지 않았습니다 (timeout)`), {
+        name: "TimeoutError",
+      });
+      break;
+    }
     try {
-      return await fetchJson<ApiResponse>(url, { timeoutMs: Math.max(MIN_ATTEMPT_MS, Math.min(ATTEMPT_TIMEOUT_MS, remaining)) });
+      return await fetchJson<ApiResponse>(url, { timeoutMs: Math.min(ATTEMPT_TIMEOUT_MS, remaining) });
     } catch (err) {
       lastErr = err;
       if (!isRetryable(err)) break;
     }
   }
   // 공통 HttpError 메시지에는 요청 URL 이 통째로 들어가서, 쿼리로 보내는 키가 노출됩니다.
-  // 삼키지 않고 키만 가린 메시지로 다시 던집니다.
+  // 삼키지 않고 키만 가린 메시지로 다시 던집니다. 이름(TimeoutError 등)은 남겨 defineTool 이 일시적 실패로 볼 수 있게 합니다.
   const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  throw new Error(message.replace(/serviceKey=[^&\s]*/g, "serviceKey=****"));
+  const masked = new Error(message.replace(/serviceKey=[^&\s]*/g, "serviceKey=****"));
+  if (lastErr instanceof Error && (lastErr.name === "TimeoutError" || lastErr.name === "AbortError")) masked.name = lastErr.name;
+  throw masked;
 }
 
 async function fetchRows(call: Call, params: Record<string, string>): Promise<EtfRow[]> {

@@ -274,6 +274,42 @@ describe("get_etf_kr_price", () => {
     });
   });
 
+  it("앞 단계가 예산을 거의 다 쓰면 다음 단계의 첫 요청도 보내지 않고 시간 초과로 끝낸다 (Codex 리뷰)", async () => {
+    const calls = mockApi((p) => {
+      if (p.get("itmsNm")) return okBody([]);
+      if (p.get("likeItmsNm")) {
+        vi.setSystemTime(Date.now() + EXECUTE_BUDGET_MS - 100); // 후보 찾기가 끝났을 때 0.1초만 남음
+        return okBody([row("069500", "KODEX 200")]);
+      }
+      return fixture;
+    });
+    const err = await execute({ query: "KODEX200", days: 30 }).catch((e: Error) => e);
+    expect((err as Error).message).toMatch(/시간 예산.*timeout/);
+    expect((err as Error).name).toBe("TimeoutError");
+    expect(calls.map((u) => [...u.searchParams.keys()].find((k) => /Nm|SrtnCd/.test(k)))).toEqual(["itmsNm", "likeItmsNm"]);
+  });
+
+  it("요청마다 남은 예산보다 오래 기다리지 않는다", async () => {
+    const waits: number[] = [];
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+      waits.push(ms);
+      return realTimeout(ms);
+    });
+    mockApi((p) => {
+      if (p.get("itmsNm")) {
+        vi.setSystemTime(Date.now() + EXECUTE_BUDGET_MS - 800); // 0.8초 남음
+        return okBody([]);
+      }
+      if (p.get("likeItmsNm")) return okBody([row("069500", "KODEX 200")]);
+      return fixture;
+    });
+    await execute({ query: "KODEX200", days: 30 });
+    expect(waits[0]).toBe(ATTEMPT_TIMEOUT_MS);
+    expect(waits[1]).toBeLessThanOrEqual(800);
+    vi.restoreAllMocks();
+  });
+
   it("실패 메시지에 API 키를 남기지 않는다", async () => {
     mockApi(() => ({ error: "server down" }), 500);
     const err = await execute({ query: "069500", days: 30 }).catch((e: Error) => e);
