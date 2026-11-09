@@ -4,7 +4,7 @@ import { getReport, saveReport } from "@/src/lib/history";
 import type { ProgressError } from "./Progress";
 
 type State = {
-  phase: "idle" | "research" | "saving" | "error" | "navigating";
+  phase: "idle" | "checking" | "unsupported" | "research" | "saving" | "error" | "navigating";
   input?: ReportRequest;
   events: readonly MuffinEvent[];
   result?: ReportResponse;
@@ -20,7 +20,7 @@ export function createHomeReport(deps = { streamReport, saveReport, getReport },
   const listeners = new Set<() => void>();
   const update = (next: State) => { state = next; listeners.forEach(listener => listener()); };
   const remaining = () => Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
-  const busy = () => ["research", "saving", "navigating"].includes(state.phase);
+  const busy = () => ["checking", "research", "saving", "navigating"].includes(state.phase);
 
   async function persist(token: number, input: ReportRequest, result: ReportResponse) {
     update({ ...state, phase: "saving", result, error: undefined });
@@ -43,15 +43,30 @@ export function createHomeReport(deps = { streamReport, saveReport, getReport },
     if (busy() || remaining() > 0 || !request.question.trim()) return;
     const token = ++generation;
     const input = { ...request, question: request.question.trim() };
-    update({ phase: "research", input, events: [], retrySeconds: 0 });
+    update({ phase: "checking", input, events: [], retrySeconds: 0 });
     let terminal = false;
     try {
       const result = await deps.streamReport(input, event => {
         if (token !== generation || terminal) return;
+        const unsupported = (event.type === "plan" && event.mode === "out_of_scope")
+          || (event.type === "report" && event.report.mode === "out_of_scope");
+        if (unsupported) {
+          // The server may still finish verify/report. Ignore that generation; never save it.
+          generation++;
+          terminal = true;
+          update({ phase: "unsupported", input, events: [...state.events, event], retrySeconds: 0 });
+          return;
+        }
         terminal = event.type === "error" || event.type === "report";
-        update({ ...state, events: [...state.events, event] });
+        const supportedPlan = state.events.some(previous => previous.type === "plan" && previous.mode !== "out_of_scope");
+        const beganWork = supportedPlan && event.type === "stage" && event.stage === "research" && event.status === "start";
+        update({ ...state, phase: beganWork && state.phase === "checking" ? "research" : state.phase, events: [...state.events, event] });
       });
       if (token !== generation) return;
+      if (result.report.mode === "out_of_scope") {
+        update({ phase: "unsupported", input, events: state.events, retrySeconds: 0 });
+        return;
+      }
       await persist(token, input, result);
     } catch (error) {
       if (token !== generation) return;
@@ -89,4 +104,11 @@ export function createHomeReport(deps = { streamReport, saveReport, getReport },
     // 공통 API는 AbortSignal 미지원. 화면 이탈 후 도착한 결과는 무시합니다.
     detach() { generation++; },
   };
+}
+
+/** Request failures return to the home form; preserve completed content on save failure. */
+export function showsHomeProgress(state: State): boolean {
+  if (["idle", "checking", "unsupported"].includes(state.phase)) return false;
+  if (state.phase === "error") return !!state.result;
+  return true;
 }
