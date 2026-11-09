@@ -4,7 +4,7 @@
  * 접근성: figure + 설명 문장(figcaption)과 role="img" 요약. 색은 globals.css 의 변수.
  */
 import type { Chart, Evidence } from "@/src/agent/schema";
-import { EvidenceReference } from "./ReportEvidence";
+
 
 const W = 640;
 const H = 240;
@@ -14,7 +14,7 @@ const day = (t: string) => Date.parse(`${t}T00:00:00Z`) / 86_400_000;
 const fmtDate = (t: string) => `${Number(t.slice(5, 7))}/${Number(t.slice(8, 10))}`;
 const fmtValue = (v: number) => v.toLocaleString("ko-KR", { maximumFractionDigits: v >= 1000 ? 0 : 2 });
 
-export function ReportChart({ chart, evidence }: { chart: Chart; evidence: Evidence[] }) {
+export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const series = chart.series[0];
   if (!series || series.points.length < 2) return null;
   const points = series.points;
@@ -38,20 +38,24 @@ export function ReportChart({ chart, evidence }: { chart: Chart; evidence: Evide
   const ticks = [y0 + margin, (y0 + y1) / 2, y1 - margin];
   const events = (chart.events ?? []).filter((e) => day(e.at) >= x0 && day(e.at) <= x1);
   const change = from.v ? ((last.v / from.v - 1) * 100).toFixed(2) : null;
+  const subject = /USD\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : "지표";
+  const unitLabel = chart.unit === "KRW per 1 USD" ? "1달러당 원화 금액(원)" : chart.unit || "지표 값";
   const summary = `${chart.title}: ${fmtDate(from.t)} ${fmtValue(from.v)} 에서 ${fmtDate(last.t)} ${fmtValue(last.v)}${change ? ` (${Number(change) >= 0 ? "+" : ""}${change}%)` : ""}${band ? `. ${band.label}: ${fmtValue(band.low)}~${fmtValue(band.high)}` : ""}${events.length ? `. 뉴스 ${events.length}건 표시` : ""}`;
 
   return (
     <figure className="chart">
       <figcaption>
-        <b>{chart.title}</b>
-        {chart.unit && <span className="chart-unit"> · {chart.unit}</span>}
-        <EvidenceReference evidenceId={series.ref} evidence={evidence} />
+        <b>{subject} 변화를 확인해 보세요</b>
+        <span className="chart-subtitle">{chart.title} 기준으로 설명해요.</span>
+
       </figcaption>
+      <p className="chart-axis-guide">가로축: 날짜 · 세로축: {unitLabel}</p>
+      {band && <p className="chart-band-key"><span aria-hidden="true">▰</span> 보라색 비교 범위 · {band.label}</p>}
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="chart-svg">
         {band && (
           <g className="chart-band">
             <rect x={sx(band.from)} y={sy(band.high)} width={Math.max(2, sx(band.to) - sx(band.from))} height={Math.max(2, sy(band.low) - sy(band.high))} rx={3} />
-            <text x={Math.min(sx(band.to), W - PAD.right) - 4} y={sy(band.high) - 4} textAnchor="end">{band.label}</text>
+
           </g>
         )}
         {ticks.map((v) => (
@@ -67,7 +71,7 @@ export function ReportChart({ chart, evidence }: { chart: Chart; evidence: Evide
           <g key={`${e.ref}-${e.at}`} className="chart-event">
             <line x1={sx(e.at)} x2={sx(e.at)} y1={PAD.top} y2={H - PAD.bottom} />
             <circle cx={sx(e.at)} cy={PAD.top + 6} r={4}>
-              <title>{`${fmtDate(e.at)} ${e.label} (${e.ref})`}</title>
+              <title>{`${fmtDate(e.at)} ${e.label}`}</title>
             </circle>
           </g>
         ))}
@@ -80,20 +84,20 @@ export function ReportChart({ chart, evidence }: { chart: Chart; evidence: Evide
           <text x={W - PAD.right} y={H - 8} textAnchor="end">{fmtDate(last.t)}</text>
         </g>
       </svg>
+      <div className="chart-summary">
+        <p><strong>{subject}이 {fmtValue(from.v)}에서 {fmtValue(last.v)}로{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong><span className="chart-period">{fmtDate(from.t)} → {fmtDate(last.t)} · {unitLabel}</span></p>
+        {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p><small>관련 기사가 나온 날짜를 빨간 점으로 표시했어요. 같은 시기의 움직임을 함께 살펴보세요.</small></div>}
       {events.length > 0 && (
         <ol className="chart-events">
           {events.map((e) => (
             <li key={`${e.ref}-${e.at}`}>
               <span className="chart-event-date">{fmtDate(e.at)}</span> {e.label}
-              <EvidenceReference evidenceId={e.ref} evidence={evidence} />
+
             </li>
           ))}
         </ol>
       )}
-      <div className="chart-summary">
-        <p><strong>{fmtDate(from.t)} → {fmtDate(last.t)}</strong>{change !== null ? ` · ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "상승" : Number(change) < 0 ? "하락" : "변화 없음"}` : " · 시작값이 0이라 변화율을 표시하지 않았어요."}</p>
-        {band && <p className="chart-legend">보라색 영역: {band.label}</p>}
-        {events.length > 0 && <p className="chart-legend">빨간 점: 해당 시점의 관련 뉴스</p>}
+
       </div>
     </figure>
   );
