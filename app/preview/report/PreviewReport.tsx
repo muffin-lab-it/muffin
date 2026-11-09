@@ -22,7 +22,7 @@ export function PreviewReport() {
   const sample = samples[area];
   const report = reportSchema.parse(fixture.report);
   report.caveats = ["표시된 환율은 은행에서 실제 환전할 때 적용되는 환율과 다를 수 있어요.", "미국 금리는 중앙은행의 목표치가 아니라 은행 간 하루짜리 거래에 실제 적용된 금리예요."];
-  report.dataGaps = ["수입 업체의 달러 수요는 직접 자료로 확인되지 않았어요."];
+  report.dataGaps = [];
   if (area !== "fx") {
     const item = samples[area];
     report.summary = item.summary;

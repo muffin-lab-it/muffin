@@ -51,7 +51,7 @@ export function ReportView({ report, area, question, headline, impactTitles = []
       </section>
 
       <section className={styles.metrics}>
-        <div className="metrics-heading"><h2>오늘의 숫자</h2>{groups.map(group => <span className="category-chip mini" data-category={group} key={group}>{group}</span>)}</div><div className="metrics-guide"><p className="section-guide">질문과 관련된 수치를 변화량·기준일과 함께 비교해 보세요.</p><ReportHelp numbers /></div>
+        <div className="metrics-heading"><h2>오늘의 숫자</h2>{groups.map(group => <span className="category-chip mini" data-category={group} key={group}>{group}</span>)}<div className="numbers-help"><ReportHelp numbers /></div></div><div className="metrics-guide"><p className="section-guide">질문과 관련된 수치를 변화량·기준일과 함께 비교해 보세요.</p></div>
         <div className="numbers">
           {report.numbers.map((n, i) => {
             const check = report.verification.status === "skipped" ? "unverified" : n.check;
@@ -59,10 +59,9 @@ export function ReportView({ report, area, question, headline, impactTitles = []
               <div className="num" key={i}>
                 <div className="metric-label"><span className="category-chip" data-category={category(n.ref)}>{category(n.ref)}</span><small>{n.label}</small></div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`}><b>{n.value}</b></EvidenceReference>
-                {n.change && <i className={reportChange(n.change).direction}>{reportChange(n.change).text}</i>}
+                {n.change && !/^이번\s*주$/.test(n.change.trim()) && <i className={reportChange(n.change).direction}>{reportChange(n.change).text}</i>}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${n.asOf}` : "자료 날짜 미제공"}</span>
-                  {check === "reported" && <span className="report-badge check-reported">📰 기사 속 수치</span>}
                   {check === "unverified" && <span className="report-badge check-unverified">원문 미대조</span>}
                 </div>
               </div>

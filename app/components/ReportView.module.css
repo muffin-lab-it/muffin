@@ -317,3 +317,7 @@
 .report :global(.section-guide)::before { content:"ⓘ"; margin-right:8px; color:#756286; }
 .report :global(.metrics-guide .section-guide) { flex:1; }
 .report :global(.source-panel-heading) { margin-bottom:16px; }
+
+.report :global(.numbers-help) { margin-left:auto; }
+.report :global(.chart-axis-guide) text { fill:#454b57; font-size:13px; font-weight:600; }
+.report :global(.chart-events) { list-style:none; padding:12px 16px; }

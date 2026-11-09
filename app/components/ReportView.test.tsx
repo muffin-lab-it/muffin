@@ -185,7 +185,7 @@ describe("간결한 검사 안내", () => {
     expect($(".report").text()).not.toContain("권유 표현 패턴 감지");
     expect($(".report-reading-notice, .report-verification")).toHaveLength(0);
     expect($(".num .check-verified, .num .check-derived")).toHaveLength(0);
-    expect($(".num .check-reported").text()).toContain("기사 속 수치");
+    expect($(".num .check-reported")).toHaveLength(0);
   });
 
   it("계산 입력이 자신을 가리켜도 범위 밖 단독 렌더링이 재귀하지 않는다", () => {
@@ -275,7 +275,7 @@ it("자료 없는 해석을 중복 탭이나 끊어진 링크로 만들지 않�
     const id = decodeURIComponent($(el).attr("href")!.slice(1));
     expect($("[id]").filter((_, target) => $(target).attr("id") === id)).toHaveLength(1);
   }
-  expect($(".chart-axis-guide").text()).toContain("가로축: 날짜");
+  expect($("svg .chart-axis-guide").text()).toContain("날짜");
   expect($(".chart-subtitle").text()).toContain("USD/KRW 최근 30일");
 });
 
