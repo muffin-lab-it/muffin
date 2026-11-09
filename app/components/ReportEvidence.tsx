@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportHint } from "./ReportHint";
 import type { ReactNode } from "react";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
@@ -41,7 +42,7 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
   if (targetId) return <ReportEvidenceLink targetId={targetId} label={label} className={children ? "metric-value-link" : ""}>{children}</ReportEvidenceLink>;
   return (
     <details className="evidence-detail">
-      <summary>출처·기준일 보기</summary>
+      <summary>출처와 자료 날짜 보기</summary>
       <EvidenceContent entry={entry} evidence={evidence} />
     </details>
   );
@@ -52,143 +53,82 @@ export function EvidenceRecord({ entry, evidence }: { entry: Evidence; evidence:
   return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} /></div>;
 }
 
+/** 계산의 입력은 링크만 렌더링하여 순환 계보도 재귀적으로 펼치지 않습니다. */
+function EvidenceInputLink({ evidenceId, evidence }: { evidenceId: string; evidence: Evidence[] }) {
+  const targetId = useEvidenceTarget(evidenceId);
+  const entry = evidence.find((item) => item.id === evidenceId);
+  if (!entry) return <span className="evidence-missing">{evidenceId} (자료 없음)</span>;
+  return targetId
+    ? <ReportEvidenceLink targetId={targetId} label={`${entry.label} · ${evidenceId}`}><span>{evidenceId}</span></ReportEvidenceLink>
+    : <span>{entry.label} · {evidenceId}</span>;
+}
+
+const valueLabels: Record<string, string> = {
+  op: "계산 방식", result: "결과", unit: "단위", a: "입력 값 1", b: "입력 값 2",
+  rate: "값", pair: "통화", date: "자료 날짜", title: "기사 제목", formula: "계산식",
+};
+const operationLabels: Record<string, string> = { spread: "차이", diff: "차이", pct_change: "변화율", pp_diff: "%p 차이" };
+
 function EvidenceContent({ entry, evidence }: { entry: Evidence; evidence: Evidence[] }) {
+  const isNews = /news/i.test(entry.tool);
   return (
-      <div className="evidence-content">
-        <p className="evidence-title">{entry.label}</p>
-        <p className="evidence-help">{entry.lineage
-          ? "여러 자료를 조합한 계산값이에요. 아래 계산 내역에서 사용한 자료를 확인하세요."
-          : "리포트 작성에 참고한 원본 값이에요. 출처를 누르면 원문에서 맥락을 확인할 수 있어요."}</p>
-        <div className="evidence-source">
-          <p><SourceLink url={entry.source.url} name={entry.source.name} /></p>
-          <p><strong>기준일</strong> {entry.source.asOf || "제공되지 않음"}</p>
-        </div>
-        {Object.keys(entry.values).length > 0 ? (
-          <dl className="evidence-values">
-            {Object.entries(entry.values).map(([key, value]) => (
-              <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>
-            ))}
-          </dl>
-        ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
-        <p className="evidence-id">근거 번호: {entry.id}</p>
-        {entry.lineage && (
-          <div className="evidence-lineage">
-            <p>계산 연산: {entry.lineage.op}</p>
-            <p>입력 근거: {entry.lineage.inputs.length > 0 ? entry.lineage.inputs.map((id) => (
-              evidence.some((item) => item.id === id) ? id : `${id} (근거를 찾을 수 없음)`
-            )).join(", ") : "제공되지 않음"}</p>
-            <p className="report-muted">계산 계보 표시만으로 재계산 검증을 보장하지 않습니다.</p>
-          </div>
-        )}
+    <div className="evidence-content">
+      <p className="evidence-title">{entry.label}</p>
+      <div className="evidence-meta">
+        <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>
+        {entry.lineage ? <span>계산에 사용한 자료</span> : <SourceLink url={entry.source.url} name={entry.source.name} />}
+        <span>{entry.source.asOf ? `${entry.source.asOf} 자료` : "자료 날짜 미제공"}</span>
+        {entry.lineage ? <span className="evidence-inputs">{entry.lineage.inputs.length > 0 ? entry.lineage.inputs.map((id, index) => (
+          <span key={`${id}-${index}`}>
+            {index > 0 && ", "}
+            <EvidenceInputLink evidenceId={id} evidence={evidence} />
+          </span>
+        )) : "입력 자료 미제공"}</span> : <span>자료 {entry.id}</span>}
       </div>
-  );
-}
-
-const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" } as const;
-const policyLabels = { exact: "정확히 일치", rounded: "표기 반올림과 일치", scaled: "단위를 환산해 일치", tolerance: "허용 오차 0.1% 안에서 일치" } as const;
-
-/** 숫자 카드 하나를 검증이 어떻게 확인했는지 한 줄 */
-export function numberCheckDetail(n: Report["numbers"][number], evidence: Evidence[]): string {
-  const entry = evidence.find((e) => e.id === n.ref);
-  const ref = n.ref ?? "근거 번호 없음";
-  if (n.check === "verified") return n.match ? `${ref} 의 ${n.match.key} 값과 ${policyLabels[n.match.policy]}` : `${ref} 의 장부 값과 일치`;
-  if (n.check === "derived") {
-    const lineage = entry?.lineage;
-    return lineage ? `${ref} 계산값 (${lineage.op} ← ${lineage.inputs.join(", ")})${n.match ? ` · ${n.match.key} 와 ${policyLabels[n.match.policy]}` : ""}` : `${ref} 계산값`;
-  }
-  if (n.check === "reported") {
-    const where = n.match ? `${ref} 의 ${n.match.key.replace(/#text$/, "")} 와 ${policyLabels[n.match.policy]}` : `${ref} 기사 제목에 나온 숫자`;
-    return `${where} (보도일 뿐 공식 데이터로 확인한 것이 아님)`;
-  }
-  return "검증기를 거치지 않았거나 대조하지 못함";
-}
-
-/**
- * 검증이 한 일을 풀어 보여 줍니다 (숫자마다 어느 장부 값과 어떤 규칙으로 맞았는지 · 원인의 근거 종류 · 다시 쓰기 · 제외한 항목 수).
- * 데이터는 모두 검증기(src/agent/verify.ts)가 리포트에 적어 둔 것이고 화면은 읽기만 합니다.
- */
-export function VerificationDetail({ report }: { report: Report }) {
-  const v = report.verification;
-  return (
-    <details className="evidence-detail verification-detail">
-      <summary>숫자를 어떻게 확인했나요?</summary>
-      <div className="evidence-content">
-        <p className="evidence-help">각 숫자가 어떤 원본 값과 맞았는지 확인하는 기록이에요. 아래에서 관심 있는 숫자의 이름을 찾아보세요.</p>
-        <dl className="verification-guide">
-          <div><dt>값 대조</dt><dd>인용한 자료의 값과 맞춰 보았어요.</dd></div>
-          <div><dt>계산값</dt><dd>자료를 조합한 계산 결과를 사용했어요.</dd></div>
-          <div><dt>기사 보도</dt><dd>기사에 나온 숫자예요. 공식 통계 확인과는 달라요.</dd></div>
-          <div><dt>미검증</dt><dd>원본 값과의 대조가 확인되지 않았어요.</dd></div>
+      {Object.keys(entry.values).length > 0 ? (
+        <dl className="evidence-values">
+          {Object.entries(entry.values).map(([key, value]) => (
+            <div key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : String(value)}</dd></div>
+          ))}
         </dl>
-        {report.numbers.length > 0 ? (
-          <ol className="verification-list">
-            {report.numbers.map((n, i) => (
-              <li key={i}>
-                <b>{n.label}</b> {n.value} → <span className={`report-badge check-${n.check}`}>{checkLabels[n.check]}</span> {numberCheckDetail(n, report.evidence)}
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="report-muted">숫자 카드가 없습니다.</p>
-        )}
-        <p>원인 {report.why.length}개: 데이터 인용 {v.why.data} · 보도 기반 {v.why.news} · 근거 부족 {v.why.none}</p>
-        <p>
-          다시 쓰기 {v.revisions}회{v.revisionSkipped ? " · 마감이 가까워 다시 쓰지 않고 걸린 항목을 바로 뺐습니다" : ""} · 검사 후 제외 {v.removed.length}개
-          {v.removed.length > 0 ? " (아래 「검사 후 제외한 항목」)" : ""}
-        </p>
-      </div>
-    </details>
-  );
-}
-
-export function ReportReadingNotice({ report }: { report: Report }) {
-  return (
-    <div className="report-reading-notice">
-      {report.verification.status === "skipped" && (
-        <p><strong>검사 미실행</strong> · 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
-      )}
-      {report.verification.status === "partial" && (
-        <div className="verification-notice">
-          <strong>일부 확인 필요</strong>
-          <ul>
-            {report.verification.removed.length > 0 && <li>검사 과정에서 제외하거나 조정한 항목이 {report.verification.removed.length}개 있어요.</li>}
-            {report.verification.advice > 0 && <li>권유로 해석될 수 있는 표현이 {report.verification.advice}건 남아 있어요.</li>}
-            {report.verification.removed.length === 0 && report.verification.advice === 0 && <li>저장된 검사 결과가 부분 확인 상태예요. 구체적인 사유는 기록에서 확인해 주세요.</li>}
-          </ul>
-          <p>인용한 자료는 <ReportSectionLink name="sources" label="출처와 근거" />, 처리 내역은 <ReportSectionLink name="verification" label="리포트 상세 정보" />에서 확인하세요.</p>
-        </div>
-      )}
-      {report.notice && <p className="report-notice">{report.notice}</p>}
+      ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
     </div>
   );
 }
 
+export function ReportReadingNotice({ report }: { report: Report }) {
+  const { verification: v } = report;
+  const needsAttention = v.status !== "pass";
+  if (!needsAttention && !report.notice) return null;
+  return (
+    <div className={`report-reading-notice ${needsAttention ? "needs-attention" : ""}`}>
+      {report.notice && <p className="report-notice">{report.notice}</p>}
+      {needsAttention && <div className="verification-notice">
+        <strong>{v.status === "skipped" ? "검사 미실행" : "일부 확인 필요"}</strong>
+        <p>{v.status === "skipped" ? "자동 검사를 거치지 않은 리포트예요." : [
+          v.removed.length > 0 ? `제외하거나 조정한 항목이 ${v.removed.length}개 있어요.` : "",
+          v.advice > 0 ? `권유로 해석될 수 있는 표현이 ${v.advice}건 남아 있어요.` : "",
+        ].filter(Boolean).join(" ") || "구체적인 사유는 기록에서 확인해 주세요."}</p>
+        <ReportHint>자세한 내용은 <ReportSectionLink name="sources" label="출처와 근거" /> · <ReportSectionLink name="verification" label="리포트 상세 정보" />에서 확인하세요.</ReportHint>
+      </div>}
+    </div>
+  );
+}
+
+/** 사용자에게 필요한 미확인 정보만 표시합니다. 운영 통계는 렌더링하지 않습니다. */
 export function ReportVerification({ report }: { report: Report }) {
-  const verification = report.verification;
-  const skipped = verification.status === "skipped";
-  const labels = { skipped: "검사 미실행", partial: "일부 확인 필요", pass: "검사 통과" };
+  const v = report.verification;
+  const unchecked = report.numbers.filter((n) => n.check === "unverified");
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
-      <div className="verification-heading">
-        <h2>1. 검사 결과 읽기</h2>
-        <span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span>
-      </div>
-      {skipped ? (
-        <p>이 리포트는 검증기를 거치지 않았습니다. 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
-      ) : (
-        <>
-          <p className="evidence-help">총 {verification.numbers.total}개 숫자를 아래 방식으로 확인했어요. 이 분류는 정보의 최신 여부를 뜻하지 않아요.</p>
-          <dl className="verification-stats">
-            <div><dt>값 대조</dt><dd>{verification.numbers.verified}개</dd></div>
-            <div><dt>계산값</dt><dd>{verification.numbers.derived}개</dd></div>
-            <div><dt>기사 보도</dt><dd>{verification.numbers.reported ?? 0}개</dd></div>
-            <div><dt>미검증</dt><dd>{verification.numbers.unverified}개</dd></div>
-          </dl>
-          <p className="report-muted">값 대조는 인용한 원본 값과의 일치 검사입니다. 날짜·단위·지표의 의미와 원인 관계 전체의 정확성을 보장하지 않습니다.</p>
-          <p className="report-muted">권유 표현 패턴 감지 {verification.advice}건 · 수정 {verification.revisions}회 · 제외 항목 {verification.removed.length}개</p>
-          <VerificationDetail report={report} />
-        </>
-      )}
+      <h2>확인할 내용</h2>
+      <ReportHint>자동 검사는 자료와 숫자를 대조하는 과정이에요. 중요한 내용은 원문과 함께 확인해 주세요.</ReportHint>
+      {v.status === "skipped" ? <p>이 리포트는 자동 검사를 거치지 않았어요.</p> : <>
+        {unchecked.length > 0 && <p>원본과 대조하지 못한 숫자: {unchecked.map((n) => n.label).join(", ")}</p>}
+        {v.advice > 0 && <p>권유로 해석될 수 있는 표현이 남아 있어요. 투자 결정의 근거로 삼지 않도록 주의해 주세요.</p>}
+        {v.removed.length === 0 && unchecked.length === 0 && v.advice === 0 && <p>{v.status === "partial" ? "부분 확인 상태로 저장되어 있지만 구체적인 사유는 기록되지 않았어요." : "기록된 추가 확인 사항이 없어요."}</p>}
+      </>}
+      {v.removed.length > 0 && <div className="report-adjustments"><h3>제외·조정한 내용</h3><ul>{v.removed.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
     </section>
   );
 }

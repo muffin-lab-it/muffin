@@ -1,9 +1,8 @@
 import Image from "next/image";
+import { ReportHint } from "./ReportHint";
 import Link from "next/link";
 import styles from "./ReportView.module.css";
 import type { ToolStep } from "@/src/agent/context";
-import { labelFor } from "@/src/agent/events";
-import { formatAge } from "@/src/lib/age";
 import type { Area, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
 import { ReportEvidenceScope, ReasonEvidenceLink, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
@@ -28,8 +27,7 @@ function direction(change: string): "up" | "down" | "flat" {
  * 리포트 한 장. 홈과 리포트 상세가 같이 씁니다.
  * 프론트 팀은 이 컴포넌트를 기준으로 디자인을 올리면 됩니다. 데이터 모양은 src/agent/schema.ts.
  */
-export function ReportView({ report, steps, area, question }: { report: Report; steps?: ToolStep[]; area?: Area; question?: string }) {
-  const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" };
+export function ReportView({ report, area, question }: { report: Report; steps?: ToolStep[]; area?: Area; question?: string }) {
   const basisLabels = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
   return (
     <ReportEvidenceScope>
@@ -63,14 +61,15 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`}><b>{n.value}</b></EvidenceReference>
                 {n.change && <i className={direction(n.change)}>{n.change}</i>}
                 <div className={styles.metricMeta}>
-                  <span className={styles.metricDate}>기준일 <strong>{n.asOf || "미제공"}</strong></span>
-                  <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                  <span className={styles.metricDate}>{n.asOf ? `${n.asOf} 자료` : "자료 날짜 미제공"}</span>
+                  {check === "reported" && <span className="report-badge check-reported">📰 기사 속 수치</span>}
+                  {check === "unverified" && <span className="report-badge check-unverified">원본 확인 필요</span>}
                 </div>
               </div>
             );
           })}
         </div>
-        {report.numbers.length > 0 && <p className={styles.sectionHint}>밑줄이 있는 숫자를 누르면 원본 데이터와 출처를 볼 수 있어요. 기준일은 자료마다 달라요.</p>}
+        {report.numbers.length > 0 && <ReportHint>밑줄이 있는 숫자를 누르면 원본 데이터와 출처를 볼 수 있어요. 자료마다 날짜가 다를 수 있어요.</ReportHint>}
         {report.numbers.length === 0 && <p className="report-muted">표시할 숫자를 확보하지 못했습니다.</p>}
       </section>
 
@@ -103,7 +102,7 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
                 ))}
               </ul>
             )}
-            {report.why.length > 0 && <p className={styles.sectionHint}>밑줄이 있는 설명을 누르면 참고한 근거를 읽을 수 있어요.</p>}
+            {report.why.length > 0 && <ReportHint>밑줄이 있는 설명을 누르면 참고한 근거를 읽을 수 있어요.</ReportHint>}
           </section>
 
           <section>
@@ -125,7 +124,7 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
             <details className={styles.sourceList}>
               <summary>출처와 근거 ({report.sources.length})</summary>
               <ReportSectionTarget name="sources">
-                <p className={styles.sectionHint}>설명을 이해하고 → 데이터를 비교하고 → 원문에서 맥락을 확인해 보세요.</p>
+                <ReportHint>설명을 이해하고 → 데이터를 비교하고 → 원문에서 맥락을 확인해 보세요.</ReportHint>
                 <nav className={styles.sourceIndex} aria-label="자료 읽는 순서">
                   <ReportSectionLink name="reasons" label="1 설명 이해하기" />
                   <ReportSectionLink name="data" label="2 데이터 비교하기" />
@@ -135,7 +134,7 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
               {report.why.length > 0 ? (
                 <div className={styles.reasonEvidence}>
                   <ReportSectionTarget name="reasons"><h3>1. 설명 이해하기</h3></ReportSectionTarget>
-                  <p className="report-muted">아래는 각 설명에 참고한 내용이에요. 자료를 인용했다는 사실만으로 원인 관계가 확정되는 것은 아니에요.</p>
+                  <ReportHint>각 설명이 어떤 자료를 참고했는지 확인해 보세요.</ReportHint>
                   {report.why.map((reason, i) => (
                     <ReasonEvidenceTarget key={i} index={i}>
                       <p><b>{reason.claim}</b></p>
@@ -148,14 +147,14 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
                   ))}
                 </div>
               ) : <ReportSectionTarget name="reasons"><h3>1. 설명 이해하기</h3><p className="report-muted">확보한 설명이 없습니다.</p></ReportSectionTarget>}
-              <ReportSectionTarget name="data"><h3>2. 데이터 비교하기</h3><p className={styles.sectionHint}>항목명·값·기준일을 함께 보세요. 서로 다른 시점의 자료일 수 있어요.</p></ReportSectionTarget>
+              <ReportSectionTarget name="data"><h3>2. 데이터 비교하기</h3><ReportHint>자료 이름을 누르면 원문이 열려요. 숫자는 날짜와 함께 비교하고, 계산 항목은 사용한 자료를 확인하세요.</ReportHint></ReportSectionTarget>
               {report.evidence.map((entry) => <EvidenceRecord key={entry.id} entry={entry} evidence={report.evidence} />)}
               {report.evidence.length === 0 && <p className="report-muted">공개된 원본 데이터가 없습니다.</p>}
-              <ReportSectionTarget name="originals"><h3>3. 원문 읽기</h3><p className={styles.sectionHint}>제목을 누르면 원문이 새 탭으로 열려요. 발행일과 지표의 정의를 함께 확인해 보세요.</p>
+              <ReportSectionTarget name="originals"><h3>3. 원문 읽기</h3><ReportHint>제목을 누르면 원문이 새 탭으로 열려요. 발행일과 지표의 정의를 함께 확인해 보세요.</ReportHint>
               <ul>
                 {report.sources.map((s, i) => (
                   <li key={i}>
-                    <SourceLink url={s.url} name={s.name} /> · {s.asOf || "기준일 미제공"}
+                    <SourceLink url={s.url} name={s.name} /> · {s.asOf || "자료 날짜 미제공"}
                   </li>
                 ))}
               </ul>
@@ -166,33 +165,13 @@ export function ReportView({ report, steps, area, question }: { report: Report; 
 
           {report.nextTopics.length > 0 && <section className={styles.nextTopics}>
             <h2>이어서 알아볼까요?</h2>
-            <p className={styles.sectionHint}>궁금한 주제를 고르면 새 질문으로 이어져요. 질문을 확인한 뒤 리포트를 만들어 보세요.</p>
+            <ReportHint>궁금한 주제를 고르면 새 질문으로 이어져요. 질문을 확인한 뒤 리포트를 만들어 보세요.</ReportHint>
             <div>{report.nextTopics.map((t, i) => <Link key={i} href={`/?question=${encodeURIComponent(t)}${area ? `&area=${area}` : ""}`} className={styles.topicLink}>{t}<span aria-hidden="true">→</span></Link>)}</div>
           </section>}
 
           <details className={styles.technicalDetails}>
-            <summary>리포트 상세 정보 <span>검사 내역·제외 항목·자료 조회 기록</span></summary>
-            <p className={styles.sectionHint}>검사 결과 → 제외·조정 내역 → 자료 조회 기록 순서로 살펴보세요. 자동 검사 기록이며, 리포트 전체의 정확성을 보증하지는 않아요.</p>
+            <summary>리포트 상세 정보 <span>확인할 내용과 제외·조정 사항</span></summary>
             <ReportSectionTarget name="verification"><ReportVerification report={report} /></ReportSectionTarget>
-              <section className="fine">
-                <h2>2. 검사 후 제외한 항목</h2>
-                <p className={styles.sectionHint}>출처와 맞지 않거나 표현을 조정해야 해서 처리한 내역이에요. 아래 사유를 확인해 주세요.</p>
-                {report.verification.removed.length > 0 ? <ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p className="report-muted">기록된 제외·조정 항목이 없습니다.</p>}
-              </section>
-              <section className="fine">
-                <h2>3. 자료 조회 기록</h2>
-                <p className={styles.sectionHint}>조회 성공·실패와 저장된 응답 사용 여부예요. 조회 성공이 자료의 최신성을 뜻하지는 않아요.</p>
-                {steps && steps.length > 0 ? <ul>
-                  {steps.map((s, i) => (
-                    <li key={i}>
-                      {s.status === "ok" ? (s.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(s.tool)} · {s.ms}ms
-                      {s.fallbackAgeMs !== undefined ? ` · 저장된 응답(${formatAge(s.fallbackAgeMs)} 전)` : ""}
-                      {s.breaker === "open" ? " · 회로 열림(호출 생략)" : ""}
-                      {s.error ? ` · ${s.error}` : ""}
-                    </li>
-                  ))}
-                </ul> : <p className="report-muted">이 리포트에 저장된 조회 기록이 없습니다.</p>}
-              </section>
           </details>
         </aside>
       </div>

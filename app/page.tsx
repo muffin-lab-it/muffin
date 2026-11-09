@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Area, Depth } from "@/src/agent/schema";
 import { Progress } from "./components/Progress";
 import { ReportView } from "./components/ReportView";
@@ -21,21 +21,17 @@ const depthOptions: { value: Depth; label: string; hint: string }[] = [
   { value: "deep", label: "Deep Dive", hint: "깊이 있는 리포트로 진지하게" },
 ];
 
-function subscribeLocation(onChange: () => void) {
-  window.addEventListener("popstate", onChange);
-  return () => window.removeEventListener("popstate", onChange);
-}
-const getLocationSearch = () => window.location.search;
-const getServerSearch = () => "";
-
 /**
  * 홈. 질문을 보내면 리포트를 저장함에 넣고 리포트 페이지로 이동합니다.
  * 서버의 실제 이벤트를 표시하고 저장을 확인한 뒤 이동합니다.
  */
 export default function Home() {
+  return <Suspense fallback={<p role="status">질문 화면을 준비하고 있어요…</p>}><HomeForm /></Suspense>;
+}
+
+function HomeForm() {
   const router = useRouter();
-  const search = useSyncExternalStore(subscribeLocation, getLocationSearch, getServerSearch);
-  const params = new URLSearchParams(search);
+  const params = useSearchParams();
   const suggestedArea = areaOptions.find((item) => item.value === params.get("area"))?.value;
   const [selectedArea, setArea] = useState<Area>();
   const area = selectedArea ?? suggestedArea ?? "etf";
