@@ -69,14 +69,14 @@ export function ReportView({ report, area, question, headline, impactTitles = []
             );
           })}
         </div>
-        <div className="metric-notes" aria-label="자료 범위">{report.caveats.map((note, i) => <p key={i}><span className="category-chip">{/환율/.test(note) ? "환율" : /금리/.test(note) ? "금리" : "참고"}</span>{note}</p>)}{report.dataGaps.map((note, i) => <p key={`gap-${i}`}>💡 {note} <span>관련 해석은 참고용으로 읽어주세요.</span></p>)}</div>
+        {(report.caveats.length > 0 || report.dataGaps.length > 0) && <div className="metric-notes" aria-label="자료 범위">{report.caveats.map((note, i) => <p key={i}><span className="category-chip">{/환율/.test(note) ? "환율" : /금리/.test(note) ? "금리" : "참고"}</span>{note}</p>)}{report.dataGaps.map((note, i) => <p key={`gap-${i}`}>💡 {note} <span>관련 해석은 참고용으로 읽어주세요.</span></p>)}</div>}
         {report.numbers.length === 0 && <p className="report-muted">표시할 숫자를 확보하지 못했습니다.</p>}
       </section>
 
       <div className={styles.columns}>
         <div className={styles.story}>
           <section>
-            <h2>숫자 너머의 이야기</h2><p className="section-guide">ⓘ 지금의 수치와 연결되는 배경을 살펴보세요. 각 설명이 어떤 자료에 기반하는지도 함께 표시했어요.</p>
+            <h2>숫자 너머의 이야기</h2><p className="section-guide">지금의 수치가 나온 배경을 읽고, 설명 옆 배지로 근거의 종류를 확인해 보세요.</p>
             {report.why.length === 0 ? (
               <p className="muted">이 질문의 원인을 설명할 데이터가 아직 없습니다.</p>
             ) : (
@@ -92,13 +92,13 @@ export function ReportView({ report, area, question, headline, impactTitles = []
           </section>
 
           <section>
-            <h2>내 생활에 미치는 영향</h2><p className="section-guide">ⓘ 내 소비와 자산에 연결해 읽어보세요. 나에게 해당하는 상황을 중심으로 살펴보면 좋아요.</p>
+            <h2>내 생활에 미치는 영향</h2><p className="section-guide">내 소비와 자산에 해당하는 카드를 골라, 어떤 영향을 받을 수 있는지 살펴보세요.</p>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
           </section>
 
           {report.charts && report.charts.length > 0 && (
             <section>
-              <h2>숫자의 변화 추이</h2><p className="section-guide">ⓘ 시간에 따라 얼마나 달라졌는지 그래프로 살펴보세요.</p>
+              <h2>숫자의 변화 추이</h2><p className="section-guide">날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요.</p>
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
               ))}

@@ -29,7 +29,7 @@ export function PreviewReport() {
     report.numbers = [{ ...report.numbers[0], label: item.label, value: item.value, change: item.change, check: area === "news" ? "reported" : "verified", ref: "E1" }];
     report.evidence = [{ ...report.evidence[0], id: "E1", tool: item.tool, label: item.label, source: { name: item.source, url: "", asOf: "2026-10-19" }, values: { value: item.amount } }];
     report.sources = [];
-    report.why = [{ claim: item.summary, evidence: "기준일과 지표의 비교 기간을 함께 살펴보세요.", basis: area === "news" ? "news" : "data", refs: ["E1"] }];
+    report.why = [{ claim: item.summary, evidence: "", basis: area === "news" ? "news" : "data", refs: ["E1"] }];
     report.impact = item.impacts;
     report.nextTopics = item.topics;
     report.caveats = [];

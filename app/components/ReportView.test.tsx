@@ -278,3 +278,21 @@ it("자료 없는 해석을 중복 탭이나 끊어진 링크로 만들지 않�
   expect($(".chart-axis-guide").text()).toContain("가로축: 날짜");
   expect($(".chart-subtitle").text()).toContain("USD/KRW 최근 30일");
 });
+
+it("범위 안내가 없으면 빈 안내 막대를 만들지 않는다", () => {
+  const report = fixture();
+  report.caveats = [];
+  report.dataGaps = [];
+  expect(render(report)(".metric-notes")).toHaveLength(0);
+});
+
+it("단일 원본 값은 위에 같은 수치가 표시된 경우에만 중복을 없앤다", () => {
+  const entry = { ...fixture().evidence[0], values: { value: 3 } };
+  const same = load(renderToStaticMarkup(<EvidenceRecord entry={entry} evidence={[entry]} displayedValue="3.00%" />));
+  expect(same(".evidence-values")).toHaveLength(0);
+  expect(same(".evidence-meta").text()).toContain(entry.source.name);
+  const different = load(renderToStaticMarkup(<EvidenceRecord entry={entry} evidence={[entry]} displayedValue="4.00%" />));
+  expect(different("dd").text()).toBe("3");
+  const noSummary = load(renderToStaticMarkup(<EvidenceRecord entry={entry} evidence={[entry]} />));
+  expect(noSummary("dd").text()).toBe("3");
+});

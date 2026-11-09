@@ -47,9 +47,9 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
   );
 }
 
-export function EvidenceRecord({ entry, evidence }: { entry: Evidence; evidence: Evidence[] }) {
+export function EvidenceRecord({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
   const id = useEvidenceTarget(entry.id);
-  return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} /></div>;
+  return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} /></div>;
 }
 
 /** 입력 자료는 이름으로 보여주며 내부 이동이나 재귀 펼침을 만들지 않습니다. */
@@ -65,7 +65,15 @@ const valueLabels: Record<string, string> = {
 };
 const operationLabels: Record<string, string> = { spread: "차이", diff: "차이", pct_change: "변화율", pp_diff: "%p 차이" };
 
-function EvidenceContent({ entry, evidence }: { entry: Evidence; evidence: Evidence[] }) {
+function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
+  // A single raw value adds no context when its formatted equivalent is already above.
+  // Keep differing values, calculations and multi-field records visible.
+  const fields = Object.entries(entry.values);
+  const formatted = displayedValue?.replaceAll(",", "");
+  const duplicate = !entry.lineage && fields.length === 1 && ["value", "rate"].includes(fields[0][0])
+    && typeof fields[0][1] === "number" && formatted !== undefined
+    && /^[+-]?\d+(?:\.\d+)?(?:%p|%|원)?$/.test(formatted)
+    && Number.parseFloat(formatted) === fields[0][1];
   const isNews = /news/i.test(entry.tool);
   return (
     <div className="evidence-content">
@@ -81,7 +89,7 @@ function EvidenceContent({ entry, evidence }: { entry: Evidence; evidence: Evide
           </span>
         )) : "입력 자료 미제공"}</span> : null}
       </div>
-      {Object.keys(entry.values).length > 0 ? (
+      {duplicate ? null : Object.keys(entry.values).length > 0 ? (
         <dl className="evidence-values">
           {Object.entries(entry.values).map(([key, value]) => (
             <div key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : String(value)}</dd></div>
