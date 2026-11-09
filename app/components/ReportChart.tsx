@@ -47,10 +47,8 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
     <figure className="chart">
       <figcaption>
         <b>{subject} 변화를 확인해 보세요</b>
-        <span className="chart-subtitle">{chart.title} 기준으로 설명해요.</span>
 
       </figcaption>
-      {band && <p className="chart-band-key"><span aria-hidden="true">▰</span> 보라색 비교 범위 · {band.label}</p>}
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="chart-svg">
         <g className="chart-axis-guide"><text x={PAD.left} y={22}>{unitLabel}</text><text x={W - PAD.right} y={H - 10} textAnchor="end">날짜</text></g>
         {band && (
@@ -87,7 +85,7 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
       </svg>
       <div className="chart-summary">
         <p><strong>{subject}이 {fmtValue(from.v)}에서 {fmtValue(last.v)}로{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong><span className="chart-period">{longDate(first.t)}부터 {longDate(last.t)}까지 {Math.round(day(last.t) - day(first.t))}일간의 {subject} 변화 그래프예요. {chart.unit === "KRW per 1 USD" ? "1달러당 원화 금액을 원 단위로 표시했어요." : `${unitLabel} 기준으로 표시했어요.`}</span></p>
-        {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p><small>관련 기사가 나온 날짜를 빨간 점으로 표시했어요. 같은 시기의 움직임을 함께 살펴보세요.</small></div>}
+        {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
       {events.length > 0 && (
         <ul className="chart-events">
           {events.map((e) => (

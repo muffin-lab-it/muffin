@@ -276,7 +276,7 @@ it("자료 없는 해석을 중복 탭이나 끊어진 링크로 만들지 않�
     expect($("[id]").filter((_, target) => $(target).attr("id") === id)).toHaveLength(1);
   }
   expect($("svg .chart-axis-guide").text()).toContain("날짜");
-  expect($(".chart-subtitle").text()).toContain("USD/KRW 최근 30일");
+  expect($(".chart-subtitle, .chart-band-key")).toHaveLength(0);
 });
 
 it("범위 안내가 없으면 빈 안내 막대를 만들지 않는다", () => {

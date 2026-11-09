@@ -109,7 +109,7 @@ export function ReportView({ report, area, question, headline, impactTitles = []
       <ReportSources report={report} />
 
       {report.nextTopics.length > 0 && <section className={styles.nextTopics}>
-        <h2>이어서 알아볼까요?</h2><p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요. 질문을 확인하고 생성 버튼을 눌러 새 AI 리포트를 받아보세요.</p>
+        <h2>이어서 알아볼까요?</h2><p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
         <div className={styles.topicGrid}>{report.nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic)}${area ? `&area=${area}` : ""}`} className={styles.topicLink}><span><strong>{topic}</strong>{topicReasons[i] && <small>{topicReasons[i]}</small>}<em>머핀랩과 더 알아보기</em></span><span aria-hidden="true">→</span></Link>)}</div>
       </section>}
 
