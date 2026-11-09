@@ -1,3 +1,5 @@
+/// <reference types="next/image-types/global" />
+// CI에서도 개발 서버가 생성하는 next-env.d.ts 없이 정적 이미지 타입을 인식합니다.
 "use client";
 
 import styles from "./HomeHistory.module.css";
