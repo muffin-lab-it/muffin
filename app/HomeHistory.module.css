@@ -129,3 +129,9 @@
 
 /* 9. 질문 확인 중: 버튼 형태·그림자는 유지하고 배경과 글자색만 변경 */
 .submit[data-checking="true"],.submit[data-checking="true"]:disabled{background:linear-gradient(180deg,#f4eeff,#ddcef5);color:#8b8793;border-color:transparent}
+
+/* 서버 오류는 질문 지원 범위 안내와 구분하고, 기존 재시도 제한을 따릅니다. */
+.formError p{margin:0}
+.formError button{margin-top:10px;border:1px solid var(--button-border);border-radius:var(--button-radius);background:#fff;color:var(--ink);font-size:14px;padding:8px 14px}
+.formError button:hover{border-color:var(--accent);background:#f8f4ff}
+.formError button:disabled{opacity:.5;cursor:not-allowed}
