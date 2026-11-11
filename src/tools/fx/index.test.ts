@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import fixture from "./fixture.json";
-import { execute } from "./index";
+import ecosFixture from "./ecos.fixture.json";
+import { execute, parameters } from "./index";
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -123,5 +124,99 @@ describe("get_fx_krw_rate", () => {
     );
 
     await expect(execute({ currency: "USD", days: 14 })).rejects.toThrow("HTTP 404");
+  });
+
+  it("Frankfurter 실패 시 ECOS의 USD/KRW 매매기준율로 대체한다", async () => {
+    vi.stubEnv("ECOS_API_KEY", "ecos-test-key");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("upstream error", { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(ecosFixture), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await execute({ currency: "USD", days: 14 });
+
+    expect(result).toMatchObject({
+      data: {
+        pair: "USD/KRW",
+        unit: "KRW per 1 USD",
+        rate: 1342.51,
+        comparison: { rate: 1354.87, asOf: "2026-10-02" },
+        change: -12.36,
+        changePct: -0.91,
+      },
+      source: { name: "한국은행 ECOS — 주요국 통화의 대원화환율", asOf: "2026-10-16" },
+    });
+
+    const ecosUrl = String(fetchMock.mock.calls[1][0]);
+    expect(ecosUrl).toContain("/StatisticSearch/ecos-test-key/json/kr/1/1000/731Y001/D/");
+    expect(ecosUrl).toMatch(/\/0000001$/);
+    expect(JSON.stringify(result.source)).not.toContain("ecos-test-key");
+  });
+
+  it("ECOS fallback의 JPY 값은 이미 100엔 단위이므로 다시 곱하지 않는다", async () => {
+    vi.stubEnv("ECOS_API_KEY", "ecos-test-key");
+    const jpyRows = structuredClone(ecosFixture);
+    jpyRows.StatisticSearch.row = [
+      { ...jpyRows.StatisticSearch.row[0], ITEM_CODE1: "0000002", ITEM_NAME1: "원/일본엔(100엔)", TIME: "20261002", DATA_VALUE: "831.00" },
+      { ...jpyRows.StatisticSearch.row[1], ITEM_CODE1: "0000002", ITEM_NAME1: "원/일본엔(100엔)", TIME: "20261016", DATA_VALUE: "847.00" },
+    ];
+    jpyRows.StatisticSearch.list_total_count = 2;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(new Response("upstream error", { status: 503 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify(jpyRows), { status: 200 })),
+    );
+
+    const result = await execute({ currency: "JPY", days: 14 });
+
+    expect(result.data).toMatchObject({
+      pair: "JPY(100)/KRW",
+      rate: 847,
+      comparison: { rate: 831, asOf: "2026-10-02" },
+      change: 16,
+      changePct: 1.93,
+    });
+  });
+
+  it("Frankfurter와 ECOS가 모두 실패해도 ECOS API 키를 오류에 노출하지 않는다", async () => {
+    vi.stubEnv("ECOS_API_KEY", "ecos-test-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(new Response("upstream error", { status: 503 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ RESULT: { CODE: "INFO-200" } }), { status: 200 })),
+    );
+
+    const error = await execute({ currency: "USD", days: 14 }).then(
+      () => new Error("expected execute to reject"),
+      (caught: unknown) => caught instanceof Error ? caught : new Error(String(caught)),
+    );
+
+    expect(error.message).toContain("Frankfurter와 ECOS 환율 조회에 모두 실패했습니다");
+    expect(error.message).toContain("INFO-200");
+    expect(error.message).not.toContain("ecos-test-key");
+  });
+
+  it.each([
+    ["단위", { UNIT_NAME: "달러" }],
+    ["날짜", { TIME: "2026-10-16" }],
+  ])("ECOS fallback이 잘못된 %s 응답을 거부한다", async (_label, change) => {
+    vi.stubEnv("ECOS_API_KEY", "ecos-test-key");
+    const invalid = structuredClone(ecosFixture);
+    Object.assign(invalid.StatisticSearch.row[0], change);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(new Response("upstream error", { status: 503 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify(invalid), { status: 200 })),
+    );
+
+    await expect(execute({ currency: "USD", days: 14 })).rejects.toThrow("ECOS 환율 응답 형식이 예상과 다릅니다.");
+  });
+
+  it("지원하지 않는 통화와 기간은 입력 스키마에서 거부한다", () => {
+    expect(() => parameters.parse({ currency: "GBP", days: 14 })).toThrow();
+    expect(() => parameters.parse({ currency: "USD", days: 0 })).toThrow();
   });
 });
