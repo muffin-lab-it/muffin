@@ -16,6 +16,7 @@ import { createEditorAgent, editInput, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
 import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
+import { changeDetailsFor } from "./change";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
@@ -175,6 +176,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
       checks: applied.checks,
       matches: applied.matches,
+      changes: changeDetailsFor(applied, ctx.evidence),
       ...(movement ? { movement: movementSummary(movement) } : {}),
       ...(chart ? { charts: [chart] } : {}),
     }),

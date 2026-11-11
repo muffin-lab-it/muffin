@@ -10,6 +10,7 @@
     "mode": "research",
     "notice": "USD/KRW 30일 변화(+2.00%)는 직전 90일 기준 평소 폭(±1.57%)의 1.27배로, 평소보다 큰 움직임입니다.",
     "summary": "원달러 환율은 최근 30일 동안 2.00% 올라 1,392.40원이 됐습니다. 한국 기준금리는 3.00%로 멈춰 있는데 미국 정책금리가 3.88%로 올라 금리 차이가 0.88%p로 벌어진 것이 가장 큰 배경입니다.",
+    "headline": "미국 금리가 오르며 한미 금리 차이가 벌어져 원달러 환율이 30일 사이 2.00% 올랐습니다.",
     "numbers": [
       {
         "label": "USD/KRW",
@@ -20,7 +21,20 @@
         "check": "verified",
         "match": {
           "key": "rate",
-          "policy": "exact"
+          "policy": "exact",
+          "change": {
+            "key": "changePct",
+            "policy": "exact"
+          }
+        },
+        "changeDetail": {
+          "key": "changePct",
+          "value": 2,
+          "unit": "%",
+          "from": "2026-09-19",
+          "to": "2026-10-19",
+          "days": 30,
+          "basis": "30일 전과 비교"
         }
       },
       {
@@ -32,7 +46,20 @@
         "check": "verified",
         "match": {
           "key": "rate",
-          "policy": "exact"
+          "policy": "exact",
+          "change": {
+            "key": "changePp",
+            "policy": "exact"
+          }
+        },
+        "changeDetail": {
+          "key": "changePp",
+          "value": 0,
+          "unit": "%p",
+          "from": "2026-09-16",
+          "to": "2026-10-16",
+          "days": 30,
+          "basis": "30일 전과 비교"
         }
       },
       {
@@ -44,7 +71,20 @@
         "check": "verified",
         "match": {
           "key": "rate",
-          "policy": "exact"
+          "policy": "exact",
+          "change": {
+            "key": "changePp",
+            "policy": "exact"
+          }
+        },
+        "changeDetail": {
+          "key": "changePp",
+          "value": 0.25,
+          "unit": "%p",
+          "from": "2026-09-16",
+          "to": "2026-10-16",
+          "days": 30,
+          "basis": "30일 전과 비교"
         }
       },
       {
@@ -103,6 +143,11 @@
       "달러로 된 자산(미국 주식 · 달러 예금)의 원화 환산 가치는 그만큼 올랐습니다.",
       "수입 물가가 오르면 몇 달 뒤 소비자물가에도 영향이 갈 수 있습니다."
     ],
+    "impactTitles": [
+      "해외 결제와 여행",
+      "달러 자산의 원화 가치",
+      "수입 물가"
+    ],
     "caveats": [
       "환율은 ECB 기준 Frankfurter 데이터라 국내 은행 고시 환율과 소폭 다를 수 있습니다.",
       "미국 금리는 실효연방기금금리(DFF) 기준이며 정책금리 목표 범위와는 다릅니다."
@@ -116,12 +161,19 @@
       "엔화 · 유로 환율 비교",
       "수입 물가 지수"
     ],
+    "topicReasons": [
+      "이번 환율 변화의 가장 큰 배경이라 흐름을 이어서 볼 수 있어요",
+      "외국인 자금 흐름이 환율에 주는 영향을 확인할 수 있어요",
+      "달러만의 움직임인지 다른 통화도 같은지 비교할 수 있어요",
+      "환율 상승이 생활 물가로 이어지는 경로를 볼 수 있어요"
+    ],
     "sources": [
       {
         "id": "E1",
         "name": "Frankfurter v2",
         "url": "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW",
-        "asOf": "2026-10-19"
+        "asOf": "2026-10-19",
+        "pageUrl": "https://frankfurter.dev/"
       },
       {
         "id": "E2",
@@ -151,7 +203,8 @@
         "id": "C2",
         "name": "Frankfurter v2 일별 환율 (2026-06-22 ~ 2026-10-19)",
         "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-06-21&to=2026-10-19",
-        "asOf": "2026-10-19"
+        "asOf": "2026-10-19",
+        "pageUrl": "https://frankfurter.dev/"
       }
     ],
     "evidence": [
@@ -166,12 +219,13 @@
           "comparisonRate": 1365.1,
           "comparisonAsOf": "2026-09-19",
           "change": 27.3,
-          "changePct": 2.0
+          "changePct": 2
         },
         "source": {
           "name": "Frankfurter v2",
           "url": "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW",
-          "asOf": "2026-10-19"
+          "asOf": "2026-10-19",
+          "pageUrl": "https://frankfurter.dev/"
         }
       },
       {
@@ -180,10 +234,10 @@
         "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
         "values": {
           "indicator": "한국은행 기준금리",
-          "rate": 3.0,
+          "rate": 3,
           "unit": "%",
           "asOf": "2026-10-16",
-          "comparisonRate": 3.0,
+          "comparisonRate": 3,
           "comparisonDate": "2026-09-16",
           "changePp": 0
         },
@@ -249,7 +303,7 @@
           "result": 0.88,
           "unit": "%p",
           "a": 3.88,
-          "b": 3.0
+          "b": 3
         },
         "source": {
           "name": "계산 (E3 − E2)",
@@ -282,7 +336,8 @@
         "source": {
           "name": "Frankfurter v2 일별 환율 (2026-06-22 ~ 2026-10-19)",
           "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-06-21&to=2026-10-19",
-          "asOf": "2026-10-19"
+          "asOf": "2026-10-19",
+          "pageUrl": "https://frankfurter.dev/"
         },
         "note": "직전 90일(2026-06-22~2026-09-19) 하루 변화 89개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±1.57%. 이번 변화 +2.00% 는 평소 폭의 1.27배입니다",
         "lineage": {
@@ -381,7 +436,7 @@
         "unit": "KRW per 1 USD"
       }
     ],
-    "disclosure": "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다."
+    "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
   },
   "steps": [
     {

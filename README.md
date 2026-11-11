@@ -419,14 +419,20 @@ type Report = {
   mode: "research" | "decision_facts" | "out_of_scope";   // 일반 / 판단에 필요한 사실 / 범위 밖
   notice?: string;                                         // 상단 안내: mode 에 따른 문구, 원인 질문이면 움직임 크기
   summary: string;
+  headline?: string;                                       // 핵심 한 문장 (11/10). 검증을 통과한 것만, 없으면 화면이 숨김
   numbers: { label: string; value: string; change: string; asOf: string;
              ref?: string;                                  // 인용한 증거 번호 "E1" 또는 계산 "C1"
-             check: "verified" | "derived" | "unverified" }[];
+             check: "verified" | "derived" | "reported" | "unverified";
+             match?: { key: string; policy: string; change?: { key: string; policy: string } }; // 검증이 적음: 값 · 변화량이 장부의 어느 키와 맞았는지
+             changeDetail?: { key: string; value: number; unit: string;    // 코드가 장부에서 풀어 쓴 변화량 (11/10, src/agent/change.ts)
+                              from?: string; to?: string; days?: number; basis: string } }[];
   why:     { claim: string; evidence: string;
              basis: "data" | "news" | "none";               // 📊 📰 ❔
              refs: string[] }[];
   impact: string[]; caveats: string[]; dataGaps: string[]; nextTopics: string[];
-  sources: { id: string; name: string; url: string; asOf: string }[];   // 증거 장부에서 코드가 생성
+  impactTitles?: string[]; topicReasons?: string[];       // impact · nextTopics 와 같은 순서 · 개수의 제목 · 이유 (11/10). 개수가 다르면 코드가 뺌
+  sources: { id: string; name: string; url: string; asOf: string;
+             pageUrl?: string }[];                          // 증거 장부에서 코드가 생성. pageUrl 은 url 이 API 주소일 때 공식 페이지 (11/10, src/agent/sources.ts)
   evidence: Evidence[];                                    // 원본 보기용 핵심 값 (전체 데이터는 서버에만)
   verification: {
     status: "pass" | "partial" | "skipped";                // skipped = 검증기 없이 생성 (0단계, v1 기록)
@@ -440,7 +446,7 @@ type Report = {
   charts?: { kind: "line" | "bar"; title: string;
              series: { label: string; ref: string; points: { t: string; v: number }[] }[];  // 증거 번호에 묶인 시계열
              events?: { ref: string; label: string; at: string }[] }[];                     // 뉴스 이벤트 점
-  disclosure: string;                                      // "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아닙니다."
+  disclosure: string;                                      // AI 생성 고지. 서버 상수(src/agent/report.ts DISCLOSURE) 문구를 화면이 그대로 보여 줍니다
 };
 
 type Evidence = {
