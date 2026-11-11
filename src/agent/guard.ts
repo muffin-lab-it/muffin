@@ -16,10 +16,14 @@ const ADVICE_PATTERNS: RegExp[] = [
 /** 검사 대상 문장이 들어 있는 부분. 작성 출력과 최종 리포트 둘 다 이 모양을 만족합니다. 사용자가 보는 글 칸은 모두 봅니다. */
 export type AdviceText = {
   summary: string;
+  /** 11/10: 핵심 한 문장 · 영향 제목 · 추천 이유도 사용자가 보는 글이라 같이 봅니다 */
+  headline?: string | null;
   why: { claim: string; evidence: string }[];
   impact: string[];
+  impactTitles?: string[];
   caveats: string[];
   nextTopics: string[];
+  topicReasons?: string[];
   dataGaps?: string[];
   numbers?: { label: string; value?: string; change?: string }[];
 };
@@ -27,10 +31,13 @@ export type AdviceText = {
 function textOf(report: AdviceText): string[] {
   return [
     report.summary,
+    ...(report.headline ? [report.headline] : []),
     ...report.why.map((w) => `${w.claim} ${w.evidence}`),
     ...report.impact,
+    ...(report.impactTitles ?? []),
     ...report.caveats,
     ...report.nextTopics,
+    ...(report.topicReasons ?? []),
     ...(report.dataGaps ?? []),
     ...(report.numbers ?? []).flatMap((n) => [n.label, n.value ?? "", n.change ?? ""]).filter(Boolean),
   ];

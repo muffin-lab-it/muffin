@@ -531,7 +531,8 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(applied.checks).toEqual(["verified", "verified"]);
     // 어느 장부 값과 어떤 규칙으로 맞았는지도 남긴다 (화면의 "검증이 한 일")
     expect(applied.matches).toHaveLength(2);
-    expect(applied.matches[0]).toEqual({ key: "rate", policy: "exact" });
+    // change "30일 +27.3원 (+2.00%)" 의 첫 숫자 27.3원은 장부의 change(27.3) 와 맞았다 (11/10: 코드가 변화량을 풀어 쓸 때 씀)
+    expect(applied.matches[0]).toEqual({ key: "rate", policy: "exact", change: { key: "change", policy: "exact" } });
     expect(applied.output.why[1]).toMatchObject({ basis: "none", refs: [], evidence: "데이터로 확인되지 않음" });
     expect(applied.output.impact).toEqual(["수입 물가가 오를 수 있습니다."]);
     expect(applied.output.dataGaps).toEqual(["금리 데이터 없음", "검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았습니다)"]);
@@ -653,5 +654,72 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(verify(report, [usd]).failures).toEqual([]);
     const wrongWay = { ...report, summary: "2026-09-27보다 34.69원 올랐습니다." };
     expect(verify(wrongWay, [usd]).failures).toEqual([expect.stringContaining("summary 의 숫자 34.69원")]);
+  });
+});
+
+describe("headline · impactTitles · topicReasons (11/10)", () => {
+  it("headline 의 숫자도 장부와 대조하고, 장부에 없으면 headline 을 통째로 뺀다", () => {
+    const withHeadline: WriterOutput = { ...output, numbers: [output.numbers[0]], impact: [], headline: "달러가 한 달 사이 5.00% 올랐습니다." };
+    const r = verify(withHeadline, ledger);
+    expect(r.text).toEqual([{ field: "headline", index: 0, text: withHeadline.headline, unmatched: ["5.00%"] }]);
+    expect(r.failures.some((f) => f.startsWith("headline 의 숫자 5.00%"))).toBe(true);
+    const applied = applyVerification(withHeadline, r);
+    expect(applied.output.headline).toBeNull();
+    expect(applied.removed).toContain("headline 삭제: 장부에 없는 숫자 5.00%");
+  });
+
+  it("headline 의 권유 표현은 실패이고, 남으면 headline 을 뺀다. 장부 숫자만 쓴 headline 은 그대로 남는다", () => {
+    const advice: WriterOutput = { ...output, numbers: [output.numbers[0]], impact: [], headline: "달러가 올랐으니 지금 매수하세요." };
+    const r = verify(advice, ledger);
+    expect(r.advice).toContain("달러가 올랐으니 지금 매수하세요.");
+    expect(applyVerification(advice, r).output.headline).toBeNull();
+
+    const ok: WriterOutput = { ...output, numbers: [output.numbers[0]], impact: [], headline: "달러가 한 달 사이 2.00% 올라 1,392.40원이 됐습니다." };
+    const applied = applyVerification(ok, verify(ok, ledger));
+    expect(applied.output.headline).toBe(ok.headline);
+    expect(summarizeVerification(applied, 0).advice).toBe(0);
+  });
+
+  it("impactTitles 는 impact 와 짝을 맞춘다: 뺀 항목의 제목도 빼고, 권유 표현이 든 제목은 비우며, 개수가 다르면 통째로 버린다", () => {
+    const titled: WriterOutput = {
+      ...output,
+      numbers: [output.numbers[0]],
+      impact: ["수입 물가가 오를 수 있습니다.", "지금 달러를 매수하세요.", "달러 자산의 원화 가치가 오릅니다."],
+      impactTitles: ["수입 물가", "달러 매수", "지금이 살 때입니다"],
+    };
+    const applied = applyVerification(titled, verify(titled, ledger));
+    expect(applied.output.impact).toEqual(["수입 물가가 오를 수 있습니다.", "달러 자산의 원화 가치가 오릅니다."]);
+    expect(applied.output.impactTitles).toEqual(["수입 물가", ""]);
+    expect(applied.removed).toContain("impactTitles 3번째 비움: 투자 권유 표현");
+
+    const mismatch: WriterOutput = { ...titled, impactTitles: ["수입 물가"] };
+    const applied2 = applyVerification(mismatch, verify(mismatch, ledger));
+    expect(applied2.output.impactTitles).toEqual([]);
+    expect(applied2.removed).toContain("impactTitles 삭제: 짝이 되는 목록과 개수가 다름 (1 vs 3)");
+  });
+
+  it("topicReasons 도 nextTopics 와 짝을 맞추고, 새 칸이 없는 출력(예전 테스트 · 범위 밖)은 null · 빈 배열로 나간다", () => {
+    const topics: WriterOutput = {
+      ...output,
+      numbers: [output.numbers[0]],
+      impact: [],
+      nextTopics: ["한미 금리 차이", "지금 사세요", "수입 물가 지수"],
+      topicReasons: ["환율의 배경이라서", "타이밍이라서", "생활 물가로 이어져서"],
+    };
+    const applied = applyVerification(topics, verify(topics, ledger));
+    expect(applied.output.nextTopics).toEqual(["한미 금리 차이", "수입 물가 지수"]);
+    expect(applied.output.topicReasons).toEqual(["환율의 배경이라서", "생활 물가로 이어져서"]);
+
+    const plain = applyVerification(output, verify(output, ledger));
+    expect(plain.output.headline).toBeNull();
+    expect(plain.output.impactTitles).toEqual([]);
+    expect(plain.output.topicReasons).toEqual([]);
+  });
+
+  it("verifyNumbers 는 change 가 맞은 장부 키를 남긴다 (changeDetail 용). change 가 비었으면 없다", () => {
+    const [withChange, noChange] = verifyNumbers([num("USD/KRW", "1,392.40원", "30일 +2.00%", "E1"), num("USD/KRW", "1,392.40원", "", "E1")], ledger);
+    expect(withChange).toMatchObject({ status: "verified", changeOk: true, change: { key: "changePct", policy: "exact" } });
+    expect(noChange).toMatchObject({ status: "verified", changeOk: true });
+    expect(noChange).not.toHaveProperty("change");
   });
 });

@@ -1,6 +1,7 @@
 import { findAdvice } from "./guard";
 import { DISCLOSURE, UNSUPPORTED_EVIDENCE, summarizeWhy } from "./report";
 import { legacyReportSchema, reportSchema, type Report, type WriterOutput } from "./schema";
+import { withPageUrl, withPageUrls } from "./sources";
 
 /**
  * 저장된 리포트를 v2 모양으로 맞춥니다. History(localStorage · 서버)에서 읽을 때 씁니다.
@@ -9,7 +10,8 @@ import { legacyReportSchema, reportSchema, type Report, type WriterOutput } from
  */
 export function normalizeReport(input: unknown): Report {
   const v2 = reportSchema.safeParse(input);
-  if (v2.success) return v2.data;
+  // 11/10 전에 저장된 기록에는 출처의 pageUrl 이 없으므로 읽을 때 채웁니다
+  if (v2.success) return withPageUrls(v2.data);
 
   const v1 = legacyReportSchema.safeParse(input);
   if (!v1.success) throw new Error("리포트 형식이 아닙니다 (v1 도 v2 도 아님)");
@@ -32,7 +34,7 @@ export function normalizeReport(input: unknown): Report {
     caveats: r.caveats,
     dataGaps: r.dataGaps,
     nextTopics: r.nextTopics,
-    sources: r.sources.map((s, i) => ({ id: `S${i + 1}`, ...s })),
+    sources: r.sources.map((s, i) => withPageUrl({ id: `S${i + 1}`, ...s })),
     evidence: [],
     verification: {
       status: "skipped",

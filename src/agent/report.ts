@@ -19,12 +19,15 @@ export function outOfScopeOutput(question: string): WriterOutput {
     summary:
       "이 질문은 머핀이 다루는 금융 정보 범위(환율 · 국내 ETF · 경제 뉴스 · 금리 · 물가 지표) 밖이라 데이터를 조사하지 않았습니다. " +
       "범위 안의 질문으로 바꿔 물어보면 출처가 있는 리포트로 답합니다.",
+    headline: null,
     numbers: [],
     why: [],
     impact: [],
+    impactTitles: [],
     caveats: [],
     dataGaps: [`"${question}" 에 답할 수 있는 tool 이 없습니다.`],
     nextTopics: ["오늘 달러 환율 얼마야?", "한국 기준금리는 왜 그대로야?", "KODEX 200 요즘 어때?"],
+    topicReasons: [],
   };
 }
 
@@ -41,15 +44,21 @@ export function summarizeWhy(why: WriterOutput["why"]): Verification["why"] {
 /**
  * 증거 장부에서 출처 목록을 만듭니다. 같은 url · asOf 는 처음 것만 남깁니다.
  * 계산 결과처럼 url 이 없는 증거는 사용자가 열어볼 수 없으니 출처에 넣지 않습니다 (evidence 에는 남습니다).
+ * url 이 API 주소면 사람이 읽는 공식 페이지를 pageUrl 로 붙입니다 (src/agent/sources.ts).
  */
 export function sourcesFrom(evidence: Evidence[]): Report["sources"] {
   const out: Report["sources"] = [];
   for (const e of evidence) {
     if (!e.source.url) continue;
     if (out.some((s) => s.url === e.source.url && s.asOf === e.source.asOf)) continue;
-    out.push({ id: e.id, ...e.source });
+    out.push(withPageUrl({ id: e.id, ...e.source }));
   }
   return out;
+}
+
+/** impactTitles · topicReasons 는 짝 목록과 개수가 같을 때만 리포트에 넣습니다 (검증이 맞춰 두지만 범위 밖 · 모킹 경로도 같은 규칙) */
+function aligned(texts: string[] | undefined, total: number): string[] | undefined {
+  return texts && texts.length > 0 && texts.length === total ? texts : undefined;
 }
 
 /**
@@ -79,23 +88,35 @@ export function assembleReport(
     checks?: NumberCheck[];
     /** checks 와 같은 순서의 대조 세부 (장부 키 · 규칙) */
     matches?: Report["numbers"][number]["match"][];
+    /** checks 와 같은 순서로, 코드가 장부에서 풀어 쓴 변화량 (src/agent/change.ts). 없는 자리는 undefined */
+    changes?: (ChangeDetail | undefined)[];
     movement?: Report["movement"];
     charts?: Report["charts"];
   } = {},
 ): Report {
+  const impactTitles = aligned(output.impactTitles, output.impact.length);
+  const topicReasons = aligned(output.topicReasons, output.nextTopics.length);
   return {
     version: 2,
     mode: opts.mode ?? "research",
     ...(opts.notice ? { notice: opts.notice } : {}),
     summary: output.summary,
-    numbers: output.numbers.map((n, i) => ({ ...n, check: opts.checks?.[i] ?? "unverified", ...(opts.matches?.[i] ? { match: opts.matches[i] } : {}) })),
+    ...(output.headline ? { headline: output.headline } : {}),
+    numbers: output.numbers.map((n, i) => ({
+      ...n,
+      check: opts.checks?.[i] ?? "unverified",
+      ...(opts.matches?.[i] ? { match: opts.matches[i] } : {}),
+      ...(opts.changes?.[i] ? { changeDetail: opts.changes[i] } : {}),
+    })),
     why: output.why,
     impact: output.impact,
+    ...(impactTitles ? { impactTitles } : {}),
     caveats: output.caveats,
     dataGaps: output.dataGaps,
     nextTopics: output.nextTopics,
+    ...(topicReasons ? { topicReasons } : {}),
     sources: sourcesFrom(evidence),
-    evidence,
+    evidence: evidence.map((e) => ({ ...e, source: withPageUrl(e.source) })),
     verification,
     ...(opts.movement ? { movement: opts.movement } : {}),
     ...(opts.charts ? { charts: opts.charts } : {}),

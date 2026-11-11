@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import v1 from "./fixtures/report.v1.sample.json";
 import v2 from "./fixtures/report.v2.sample.json";
 import { normalizeReport } from "./normalize";
-import { DISCLOSURE, assembleReport, fallbackGaps, sourcesFrom, summarizeWhy } from "./report";
+import { DISCLOSURE, assembleReport, fallbackGaps, outOfScopeOutput, sourcesFrom, summarizeWhy } from "./report";
 import { reportSchema, writerSchema, type Evidence, type Verification, type WriterOutput } from "./schema";
 
 function evidence(id: string, url: string, asOf = "2026-10-01"): Evidence {
@@ -137,5 +137,64 @@ describe("normalizeReport", () => {
   it("리포트가 아니면 throw 한다", () => {
     expect(() => normalizeReport({})).toThrow();
     expect(() => normalizeReport(null)).toThrow();
+  });
+});
+
+describe("11/10 새 칸: headline · impactTitles · topicReasons · changeDetail · pageUrl", () => {
+  it("headline 과 짝이 맞는 제목 · 이유는 리포트에 들어가고, 없거나 개수가 다르면 칸이 없다", () => {
+    const withAll: WriterOutput = {
+      ...output,
+      headline: "핵심 한 문장",
+      impact: ["영향 1", "영향 2"],
+      impactTitles: ["제목 1", "제목 2"],
+      nextTopics: ["주제 1"],
+      topicReasons: ["이유 1"],
+    };
+    const r = assembleReport(withAll, [evidence("E1", "https://a.test/1")], skipped);
+    expect(r.headline).toBe("핵심 한 문장");
+    expect(r.impactTitles).toEqual(["제목 1", "제목 2"]);
+    expect(r.topicReasons).toEqual(["이유 1"]);
+    expect(reportSchema.parse(r)).toEqual(r);
+
+    const bare = assembleReport({ ...withAll, headline: null, impactTitles: ["제목 1"], topicReasons: [] }, [], skipped);
+    expect(bare).not.toHaveProperty("headline");
+    expect(bare).not.toHaveProperty("impactTitles");
+    expect(bare).not.toHaveProperty("topicReasons");
+    expect(assembleReport(output, [], skipped)).not.toHaveProperty("headline");
+  });
+
+  it("changes 는 checks 와 같은 순서로 numbers[].changeDetail 에 붙고, 없는 자리는 칸이 없다", () => {
+    const detail = { key: "changePct", value: 2, unit: "%", from: "2026-09-19", to: "2026-10-19", days: 30, basis: "30일 전과 비교" };
+    const r = assembleReport(output, [evidence("E1", "https://a.test/1")], skipped, { checks: ["verified", "unverified"], changes: [detail, undefined] });
+    expect(r.numbers[0]!.changeDetail).toEqual(detail);
+    expect(r.numbers[1]).not.toHaveProperty("changeDetail");
+    expect(reportSchema.parse(r)).toEqual(r);
+  });
+
+  it("API 주소인 출처에는 공식 페이지(pageUrl)가 붙고, 장부의 출처에도 같이 붙는다", () => {
+    const api = evidence("E1", "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW");
+    const page = evidence("E2", "https://fred.stlouisfed.org/series/DFF");
+    const r = assembleReport(output, [api, page], skipped);
+    expect(r.sources.map((s) => s.pageUrl)).toEqual(["https://frankfurter.dev/", undefined]);
+    expect(r.evidence[0]!.source.pageUrl).toBe("https://frankfurter.dev/");
+    expect(r.evidence[1]!.source).not.toHaveProperty("pageUrl");
+  });
+
+  it("범위 밖 고정 본문도 새 칸을 갖는다 (모델이 만든 출력과 같은 모양)", () => {
+    const out = outOfScopeOutput("비트코인 얼마야?");
+    expect(out).toMatchObject({ headline: null, impactTitles: [], topicReasons: [] });
+    expect(writerSchema.parse(out)).toBeTruthy();
+  });
+
+  it("normalizeReport 는 11/10 전에 저장된 v2 기록에도 출처의 pageUrl 을 채운다", () => {
+    const stored = JSON.parse(JSON.stringify(v2.report)) as Record<string, unknown> & { sources: Record<string, unknown>[]; evidence: { source: Record<string, unknown> }[] };
+    for (const s of stored.sources) delete s.pageUrl;
+    for (const e of stored.evidence) delete e.source.pageUrl;
+    delete stored.headline;
+    delete stored.impactTitles;
+    delete stored.topicReasons;
+    const r = normalizeReport(stored);
+    expect(r.sources.filter((s) => s.pageUrl).map((s) => s.pageUrl)).toEqual(["https://frankfurter.dev/", "https://frankfurter.dev/"]);
+    expect(r.headline).toBeUndefined();
   });
 });
