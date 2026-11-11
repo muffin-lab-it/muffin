@@ -419,7 +419,7 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
   });
 }
 
-export type TextField = "summary" | "headline" | "why" | "impact" | "caveats";
+export type TextField = "summary" | "headline" | "why" | "impact" | "impactTitles" | "caveats" | "topicReasons";
 export type TextFinding = { field: TextField; index: number; text: string; unmatched: string[] };
 
 /**
@@ -440,7 +440,9 @@ export function verifyText(output: WriterOutput, evidence: Evidence[]): TextFind
     ...(output.headline ? [check("headline", 0, output.headline)] : []),
     ...output.why.map((w, i) => check("why", i, `${w.claim} ${w.evidence}`)),
     ...output.impact.map((t, i) => check("impact", i, t)),
+    ...(output.impactTitles ?? []).map((t, i) => check("impactTitles", i, t)),
     ...output.caveats.map((t, i) => check("caveats", i, t)),
+    ...(output.topicReasons ?? []).map((t, i) => check("topicReasons", i, t)),
   ];
   return findings.filter((f): f is TextFinding => f !== null);
 }
@@ -550,7 +552,7 @@ function stripSentences(text: string, unmatched: string[]): string {
  *  - 근거 표시가 틀린 원인: basis 를 none 으로 낮추거나 없는 id 를 지웁니다. 주장 자체는 남깁니다.
  *  - 권유 표현: 목록 항목(why · impact · caveats · nextTopics)이면 뺍니다. summary 는 그 문장만 지우고, 남는 문장이 없으면 안내 문장으로 바꿉니다.
  *  - headline(11/10): 장부에 없는 숫자나 권유 표현이 있으면 통째로 뺍니다 (한 문장이라 자를 게 없음).
- *  - impactTitles · topicReasons(11/10): 짝 목록(impact · nextTopics)과 개수가 다르면 통째로 버리고, 뺀 항목의 것은 같이 빼며, 권유 표현이 든 것은 빈 문자열로 둡니다.
+ *  - impactTitles · topicReasons(11/10): 짝 목록(impact · nextTopics)과 개수가 다르면 통째로 버리고, 뺀 항목의 것은 같이 빼며, 장부에 없는 숫자나 권유 표현이 든 것은 빈 문자열로 둡니다.
  *  - 뺀 숫자가 있으면 dataGaps 에 한 줄 적어 사용자에게 보입니다.
  */
 export function applyVerification(output: WriterOutput, result: VerifyResult): Applied {
@@ -653,7 +655,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
   };
   /**
    * impactTitles · topicReasons 처럼 다른 목록과 같은 순서로 붙는 글 (11/10). 짝 목록과 개수가 다르면 통째로 버리고(어느 항목의 것인지 알 수 없음),
-   * 남긴 항목의 것만 남기며, 권유 표현이 든 것은 빈 문자열로 둬서 순서를 지킵니다.
+   * 남긴 항목의 것만 남기며, 장부에 없는 숫자나 권유 표현이 든 것은 빈 문자열로 둬서 순서를 지킵니다.
    */
   const alignWith = (texts: string[] | undefined, total: number, keep: number[], field: "impactTitles" | "topicReasons"): string[] => {
     if (!texts || texts.length === 0) return [];
@@ -661,7 +663,13 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
       removed.push(`${field} 삭제: 짝이 되는 목록과 개수가 다름 (${texts.length} vs ${total})`);
       return [];
     }
+    const findings = textByField(field);
     return keep.map((i) => {
+      const t = findings.get(i);
+      if (t) {
+        removed.push(`${field} ${i + 1}번째 비움: 장부에 없는 숫자 ${t.unmatched.join(", ")}`);
+        return "";
+      }
       if (hasAdvice(texts[i]!)) {
         removed.push(`${field} ${i + 1}번째 비움: 투자 권유 표현`);
         return "";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { basisFor, changeDetailFor, changeDetailsFor } from "./change";
+import { basisFor, changeDetailFor, changeDetailsFor, isoDateOf } from "./change";
 import type { Evidence } from "./schema";
 import { applyVerification, verify } from "./verify";
 
@@ -117,6 +117,28 @@ describe("changeDetailFor (코드가 장부에서 풀어 쓰는 변화량)", () 
       days: 30,
       basis: "30일 전과 비교",
     });
+  });
+
+  it("거시지표 tool 의 YYYYMM 월도 비교 시점 · 기준일로 읽는다 (로컬 Codex 11/11)", () => {
+    const compact: Evidence = {
+      ...cpi,
+      values: { indicator: "소비자물가지수", "latest.month": "202609", "latest.value": 120.43, "latest.previousMonth.month": "202608", "latest.previousMonth.change": 0.316535, changeUnit: "percent" },
+      // 출처 기준일은 월의 첫날 표기(실제 tool)지만, 기준일은 상위 묶음의 latest.month 에서 월로 맞춘다
+      source: src("ECOS CPI", "2026-09-01"),
+    };
+    expect(changeDetailFor({ change: "전월 +0.32%" }, compact, { key: "latest.previousMonth.change", policy: "rounded" })).toEqual({
+      key: "latest.previousMonth.change",
+      value: 0.316535,
+      unit: "%",
+      from: "2026-08",
+      to: "2026-09",
+      basis: "전월과 비교",
+    });
+    expect(isoDateOf("latest.month", "202609")).toBe("2026-09");
+    expect(isoDateOf("period.from", "20260917")).toBe("2026-09-17");
+    // 날짜 키가 아니면 여섯 자리 숫자를 날짜로 보지 않는다
+    expect(isoDateOf("latest.volume", "202609")).toBeUndefined();
+    expect(isoDateOf("latest.month", "202613")).toBeUndefined();
   });
 
   it("change 에 숫자가 없거나 맞은 키가 장부에 없으면 만들지 않는다", () => {

@@ -723,3 +723,28 @@ describe("headline · impactTitles · topicReasons (11/10)", () => {
     expect(noChange).not.toHaveProperty("change");
   });
 });
+
+describe("impactTitles · topicReasons 의 숫자 (로컬 Codex 11/11)", () => {
+  it("제목 · 이유에 쓴 금융 숫자도 장부에 있어야 하고, 없으면 그 칸만 비우고 짝은 유지한다", () => {
+    const withNumbers: WriterOutput = {
+      ...output,
+      numbers: [output.numbers[0]],
+      impact: ["수입 물가가 오를 수 있습니다.", "달러 자산의 원화 가치가 오릅니다."],
+      impactTitles: ["물가 99.99% 급등", "달러 자산 2.00% 상승"],
+      nextTopics: ["한미 금리 차이", "수입 물가 지수"],
+      topicReasons: ["금리가 5.00% 라서", "환율의 배경이라서"],
+    };
+    const r = verify(withNumbers, ledger);
+    expect(r.text.map((t) => [t.field, t.index, t.unmatched])).toEqual([
+      ["impactTitles", 0, ["99.99%"]],
+      ["topicReasons", 0, ["5.00%"]],
+    ]);
+    expect(r.failures.some((f) => f.startsWith("impactTitles 의 숫자 99.99%"))).toBe(true);
+    const applied = applyVerification(withNumbers, r);
+    expect(applied.output.impactTitles).toEqual(["", "달러 자산 2.00% 상승"]);
+    expect(applied.output.topicReasons).toEqual(["", "환율의 배경이라서"]);
+    expect(applied.removed).toContain("impactTitles 1번째 비움: 장부에 없는 숫자 99.99%");
+    expect(applied.removed).toContain("topicReasons 1번째 비움: 장부에 없는 숫자 5.00%");
+    expect(summarizeVerification(applied, 0).status).toBe("partial");
+  });
+});

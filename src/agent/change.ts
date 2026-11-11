@@ -9,6 +9,18 @@ import { PREV_KEY, extractNumbers, isDataNumber, matchValue, numericCandidates, 
 
 const DATE = /^\d{4}-\d{2}(-\d{2})?/;
 const FULL_DATE = /^\d{4}-\d{2}-\d{2}/;
+/** 거시지표 tool 처럼 월을 YYYYMM(또는 YYYYMMDD)으로 적는 경우. 숫자 값과 헷갈리지 않게 날짜를 뜻하는 키 이름일 때만 받습니다 */
+const COMPACT_DATE = /^(\d{4})(0[1-9]|1[0-2])(\d{2})?$/;
+const DATE_KEY = /date|month|asof|period|day|from$|to$/i;
+
+/** 장부 값이 날짜면 YYYY-MM 또는 YYYY-MM-DD 로, 아니면 undefined */
+export function isoDateOf(key: string, value: string | number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  if (DATE.test(value)) return value;
+  const m = DATE_KEY.test(key) ? COMPACT_DATE.exec(value) : null;
+  if (!m) return undefined;
+  return m[3] ? `${m[1]}-${m[2]}-${m[3]}` : `${m[1]}-${m[2]}`;
+}
 
 function daysBetween(from: string, to: string): number | undefined {
   if (!FULL_DATE.test(from) || !FULL_DATE.test(to)) return undefined;
@@ -43,10 +55,20 @@ export function changeDetailFor(n: Pick<WriterOutput["numbers"][number], "change
   const unit = UNIT_TEXT[candidate.unit] ?? parsed.unit;
   const prefix = hit.key.includes(".") ? hit.key.slice(0, hit.key.lastIndexOf(".") + 1) : "";
   const sameGroup = (k: string) => (prefix ? k.startsWith(prefix) : !k.includes("."));
-  const dates = Object.entries(entry.values).filter((kv): kv is [string, string] => typeof kv[1] === "string" && DATE.test(kv[1]));
+  const dates = Object.entries(entry.values).flatMap(([k, v]) => {
+    const d = isoDateOf(k, v);
+    return d ? [[k, d] as [string, string]] : [];
+  });
   // 비교 시점: 같은 묶음의 comparison · previous · from 키. 맞은 키가 최상위(changePct)면 환율 tool 처럼 "comparison.asOf" 로 묶어 둔 날짜도 받습니다
   const from = dates.find(([k]) => PREV_KEY.test(k) && sameGroup(k))?.[1] ?? (prefix ? undefined : dates.find(([k]) => PREV_KEY.test(k))?.[1]);
-  const to = dates.find(([k]) => !PREV_KEY.test(k) && sameGroup(k))?.[1] ?? (entry.source.asOf || undefined);
+  // 기준일: 같은 묶음의 날짜 → 상위 묶음(latest.previousMonth. 의 상위 latest.month)의 날짜 → 출처 기준일. 월 단위 비교면 기준일도 월로 맞춰집니다
+  const groups = [prefix];
+  for (let g = prefix; g.includes("."); ) {
+    g = g.slice(0, g.lastIndexOf(".", g.length - 2) + 1);
+    groups.push(g);
+  }
+  const inGroup = (g: string, k: string) => (g ? k.startsWith(g) && !k.slice(g.length).includes(".") : !k.includes("."));
+  const to = groups.map((g) => dates.find(([k]) => !PREV_KEY.test(k) && inGroup(g, k))?.[1]).find(Boolean) ?? (entry.source.asOf || undefined);
   const days = from && to ? daysBetween(from, to) : undefined;
   return {
     key: hit.key,
