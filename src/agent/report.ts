@@ -1,10 +1,11 @@
 import { formatAge } from "../lib/age";
 import type { ToolStep } from "./context";
 import { labelFor } from "./events";
-import type { Evidence, NumberCheck, Report, ReportMode, Verification, WriterOutput } from "./schema";
+import type { ChangeDetail, Evidence, NumberCheck, Report, ReportMode, Verification, WriterOutput } from "./schema";
+import { withPageUrl } from "./sources";
 
 /** AI 생성 고지 (AI 기본법). 리포트 상단과 History 에 같이 남습니다. */
-export const DISCLOSURE = "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아니며, 판단은 사용자에게 있습니다.";
+export const DISCLOSURE = "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요.";
 
 /** 판단 요청 모드("사도 돼?")의 상단 안내. 화면의 배너가 보여 줍니다. */
 export const DECISION_NOTICE = "투자 판단을 대신하지 않습니다. 아래는 판단에 필요한 사실만 정리한 것입니다.";

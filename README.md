@@ -440,7 +440,7 @@ type Report = {
   charts?: { kind: "line" | "bar"; title: string;
              series: { label: string; ref: string; points: { t: string; v: number }[] }[];  // 증거 번호에 묶인 시계열
              events?: { ref: string; label: string; at: string }[] }[];                     // 뉴스 이벤트 점
-  disclosure: string;                                      // "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아닙니다."
+  disclosure: string;                                      // AI 생성 고지. 서버 상수(src/agent/report.ts DISCLOSURE) 문구를 화면이 그대로 보여 줍니다
 };
 
 type Evidence = {
