@@ -8,4 +8,3 @@ export function evidenceCategory(entry: Evidence): string {
   if (entry.lineage || /calc/i.test(entry.tool)) return "계산";
   return "기타 자료";
 }
-

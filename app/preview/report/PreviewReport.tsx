@@ -62,4 +62,3 @@ export function PreviewReport() {
     <ReportView key={area} header={<header className={styles.header}><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1><div className={styles.meta}><span className="category-chip" data-category={area === "news" ? "뉴스" : sample.name}>{sample.name}</span><span className="depth-chip" data-depth={depth}>{depthLabels[depth]}</span></div></div><div className={styles.headerTools}><div className={styles.actions}><button type="button" onClick={keep}>{saved.includes(area) ? "보관했어요 ✓" : "보관하기"}</button><button type="button" onClick={() => window.print()}>PDF로 담기</button></div><ReportHelp /></div></header>} report={report} steps={area === "fx" ? fixture.steps.map(step => ({ ...step, status: step.status === "ok" ? "ok" as const : "error" as const })) : undefined} headline={sample.headline} impactTitles={sample.titles} topicReasons={sample.reasons} area={area} question={sample.question} />
   </>;
 }
-

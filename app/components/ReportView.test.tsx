@@ -177,6 +177,21 @@ describe("리포트 하단 도구 실행 내역", () => {
 });
 
 describe("최근 흐름 차트", () => {
+  it("표시 구간보다 짧은 변화율 비교 기간을 별도로 안내한다", () => {
+    const report = fixture();
+    const chart = report.charts![0];
+    chart.series[0].points = [
+      { t: "2026-09-19", v: 100 },
+      { t: "2026-10-12", v: 110 },
+      { t: "2026-10-19", v: 121 },
+    ];
+    chart.band!.from = "2026-10-12";
+    const $ = render(report);
+    expect($(".chart-summary strong").first().text()).toContain("10.00%");
+    expect($(".chart-period").text()).toContain("변화율 비교 기간: 10월 12일부터 10월 19일까지 (7일)");
+    expect($(".chart-period").text()).toContain("9월 19일부터 10월 19일까지 30일간");
+  });
+
   it("charts 가 있으면 선 · 평소 폭 띠 · 뉴스 점과 설명 문장을 그린다", () => {
     const $ = render(fixture());
     expect($("h2").filter((_, el) => $(el).text() === "숫자의 변화 추이")).toHaveLength(1);

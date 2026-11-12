@@ -30,7 +30,7 @@ export function ReportSources({ report }: { report: Report }) {
       {report.why.some(reason => reasonGroup(reason) === group) && <div className="source-reasons">
         {report.why.map((reason, index) => reasonGroup(reason) === group && <ReasonEvidenceTarget index={index} key={index}>
           <h4>{reason.claim}</h4>{reason.evidence && <p>{reason.evidence}</p>}
-          
+
         </ReasonEvidenceTarget>)}
       </div>}
       {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {source.asOf || "미제공"}</li>)}</ul> : <div className="source-data-grid">
