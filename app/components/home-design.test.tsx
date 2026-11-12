@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { load } from "cheerio";
 import { afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/image", () => ({ default: ({ src, alt, ...props }: { src: string; alt: string; preload?: boolean; sizes?: string }) => { const { preload, ...rest } = props; void preload; return createElement("img", { src: typeof src === "string" ? src : "/mascot.png", alt, ...rest }); } }));
 import Home from "../page";
 import HistoryPage from "../history/page";

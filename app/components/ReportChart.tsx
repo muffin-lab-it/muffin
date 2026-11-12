@@ -90,7 +90,7 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
         <ul className="chart-events">
           {events.map((e) => (
             <li key={`${e.ref}-${e.at}`}>
-              <span aria-hidden="true">＊ </span><span className="chart-event-date">{fmtDate(e.at)}</span> · {e.label} 관련 보도가 나온 시점이에요.
+              <span aria-hidden="true">＊ </span><span className="chart-event-date">{fmtDate(e.at)}</span> {e.label} 관련 보도가 나온 시점이에요.
 
             </li>
           ))}

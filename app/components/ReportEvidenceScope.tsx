@@ -4,7 +4,16 @@ import { createContext, useContext, useEffect, useId, useState, type ReactNode }
 
 const EvidenceScope = createContext<{ prefix: string; selection: string | null; select: (key: string) => void } | null>(null);
 
-/** 여러 리포트가 있어도 각자 오른쪽 자료 패널로 이동합니다. */
+/** 링크 클릭과 URL 해시 복원 모두 접힌 조상 패널을 먼저 엽니다. */
+function openContainingDetails(target: HTMLElement) {
+  let parent = target.parentElement;
+  while (parent) {
+    if (parent instanceof HTMLDetailsElement) parent.open = true;
+    parent = parent.parentElement;
+  }
+}
+
+/** 여러 리포트가 있어도 각자의 자료 패널로 이동합니다. */
 export function ReportEvidenceScope({ children }: { children: ReactNode }) {
   const prefix = useId();
   const [selection, select] = useState<string | null>(null);
@@ -15,6 +24,7 @@ export function ReportEvidenceScope({ children }: { children: ReactNode }) {
       if (!id.startsWith(`${prefix}-evidence-`)) return;
       const target = document.getElementById(id);
       const group = target?.closest<HTMLElement>("[data-source-group]")?.dataset.sourceGroup;
+      if (target) openContainingDetails(target);
       if (group) select(group);
       if (target) requestAnimationFrame(() => { target.focus({ preventScroll: true }); target.scrollIntoView({ block: "start" }); });
     };
@@ -44,11 +54,7 @@ export function ReportEvidenceLink({ targetId, label, children, className = "" }
       requestAnimationFrame(() => { target.focus({ preventScroll: true }); target.scrollIntoView({ block: "start" }); });
       return;
     }
-    let parent = target.parentElement;
-    while (parent) {
-      if (parent instanceof HTMLDetailsElement) parent.open = true;
-      parent = parent.parentElement;
-    }
+    openContainingDetails(target);
     target.focus({ preventScroll: true });
   }}>{children ?? label}</a>;
 }

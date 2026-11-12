@@ -11,7 +11,7 @@ const depthLabels = { easy: "Easy", standard: "Standard", deep: "Deep Dive" } as
 /** 불러온 결과. id 를 같이 들고 있어서 주소가 바뀌면 다시 "불러오는 중" 이 됩니다. */
 type Loaded = { id: string; record: ReportRecord | null } | { id: string; failed: true };
 
-/** 리포트 상세. 저장함에서 id 로 꺼내 보여줍니다. */
+/** 리포트 상세. 보관함에서 id 로 꺼내 보여줍니다. */
 export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
   const [loaded, setLoaded] = useState<Loaded | undefined>(undefined);
@@ -31,7 +31,7 @@ export default function ReportPage() {
   if ("failed" in loaded) {
     return (
       <div className="error" role="alert">
-        리포트를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요. <Link href="/history">저장함으로</Link>
+        리포트를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요. <Link href="/history">보관함으로</Link>
       </div>
     );
   }
@@ -40,7 +40,7 @@ export default function ReportPage() {
     return (
       <>
         <h1>리포트를 찾을 수 없어요</h1>
-        <p className="sub">이 브라우저의 저장함에 없는 리포트입니다. <Link href="/">홈에서 새로 만들기</Link></p>
+        <p className="sub">이 브라우저의 보관함에 없는 리포트입니다. <Link href="/">홈에서 새로 만들기</Link></p>
       </>
     );
   }
@@ -51,8 +51,8 @@ export default function ReportPage() {
       <div className="report-head">
         <h1>Today&apos;s Muffin</h1>
         <div className="chips">
-          {input.area && <span className="chip-static">{areaLabels[input.area]}</span>}
-          <span className="chip-static">{depthLabels[input.depth]}</span>
+          {input.area && <span className="category-chip" data-category={input.area === "news" ? "뉴스" : areaLabels[input.area]}>{areaLabels[input.area]}</span>}
+          <span className="depth-chip" data-depth={input.depth}>{depthLabels[input.depth]}</span>
           <span className="chip-static muted">{new Date(record.createdAt).toLocaleString("ko-KR")}</span>
         </div>
       </div>

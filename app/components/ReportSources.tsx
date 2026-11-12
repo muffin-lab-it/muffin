@@ -27,16 +27,15 @@ export function ReportSources({ report }: { report: Report }) {
     {groups.length === 0 && <p className="report-muted">연결된 자료가 없습니다.</p>}
     {groups.map(group => <div className="source-panel" key={group} data-source-group={group} hidden={active !== group}>
       <div className="source-panel-heading"><h3>{group}</h3></div>
-      {group === "계산" && report.notice && <p className="source-insight">{report.notice}</p>}
       {report.why.some(reason => reasonGroup(reason) === group) && <div className="source-reasons">
         {report.why.map((reason, index) => reasonGroup(reason) === group && <ReasonEvidenceTarget index={index} key={index}>
           <h4>{reason.claim}</h4>{reason.evidence && <p>{reason.evidence}</p>}
           
         </ReasonEvidenceTarget>)}
       </div>}
-      {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.url} name={source.name} /> · 기준일 {source.asOf || "미제공"}</li>)}</ul> : <div className="source-data-grid">
+      {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {source.asOf || "미제공"}</li>)}</ul> : <div className="source-data-grid">
         {report.evidence.filter(entry => evidenceCategory(entry) === group).map(entry => <div key={entry.id} className="source-data-item">
-          {report.numbers.filter(number => number.ref === entry.id).map((number, index) => <div className="source-number" key={index}><span>{number.label}</span><strong>{number.value}</strong>{number.change && <small>{reportChange(number.change).text}</small>}</div>)}
+          {report.numbers.filter(number => number.ref === entry.id).map((number, index) => <div className="source-number" key={index}><span>{number.label}</span><strong>{number.value}</strong>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</div>)}
           <EvidenceRecord entry={entry} evidence={report.evidence} displayedValue={report.numbers.find(number => number.ref === entry.id)?.value} />
         </div>)}
       </div>}

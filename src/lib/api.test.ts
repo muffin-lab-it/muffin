@@ -90,7 +90,7 @@ describe("브라우저 익명 id 헤더 · 429", () => {
 
   it("두 함수 모두 같은 브라우저 id 를 X-Muffin-Client 로 붙인다", async () => {
     vi.stubGlobal("window", { localStorage: memoryStorage() });
-    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) =>
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url) =>
       url.endsWith("/stream")
         ? streamed(ndjson([{ type: "report", report, steps: [], rewrites: 0, id: "run-5" }]), 1000)
         : Response.json({ report, steps: [], rewrites: 0, id: "run-6" }),
@@ -105,7 +105,7 @@ describe("브라우저 익명 id 헤더 · 429", () => {
   });
 
   it("서버 렌더링(window 없음)에서는 헤더를 붙이지 않는다", async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ report, steps: [], rewrites: 0 }));
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => Response.json({ report, steps: [], rewrites: 0 }));
     vi.stubGlobal("fetch", fetchMock);
     await createReport({ question: "q", depth: "easy" });
     expect(headerOf(fetchMock.mock.calls[0][1])).toBeUndefined();

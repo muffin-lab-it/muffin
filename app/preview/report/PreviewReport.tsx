@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ReportHelp } from "@/app/components/ReportHelp";
 import { ReportView } from "@/app/components/ReportView";
-import { reportSchema, type Area } from "@/src/agent/schema";
+import { reportSchema, type Area, type Depth } from "@/src/agent/schema";
 import fixture from "@/src/agent/fixtures/report.v2.sample.json";
 import styles from "./preview.module.css";
 
@@ -15,18 +15,22 @@ const samples = {
   news: { name: "경제뉴스", question: "금리 동결 뉴스에서 어떤 점을 읽어야 해?", headline: "동결 여부와 함께 결정의 배경을 읽어보세요.", label: "기사에 인용된 기준금리", value: "3.00%", change: "", amount: 3, tool: "news", source: "경제 기사", summary: "기준금리 동결 소식은 현재 수준을 유지했다는 뜻이에요. 기사에서 물가와 경기 판단, 앞으로 주목하는 지표를 구분해 읽으면 맥락을 이해하기 쉬워요.", titles: ["뉴스 읽기", "생활과 연결하기"], impacts: ["이미 발표된 결정과 향후 전망을 나누어 읽어보세요.", "기사의 금리 수치가 내 예금·대출 상품에 그대로 적용되는 것은 아니에요."], topics: ["금리 결정에서 보는 경제지표", "정책 발표와 시장 반응"], reasons: ["결정의 배경에 어떤 데이터가 쓰이는지 살펴보세요.", "발표 내용과 시장의 해석을 구분해 보세요."] },
 };
 
+const previewDepths: Record<Area, Depth> = { fx: "easy", rate: "standard", macro: "easy", etf: "deep", news: "standard" };
+const depthLabels = { easy: "Easy", standard: "Standard", deep: "Deep Dive" };
+
 export function PreviewReport() {
-  const [area, setArea] = useState<Area>("fx");
+  const [area] = useState<Area>("fx"); // 시안 탭 재사용 시 setArea를 복원합니다.
   const [saved, setSaved] = useState<string[]>([]);
   const [status, setStatus] = useState("");
   const sample = samples[area];
+  const depth = previewDepths[area];
   const report = reportSchema.parse(fixture.report);
   report.caveats = ["표시된 환율은 은행에서 실제 환전할 때 적용되는 환율과 다를 수 있어요.", "미국 금리는 중앙은행의 목표치가 아니라 은행 간 하루짜리 거래에 실제 적용된 금리예요."];
   report.dataGaps = [];
   if (area !== "fx") {
     const item = samples[area];
     report.summary = item.summary;
-    report.numbers = [{ ...report.numbers[0], label: item.label, value: item.value, change: item.change, check: area === "news" ? "reported" : "verified", ref: "E1" }];
+    report.numbers = [{ ...report.numbers[0], label: item.label, value: item.value, change: item.change, check: area === "news" ? "reported" : "verified", ref: "E1", changeDetail: undefined, match: undefined }];
     report.evidence = [{ ...report.evidence[0], id: "E1", tool: item.tool, label: item.label, source: { name: item.source, url: "", asOf: "2026-10-19" }, values: { value: item.amount } }];
     report.sources = [];
     report.why = [{ claim: item.summary, evidence: "", basis: area === "news" ? "news" : "data", refs: ["E1"] }];
@@ -36,6 +40,9 @@ export function PreviewReport() {
     report.dataGaps = [];
     report.charts = [];
     report.notice = undefined;
+    // 주제별 디자인 예시는 실제 검증 실행 결과가 아니므로 환율 샘플의 집계를 재사용하지 않습니다.
+    report.numbers = report.numbers.map(number => ({ ...number, check: "unverified" }));
+    report.verification = { ...report.verification, status: "skipped", numbers: { total: report.numbers.length, verified: 0, derived: 0, reported: 0, unverified: report.numbers.length }, why: { data: 0, news: 0, none: 0, unsupported: 0 }, advice: 0, revisions: 0, removed: [], revisionSkipped: false };
   }
   function keep() {
     try {
@@ -47,10 +54,12 @@ export function PreviewReport() {
     } catch { setStatus("브라우저 저장 공간을 사용할 수 없어요."); }
   }
   return <>
+    {/* PR용 5개 주제 캡처 완료. 개발 시안 선택 UI는 게시 버전에서 비활성화합니다.
     <nav className={styles.tabs} aria-label="디자인 확인용 주제"><small>시안 확인</small>{(Object.keys(samples) as Area[]).map(key => <button key={key} type="button" aria-pressed={area === key} onClick={() => { setArea(key); setStatus(""); }}>{samples[key].name}</button>)}</nav>
+    */}
 
     <p role="status" className={styles.status}>{status}</p>
-    <ReportView key={area} header={<header className={styles.header}><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1><span>{sample.name} · Standard</span></div><div className={styles.headerTools}><div className={styles.actions}><button type="button" onClick={keep}>{saved.includes(area) ? "보관했어요 ✓" : "보관하기"}</button><button type="button" onClick={() => window.print()}>PDF로 담기</button></div><ReportHelp /></div></header>} report={report} headline={sample.headline} impactTitles={sample.titles} topicReasons={sample.reasons} area={area} question={sample.question} />
+    <ReportView key={area} header={<header className={styles.header}><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1><div className={styles.meta}><span className="category-chip" data-category={area === "news" ? "뉴스" : sample.name}>{sample.name}</span><span className="depth-chip" data-depth={depth}>{depthLabels[depth]}</span></div></div><div className={styles.headerTools}><div className={styles.actions}><button type="button" onClick={keep}>{saved.includes(area) ? "보관했어요 ✓" : "보관하기"}</button><button type="button" onClick={() => window.print()}>PDF로 담기</button></div><ReportHelp /></div></header>} report={report} steps={area === "fx" ? fixture.steps.map(step => ({ ...step, status: step.status === "ok" ? "ok" as const : "error" as const })) : undefined} headline={sample.headline} impactTitles={sample.titles} topicReasons={sample.reasons} area={area} question={sample.question} />
   </>;
 }
 

@@ -12,3 +12,8 @@ describe("변화량 읽기", () => {
     expect(reportChange("2026-10-19").direction).toBe("flat");
   });
 });
+
+it("구조화된 장부 변화량을 문자열보다 우선하며 단위와 비교 기준을 유지한다", () => {
+  expect(reportChange("잘못된 30일 +5%", { key: "changePp", value: -0.25, unit: "%p", basis: "전월과 비교", from: "2026-09", to: "2026-10" })).toEqual({ text: "전월과 비교해 0.25%p 하락", direction: "down" });
+  expect(reportChange("+9%", { key: "change", value: 0, unit: "bp", basis: "직전 거래일과 비교" })).toEqual({ text: "직전 거래일과 비교해 변화가 없어요", direction: "flat" });
+});

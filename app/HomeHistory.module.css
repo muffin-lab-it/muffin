@@ -32,18 +32,18 @@
 .option{display:block;position:relative;min-width:0;cursor:pointer}
 .option input{position:absolute;width:1px;height:1px;opacity:0;clip-path:inset(50%)}
 .option>span{height:52px;min-width:0;border:1px solid #d8cfe7;background:#fff;border-radius:13px;font-size:17px;font-weight:650;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 6px;white-space:nowrap;color:var(--ink)}
-.areas .option input:checked+span{background:var(--button-gradient);border-color:#9750fa;color:#fff;box-shadow:var(--button-shadow)}
+.areas .option input:checked+span{background:var(--button-gradient);border-color:var(--brand-purple-border-active);color:#fff;box-shadow:var(--button-shadow)}
 .option:hover>span{border-color:var(--accent)}
 .option input:focus-visible+span{outline:3px solid #bca0fb;outline-offset:4px}
-.badge{font-size:10px!important;color:#8540eb;background:#fff;border-radius:9px;padding:3px 5px;line-height:1.4}
+.badge{font-size:10px!important;color:var(--brand-purple-strong);background:#fff;border-radius:9px;padding:3px 5px;line-height:1.4}
 .hint{color:#8550df;font-size:15px;min-height:22px;margin:11px 0 23px;line-height:1.5}
 .depths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .depths .option>span{height:82px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;border:1px solid #d8cfe7;border-radius:14px;background:#fff;white-space:normal}
 .depths .option b{font-size:22px;letter-spacing:-.6px;font-weight:700}
 .depths .option small{font-size:15px;font-weight:400;line-height:1.5;color:var(--ink)}
-.depths .option input:checked+span{background:#f0e8ff;border-color:#9859ff}
+.depths .option input:checked+span{background:var(--brand-purple-soft);border-color:var(--brand-purple-border-active)}
 .depths .option input:checked+span b{color:#8438ef}
-.submit{display:flex;align-items:center;justify-content:center;gap:15px;width:min(420px,100%);min-height:56px;border:1px solid #9750fa;border-radius:18px;margin:26px auto 0;background:var(--button-gradient);color:#fff;font-size:20px;font-weight:650;box-shadow:var(--button-shadow)}
+.submit{display:flex;align-items:center;justify-content:center;gap:15px;width:min(420px,100%);min-height:56px;border:1px solid var(--brand-purple-border-active);border-radius:18px;margin:26px auto 0;background:var(--button-gradient);color:#fff;font-size:20px;font-weight:650;box-shadow:var(--button-shadow)}
 .submit:hover{filter:brightness(1.04)}.submit:disabled{opacity:.5;cursor:not-allowed}.submit span{font-size:27px}
 .formError{font-size:14px;line-height:1.8;color:#c83532;background:#fff8f7;border:1px solid #f0cfcc;border-radius:10px;padding:13px 16px}
 .srOnly{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
@@ -52,7 +52,7 @@
 .historyHeading h1 {font-size:36px;letter-spacing:-1.5px;margin:0}
 .historyHeading p:not(.eyebrow) {font-size:15px;color:#95849f;margin:12px 0 0;line-height:1.8}
 .historyHeading .eyebrow {font-size:12px;letter-spacing:.13em;margin-bottom:8px}
-.newReport {display:inline-flex;align-items:center;justify-content:center;gap:14px;min-height:50px;border:1px solid #9750fa;border-radius:var(--button-radius);background:var(--button-gradient);box-shadow:var(--button-shadow);color:#fff;text-decoration:none;font-size:16px;font-weight:650;padding:12px 20px;white-space:nowrap}
+.newReport {display:inline-flex;align-items:center;justify-content:center;gap:14px;min-height:50px;border:1px solid var(--brand-purple-border-active);border-radius:var(--button-radius);background:var(--button-gradient);box-shadow:var(--button-shadow);color:#fff;text-decoration:none;font-size:16px;font-weight:650;padding:12px 20px;white-space:nowrap}
 .historyToolbar {display:flex;align-items:center;justify-content:space-between;gap:20px;margin:12px 0}
 .historyToolbar input {width:min(430px,100%);border:1px solid #e2d7ec;border-radius:12px;padding:14px 17px;background:white;font:inherit;font-size:14px;color:#4a3b55;min-width:0}
 .historyToolbar input::placeholder {color:#a495ae}
