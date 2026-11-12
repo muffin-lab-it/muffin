@@ -59,7 +59,6 @@ export function ReportView({
     <ReportDisplay className={`report ${styles.report}`}>
       <div className="report-top-controls"><ReportModeToggle /></div>
       {header ?? <div className={styles.reportToolbar}><ReportHelp /></div>}
-      <p className="report-ai-intro">생성형 AI 머핀이 작성한 리포트예요. 투자 권유가 아닌 참고용 정보이며, 출처와 기준일을 함께 확인해 주세요.</p>
       {report.notice && report.mode !== "research" && <p className="report-notice">{report.notice}</p>}
       {question && (
         <section className={styles.questionCard} aria-label="나의 질문">

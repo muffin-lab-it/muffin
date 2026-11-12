@@ -316,7 +316,6 @@
 .report :global(.verification-summary-copy strong .report-badge) { margin-left:6px; font-size:11px; }
 
 .report :global(.verification-body) { background:#fff; }
-.report :global(.report-ai-intro) { display:block; margin:0; padding:0; border:0; border-radius:0; background:transparent; color:var(--ink-2); font-size:13px; }
 .report :global(.verification-ref) { color:#374151; text-decoration:underline; text-underline-offset:3px; font-weight:600; }
 .report :global(.reason-originals) { display:grid; margin-top:10px; }
 .report :global(.reason-originals .evidence-link) { color:#1d4ed8; text-decoration:underline; text-underline-offset:3px; display:block; border-top:1px solid #e5e7eb; padding:10px 0; font-size:12px; font-weight:500; }

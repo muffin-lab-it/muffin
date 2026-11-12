@@ -375,7 +375,8 @@ describe("새 리포트 필드와 이전 기록 호환", () => {
     const $ = render(report);
     expect($(".report-disclosure")).toHaveLength(1);
     expect($(".report-disclosure").text()).toBe(report.disclosure);
-    expect($(".report-ai-intro").parents("details")).toHaveLength(0);
+    expect($(".report-disclosure").parents("details")).toHaveLength(0);
+    expect($(".report-ai-intro")).toHaveLength(0);
     expect($(".report-notice").text()).toBe(report.notice);
   });
 });
@@ -392,7 +393,7 @@ it("검증 제목 옆에 상태를 두고 대조 규칙과 도구 기록은 같�
   expect($(".reference-toggle .report-tools").text()).toContain("🟡");
   expect($(".reference-toggle .report-tools").text()).toContain("저장된 응답(1시간 전)");
   expect($(".reference-toggle .report-tools").text()).toContain("회로 열림(호출 생략)");
-  expect($(".report-ai-intro").text()).toContain("생성형 AI 머핀이 작성한 리포트예요");
+  expect($(".report-disclosure").text()).toBe(report.disclosure);
 });
 
 it("검증의 근거 번호와 원인별 원본 보기 링크가 실제 원본을 가리킨다", () => {
@@ -422,7 +423,7 @@ it("기본은 검증 ON이며 검증 토글과 필수 고지·원본 탐색을 �
   expect($(".report-mode-toggle")).toHaveLength(1);
   expect($(".report-mode-toggle").attr("aria-pressed")).toBe("true");
   expect($(".report-mode-toggle").text()).toContain("검증·근거 보기");
-  expect($(".report-ai-intro").text()).toContain("생성형 AI");
+  expect($(".report-disclosure").text()).toContain("생성형 AI");
   expect($(".reference-toggle").text()).toContain(report.caveats[0]);
   expect($(".num .metric-value-link").length).toBeGreaterThan(0);
 });
