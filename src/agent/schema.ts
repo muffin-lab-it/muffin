@@ -49,7 +49,13 @@ export const planSchema = z.object({
 });
 export type PlanOutput = z.infer<typeof planSchema>;
 
-export const sourceSchema = z.object({ name: z.string(), url: z.string(), asOf: z.string() });
+export const sourceSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+  asOf: z.string(),
+  /** 사람이 읽는 공식 페이지 · 기사 주소 (11/10). url 이 API 주소일 때만 코드가 표(src/agent/sources.ts)로 채웁니다. 없으면 url 이 이미 페이지 */
+  pageUrl: z.string().optional(),
+});
 
 const numberItem = z.object({
   label: z.string().describe("예: KODEX 200 종가, USD/KRW"),
@@ -79,16 +85,31 @@ const whyItem = z.object({
 /** ✍️ 작성 Agent 의 출력 (src/agent/write.ts). Structured Output 이라 모든 필드가 required 이고, 없으면 null 이나 빈 배열을 씁니다. */
 export const writerSchema = z.object({
   summary: z.string().describe("한입 요약. 질문에 대한 답을 먼저, 그다음 핵심 숫자 하나"),
+  headline: z
+    .string()
+    .nullable()
+    .describe("한입 요약 위의 핵심 한 문장 (40~70자 목표). 질문에 대한 답을 숫자 하나까지만 넣어 짧게, 깊이와 상관없이 한 문장. 쓸 수 없으면 null"),
   numbers: z.array(numberItem).describe("오늘의 숫자. tool 이 반환한 값만 넣는다"),
   why: z.array(whyItem).describe("왜 그럴까요. 데이터가 뒷받침하는 원인을 먼저"),
   impact: z.array(z.string()).describe("사용자가 고른 관심 영역 관점에서 이 변화가 뜻하는 것. 권유 아님"),
+  impactTitles: z
+    .array(z.string())
+    .describe("impact 와 같은 순서 · 같은 개수의 짧은 제목 (예: '해외 결제와 여행', '달러 자산의 원화 가치'). 개수가 다르면 코드가 버린다. 없으면 빈 배열"),
   caveats: z.array(z.string()).describe("해석 시 주의점. tool 의 note 에 있는 내용(기준일 지연, 환율 영향 등)을 옮긴다"),
   dataGaps: z
     .array(z.string())
     .describe("질문에 답하려면 필요했지만 tool 로 확인하지 못한 것. 실패한 tool, 없는 데이터. 없으면 빈 배열"),
   nextTopics: z.array(z.string()).describe("더해볼 것. 이 질문 다음에 자연스럽게 궁금해질 주제 키워드"),
+  topicReasons: z
+    .array(z.string())
+    .describe("nextTopics 와 같은 순서 · 같은 개수로, 이 주제를 이어서 보면 왜 도움이 되는지 한 문장씩. 개수가 다르면 코드가 버린다. 없으면 빈 배열"),
 });
-export type WriterOutput = z.infer<typeof writerSchema>;
+/**
+ * 11/10 에 더한 headline · impactTitles · topicReasons 는 모델에겐 필수(Structured Output 은 선택 필드가 없음)지만,
+ * 코드 · 테스트가 만드는 작성 출력(범위 밖 고정 본문, v1 변환, 테스트 fixture)에서는 선택입니다. 없으면 코드가 null · 빈 배열로 봅니다.
+ */
+type AddedWriterKeys = "headline" | "impactTitles" | "topicReasons";
+export type WriterOutput = Omit<z.infer<typeof writerSchema>, AddedWriterKeys> & Partial<Pick<z.infer<typeof writerSchema>, AddedWriterKeys>>;
 
 /**
  * 숫자 검증 상태. verified: 증거 값과 일치 / derived: Calc 결과 (계보 확인) /
@@ -99,7 +120,27 @@ export type NumberCheck = (typeof numberChecks)[number];
 /** 값이 장부와 맞은 규칙. exact 정확히 · rounded 표기 반올림 · scaled 단위 환산 · tolerance 허용 오차(0.1%) 안 */
 export const matchPolicies = ["exact", "rounded", "scaled", "tolerance"] as const;
 /** 검증이 적는 대조 세부: 장부 항목(ref)의 어느 키와 어떤 규칙으로 맞았는지. 화면의 "검증이 한 일" 에 씁니다 */
-export const numberMatchSchema = z.object({ key: z.string(), policy: z.enum(matchPolicies) });
+export const numberMatchSchema = z.object({
+  key: z.string(),
+  policy: z.enum(matchPolicies),
+  /** change(변화량)가 장부의 어느 키와 어떤 규칙으로 맞았는지 (11/10). change 가 비었거나 못 맞췄으면 없음 */
+  change: z.object({ key: z.string(), policy: z.enum(matchPolicies) }).optional(),
+});
+
+/**
+ * 숫자 카드 변화량의 구조화 설명 (11/10). 모델이 쓰지 않고 코드가 장부에서 채웁니다 (src/agent/change.ts):
+ * 검증이 change 와 맞춘 장부 키의 값 · 단위와, 장부에 적힌 비교 시점 · 기준일. 화면은 change 문자열을 파싱하는 대신 이 값으로 "30일 전과 비교해 +2.00%" 처럼 씁니다.
+ */
+export const changeDetailSchema = z.object({
+  key: z.string().describe("맞은 장부 키 (changePct · changePp · period.returnPct …)"),
+  value: z.number().describe("장부의 변화량 값 (unit 기준, 부호 포함)"),
+  unit: z.string().describe("% · %p · bp · 원 …"),
+  from: z.string().optional().describe("비교 시작일 (장부의 비교 시점 날짜)"),
+  to: z.string().optional().describe("비교 끝일 (장부 기준일)"),
+  days: z.number().optional().describe("from ~ to 일수"),
+  basis: z.string().describe("사람이 읽는 비교 기준. 예: 30일 전과 비교 · 전월과 비교 · 전년 같은 달과 비교"),
+});
+export type ChangeDetail = z.infer<typeof changeDetailSchema>;
 
 /** 증거 장부 한 줄. tool 결과(출처 단위)마다 하나. 리포트의 ref / refs 가 가리키는 대상이고, 화면의 "원본 보기" 가 됩니다. */
 export const evidenceSchema = z.object({
@@ -200,7 +241,17 @@ export const reportSchema = writerSchema.extend({
   version: z.literal(2),
   mode: z.enum(reportModes),
   notice: z.string().optional().describe("모드에 따른 상단 안내 (판단 요청 모드 등)"),
-  numbers: z.array(numberItem.extend({ check: z.enum(numberChecks), match: numberMatchSchema.optional() })),
+  /** 11/10: 작성 출력의 새 칸은 예전 기록에 없으므로 리포트에선 선택. 없으면 화면이 그 자리를 숨깁니다 */
+  headline: z.string().nullable().optional().describe("핵심 한 문장. 검증(장부에 없는 숫자 · 권유 표현)을 통과한 것만 남음"),
+  impactTitles: z.array(z.string()).optional().describe("impact 와 같은 순서의 제목. 개수가 같을 때만 있음"),
+  topicReasons: z.array(z.string()).optional().describe("nextTopics 와 같은 순서의 이유. 개수가 같을 때만 있음"),
+  numbers: z.array(
+    numberItem.extend({
+      check: z.enum(numberChecks),
+      match: numberMatchSchema.optional(),
+      changeDetail: changeDetailSchema.optional().describe("change 를 코드가 장부에서 풀어 쓴 것 (11/10). change 가 장부와 맞았을 때만"),
+    }),
+  ),
   sources: z.array(sourceSchema.extend({ id: z.string() })).describe("증거 장부에서 코드가 생성. 모델이 쓰지 않는다"),
   evidence: z.array(evidenceSchema),
   verification: verificationSchema,

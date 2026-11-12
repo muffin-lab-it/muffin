@@ -141,11 +141,20 @@ describe("research() 다섯 단계", () => {
     expect(result.rewrites).toBe(0);
     expect(result.report.mode).toBe("research");
     expect(result.report.notice).toBeUndefined();
-    expect(result.report.numbers).toEqual([{ ...good.numbers[0], check: "verified", match: expect.objectContaining({ key: expect.any(String), policy: expect.any(String) }) }]);
+    expect(result.report.numbers).toEqual([
+      {
+        ...good.numbers[0],
+        check: "verified",
+        match: expect.objectContaining({ key: expect.any(String), policy: expect.any(String), change: { key: "change", policy: "exact" } }),
+        // 11/10: change 가 장부와 맞았으니 코드가 변화량을 풀어 쓴다 (값 · 단위는 장부, 비교 기준은 날짜나 키 이름에서)
+        changeDetail: expect.objectContaining({ key: "change", value: 27.3, unit: "원", basis: expect.any(String) }),
+      },
+    ]);
     expect(result.report.verification).toMatchObject({ status: "pass", numbers: { total: 1, verified: 1 }, revisions: 0, removed: [] });
     // 계산 결과는 장부에 남지만 url 이 없어 출처에는 들어가지 않는다
     expect(result.report.evidence.map((e) => e.id)).toEqual(["E1", "C1"]);
-    expect(result.report.sources).toEqual([{ id: "E1", ...source }]);
+    // 11/10: API 주소(api.frankfurter.dev)에는 사람이 읽는 공식 페이지가 붙는다
+    expect(result.report.sources).toEqual([{ id: "E1", ...source, pageUrl: "https://frankfurter.dev/" }]);
     expect(result.steps.map((s) => s.tool)).toEqual(["get_fx_krw_rate", "calc_metrics"]);
     expect(result.model).toMatch(/^gpt-6/);
     // 단계 파일의 Agent 에 리더 쪽 호출 설정(시간 제한 · 시간 초과 재시도 · 조사 추론 강도)이 씌워진다

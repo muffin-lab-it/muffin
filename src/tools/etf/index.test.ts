@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Evidence } from "../../agent/schema";
 import { extractNumbers, matchValue, numericCandidates, roleConflict } from "../../agent/verify";
 import fixture from "./fixture.json";
-import { evidenceOf, execute } from "./index";
+import { ATTEMPT_TIMEOUT_MS, EXECUTE_BUDGET_MS, MAX_ATTEMPTS, evidenceOf, execute } from "./index";
 
 type Row = (typeof fixture.response.body.items.item)[number];
 
@@ -195,6 +195,119 @@ describe("get_etf_kr_price", () => {
       403,
     );
     await expect(execute({ query: "069500", days: 30 })).rejects.toThrow("403");
+  });
+
+  describe("응답 없는 요청 다시 보내기", () => {
+    const timeout = () => Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
+
+    /** 앞의 n 번은 응답 없이 시간 초과, 그다음은 route 대로 응답하는 가짜 fetch */
+    function hangThen(n: number, route: (p: URLSearchParams) => unknown = () => fixture) {
+      const calls: { url: URL; timeoutMs?: number }[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | URL) => {
+          const url = new URL(String(input));
+          calls.push({ url });
+          if (calls.length <= n) throw timeout();
+          return new Response(JSON.stringify(route(url.searchParams)));
+        }),
+      );
+      return calls;
+    }
+
+    it("시간 초과면 새로 보내서 성공한다", async () => {
+      const calls = hangThen(2);
+      const result = await execute({ query: "069500", days: 30 });
+      expect(result.data.etf.code).toBe("069500");
+      expect(calls).toHaveLength(3);
+    });
+
+    it(`${MAX_ATTEMPTS}번 모두 응답이 없으면 시간 초과로 실패한다 (키는 가림)`, async () => {
+      const calls = hangThen(99);
+      const err = await execute({ query: "069500", days: 30 }).catch((e: Error) => e);
+      expect((err as Error).message).toMatch(/timeout/);
+      expect(calls).toHaveLength(MAX_ATTEMPTS);
+    });
+
+    it("이름 조회의 각 단계(이름 → 후보 → 코드)마다 따로 다시 보낸다", async () => {
+      const calls = hangThen(1, (p) => {
+        if (p.get("itmsNm")) return okBody([]);
+        if (p.get("likeItmsNm")) return okBody([row("069500", "KODEX 200")]);
+        return fixture;
+      });
+      const result = await execute({ query: "KODEX200", days: 30 });
+      expect(result.data.etf.code).toBe("069500");
+      expect(calls.map((c) => [...c.url.searchParams.keys()].find((k) => /Nm|SrtnCd/.test(k)))).toEqual([
+        "itmsNm",
+        "itmsNm",
+        "likeItmsNm",
+        "likeSrtnCd",
+      ]);
+    });
+
+    it("5xx 는 다시 보내고, 4xx · 결과 코드 오류는 한 번만 보낸다", async () => {
+      const five = mockApi(() => ({ error: "bad gateway" }), 502);
+      await expect(execute({ query: "069500", days: 30 })).rejects.toThrow("502");
+      expect(five).toHaveLength(MAX_ATTEMPTS);
+
+      const four = mockApi(() => ({ error: "forbidden" }), 403);
+      await expect(execute({ query: "069500", days: 30 })).rejects.toThrow("403");
+      expect(four).toHaveLength(1);
+
+      const code = mockApi(() => ({ response: { header: { resultCode: "22", resultMsg: "LIMITED NUMBER OF SERVICE REQUESTS EXCEEDS" } } }));
+      await expect(execute({ query: "069500", days: 30 })).rejects.toThrow("LIMITED NUMBER");
+      expect(code).toHaveLength(1);
+    });
+
+    it(`요청마다 ${ATTEMPT_TIMEOUT_MS / 1000}초만 기다리고, 실행 예산(${EXECUTE_BUDGET_MS / 1000}초)이 거의 다 쓰이면 더 보내지 않는다`, async () => {
+      const signals: AbortSignal[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_input: string | URL, init?: RequestInit) => {
+          if (init?.signal) signals.push(init.signal);
+          vi.setSystemTime(Date.now() + EXECUTE_BUDGET_MS - 100); // 첫 시도에서 예산을 거의 다 씀
+          throw timeout();
+        }),
+      );
+      await expect(execute({ query: "069500", days: 30 })).rejects.toThrow(/timeout/);
+      expect(signals).toHaveLength(1);
+    });
+  });
+
+  it("앞 단계가 예산을 거의 다 쓰면 다음 단계의 첫 요청도 보내지 않고 시간 초과로 끝낸다 (Codex 리뷰)", async () => {
+    const calls = mockApi((p) => {
+      if (p.get("itmsNm")) return okBody([]);
+      if (p.get("likeItmsNm")) {
+        vi.setSystemTime(Date.now() + EXECUTE_BUDGET_MS - 100); // 후보 찾기가 끝났을 때 0.1초만 남음
+        return okBody([row("069500", "KODEX 200")]);
+      }
+      return fixture;
+    });
+    const err = await execute({ query: "KODEX200", days: 30 }).catch((e: Error) => e);
+    expect((err as Error).message).toMatch(/시간 예산.*timeout/);
+    expect((err as Error).name).toBe("TimeoutError");
+    expect(calls.map((u) => [...u.searchParams.keys()].find((k) => /Nm|SrtnCd/.test(k)))).toEqual(["itmsNm", "likeItmsNm"]);
+  });
+
+  it("요청마다 남은 예산보다 오래 기다리지 않는다", async () => {
+    const waits: number[] = [];
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+      waits.push(ms);
+      return realTimeout(ms);
+    });
+    mockApi((p) => {
+      if (p.get("itmsNm")) {
+        vi.setSystemTime(Date.now() + EXECUTE_BUDGET_MS - 800); // 0.8초 남음
+        return okBody([]);
+      }
+      if (p.get("likeItmsNm")) return okBody([row("069500", "KODEX 200")]);
+      return fixture;
+    });
+    await execute({ query: "KODEX200", days: 30 });
+    expect(waits[0]).toBe(ATTEMPT_TIMEOUT_MS);
+    expect(waits[1]).toBeLessThanOrEqual(800);
+    vi.restoreAllMocks();
   });
 
   it("실패 메시지에 API 키를 남기지 않는다", async () => {

@@ -5,7 +5,7 @@
  * 최근 N일 기간 변화(수익률·고저·기초지수 대비 추적 차이)를 돌려줍니다.
  */
 import { z } from "zod";
-import { fetchJson } from "../../lib/http";
+import { fetchJson, isRetryable } from "../../lib/http";
 import { defineTool, type EvidenceValues } from "../define";
 import type { ToolResult } from "../types";
 
@@ -29,6 +29,19 @@ const BUFFER_DAYS = 7;
 /** 부분 일치 후보를 찾을 때 보는 기간 */
 const CANDIDATE_DAYS = 10;
 const MAX_CANDIDATES_SHOWN = 10;
+
+/**
+ * 공공데이터포털은 새 연결의 약 4번 중 1번 이상을 연결만 받고 응답하지 않습니다 (11/5 실측: 정상 응답은 0.6초 안, 멈추면 끝까지 안 옴).
+ * 그래서 요청마다 짧게 기다리고, 시간 초과 · 연결 실패 · 5xx 면 새 연결로 다시 보냅니다. 키 · 파라미터 · 결과 코드 오류는 다시 보내지 않습니다.
+ * 한 번 실행(이름 → 후보 → 코드 조회, 최대 3단계)이 EXECUTE_BUDGET_MS 를 넘지 않게 남은 시간 안에서만 기다립니다.
+ */
+export const ATTEMPT_TIMEOUT_MS = 2_000;
+export const MAX_ATTEMPTS = 4;
+/** 이보다 시간이 덜 남으면 새로 보내지 않습니다 */
+const MIN_ATTEMPT_MS = 500;
+export const EXECUTE_BUDGET_MS = 11_000;
+/** defineTool 의 실행 제한. 위 예산보다 조금 길게 두어 마지막 시도의 실패 메시지가 그대로 나가게 합니다 */
+const TOOL_TIMEOUT_MS = 12_000;
 
 /** API 원본 행. 숫자도 전부 문자열로 옵니다. */
 type EtfRow = {
@@ -65,17 +78,18 @@ export async function execute({ query, days }: Input): Promise<ToolResult<EtfDat
 
   const q = query.trim();
   const today = todayKst();
+  const call = { key, deadline: Date.now() + EXECUTE_BUDGET_MS };
   const range = { beginBasDt: shiftDays(today, -(days + BUFFER_DAYS)), endBasDt: shiftDays(today, 0) };
 
   let rows: EtfRow[];
   if (/^\d[0-9A-Z]{5}$/.test(q)) {
-    rows = await fetchRows(key, { likeSrtnCd: q, ...range });
+    rows = await fetchRows(call, { likeSrtnCd: q, ...range });
     if (rows.length === 0) throw new Error(`종목코드 ${q} 인 국내 ETF 를 찾지 못했습니다.`);
   } else {
-    rows = await fetchRows(key, { itmsNm: q, ...range });
+    rows = await fetchRows(call, { itmsNm: q, ...range });
     if (rows.length === 0) {
-      const code = await findUniqueCode(key, q, today);
-      rows = await fetchRows(key, { likeSrtnCd: code, ...range });
+      const code = await findUniqueCode(call, q, today);
+      rows = await fetchRows(call, { likeSrtnCd: code, ...range });
     }
   }
 
@@ -83,8 +97,8 @@ export async function execute({ query, days }: Input): Promise<ToolResult<EtfDat
 }
 
 /** 이름 부분 일치로 후보를 찾고, 하나로 좁혀지지 않으면 후보 목록을 담아 실패합니다. */
-async function findUniqueCode(key: string, name: string, today: string): Promise<string> {
-  const rows = await fetchRows(key, {
+async function findUniqueCode(call: Call, name: string, today: string): Promise<string> {
+  const rows = await fetchRows(call, {
     likeItmsNm: name,
     beginBasDt: shiftDays(today, -CANDIDATE_DAYS),
     endBasDt: shiftDays(today, 0),
@@ -105,19 +119,40 @@ async function findUniqueCode(key: string, name: string, today: string): Promise
   );
 }
 
-async function fetchRows(key: string, params: Record<string, string>): Promise<EtfRow[]> {
-  // 공공데이터포털 Encoding 키(이미 % 인코딩됨)는 그대로, Decoding 키는 인코딩해서 보냅니다.
-  const serviceKey = key.includes("%") ? key : encodeURIComponent(key);
-  const qs = new URLSearchParams({ resultType: "json", numOfRows: "1000", pageNo: "1", ...params });
-  let json: ApiResponse;
-  try {
-    json = await fetchJson<ApiResponse>(`${ENDPOINT}?serviceKey=${serviceKey}&${qs}`);
-  } catch (err) {
-    // 공통 HttpError 메시지에는 요청 URL 이 통째로 들어가서, 쿼리로 보내는 키가 노출됩니다.
-    // 삼키지 않고 키만 가린 메시지로 다시 던집니다.
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(message.replace(/serviceKey=[^&\s]*/g, "serviceKey=****"));
+type Call = { key: string; deadline: number };
+
+/** 일시적 실패(시간 초과 · 연결 실패 · 5xx)면 남은 시간 안에서 새 연결로 다시 보냅니다. 마지막 실패를 키를 가려 던집니다. */
+async function fetchWithRetry(call: Call, url: string): Promise<ApiResponse> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // 단계마다 첫 시도도 남은 시간을 봅니다. 앞 단계가 예산을 거의 다 썼으면 새로 보내지 않고 시간 초과로 끝냅니다 (예산을 늘리지 않음).
+    const remaining = call.deadline - Date.now();
+    if (remaining < MIN_ATTEMPT_MS) {
+      lastErr ??= Object.assign(new Error(`ETF 조회 시간 예산(${EXECUTE_BUDGET_MS / 1000}초)을 다 써서 더 요청하지 않았습니다 (timeout)`), {
+        name: "TimeoutError",
+      });
+      break;
+    }
+    try {
+      return await fetchJson<ApiResponse>(url, { timeoutMs: Math.min(ATTEMPT_TIMEOUT_MS, remaining) });
+    } catch (err) {
+      lastErr = err;
+      if (!isRetryable(err)) break;
+    }
   }
+  // 공통 HttpError 메시지에는 요청 URL 이 통째로 들어가서, 쿼리로 보내는 키가 노출됩니다.
+  // 삼키지 않고 키만 가린 메시지로 다시 던집니다. 이름(TimeoutError 등)은 남겨 defineTool 이 일시적 실패로 볼 수 있게 합니다.
+  const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  const masked = new Error(message.replace(/serviceKey=[^&\s]*/g, "serviceKey=****"));
+  if (lastErr instanceof Error && (lastErr.name === "TimeoutError" || lastErr.name === "AbortError")) masked.name = lastErr.name;
+  throw masked;
+}
+
+async function fetchRows(call: Call, params: Record<string, string>): Promise<EtfRow[]> {
+  // 공공데이터포털 Encoding 키(이미 % 인코딩됨)는 그대로, Decoding 키는 인코딩해서 보냅니다.
+  const serviceKey = call.key.includes("%") ? call.key : encodeURIComponent(call.key);
+  const qs = new URLSearchParams({ resultType: "json", numOfRows: "1000", pageNo: "1", ...params });
+  const json = await fetchWithRetry(call, `${ENDPOINT}?serviceKey=${serviceKey}&${qs}`);
 
   const header = json.response?.header;
   if (!header) throw new Error(`금융위 API 응답 형식이 예상과 다릅니다: ${JSON.stringify(json).slice(0, 200)}`);
@@ -300,4 +335,5 @@ export const etfTool = defineTool({
   parameters,
   execute,
   evidence: evidenceOf,
+  timeoutMs: TOOL_TIMEOUT_MS,
 });

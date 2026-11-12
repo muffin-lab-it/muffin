@@ -183,7 +183,7 @@ Next.js (App Router) · React · TypeScript · OpenAI Agents SDK · Zod · Codex
 ```
 muffin/
 ├─ app/                              프론트 팀
-│  ├─ layout.tsx                     사이드바 + 본문 레이아웃
+│  ├─ layout.tsx                     상단 GNB + 본문 레이아웃
 │  ├─ page.tsx                       홈 (영역·깊이·질문 → 진행 화면 → 리포트)
 │  ├─ report/[id]/page.tsx           리포트 상세 (History 에서 조회)
 │  ├─ history/page.tsx               저장한 리포트 목록
@@ -226,7 +226,7 @@ muffin/
 │  └─ lib/
 │     ├─ http.ts                     fetchJson / fetchText (타임아웃 · HttpError · redirect 옵션)
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
-│     ├─ history.ts                  리포트 저장함 (localStorage → 서버, 백엔드)
+│     ├─ history.ts                  리포트 보관함 (localStorage → 서버, 백엔드)
 │     ├─ log.ts                      muffin.run 실행 로그
 │     ├─ db.ts                       Supabase 서버 클라이언트 getDb · 표 타입 (secret 키, 서버 전용. 리더)
 │     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 표 최근 7일 조회, DB 환경 변수 없거나 ?source=sample 이면 예시 데이터, 리더)
@@ -317,7 +317,7 @@ ADMIN_PASSWORD=      # /admin 로그인 비밀번호 (아이디는 아무거나)
 
 | 파일 | 역할 | 누가 손대나 |
 |---|---|---|
-| `app/layout.tsx`, `app/components/Sidebar.tsx` | 사이드바 + 본문 공통 레이아웃 | 프론트 |
+| `app/layout.tsx`, `app/components/Sidebar.tsx` | 상단 GNB + 본문 공통 레이아웃 | 프론트 |
 | `app/page.tsx` | 홈. 영역 · 깊이 · 질문 → 진행 화면 → 저장 → 리포트 페이지. 로딩 중 화면이 진행 화면 자리 | 프론트 |
 | `app/report/[id]/page.tsx`, `app/history/page.tsx` | 리포트 상세, 저장 목록 | 프론트 |
 | `app/components/ReportView.tsx` | 리포트 한 장. 검증 배지 · 원본 보기 · 📊📰❔ · AI 고지 · 차트가 여기 들어갑니다 | 프론트 |
@@ -333,7 +333,7 @@ ADMIN_PASSWORD=      # /admin 로그인 비밀번호 (아이디는 아무거나)
 
 | 파트 | 최소 범위 | 담당 |
 |---|---|---|
-| 프론트 | 홈(영역 · 깊이 · 질문), 판단 요청 배너 · AI 고지, 저장함 | 하니 |
+| 프론트 | 홈(영역 · 깊이 · 질문), 판단 요청 배너 · AI 고지, 보관함 | 하니 |
 | 프론트 | 다섯 단계 진행 화면 (`stage` 5개 · `plan` · `step` · `verify`), 리포트 구성(칸의 순서와 정보 배치) | 은선 |
 | 프론트 | 리포트 화면(숫자 배지 · 📊📰❔), 원본 보기(`evidence` 를 `ref` 로 찾기, 계산 계보) | 소희 |
 | 백엔드 | 실시간 통로 `/api/report/stream`, 호출 제한, 실행 로그 | 서영 |
@@ -419,14 +419,20 @@ type Report = {
   mode: "research" | "decision_facts" | "out_of_scope";   // 일반 / 판단에 필요한 사실 / 범위 밖
   notice?: string;                                         // 상단 안내: mode 에 따른 문구, 원인 질문이면 움직임 크기
   summary: string;
+  headline?: string;                                       // 핵심 한 문장 (11/10). 검증을 통과한 것만, 없으면 화면이 숨김
   numbers: { label: string; value: string; change: string; asOf: string;
              ref?: string;                                  // 인용한 증거 번호 "E1" 또는 계산 "C1"
-             check: "verified" | "derived" | "unverified" }[];
+             check: "verified" | "derived" | "reported" | "unverified";
+             match?: { key: string; policy: string; change?: { key: string; policy: string } }; // 검증이 적음: 값 · 변화량이 장부의 어느 키와 맞았는지
+             changeDetail?: { key: string; value: number; unit: string;    // 코드가 장부에서 풀어 쓴 변화량 (11/10, src/agent/change.ts)
+                              from?: string; to?: string; days?: number; basis: string } }[];
   why:     { claim: string; evidence: string;
              basis: "data" | "news" | "none";               // 📊 📰 ❔
              refs: string[] }[];
   impact: string[]; caveats: string[]; dataGaps: string[]; nextTopics: string[];
-  sources: { id: string; name: string; url: string; asOf: string }[];   // 증거 장부에서 코드가 생성
+  impactTitles?: string[]; topicReasons?: string[];       // impact · nextTopics 와 같은 순서 · 개수의 제목 · 이유 (11/10). 개수가 다르면 코드가 뺌
+  sources: { id: string; name: string; url: string; asOf: string;
+             pageUrl?: string }[];                          // 증거 장부에서 코드가 생성. pageUrl 은 url 이 API 주소일 때 공식 페이지 (11/10, src/agent/sources.ts)
   evidence: Evidence[];                                    // 원본 보기용 핵심 값 (전체 데이터는 서버에만)
   verification: {
     status: "pass" | "partial" | "skipped";                // skipped = 검증기 없이 생성 (0단계, v1 기록)
@@ -440,7 +446,7 @@ type Report = {
   charts?: { kind: "line" | "bar"; title: string;
              series: { label: string; ref: string; points: { t: string; v: number }[] }[];  // 증거 번호에 묶인 시계열
              events?: { ref: string; label: string; at: string }[] }[];                     // 뉴스 이벤트 점
-  disclosure: string;                                      // "이 리포트는 생성형 AI 가 작성했습니다. 투자 권유가 아닙니다."
+  disclosure: string;                                      // AI 생성 고지. 서버 상수(src/agent/report.ts DISCLOSURE) 문구를 화면이 그대로 보여 줍니다
 };
 
 type Evidence = {
@@ -794,7 +800,7 @@ export async function research(input: ResearchInput, opts?: { onEvent?: (e: Muff
 | 서영 | @seoyoung23 | 💵 FX | 📋 분류 `plan.ts` | 백엔드: 실시간 통로 · 호출 제한 |
 | 은경 | @o3ozzvb | 📈 ETF | ✂️ 정제 `edit.ts` | 백엔드: 저장 · API 보호 |
 | 소희 | @Kangsohee | 📰 News | 🔍 조사 `research.ts` | 프론트: 리포트 화면 · 원본 보기 |
-| 하니 | @kani-market | 🏦 Rate | ✍️ 작성 `depth.ts` (깊이별 금융 규칙 · 출력 QA) | 프론트: 홈 · 판단 요청 배너 · AI 고지 · 저장함 |
+| 하니 | @kani-market | 🏦 Rate | ✍️ 작성 `depth.ts` (깊이별 금융 규칙 · 출력 QA) | 프론트: 홈 · 판단 요청 배너 · AI 고지 · 보관함 |
 | 은선 | @exx-sxx | 📊 Macro | ✍️ 작성 `write.ts` (구성 · 문장 · 코드) | 프론트: 다섯 단계 진행 화면 · 리포트 구성 |
 
 10/16 모임에서 백엔드 2 / 프론트 3 으로, 10/25 모임에서 에이전트 단계를 한 사람 한 단계씩 나눴습니다 (작성은 두 사람이 파일을 나눠 맡음). 자기 tool 과 단계 파일 유지보수는 끝까지 본인 담당이고, 리포트 QA 는 전원이 합니다. 권유 유도 질문 세트(`decision.json`)는 하니가 시작합니다.

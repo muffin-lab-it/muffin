@@ -1,15 +1,22 @@
 :root {
-  --bg: #faf8f3;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f3f0e8;
-  --ink: #27242c;
-  --ink-2: #5d5868;
-  --ink-3: #8c8696;
-  --line: #e4dfd4;
-  --accent: #6b5cc7;
-  --accent-soft: #ece9fa;
+  --surface-2: #f7f4fb;
+  --ink: #222130;
+  --ink-2: #494454;
+  --ink-3: #747080;
+  --line: #e3dfed;
+  --accent: #8b5cf6;
+  --accent-soft: #eee6ff;
   --up: #c2403a;
   --down: #2f6fd1;
+}
+
+@font-face {
+  font-family: "Muffin Pretendard";
+  src: url("/report-v3/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 45 920;
+  font-display: swap;
 }
 
 * { box-sizing: border-box; }
@@ -18,29 +25,38 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+  font-family: "Muffin Pretendard", "Pretendard Variable", Pretendard, "Malgun Gothic", Arial, sans-serif;
+  letter-spacing: -.035em;
   line-height: 1.6;
 }
 
-/* ---------- 레이아웃: 사이드바 + 본문 ---------- */
-.shell { display: flex; min-height: 100vh; }
-.sidebar {
-  width: 200px; flex: 0 0 200px;
-  background: var(--surface); border-right: 1px solid var(--line);
-  padding: 20px 12px; display: flex; flex-direction: column; gap: 16px;
+/* ---------- 공통 페이지 배치 · 상단 GNB ---------- */
+.shell { display: block; min-height: 100vh; }
+main { width: 100%; min-width: 0; max-width: 820px; margin-inline: auto; padding: 40px 24px 80px; }
+main:has(> .muffin-home), main:has(> .muffin-history) { max-width: 1280px; padding: 0 24px 50px; }
+.muffin-gnb { height: 82px; padding: 0 max(32px, calc((100vw - 1376px)/2)); display: flex; align-items: center; justify-content: space-between; gap: 24px; background: var(--surface); border-bottom: 1px solid #f0edf5; }
+.muffin-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #1d1b2d; font-size: 29px; font-weight: 800; letter-spacing: -1px; white-space: nowrap; }
+.muffin-brand small { font-size: 16px; letter-spacing: -.5px; font-weight: 500; border-left: 1px solid #cfc5df; padding-left: 20px; margin-left: 10px; }
+.muffin-gnb nav { display: flex; gap: 22px; margin-left: auto; }
+.muffin-nav-link { border: 0; background: transparent; border-radius: 13px; padding: 12px 27px; font-size: 18px; font-weight: 700; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.muffin-nav-link:hover { background: #f8f5ff; }
+.muffin-nav-link[aria-current="page"] { background: var(--accent-soft); color: #8043ec; }
+@media (min-width: 601px) and (max-width: 1000px) {
+  .muffin-gnb { padding-inline: 24px; gap: 14px; }
+  .muffin-brand { font-size: 27px; gap: 8px; }
+  .muffin-brand small { font-size: 15px; padding-left: 16px; margin-left: 6px; }
+  .muffin-gnb nav { gap: 8px; }
+  .muffin-nav-link { padding: 11px 17px; font-size: 17px; }
 }
-.brand { font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; padding: 6px 10px; }
-.sidebar nav { display: flex; flex-direction: column; gap: 4px; }
-.nav-item { display: block; padding: 10px 12px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font-size: 15px; }
-.nav-item:hover { background: var(--surface-2); }
-.nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-main { flex: 1; min-width: 0; max-width: 820px; padding: 40px 24px 80px; }
-
-@media (max-width: 720px) {
-  .shell { flex-direction: column; }
-  .sidebar { width: auto; flex: none; flex-direction: row; align-items: center; padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .sidebar nav { flex-direction: row; }
-  main { padding: 24px 16px 60px; }
+@media (max-width: 720px) { main { padding: 24px 16px 60px; } }
+@media (max-width: 600px) {
+  main:has(> .muffin-home), main:has(> .muffin-history) { padding: 0 16px 40px; }
+  .muffin-brand small { display: none; }
+  .muffin-gnb { height: 69px; padding: 0 18px; gap: 12px; }
+  .muffin-brand { font-size: 23px; gap: 5px; }
+  .muffin-brand img { width: 29px; height: 29px; }
+  .muffin-gnb nav { gap: 5px; }
+  .muffin-nav-link { padding: 9px 13px; font-size: 15px; }
 }
 
 /* ---------- 공통 ---------- */
@@ -153,3 +169,6 @@ button.ghost:hover { color: var(--up); }
 .chart-events { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 20px; color: var(--ink-2); }
 .chart-event-date { display: inline-block; min-width: 40px; color: var(--up); font-variant-numeric: tabular-nums; }
 .chart-summary { margin: 6px 0 0; font-size: 12px; line-height: 18px; color: var(--ink-3); }
+
+/* 공통 버튼 디자인 값: 홈·보관함 CSS 모듈에서도 함께 사용합니다. */
+:root{--button-gradient:linear-gradient(180deg,#a569ff,#8239f5);--button-border:#d8cfe7;--button-radius:13px;--button-shadow:0 5px 9px #833cea1c}
