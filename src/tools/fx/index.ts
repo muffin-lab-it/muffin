@@ -9,6 +9,8 @@ const ECOS_API_BASE_URL = "https://ecos.bok.or.kr/api/StatisticSearch";
 const ECOS_STAT_CODE = "731Y001";
 const QUOTE_CURRENCY = "KRW";
 const COMPARISON_LOOKBACK_DAYS = 14;
+// Tool 전체 제한(10초) 안에 기본·대체 제공자를 모두 시도할 수 있도록 각 요청은 4초로 제한합니다.
+const PROVIDER_TIMEOUT_MS = 4_000;
 
 const ECOS_ITEMS = {
   USD: "0000001",
@@ -233,7 +235,7 @@ function resultFromRates(
 async function executeEcos(currency: Input["currency"], days: number, key: string): Promise<ToolResult<FxResultData>> {
   const url = buildEcosUrl(currency, days, key);
   try {
-    const rates = validateEcosRates(await fetchJson<EcosResponse>(url), currency);
+    const rates = validateEcosRates(await fetchJson<EcosResponse>(url, { timeoutMs: PROVIDER_TIMEOUT_MS }), currency);
     const latest = rates.at(-1);
     if (!latest) throw new Error("ECOS 환율 데이터가 없습니다.");
     return resultFromRates(currency, days, rates, {
@@ -258,7 +260,7 @@ function displayUnit(currency: Input["currency"]): string {
 export async function execute({ currency, days }: Input): Promise<ToolResult<FxResultData>> {
   const sourceUrl = buildSourceUrl(currency, days);
   try {
-    const rates = validateRates(await fetchJson<FxRate[]>(sourceUrl), currency);
+    const rates = validateRates(await fetchJson<FxRate[]>(sourceUrl, { timeoutMs: PROVIDER_TIMEOUT_MS }), currency);
     const latest = rates[rates.length - 1];
     return resultFromRates(currency, days, rates.map((rate) => ({ date: rate.date, rate: rate.rate })), {
       name: "Frankfurter v2",

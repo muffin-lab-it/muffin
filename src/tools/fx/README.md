@@ -7,6 +7,7 @@ USD, EUR, JPY의 KRW 기준환율과 지정 기간의 변동을 조회하는 Too
 - 기본 제공자: [Frankfurter v2](https://frankfurter.dev/)
 - 대체 제공자: [한국은행 ECOS](https://ecos.bok.or.kr/api/) `731Y001` 일별 주요국 통화의 대원화환율
 - 인증: Frankfurter는 API Key 불필요. Frankfurter 요청이 실패했을 때만 `ECOS_API_KEY`가 설정돼 있으면 ECOS로 대체 조회합니다.
+- 요청 시간 제한: Frankfurter와 ECOS는 각각 최대 4초 동안 조회합니다. Tool 전체 제한(10초) 안에 대체 조회까지 시도하기 위한 값입니다.
 - 호출 제한: [공식 FAQ](https://frankfurter.dev/#faq)에 따르면 일·월간 quota는 없지만 남용 방지를 위한 rate limiting이 적용됩니다. 필요한 통화와 기간만 조회합니다.
 - 사용 endpoint: `GET /v2/rates?base={currency}&quotes=krw&from={YYYY-MM-DD}&to={YYYY-MM-DD}`
 - ECOS 항목: USD `0000001`, JPY(100엔) `0000002`, EUR `0000003`. ECOS의 JPY 값은 이미 100엔 기준이므로 다시 환산하지 않습니다.
