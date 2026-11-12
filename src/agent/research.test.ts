@@ -12,6 +12,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 import { RunContext, run } from "@openai/agents";
 import { fxTool } from "../tools/fx";
 import { newsTool } from "../tools/news";
+import { rateTool } from "../tools/rate";
 import { muffinTools } from "../tools";
 import { ResearchContext } from "./context";
 import { commonRules } from "./instructions";
@@ -49,6 +50,8 @@ describe("researchInstructions", () => {
       expect(text).toContain("실패한 요청에는 메모용 번호를 만들지 말고");
       expect(text).toContain("원인·이유·배경 질문이면 제공된 뉴스 tool 도 호출해 근거를 확인합니다.");
       expect(text).toContain("뉴스 검색 결과가 없으면 검색어를 더 짧고 넓게 바꿔 한 번만 재시도하고, 그래도 결과가 없으면 자료 부족을 gaps 에 적습니다.");
+      expect(text).toContain("재검색의 sources 는 직전 검색과 동일하게 유지해 소스를 줄이거나 누락하지 않습니다.");
+      expect(text).toContain("새 소스를 무조건 추가하지 않습니다.");
     }
   });
 
@@ -70,6 +73,23 @@ describe("researchInstructions", () => {
       expect(researchInstructions(area)).not.toContain("query 는 짧은 주제 핵심어");
     }
   });
+
+  it("환율 원인 질문에만 제공된 금리의 BOK·DFF 30일 조회와 뉴스 조사를 안내한다", () => {
+    const text = researchInstructions("fx");
+    expect(text).toContain("환율 tool 을 먼저 호출합니다.");
+    expect(text).toContain("원인·이유·배경 질문일 때만, 금리 tool 이 제공되면");
+    expect(text).toContain("한국은행 기준금리(series=BOK, days=30)");
+    expect(text).toContain("미국 실효 연방기금금리(series=DFF, days=30)");
+    expect(text).toContain("뉴스 tool 이 제공되면 함께 호출합니다.");
+    expect(text).toContain("DGS10으로 두 지표를 대체하지 않습니다.");
+    expect(text).toContain("DFF는 FOMC 목표금리와 동일한 지표가 아니며");
+    expect(text).toContain("지표 정의와 기준일 차이를 구분하고");
+    expect(text).toContain("금리 차이만으로 환율 변동의 원인을 단정하지 않습니다.");
+    for (const area of [...areas.filter((area) => area !== "fx"), undefined]) {
+      expect(researchInstructions(area)).not.toContain("series=BOK");
+      expect(researchInstructions(area)).not.toContain("series=DFF");
+    }
+  });
 });
 
 describe("createResearcherAgent", () => {
@@ -89,6 +109,15 @@ describe("createResearcherAgent", () => {
     expect(selected).toEqual([newsTool, fxTool]);
     expect(agent.tools.some((tool) => tool.name === "calc_metrics")).toBe(false);
     expect(createResearcherAgent("standard", "news", [newsTool]).tools).toEqual([newsTool]);
+  });
+
+  it("환율 힌트가 있어도 분류가 제공하지 않은 금리·뉴스 도구를 추가하지 않는다", () => {
+    for (const selected of [[fxTool], [fxTool, newsTool], [fxTool, rateTool], [fxTool, rateTool, newsTool]]) {
+      const agent = createResearcherAgent("standard", "fx", selected);
+      expect(agent.tools).toEqual(selected);
+      expect(agent.name).toBe("Muffin Researcher");
+      expect(agent.outputType).toBe(researchNotesSchema);
+    }
   });
 });
 
