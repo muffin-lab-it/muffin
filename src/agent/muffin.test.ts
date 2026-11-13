@@ -9,7 +9,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 import { run, type RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
-import { research } from "./muffin";
+import { research, hintAreaFor } from "./muffin";
 import { DECISION_NOTICE } from "./report";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
 
@@ -335,5 +335,23 @@ describe("research() 다섯 단계", () => {
     mockRuns({ plan: { intent: "status", tools: ["made_up_tool"], reason: "r" }, writer: [good] });
     await research({ question: "오늘 달러 얼마야?", depth: "standard", area: "fx" });
     expect(agentOf(1).tools.map((t) => t.name)).toEqual(["get_fx_krw_rate"]);
+  });
+});
+
+describe("조사 영역 힌트 (Auto · 복수 선택, 11/13)", () => {
+  it("hintAreaFor 는 사용자가 고른 영역을 우선하고, 없으면 분류가 고른 뉴스 아닌 첫 tool 의 영역, 뉴스뿐이면 뉴스", () => {
+    expect(hintAreaFor("rate", ["get_fx_krw_rate"])).toBe("rate");
+    expect(hintAreaFor(undefined, ["get_fx_krw_rate", "get_rate_data", "get_korean_economic_news"])).toBe("fx");
+    expect(hintAreaFor(undefined, ["get_korean_economic_news", "get_macro_indicators"])).toBe("macro");
+    expect(hintAreaFor(undefined, ["get_korean_economic_news"])).toBe("news");
+    expect(hintAreaFor(undefined, ["calc_metrics"])).toBeUndefined();
+    expect(hintAreaFor(undefined, [])).toBeUndefined();
+  });
+
+  it("영역 없이(Auto) 물어도 분류가 환율 tool 을 먼저 골랐으면 조사 Agent 에 환율 힌트가 들어간다", async () => {
+    mockRuns({ writer: [good], plan: { intent: "cause", tools: ["get_fx_krw_rate", "get_rate_data", "get_korean_economic_news"], reason: "환율 원인" } });
+    await research({ question: "요즘 원달러 환율이 왜 이렇게 움직여?", depth: "standard" });
+    expect(agentOf(1).name).toBe("Muffin Researcher");
+    expect(agentOf(1).instructions).toContain("[관심 영역: 환율]");
   });
 });
