@@ -132,6 +132,15 @@ button.ghost:hover { color: var(--up); }
 .status-pass, .check-verified, .basis-data { background: #e6f3ed; color: #286047; }
 .status-partial, .basis-none { background: #fff0d8; color: #805319; }
 .check-derived, .basis-news { background: var(--accent-soft); color: var(--brand-purple-strong); }
+/* 숫자 카드와 검증 상세에서 CSS Module의 공통 배지 색상보다 우선합니다. */
+.report .num .report-badge.check-verified,
+.report .report-verification .report-badge.check-verified { background: #e6f3ed; color: #286047; border: 1px solid #96c2a9; }
+.report .num .report-badge.check-derived,
+.report .report-verification .report-badge.check-derived { background: #f2ecfa; color: #664299; border: 1px solid #c9b7e6; }
+.report .num .report-badge.check-reported,
+.report .report-verification .report-badge.check-reported { background: #eff6ff; color: #1d4ed8; border: 1px solid #93b3e3; }
+.report .num .report-badge.check-unverified,
+.report .report-verification .report-badge.check-unverified { background: #f1f2f4; color: #5c6270; border: 1px dashed #b4bac5; }
 .num > .report-badge { margin-top: 8px; }
 .report .report-disclosure { padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
 .report-notice { padding: 10px 12px; border-radius: 6px; background: var(--accent-soft); }

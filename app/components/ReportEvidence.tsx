@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
 
@@ -52,10 +52,14 @@ export function EvidenceRecord({ entry, evidence, displayedValue }: { entry: Evi
   return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} /></div>;
 }
 
-/** 입력 자료는 이름으로 보여주며 내부 이동이나 재귀 펼침을 만들지 않습니다. */
+/** 같은 리포트에 존재하는 입력 원본으로 이동하며, 원본을 재귀 렌더링하지 않습니다. */
 function EvidenceInputLink({ evidenceId, evidence }: { evidenceId: string; evidence: Evidence[] }) {
   const entry = evidence.find((item) => item.id === evidenceId);
-  return <span>{entry?.label ?? "연결된 자료 없음"}</span>;
+  const targetId = useEvidenceTarget(evidenceId);
+  const label = `${evidenceId} · ${entry?.label ?? "연결된 자료 없음"}`;
+  return entry && targetId
+    ? <ReportEvidenceLink targetId={targetId} label={`${label} 원본 보기`}>{label}</ReportEvidenceLink>
+    : <span>{label}</span>;
 }
 
 const valueLabels: Record<string, string> = {
@@ -64,6 +68,73 @@ const valueLabels: Record<string, string> = {
   comparisonRate: "비교 값", comparisonAsOf: "비교 날짜", change: "변화량", changePct: "변화율 (%)", changePp: "변화 (%p)",
 };
 const operationLabels: Record<string, string> = { spread: "차이", diff: "차이", pct_change: "변화율", pp_diff: "%p 차이" };
+
+let displayTime: number | null = null;
+let clockInterval: number | undefined;
+const clockListeners = new Set<() => void>();
+function subscribeClock(onChange: () => void) {
+  clockListeners.add(onChange);
+  if (clockListeners.size === 1) {
+    displayTime = Date.now();
+    clockInterval = window.setInterval(() => {
+      displayTime = Date.now();
+      clockListeners.forEach(listener => listener());
+    }, 60_000);
+  }
+  return () => {
+    clockListeners.delete(onChange);
+    if (clockListeners.size === 0) window.clearInterval(clockInterval);
+  };
+}
+const clockNow = () => displayTime;
+const serverClock = () => null;
+
+/** 날짜가 없는 저장 기록이나 달력상 존재하지 않는 날짜를 추정해서 보정하지 않습니다. */
+export function newsDate(value: unknown, now: number | null = null) {
+  if (typeof value !== "string" || !value.trim()) return { label: "발행일 미제공", dateTime: undefined, relative: null };
+  const iso = /^\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d))?$/;
+  const date = value.slice(0, 10);
+  const midnight = Date.parse(`${date}T00:00:00Z`);
+  const timestamp = Date.parse(value);
+  if (!iso.test(value) || !Number.isFinite(timestamp) || !Number.isFinite(midnight)
+    || new Date(midnight).toISOString().slice(0, 10) !== date) {
+    return { label: "발행일 확인 불가", dateTime: undefined, relative: null };
+  }
+  // 날짜만 있는 기록에는 발행 시각을 가정하지 않고, 브라우저의 달력 날짜끼리 비교합니다.
+  const current = now === null ? null : new Date(now);
+  const elapsed = current === null ? null : value.length === 10
+    ? Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()) - midnight
+    : current.getTime() - timestamp;
+  const relative = elapsed === null ? null : elapsed < 0 ? "미래 발행일" : `${Math.floor(elapsed / 86_400_000)}일 전`;
+  return { label: date, dateTime: value, relative };
+}
+
+function NewsEvidence({ entry }: { entry: Evidence }) {
+  // 서버와 hydration의 첫 화면은 절대 날짜만 같게 표시하고, 마운트 이후 상대 날짜를 더합니다.
+  const now = useSyncExternalStore(subscribeClock, clockNow, serverClock);
+  const date = newsDate(entry.values.publishedAt ?? entry.source.asOf, now);
+  const text = (value: string | number | undefined) => typeof value === "string" && value.trim() ? value : undefined;
+  const title = text(entry.values.title) ?? entry.label;
+  const publisher = text(entry.values.publisher) ?? entry.source.name;
+  const url = entry.source.pageUrl ?? entry.source.url;
+  let relay = false;
+  try { relay = new URL(url).hostname === "news.google.com"; } catch { /* SourceLink가 잘못된 URL을 차단합니다. */ }
+  const body = entry.values.body;
+  const status = body === "unavailable" ? "제목만 확인" : body === "available" ? "본문 확보" : body === "not_requested" ? "본문 미요청" : "본문 확보 여부 미확인";
+  return <>
+    <p className="evidence-title">{title}</p>
+    <div className="evidence-meta">
+      <span aria-hidden="true">📰</span><span>{publisher}</span>
+      <SourceLink url={url} name={relay ? "Google News 중계 링크" : "기사 보기"} />
+      <span>{date.dateTime ? <time dateTime={date.dateTime}>{date.label}</time> : date.label}{date.relative && ` · ${date.relative}`}</span>
+      <span>{status}</span>
+    </div>
+    <p className="report-muted">{body === "unavailable" || body === "not_requested"
+      ? "보도 제목에서 확인된 정보입니다. 본문 내용이나 원인 관계를 확인한 근거는 아닙니다."
+      : body === "available" ? "본문을 확보한 기사입니다. 이 원본 정보에는 본문 전문이 포함되어 있지 않습니다."
+        : "저장된 정보로는 본문 확보 여부를 확인할 수 없습니다."} 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>
+  </>;
+}
 
 function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
   // A single raw value adds no context when its formatted equivalent is already above.
@@ -78,6 +149,7 @@ function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence;
   return (
     <div className="evidence-content">
       <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>
+      {isNews ? <NewsEvidence entry={entry} /> : <>
       <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>
       <div className="evidence-meta">
         <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>
@@ -97,6 +169,8 @@ function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence;
           ))}
         </dl>
       ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
+      </>}
+      {entry.note && <p className="evidence-note">{entry.note}</p>}
     </div>
   );
 }

@@ -301,9 +301,17 @@ it("원본 데이터에 없는 출처도 별도 참고 문서로 보존한다", 
 });
 
 
-it("자료 영역에서는 외부 출처만 링크로 제공한다", () => {
+it("자료 영역의 계산 입력 링크는 존재하는 원본으로 연결하고 외부 출처도 유지한다", () => {
   const $ = render(fixture());
-  expect($(".source-library a[href^='#']")).toHaveLength(0);
+  const links = $(".source-library a[href^='#']");
+  expect(links.length).toBeGreaterThan(0);
+  links.each((_, link) => {
+    expect($(link).closest(".evidence-inputs")).toHaveLength(1);
+    const target = decodeURIComponent($(link).attr("href")!.slice(1));
+    const record = $(link).closest(".report").find(".source-library .evidence-record").filter((_, el) => $(el).attr("id") === target);
+    expect(record).toHaveLength(1);
+    expect($(link).text().split(" · ")[0]).toBe(record.find(".evidence-id").text());
+  });
   expect($(".source-library a[target='_blank']").length).toBeGreaterThan(0);
 });
 
