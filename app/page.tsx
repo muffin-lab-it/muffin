@@ -3,11 +3,10 @@
 "use client";
 
 import styles from "./HomeHistory.module.css";
-
 import Image from "next/image";
 import mascot from "./home-muffin.png";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Area, Depth } from "@/src/agent/schema";
 import { Progress } from "./components/Progress";
 import { ReportView } from "./components/ReportView";
@@ -33,11 +32,18 @@ const depthOptions: { value: Depth; label: string; hint: string }[] = [
  * 서버의 실제 이벤트를 표시하고 저장을 확인한 뒤 이동합니다.
  */
 export default function Home() {
+  return <Suspense fallback={<p role="status">질문 화면을 준비하고 있어요…</p>}><HomeForm /></Suspense>;
+}
+
+function HomeForm() {
   const router = useRouter();
-  const [selectedAreas, setSelectedAreas] = useState<Area[]>([]);
+  const params = useSearchParams();
+  const suggestedArea = areaOptions.find(item => item.value === params.get("area"))?.value;
+  const [selectedAreas, setSelectedAreas] = useState<Area[]>(suggestedArea ? [suggestedArea] : []);
   const [formError, setFormError] = useState<string | null>(null);
   const [depth, setDepth] = useState<Depth>("easy");
-  const [question, setQuestion] = useState("");
+  const [editedQuestion, setQuestion] = useState<string>();
+  const question = editedQuestion ?? params.get("question")?.slice(0, 500) ?? "";
   const [request] = useState(() => createHomeReport(undefined, url => router.push(url)));
   const state = useSyncExternalStore(request.subscribe, request.getSnapshot, request.getSnapshot);
   const questionField = useRef<HTMLTextAreaElement>(null);
@@ -86,7 +92,7 @@ export default function Home() {
           error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
           onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
           onEditQuestion={editQuestion} onReturnHome={editQuestion} />
-        {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} />}
+        {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} question={state.input.question} />}
       </>
     );
   }

@@ -1,4 +1,12 @@
+/* 홈 화면의 브랜드 색상: 모든 화면의 보라색 강조는 이 값을 공유합니다. */
 :root {
+  --brand-purple: #8b5cf6;
+  --brand-purple-strong: #8239f5;
+  --brand-purple-light: #a569ff;
+  --brand-purple-soft: #eee6ff;
+  --brand-purple-tint: #f8f5ff;
+  --brand-purple-border: #d8cfe7;
+  --brand-purple-border-active: #9750fa;
   --bg: #ffffff;
   --surface: #ffffff;
   --surface-2: #f7f4fb;
@@ -6,8 +14,8 @@
   --ink-2: #494454;
   --ink-3: #747080;
   --line: #e3dfed;
-  --accent: #8b5cf6;
-  --accent-soft: #eee6ff;
+  --accent: var(--brand-purple);
+  --accent-soft: var(--brand-purple-soft);
   --up: #c2403a;
   --down: #2f6fd1;
 }
@@ -39,8 +47,8 @@ main:has(> .muffin-home), main:has(> .muffin-history) { max-width: 1280px; paddi
 .muffin-brand small { font-size: 16px; letter-spacing: -.5px; font-weight: 500; border-left: 1px solid #cfc5df; padding-left: 20px; margin-left: 10px; }
 .muffin-gnb nav { display: flex; gap: 22px; margin-left: auto; }
 .muffin-nav-link { border: 0; background: transparent; border-radius: 13px; padding: 12px 27px; font-size: 18px; font-weight: 700; text-decoration: none; color: var(--ink); white-space: nowrap; }
-.muffin-nav-link:hover { background: #f8f5ff; }
-.muffin-nav-link[aria-current="page"] { background: var(--accent-soft); color: #8043ec; }
+.muffin-nav-link:hover { background: var(--brand-purple-tint); }
+.muffin-nav-link[aria-current="page"] { background: var(--accent-soft); color: var(--brand-purple-strong); }
 @media (min-width: 601px) and (max-width: 1000px) {
   .muffin-gnb { padding-inline: 24px; gap: 14px; }
   .muffin-brand { font-size: 27px; gap: 8px; }
@@ -123,7 +131,7 @@ button.ghost:hover { color: var(--up); }
 .report-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); }
 .status-pass, .check-verified, .basis-data { background: #e6f3ed; color: #286047; }
 .status-partial, .basis-none { background: #fff0d8; color: #805319; }
-.check-derived, .basis-news { background: var(--accent-soft); color: #514294; }
+.check-derived, .basis-news { background: var(--accent-soft); color: var(--brand-purple-strong); }
 .num > .report-badge { margin-top: 8px; }
 .report .report-disclosure { padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
 .report-notice { padding: 10px 12px; border-radius: 6px; background: var(--accent-soft); }
@@ -171,4 +179,20 @@ button.ghost:hover { color: var(--up); }
 .chart-summary { margin: 6px 0 0; font-size: 12px; line-height: 18px; color: var(--ink-3); }
 
 /* 공통 버튼 디자인 값: 홈·보관함 CSS 모듈에서도 함께 사용합니다. */
-:root{--button-gradient:linear-gradient(180deg,#a569ff,#8239f5);--button-border:#d8cfe7;--button-radius:13px;--button-shadow:0 5px 9px #833cea1c}
+:root{--button-gradient:linear-gradient(180deg,var(--brand-purple-light),var(--brand-purple-strong));--button-border:#d8cfe7;--button-radius:13px;--button-shadow:0 5px 9px #833cea1c}
+
+/* 주제·설명 깊이 배지: 리포트 헤더와 숫자 영역 공통 */
+.category-chip { display:inline-block; padding:3px 7px; border:1px solid var(--brand-purple-border); border-radius:4px; background:var(--brand-purple-tint); color:var(--brand-purple-strong); font-size:11px; font-weight:700; line-height:1.4; }
+.category-chip.mini { font-size:10px; padding:2px 5px; }
+.category-chip { font-size:12px; padding:4px 8px; }
+.category-chip.mini { font-size:12px; padding:4px 8px; }
+.category-chip[data-category="환율"] { background:var(--brand-purple-soft); border-color:var(--brand-purple-border); color:var(--brand-purple-strong); }
+.category-chip[data-category="금리"] { background:#e2f2ee; border-color:#b4d9cd; color:#266252; }
+.category-chip[data-category="계산"] { background:#e7eefb; border-color:#c0d1ec; color:#335d8e; }
+.category-chip[data-category="뉴스"] { background:#fff0dc; border-color:#e9cda4; color:#82551b; }
+.category-chip[data-category="물가"] { background:#fae8ec; border-color:#e6bbc8; color:#8b405b; }
+.category-chip[data-category="ETF"] { background:#e6f2f5; border-color:#b7d9e1; color:#286676; }
+.depth-chip { display:inline-flex; align-items:center; padding:4px 9px; border:1px solid; border-radius:6px; font-size:12px; font-weight:700; line-height:1.4; }
+.depth-chip[data-depth="easy"] { background:#f3f4f6; border-color:#dce0e5; color:#4b5563; }
+.depth-chip[data-depth="standard"] { background:#d1d5db; border-color:#b4bbc5; color:#374151; }
+.depth-chip[data-depth="deep"] { background:#4b5563; border-color:#374151; color:#ffffff; }

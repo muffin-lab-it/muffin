@@ -1,7 +1,15 @@
+/// <reference types="next/image-types/global" />
 "use client";
 
 import { labelFor, stageLabels, stages, type MuffinEvent, type Stage } from "@/src/agent/events";
 import Link from "next/link";
+import Image from "next/image";
+import stage1 from "../stage-muffin-1.png";
+import stage2 from "../stage-muffin-2.png";
+import stage3 from "../stage-muffin-3.png";
+import stage4 from "../stage-muffin-4.png";
+import stage5 from "../stage-muffin-5.png";
+const stageImages = [stage1, stage2, stage3, stage4, stage5];
 import styles from "./Progress.module.css";
 import type { ReactNode } from "react";
 import type { Depth } from "@/src/agent/schema";
@@ -108,11 +116,13 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
   const verification = state.verification;
   const applicable = stages.filter(stage => state.status[stage] !== "skipped");
   const finished = applicable.filter(stage => state.status[stage] === "done").length;
+  const imageIndex = state.complete ? 4 : current ? stages.indexOf(current) : Math.max(0, stages.findLastIndex(stage => state.status[stage] === "done"));
   const percent = state.complete ? 100 : Math.round(finished / applicable.length * 100);
 
   return (
     <section className={styles.root} aria-label="리포트 생성 진행">
       <div className={styles.titleRow}><span className={styles.titleIcon} aria-hidden="true">{titleIcon}</span><h1 className={styles.title} data-tone={timeout || (!error && !state.complete && scope) ? "attention" : undefined} aria-live="polite">{title}</h1></div>
+      <Image className={styles.mascot} src={stageImages[imageIndex]} width={240} height={240} sizes="240px" alt="" aria-hidden="true" />
       <header className={styles.questionBox} data-section="question">
         <p className={styles.questionLabel}>나의 한입 질문</p>
         <blockquote className={styles.question}>“{question}”</blockquote>

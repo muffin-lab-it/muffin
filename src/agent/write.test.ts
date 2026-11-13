@@ -201,3 +201,11 @@ describe("adviceGuardrail", () => {
     expect(out.tripwireTriggered).toBe(false);
   });
 });
+
+it.each(["easy", "standard", "deep"] as const)("%s 작성 지시문은 새 제목·이유의 순서와 장부 제한을 유지한다", depth => {
+  const text = writerInstructions(depth);
+  expect(text).toContain("headline 은 질문에 대한 핵심 답을 40~70자 한 문장");
+  expect(text).toContain("impactTitles 는 impact 와 같은 순서·개수");
+  expect(text).toContain("topicReasons 는 nextTopics 와 같은 순서·개수");
+  expect(text).toContain("headline · impactTitles · topicReasons 의 금융 숫자도 증거 장부에 있는 값만");
+});

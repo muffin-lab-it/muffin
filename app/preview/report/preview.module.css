@@ -1,0 +1,23 @@
+.tabs { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:12px; margin-bottom:24px; border:1px dashed var(--brand-purple-border); border-radius:8px; }
+.tabs small { margin-right:8px; color:#686073; }
+.tabs button { padding:8px 14px; border:1px solid var(--brand-purple-border); border-radius:8px; background:white; color:#62576e; font-weight:700; cursor:pointer; }
+.tabs button[aria-pressed=true] { background:var(--brand-purple-strong); color:white; }
+.header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.header p { color:#806a95; font-size:13px; margin:0 0 4px; }
+.header h1 { margin:0 0 8px; font-size:28px; }
+.actions { display:flex; gap:8px; }
+.actions button { padding:12px 18px; background:white; border:1px solid var(--brand-purple-border); border-radius:10px; color:var(--brand-purple-strong); font-weight:700; cursor:pointer; }
+.actions button:first-child { background:var(--button-gradient); border-color:var(--brand-purple-border-active); box-shadow:var(--button-shadow); color:white; }
+.actions button:first-child:hover { filter:brightness(1.04); }
+.status { font-size:12px; color:var(--brand-purple-strong); }
+.status:empty { display:none; }
+@media(max-width:600px) { .header { align-items:flex-start; flex-direction:column; } .actions { width:100%; } .actions button { flex:1; } }
+@media print { .tabs,.actions,.status { display:none; } }
+.header { margin:0; align-items:flex-end; }
+.headerTools { display:flex; flex-direction:column; align-items:flex-end; gap:16px; }
+.headerTools :global(.report-help-button) { padding:0; min-height:24px; }
+@media(max-width:600px) { .header { display:grid; grid-template-columns:1fr; gap:16px; } .headerTools { align-items:stretch; gap:12px; } .headerTools :global(.report-help-button) { align-self:flex-end; } }
+
+.meta { display:flex; flex-wrap:wrap; gap:8px; }
+.headerTools { flex-direction:row; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:12px; }
+.headerTools .actions { flex-basis:100%; justify-content:flex-end; }
