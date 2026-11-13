@@ -15,7 +15,7 @@ import { ResearchContext, type ToolStep } from "./context";
 import { createEditorAgent, editInput, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
 import { modelFor, modelSettingsFor, type ModelStage } from "./models";
-import { createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
+import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
 import { changeDetailsFor } from "./change";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
@@ -28,6 +28,18 @@ export { modelFor } from "./models";
 
 /** 스트림 라우트의 마감(STREAM_TIMEOUT_MS 55초)과 같은 기본 예산. research() 를 부른 시각부터 셉니다. */
 export const TIME_BUDGET_MS = 55_000;
+
+/**
+ * 🔍 조사에 넘길 영역 힌트 (11/13). 사용자가 영역을 골랐으면 그대로, 안 골랐으면(Auto · 복수 선택) 분류가 고른 tool 에서 읽습니다.
+ * 영역 힌트가 없으면 research.ts 의 영역별 지시(환율 원인 질문의 금리 · 뉴스 호출 등)가 통째로 빠져 Auto 에서만 조사가 달라지던 것을 막습니다.
+ * 뉴스가 아닌 첫 tool 의 영역을 고릅니다 (뉴스 힌트는 지표 조회를 줄이는 쪽이라, 뉴스와 지표가 같이 뽑힌 질문은 지표 영역이 주제).
+ */
+export function hintAreaFor(area: Area | undefined, tools: string[]): Area | undefined {
+  if (area) return area;
+  const byTool = new Map(Object.entries(areaTools).map(([a, t]) => [t, a as Area]));
+  const areas = tools.map((t) => byTool.get(t)).filter((a): a is Area => a !== undefined);
+  return areas.find((a) => a !== "news") ?? areas[0];
+}
 /** 다시 쓰기(작성 1회 + 검증)에 드는 시간. 실측 9.6~11.6초 (2026-10-26 · 28). 남은 시간이 이보다 적으면 다시 쓰지 않습니다. */
 export const REVISION_RESERVE_MS = 15_000;
 
@@ -115,7 +127,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   emit({ type: "stage", stage: "research", status: "start" });
   const tools = muffinTools.filter((t) => plan.tools.includes(t.name));
   const researchCtx = new RunContext(ctx);
-  const notes = await runResearch(tuned(createResearcherAgent(depth, area, tools), "research", depth), question, researchCtx);
+  const notes = await runResearch(tuned(createResearcherAgent(depth, hintAreaFor(area, plan.tools), tools), "research", depth), question, researchCtx);
   addUsage(researchCtx);
   emit({ type: "stage", stage: "research", status: "done" });
 
