@@ -43,7 +43,12 @@ export const areaResearch: Record<Area, string> = {
 - 기사별 body.status와 실제 반환 텍스트를 확인합니다. 제목만 있으면 제목 수준의 사실만, 본문이 있으면 그 안의 설명 주체와 주장을 구분해 메모합니다. 기사 보도와 독립 검증된 사실·인과관계를 구분하고 기사 수치는 "기사 보도"로 표시합니다.
 - resultStatus·missingCount·failedSources·failureCounts를 확인해 gaps 에 남깁니다. 수량 부족 partial을 성공한 기사 본문이 일부만 추출됐다는 뜻으로 바꾸지 않습니다.`,
   rate: "[관심 영역: 금리] 금리 tool 을 먼저 호출합니다.",
-  macro: "[관심 영역: 물가·경제지표] 거시지표 tool 을 먼저 호출합니다.",
+  macro: `[관심 영역: 물가·경제지표] 거시지표 tool 이 제공되고 질문에 필요하면 먼저 호출합니다.
+- 실제 소비자물가 상승의 원인·이유·배경을 묻고 get_macro_indicators 가 제공되면 indicator=cpi 를 우선 조회합니다. 이때 뉴스 tool 이 제공되면 상승 배경에 관한 보도를 조사합니다.
+- 물가 현황은 요청한 CPI 값·추이를, 실업률 질문은 indicator=unemployment 를 확인합니다. 단순 경제뉴스 설명이나 실업률 질문만으로 CPI 조회를 추가하지 않습니다.
+- 국가와 기간은 사용자 질문을 우선하고 country=KR 또는 US, endMonth=YYYYMM 또는 null(최신 관측 월), months=1~60 을 사용합니다. 기간이 없으면 일 단위 기본 30일 대신 거시지표 tool 설명의 월 단위 기본값(최신값 1개월, 요즘 3개월, 최근 흐름 6개월)을 따릅니다. 지원 범위 밖의 국가·기간을 임의로 바꾸지 말고 gaps 에 적습니다.
+- CPI가 반환한 전월·전년 동월 변화와 관측 월로 상승 여부·비교 기준을 확인합니다. 비교값이 null이면 상승을 추정하지 않습니다. CPI 총지수만으로 품목별 기여도나 상승 원인을 입증했다고 단정하지 않습니다.
+- 거시지표 또는 뉴스 tool 이 없거나 실패하면 확보한 자료만 notes 에 남기고, 미확보 자료와 원인 분석의 한계는 gaps 에 기록합니다.`,
 };
 
 export function researchInstructions(area?: Area): string {
