@@ -14,6 +14,7 @@ import { failedLabels, loadEvals, metricLines, withinRatio, type EvalRow, type L
 import { componentStatusLabels, healthOfComponent, healthOfImpact, healthOfIndicator, impactLabels, incidentStatusLabels, loadVendorStatus, vendorVerdict, type VendorStatus } from "@/src/lib/admin-status";
 import { redactSecrets } from "@/src/lib/redact";
 import styles from "./admin.module.css";
+import { EvalSummary } from "./EvalSummary";
 import { AutoRefresh } from "./AutoRefresh";
 import { LatencyScatter, RequestBars, Sparkline, StackBar } from "./charts";
 import { ago, count, kst, percent, seconds } from "./format";
@@ -204,7 +205,7 @@ function EvalPanel({ evals }: { evals: LoadedEvals }) {
           <span>{count(r.questions)}문항</span>
           <span className={r.failed.length ? styles.text_bad : ""}>{r.failed.length ? `미달 ${count(r.failed.length)}` : r.errors ? `오류 ${count(r.errors)}` : "기준 안"}</span>
           <span>{r.avg_ms ? seconds(r.avg_ms) : "-"}</span>
-          {r.run_url ? <a href={r.run_url}>실행</a> : <span />}
+          {r.run_url ? <a href={r.run_url} title="GitHub Actions 실행 페이지 (로그인 필요)">GitHub</a> : <span />}
         </li>
       ))}
     </ol>
@@ -216,7 +217,7 @@ function EvalPanel({ evals }: { evals: LoadedEvals }) {
     body = (
       <>
         <p className={styles.note}>
-          {evals.rows.length ? "아직 주간 평가(전체 세트) 결과가 없습니다. 아래는 세트 일부 · 로컬 · 실험 실행 기록입니다." : "아직 평가 기록이 없습니다."} 주간 평가는 금요일 09:00 에 자동으로 돌고, pnpm eval:promptfoo 를 돌려도 기록이 쌓입니다.
+          {evals.rows.length ? "아직 주간 평가(전체 세트) 결과가 없습니다. 아래는 세트 일부 · 로컬 · 실험 실행 기록입니다." : "아직 평가 기록이 없습니다."} 주간 평가는 금요일 아침(07:17 예약)에 자동으로 돌고, pnpm eval:promptfoo 를 돌려도 기록이 쌓입니다.
         </p>
         {history}
       </>
@@ -236,7 +237,7 @@ function EvalPanel({ evals }: { evals: LoadedEvals }) {
             {latest.run_url && (
               <>
                 {" · "}
-                <a href={latest.run_url}>실행 보기</a>
+                <a href={latest.run_url} title="GitHub Actions 실행 페이지. 로그인하지 않으면 요약 · 결과 파일이 보이지 않습니다">GitHub 실행 (로그인 필요)</a>
               </>
             )}
           </span>
@@ -274,12 +275,18 @@ function EvalPanel({ evals }: { evals: LoadedEvals }) {
             <Sparkline values={trend} label="주간 평가 기준 안 지표 비율 추이" />
           </div>
         )}
+        {latest.summary && (
+          <details className={styles.evalDetails}>
+            <summary>질문별 결과 · 실패 항목 보기 (저장된 요약, GitHub 없이)</summary>
+            <EvalSummary markdown={latest.summary} />
+          </details>
+        )}
         {evals.rows.length > 1 && history}
       </>
     );
   }
   return (
-    <Panel title="📊 품질 평가" sub="고정 질문 세트를 매주 금요일 09:00 자동으로 돌린 결과 (Weekly eval) · 실험 실행은 기록으로만">
+    <Panel title="📊 품질 평가" sub="고정 질문 세트를 매주 금요일 아침(07:17 예약) 자동으로 돌린 결과 (Weekly eval) · 실험 실행은 기록으로만">
       {body}
     </Panel>
   );
