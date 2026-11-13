@@ -40,7 +40,7 @@ const BRAND_ALIASES: Record<string, string> = {
   TIMEFOLIO: "TIME",
 };
 
-/** 브랜드 앞에 붙여 쓰는 운용사 이름. 긴 것부터 지웁니다 */
+/** 브랜드 앞에 붙여 쓰는 운용사 이름 */
 const ISSUERS = [
   "삼성자산운용",
   "미래에셋자산운용",
@@ -77,7 +77,11 @@ export function normalize(text: string): string {
 const items = (list as EtfListFile).items;
 const entries = items.map(([code, name]) => ({ code, name, key: normalize(name) }));
 const byKey = new Map(entries.map((e) => [e.key, e]));
-const brands = [...new Set(entries.map((e) => normalize(e.name.split(" ")[0])))].sort((a, b) => b.length - a.length);
+// 별칭 · 브랜드 · 운용사는 모두 긴 것부터 비교합니다. 짧은 것이 먼저 걸리면 `타임폴리오` 가 `타임` + `폴리오` 로 잘립니다.
+const longestFirst = (a: string, b: string) => b.length - a.length;
+const brands = [...new Set(entries.map((e) => normalize(e.name.split(" ")[0])))].sort(longestFirst);
+const aliases = Object.entries(BRAND_ALIASES).sort(([a], [b]) => longestFirst(a, b));
+const issuers = ISSUERS.map(normalize).sort(longestFirst);
 
 /** 질문 표기를 목록 표기로: 운용사 떼기 → 브랜드 별칭 → 상품명 단어 맞추기 */
 function canonical(query: string): { key: string; brand?: string; rest: string } {
@@ -85,15 +89,15 @@ function canonical(query: string): { key: string; brand?: string; rest: string }
   for (const [word, to] of WORD_ALIASES) key = key.replace(word, to);
 
   const brandAt = (k: string) => {
-    for (const [alias, to] of Object.entries(BRAND_ALIASES)) if (k.startsWith(alias)) return { brand: to, rest: k.slice(alias.length) };
+    for (const [alias, to] of aliases) if (k.startsWith(alias)) return { brand: to, rest: k.slice(alias.length) };
     const brand = brands.find((b) => k.startsWith(b));
     return brand ? { brand, rest: k.slice(brand.length) } : undefined;
   };
 
   let hit = brandAt(key);
   if (!hit) {
-    const issuer = ISSUERS.find((i) => key.startsWith(normalize(i)));
-    const stripped = issuer ? brandAt(key.slice(normalize(issuer).length)) : undefined;
+    const issuer = issuers.find((i) => key.startsWith(i));
+    const stripped = issuer ? brandAt(key.slice(issuer.length)) : undefined;
     if (stripped) hit = stripped;
   }
   return hit ? { key: hit.brand + hit.rest, brand: hit.brand, rest: hit.rest } : { key, rest: key };
