@@ -141,6 +141,25 @@ describe("changeDetailFor (코드가 장부에서 풀어 쓰는 변화량)", () 
     expect(isoDateOf("latest.month", "202613")).toBeUndefined();
   });
 
+  it("유의성 게이트 카드(calc_movement): 평소 폭 구간(baseline*) 날짜는 비교 기간으로 쓰지 않고, periodDays 로 '30일 전과 비교' 를 적는다 (11/13 운영 확인)", () => {
+    const gate: Evidence = {
+      id: "C1",
+      tool: "calc_movement",
+      label: "평소 움직임과 비교 · USD/KRW 30일 변화의 크기",
+      values: { movePct: -0.3, typicalMovePct: 1.64, zScore: -0.18, timesTypical: 0.18, level: "normal", periodDays: 30, baselineStart: "2026-07-17", baselineEnd: "2026-10-13", baselineCount: 62 },
+      source: { name: "Frankfurter v2 일별 환율", url: "https://api.frankfurter.dev/v2/rates", asOf: "2026-11-13" },
+      lineage: { op: "zscore", inputs: ["E1"] },
+    };
+    expect(changeDetailFor({ change: "30일 -0.30%" }, gate, { key: "movePct", policy: "exact" })).toEqual({
+      key: "movePct",
+      value: -0.3,
+      unit: "%",
+      to: "2026-11-13",
+      days: 30,
+      basis: "30일 전과 비교",
+    });
+  });
+
   it("change 에 숫자가 없거나 맞은 키가 장부에 없으면 만들지 않는다", () => {
     expect(changeDetailFor({ change: "" }, fx, { key: "changePct", policy: "exact" })).toBeNull();
     expect(changeDetailFor({ change: "이번 주" }, fx, { key: "changePct", policy: "exact" })).toBeNull();
@@ -151,7 +170,7 @@ describe("changeDetailFor (코드가 장부에서 풀어 쓰는 변화량)", () 
     expect(basisFor("yoyPct", 365)).toBe("전년 같은 달과 비교");
     expect(basisFor("momPct", 30)).toBe("전월과 비교");
     expect(basisFor("changePct", 90)).toBe("90일 전과 비교");
-    expect(basisFor("changePct", undefined)).toBe("장부의 비교 시점과 비교");
+    expect(basisFor("changePct", undefined)).toBe("비교 시점 대비");
   });
 });
 
