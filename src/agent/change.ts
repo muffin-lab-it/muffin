@@ -12,6 +12,10 @@ const FULL_DATE = /^\d{4}-\d{2}-\d{2}/;
 /** 거시지표 tool 처럼 월을 YYYYMM(또는 YYYYMMDD)으로 적는 경우. 숫자 값과 헷갈리지 않게 날짜를 뜻하는 키 이름일 때만 받습니다 */
 const COMPACT_DATE = /^(\d{4})(0[1-9]|1[0-2])(\d{2})?$/;
 const DATE_KEY = /date|month|asof|period|day|from$|to$/i;
+/** 평소 폭 계산 구간(baselineStart · baselineEnd)은 변화의 비교 기간이 아니므로 날짜 후보에서 뺍니다 */
+const NOT_PERIOD_KEY = /baseline/i;
+/** 날짜가 없을 때 비교 일수를 알려 주는 키 (유의성 게이트 periodDays, 금리 tool requestedDays) */
+const DAYS_KEY = /^(periodDays|requestedDays|days)$/;
 
 /** 장부 값이 날짜면 YYYY-MM 또는 YYYY-MM-DD 로, 아니면 undefined */
 export function isoDateOf(key: string, value: string | number): string | undefined {
@@ -36,7 +40,7 @@ export function basisFor(key: string, days: number | undefined): string {
   if (/previousquarter|qoq/.test(k)) return "전분기와 비교";
   if (/latest\.change|daily|dod/.test(k)) return "직전 거래일과 비교";
   if (days !== undefined && days > 0) return `${days}일 전과 비교`;
-  return "장부의 비교 시점과 비교";
+  return "비교 시점 대비";
 }
 
 /** 장부 단위 → 표기. plain · delta(환율 27.3원처럼 단위를 모르는 변화량)는 카드에 적힌 단위를 씁니다 */
@@ -45,6 +49,7 @@ const UNIT_TEXT: Record<string, string> = { pp: "%p", pct: "%", bp: "bp", ratio:
 /**
  * 카드 하나의 changeDetail. hit 은 검증이 change 의 첫 데이터 숫자와 맞춘 장부 키 · 규칙입니다.
  * 날짜는 맞은 키와 같은 묶음(period. · latest. 같은 접두어)에서 찾습니다: 비교 시점은 comparison · previous · from 키, 기준일은 그 밖의 날짜 키, 없으면 출처 기준일.
+ * 날짜가 없고 periodDays · requestedDays 가 있으면 그 일수로 "N일 전과 비교" 를 적습니다 (유의성 게이트의 변동 폭 카드).
  */
 export function changeDetailFor(n: Pick<WriterOutput["numbers"][number], "change">, entry: Evidence, hit: { key: string; policy: MatchPolicy }): ChangeDetail | null {
   const parsed = extractNumbers(n.change).filter(isDataNumber)[0];
@@ -56,6 +61,7 @@ export function changeDetailFor(n: Pick<WriterOutput["numbers"][number], "change
   const prefix = hit.key.includes(".") ? hit.key.slice(0, hit.key.lastIndexOf(".") + 1) : "";
   const sameGroup = (k: string) => (prefix ? k.startsWith(prefix) : !k.includes("."));
   const dates = Object.entries(entry.values).flatMap(([k, v]) => {
+    if (NOT_PERIOD_KEY.test(k)) return [];
     const d = isoDateOf(k, v);
     return d ? [[k, d] as [string, string]] : [];
   });
@@ -69,7 +75,8 @@ export function changeDetailFor(n: Pick<WriterOutput["numbers"][number], "change
   }
   const inGroup = (g: string, k: string) => (g ? k.startsWith(g) && !k.slice(g.length).includes(".") : !k.includes("."));
   const to = groups.map((g) => dates.find(([k]) => !PREV_KEY.test(k) && inGroup(g, k))?.[1]).find(Boolean) ?? (entry.source.asOf || undefined);
-  const days = from && to ? daysBetween(from, to) : undefined;
+  const daysHint = Object.entries(entry.values).find(([k, v]) => DAYS_KEY.test(k) && Number(v) > 0)?.[1];
+  const days = (from && to ? daysBetween(from, to) : undefined) ?? (daysHint !== undefined ? Number(daysHint) : undefined);
   return {
     key: hit.key,
     value,
