@@ -1,4 +1,4 @@
-# 주간 리포트 평가 (Promptfoo). 매주 금요일 09:00 KST 에 고정 질문 세트를 실제 키로 돌려 지표별 통과율을 냅니다.
+# 주간 리포트 평가 (Promptfoo). 매주 금요일 아침(07:17 KST 예약)에 고정 질문 세트를 실제 키로 돌려 지표별 통과율을 냅니다.
 # 기준(scripts/promptfoo/promptfooconfig.yaml 의 thresholds) 아래로 떨어진 지표가 있으면 실행이 실패로 표시됩니다.
 # 요약은 실행 페이지(Summary)에, 결과 파일은 Artifacts 에 90일 남습니다. 지난 결과는 cache 로 넘겨 나란히 비교합니다.
 # 요약 한 줄은 Supabase evals 표에도 넣어 /admin 품질 평가 패널에 보이고, 기준 미달이면 이슈(라벨 eval)를 엽니다.
@@ -12,7 +12,9 @@ permissions:
 
 on:
   schedule:
-    - cron: "0 0 * * 5" # 금요일 00:00 UTC = 09:00 KST
+    # 목요일 22:17 UTC = 금요일 07:17 KST. 정각(특히 00:00 UTC)은 GitHub 예약 실행이 몰려 몇 시간씩 늦어집니다 (11/6 · 11/13 둘 다 6시간 늦게 돌았음).
+    # 정각을 피하고 아침 일찍 걸어 두면 늦어도 낮에는 결과가 나옵니다. 급하면 Actions 탭 → Weekly eval → Run workflow.
+    - cron: "17 22 * * 4"
   workflow_dispatch:
     inputs:
       set:

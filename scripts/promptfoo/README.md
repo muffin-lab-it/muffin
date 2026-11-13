@@ -66,7 +66,7 @@ pnpm eval:promptfoo --model gpt-5.4-mini --tag mini --baseline docs/eval/promptf
 
 ## GitHub Action
 
-`.github/workflows/eval.yml` 이 매주 금요일 09:00(KST) 에 전부 돌리고, Actions 탭에서 "Weekly eval → Run workflow" 로 세트 · 깊이를 골라 바로 돌릴 수도 있습니다.
+`.github/workflows/eval.yml` 이 매주 금요일 아침(07:17 KST 예약, GitHub 예약 실행은 몇 시간 늦어질 수 있음)에 전부 돌리고, Actions 탭에서 "Weekly eval → Run workflow" 로 세트 · 깊이를 골라 바로 돌릴 수도 있습니다.
 
 - 요약은 실행 페이지의 Summary 에, `docs/eval/promptfoo/` 전체는 Artifacts 에 90일 남습니다.
 - 지난 실행의 `latest.json` 을 cache 로 넘겨 "지난 번" 열을 채웁니다.
