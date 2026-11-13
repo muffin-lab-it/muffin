@@ -355,3 +355,26 @@ describe("조사 영역 힌트 (Auto · 복수 선택, 11/13)", () => {
     expect(agentOf(1).instructions).toContain("[관심 영역: 환율]");
   });
 });
+
+describe("정제가 뺀 자료를 작성에 알림 (11/13)", () => {
+  it("dropped 에 든 장부 항목은 이름 · 기준일 · 이유만 작성 입력에 들어가고 값은 들어가지 않는다", async () => {
+    mockRuns({
+      writer: [good],
+      facts: { facts: [{ ref: "C1", fact: "30일 변동폭 +27.3원" }], dropped: [{ ref: "E1", reason: "현황 질문이라 변동 원인 자료는 쓰지 않음" }, { ref: "E9", reason: "없는 번호" }], unverified: [] },
+    });
+    await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
+    expect(agentOf(3).name).toBe("Muffin Writer");
+    const input = call(3)[1];
+    expect(input).toContain("[수집했지만 근거로 쓰지 않은 자료]");
+    expect(input).toContain("- E1 · 환율 확인 · Frankfurter v2 · 기준일 2026-10-19 · 뺀 이유: 현황 질문이라 변동 원인 자료는 쓰지 않음");
+    expect(input).not.toContain("E9");
+    // 뺀 항목의 값(1392.4)은 [증거 장부] 에도 이 블록에도 없다
+    expect(input.split("[수집했지만 근거로 쓰지 않은 자료]")[1]).not.toContain("1392");
+  });
+
+  it("뺀 항목이 없거나 정제가 실패하면 블록이 없다", async () => {
+    mockRuns({ writer: [good] });
+    await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
+    expect(call(3)[1]).not.toContain("[수집했지만 근거로 쓰지 않은 자료]");
+  });
+});

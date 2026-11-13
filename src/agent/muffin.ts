@@ -17,6 +17,7 @@ import type { MuffinEvent } from "./events";
 import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
 import { changeDetailsFor } from "./change";
+import { droppedNote } from "./dropped";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
@@ -153,7 +154,8 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 작성이 [증거 장부] 에서 보는 id (writerInput 과 같은 기준). null 이면 장부 전체를 봅니다.
   const shown = facts && facts.facts.length > 0 ? new Set(facts.facts.map((f) => f.ref)) : null;
   const dropped = new Set(facts?.dropped.map((d) => d.ref) ?? []);
-  const input = [writerInput(question, ctx.evidence, notes, facts), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : ""]
+  // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
+  const input = [writerInput(question, ctx.evidence, notes, facts), droppedNote(facts, ctx.evidence), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
