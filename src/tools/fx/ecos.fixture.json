@@ -1,0 +1,10 @@
+{
+  "StatisticSearch": {
+    "list_total_count": 3,
+    "row": [
+      { "STAT_CODE": "731Y001", "ITEM_CODE1": "0000001", "ITEM_NAME1": "원/미국달러(매매기준율)", "UNIT_NAME": "원", "TIME": "20261002", "DATA_VALUE": "1354.87" },
+      { "STAT_CODE": "731Y001", "ITEM_CODE1": "0000001", "ITEM_NAME1": "원/미국달러(매매기준율)", "UNIT_NAME": "원", "TIME": "20261015", "DATA_VALUE": "1342.21" },
+      { "STAT_CODE": "731Y001", "ITEM_CODE1": "0000001", "ITEM_NAME1": "원/미국달러(매매기준율)", "UNIT_NAME": "원", "TIME": "20261016", "DATA_VALUE": "1342.51" }
+    ]
+  }
+}
