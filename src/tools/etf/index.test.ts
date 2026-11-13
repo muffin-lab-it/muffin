@@ -141,23 +141,43 @@ describe("get_etf_kr_price", () => {
     });
   });
 
-  it("정확한 종목명이면 itmsNm 으로 한 번에 조회한다", async () => {
+  it.each(["KODEX 200", "KODEX200", "코덱스 200", "삼성 KODEX 200"])("목록에 있는 이름(%s)이면 받아 둔 목록에서 코드를 찾아 API 를 한 번만 부른다", async (query) => {
+    const calls = mockApi((p) => (p.get("likeSrtnCd") === "069500" ? fixture : okBody([])));
+
+    const result = await execute({ query, days: 30 });
+
+    expect(result.data).toMatchObject({ etf: { code: "069500" } });
+    expect(calls.map((u) => u.searchParams.get("likeSrtnCd"))).toEqual(["069500"]);
+  });
+
+  it("목록의 이름이 여럿에 걸리면 API 없이 후보 목록을 담아 실패한다", async () => {
+    const calls = mockApi(() => fixture);
+    await expect(execute({ query: "KODEX 2", days: 30 })).rejects.toThrow(/비슷한 ETF 가 \d+개.*KODEX 200\(069500\)/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("목록의 코드로 시세가 없으면(상장 폐지 등) API 이름 조회로 넘어간다", async () => {
     const calls = mockApi((p) => (p.get("itmsNm") === "KODEX 200" ? fixture : okBody([])));
-
     const result = await execute({ query: "KODEX 200", days: 30 });
+    expect(result.data).toMatchObject({ etf: { code: "069500" } });
+    expect(calls.map((u) => [...u.searchParams.keys()].find((k) => /Nm|SrtnCd/.test(k)))).toEqual(["likeSrtnCd", "itmsNm"]);
+  });
 
+  it("목록에 없는 이름(새로 상장 등)은 지금처럼 API 정확 일치로 조회한다", async () => {
+    const calls = mockApi((p) => (p.get("itmsNm") === "NEWCO 미래기술" ? fixture : okBody([])));
+    const result = await execute({ query: "NEWCO 미래기술", days: 30 });
     expect(result.data).toMatchObject({ etf: { code: "069500" } });
     expect(calls).toHaveLength(1);
   });
 
   it("이름이 부분 일치로 하나만 찾아지면 그 종목코드로 다시 조회한다", async () => {
     const calls = mockApi((p) => {
-      if (p.get("likeItmsNm") === "KODEX 2") return okBody([kodex200[0], kodex200[1]]);
+      if (p.get("likeItmsNm") === "NEWCO 미래") return okBody([kodex200[0], kodex200[1]]);
       if (p.get("likeSrtnCd") === "069500") return fixture;
       return okBody([]);
     });
 
-    const result = await execute({ query: "KODEX 2", days: 30 });
+    const result = await execute({ query: "NEWCO 미래", days: 30 });
 
     expect(result.data).toMatchObject({ etf: { code: "069500", name: "KODEX 200" } });
     expect(calls.map((u) => [...u.searchParams.keys()].find((k) => /Nm|Cd/.test(k)))).toEqual([
@@ -169,19 +189,19 @@ describe("get_etf_kr_price", () => {
 
   it("부분 일치 후보가 여러 개면 후보 목록을 담아 실패한다", async () => {
     mockApi((p) =>
-      p.get("likeItmsNm") === "KODEX 200"
+      p.get("likeItmsNm") === "NEWCO 200"
         ? okBody([row("069500", "KODEX 200"), row("223190", "KODEX 200가치저변동")])
         : okBody([]),
     );
-    // itmsNm 정확 일치는 빈 응답이라고 가정한다
-    await expect(execute({ query: "KODEX 200", days: 30 })).rejects.toThrow(
+    // 목록에 없는 이름이고, itmsNm 정확 일치는 빈 응답이라고 가정한다
+    await expect(execute({ query: "NEWCO 200", days: 30 })).rejects.toThrow(
       /KODEX 200\(069500\).*KODEX 200가치저변동\(223190\)/,
     );
   });
 
   it("찾는 ETF 가 없으면 입력 형식을 안내하며 실패한다", async () => {
     mockApi(() => okBody([]));
-    await expect(execute({ query: "코덱스200", days: 30 })).rejects.toThrow(/찾지 못했습니다.*KODEX 200/);
+    await expect(execute({ query: "NEWCO 없음", days: 30 })).rejects.toThrow(/찾지 못했습니다.*KODEX 200/);
   });
 
   it("API 가 오류 코드를 돌려주면 실패한다", async () => {
@@ -235,7 +255,7 @@ describe("get_etf_kr_price", () => {
         if (p.get("likeItmsNm")) return okBody([row("069500", "KODEX 200")]);
         return fixture;
       });
-      const result = await execute({ query: "KODEX200", days: 30 });
+      const result = await execute({ query: "NEWCO200", days: 30 });
       expect(result.data.etf.code).toBe("069500");
       expect(calls.map((c) => [...c.url.searchParams.keys()].find((k) => /Nm|SrtnCd/.test(k)))).toEqual([
         "itmsNm",
@@ -283,7 +303,7 @@ describe("get_etf_kr_price", () => {
       }
       return fixture;
     });
-    const err = await execute({ query: "KODEX200", days: 30 }).catch((e: Error) => e);
+    const err = await execute({ query: "NEWCO200", days: 30 }).catch((e: Error) => e);
     expect((err as Error).message).toMatch(/시간 예산.*timeout/);
     expect((err as Error).name).toBe("TimeoutError");
     expect(calls.map((u) => [...u.searchParams.keys()].find((k) => /Nm|SrtnCd/.test(k)))).toEqual(["itmsNm", "likeItmsNm"]);
@@ -304,7 +324,7 @@ describe("get_etf_kr_price", () => {
       if (p.get("likeItmsNm")) return okBody([row("069500", "KODEX 200")]);
       return fixture;
     });
-    await execute({ query: "KODEX200", days: 30 });
+    await execute({ query: "NEWCO200", days: 30 });
     expect(waits[0]).toBe(ATTEMPT_TIMEOUT_MS);
     expect(waits[1]).toBeLessThanOrEqual(800);
     vi.restoreAllMocks();

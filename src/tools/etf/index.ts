@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { fetchJson, isRetryable } from "../../lib/http";
 import { defineTool, type EvidenceValues } from "../define";
+import { lookupName } from "./names";
 import type { ToolResult } from "../types";
 
 export const parameters = z.object({
@@ -21,7 +22,7 @@ export type Input = z.infer<typeof parameters>;
 
 // 오퍼레이션 이름에도 _V2 가 붙습니다. 빼면 NO_OPENAPI_SERVICE_ERROR 가 납니다.
 const ENDPOINT = "https://apis.data.go.kr/1160100/GetSecuritiesProductInfoService_V2/getETFPriceInfo_V2";
-const SOURCE_NAME = "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)";
+export const SOURCE_NAME = "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)";
 const SOURCE_URL = "https://www.data.go.kr/data/15094806/openapi.do";
 
 /** T+1 공개라 요청 기간보다 넉넉히 받아 둡니다. */
@@ -86,7 +87,11 @@ export async function execute({ query, days }: Input): Promise<ToolResult<EtfDat
     rows = await fetchRows(call, { likeSrtnCd: q, ...range });
     if (rows.length === 0) throw new Error(`종목코드 ${q} 인 국내 ETF 를 찾지 못했습니다.`);
   } else {
-    rows = await fetchRows(call, { itmsNm: q, ...range });
+    // 받아 둔 목록에서 코드를 먼저 찾습니다 (API 1번). 목록에 없거나 그 코드의 시세가 없으면(상장 폐지 등) API 이름 조회로 넘어갑니다.
+    const hit = lookupName(q);
+    if (hit && "candidates" in hit) throw ambiguous(q, hit.candidates.map((c) => [c.code, c.name]));
+    rows = hit ? await fetchRows(call, { likeSrtnCd: hit.code, ...range }) : [];
+    if (rows.length === 0) rows = await fetchRows(call, { itmsNm: q, ...range });
     if (rows.length === 0) {
       const code = await findUniqueCode(call, q, today);
       rows = await fetchRows(call, { likeSrtnCd: code, ...range });
@@ -111,15 +116,18 @@ async function findUniqueCode(call: Call, name: string, today: string): Promise<
       `"${name}" 에 해당하는 국내 ETF 를 찾지 못했습니다. 운용사명+공백+상품명(예: "KODEX 200") 이나 6자리 종목코드로 다시 조회하세요.`,
     );
   }
-  const list = [...candidates].map(([code, nm]) => `${nm}(${code})`);
-  const shown = list.slice(0, MAX_CANDIDATES_SHOWN).join(", ");
-  const more = list.length > MAX_CANDIDATES_SHOWN ? ` 외 ${list.length - MAX_CANDIDATES_SHOWN}개` : "";
-  throw new Error(
-    `"${name}" 와 이름이 비슷한 ETF 가 ${list.length}개입니다. 정확한 이름이나 종목코드로 다시 조회하세요. 후보: ${shown}${more}`,
-  );
+  throw ambiguous(name, [...candidates]);
 }
 
-type Call = { key: string; deadline: number };
+/** 후보가 여럿이면 목록을 담아 실패합니다. Agent 가 정확한 이름이나 코드로 다시 부릅니다. */
+function ambiguous(name: string, candidates: [code: string, name: string][]): Error {
+  const list = candidates.map(([code, nm]) => `${nm}(${code})`);
+  const shown = list.slice(0, MAX_CANDIDATES_SHOWN).join(", ");
+  const more = list.length > MAX_CANDIDATES_SHOWN ? ` 외 ${list.length - MAX_CANDIDATES_SHOWN}개` : "";
+  return new Error(`"${name}" 와 이름이 비슷한 ETF 가 ${list.length}개입니다. 정확한 이름이나 종목코드로 다시 조회하세요. 후보: ${shown}${more}`);
+}
+
+export type Call = { key: string; deadline: number };
 
 /** 일시적 실패(시간 초과 · 연결 실패 · 5xx)면 남은 시간 안에서 새 연결로 다시 보냅니다. 마지막 실패를 키를 가려 던집니다. */
 async function fetchWithRetry(call: Call, url: string): Promise<ApiResponse> {
@@ -148,7 +156,7 @@ async function fetchWithRetry(call: Call, url: string): Promise<ApiResponse> {
   throw masked;
 }
 
-async function fetchRows(call: Call, params: Record<string, string>): Promise<EtfRow[]> {
+export async function fetchRows(call: Call, params: Record<string, string>): Promise<EtfRow[]> {
   // 공공데이터포털 Encoding 키(이미 % 인코딩됨)는 그대로, Decoding 키는 인코딩해서 보냅니다.
   const serviceKey = call.key.includes("%") ? call.key : encodeURIComponent(call.key);
   const qs = new URLSearchParams({ resultType: "json", numOfRows: "1000", pageNo: "1", ...params });
@@ -274,12 +282,12 @@ function pctChange(from: number | null, to: number | null): number | null {
 }
 
 /** 한국 시간 기준 오늘 (YYYY-MM-DD) */
-function todayKst(): string {
+export function todayKst(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
 
 /** YYYY-MM-DD 에서 n 일 이동한 날짜를 YYYYMMDD 로 */
-function shiftDays(isoDate: string, n: number): string {
+export function shiftDays(isoDate: string, n: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10).replaceAll("-", "");
