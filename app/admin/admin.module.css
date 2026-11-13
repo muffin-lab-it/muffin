@@ -193,6 +193,15 @@
 .evalTable td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); }
 .evalTable tr:last-child td { border-bottom: 0; }
 .evalTrend { margin-top: 12px; }
+.evalDetails { margin-top: 12px; }
+.evalDetails > summary { cursor: pointer; font-size: 12px; line-height: 16px; color: var(--accent); }
+.evalSummary { margin-top: 8px; font-size: 13px; line-height: 18px; }
+.evalSummary h3 { margin: 12px 0 4px; font-size: 14px; }
+.evalSummary h4 { margin: 12px 0 4px; font-size: 13px; color: var(--ink-2); }
+.evalSummary p { margin: 4px 0; }
+.evalSummary ul { margin: 4px 0; padding-left: 18px; }
+.evalSummaryTable { overflow-x: auto; }
+.evalSummaryTable .evalTable { margin-top: 4px; font-size: 12px; line-height: 16px; white-space: nowrap; }
 .evalHistory { display: grid; gap: 4px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 16px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .evalHistory li { display: grid; grid-template-columns: auto auto auto auto auto minmax(0, 1fr); gap: 12px; align-items: baseline; }
 .evalHistory a { justify-self: end; }
