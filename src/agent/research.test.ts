@@ -12,10 +12,12 @@ vi.mock("@openai/agents", async (importOriginal) => {
 import { RunContext, run } from "@openai/agents";
 import { fxTool } from "../tools/fx";
 import { newsTool } from "../tools/news";
+import { macroTool } from "../tools/macro";
 import { rateTool } from "../tools/rate";
 import { muffinTools } from "../tools";
 import { ResearchContext } from "./context";
 import { commonRules } from "./instructions";
+import { hintAreaFor } from "./muffin";
 import { NOTES_FALLBACK, createResearcherAgent, researchInstructions, runResearch } from "./research";
 import { areas, researchNotesSchema, type ResearchNotes } from "./schema";
 
@@ -115,9 +117,66 @@ describe("researchInstructions", () => {
     expect(text).toContain("지원하지 않는 기간은 임의로 30·90·365일로 바꾸어 조회하지 않고");
     expect(text).toContain("지원 범위와 해당 기간의 자료 부족을 gaps 에 적습니다.");
   });
+
+  it("물가 상승 원인 질문에 제공된 CPI 우선 조회와 뉴스 배경 조사 지시를 전달한다", () => {
+    const text = createResearcherAgent("standard", "macro", [macroTool, newsTool]).instructions;
+    expect(text).toContain("거시지표 tool 이 제공되고 질문에 필요하면 먼저 호출합니다.");
+    expect(text).toContain("실제 소비자물가 상승의 원인·이유·배경을 묻고 get_macro_indicators 가 제공되면 indicator=cpi 를 우선 조회합니다.");
+    expect(text).toContain("이때 뉴스 tool 이 제공되면 상승 배경에 관한 보도를 조사합니다.");
+  });
+
+  it("물가 현황·실업률·단순 보도 설명을 구분하고 다른 영역에 CPI 조회 지시를 추가하지 않는다", () => {
+    const text = researchInstructions("macro");
+    expect(text).toContain("물가 현황은 요청한 CPI 값·추이를, 실업률 질문은 indicator=unemployment 를 확인합니다.");
+    expect(text).toContain("단순 경제뉴스 설명이나 실업률 질문만으로 CPI 조회를 추가하지 않습니다.");
+    for (const area of [...areas.filter((area) => area !== "macro"), undefined]) {
+      expect(researchInstructions(area)).not.toContain("indicator=cpi");
+    }
+  });
+
+  it("사용자 국가·기간을 우선하고 Macro의 월 단위 입력과 기본 기간을 전달한다", () => {
+    const text = researchInstructions("macro");
+    expect(text).toContain("국가와 기간은 사용자 질문을 우선");
+    expect(text).toContain("country=KR 또는 US, endMonth=YYYYMM 또는 null(최신 관측 월), months=1~60");
+    expect(text).toContain("기간이 없으면 일 단위 기본 30일 대신 거시지표 tool 설명의 월 단위 기본값(최신값 1개월, 요즘 3개월, 최근 흐름 6개월)을 따릅니다.");
+    expect(text).toContain("지원 범위 밖의 국가·기간을 임의로 바꾸지 말고 gaps 에 적습니다.");
+  });
+
+  it("상승 여부·비교 월 확인과 인과 한계를 구분하고 미확보 자료는 gaps 에 남기도록 안내한다", () => {
+    const text = researchInstructions("macro");
+    expect(text).toContain("CPI가 반환한 전월·전년 동월 변화와 관측 월로 상승 여부·비교 기준을 확인합니다.");
+    expect(text).toContain("비교값이 null이면 상승을 추정하지 않습니다.");
+    expect(text).toContain("CPI 총지수만으로 품목별 기여도나 상승 원인을 입증했다고 단정하지 않습니다.");
+    expect(text).toContain("거시지표 또는 뉴스 tool 이 없거나 실패하면 확보한 자료만 notes 에 남기고, 미확보 자료와 원인 분석의 한계는 gaps 에 기록합니다.");
+  });
 });
 
 describe("createResearcherAgent", () => {
+  // #84의 Auto 힌트 선택과 Agent 구성만 검사합니다. 모델의 실제 호출 여부는 검사하지 않습니다.
+  it.each([
+    { label: "Macro·News 제공(뉴스가 먼저 선택됨)", selected: [newsTool, macroTool], area: "macro" },
+    { label: "Macro만 제공", selected: [macroTool], area: "macro" },
+    { label: "News만 제공", selected: [newsTool], area: "news" },
+    { label: "Macro 없이 다른 지표 제공", selected: [fxTool, newsTool], area: "fx" },
+  ] as const)("Auto에서 $label 시 실제 제공 목록과 해당 힌트만 사용한다", ({ selected, area }) => {
+    const tools = [...selected];
+    const hint = hintAreaFor(undefined, tools.map((tool) => tool.name));
+    expect(hint).toBe(area);
+    const agent = createResearcherAgent("standard", hint, tools);
+    expect(agent.tools).toEqual(tools);
+    expect(agent.name).toBe("Muffin Researcher");
+    expect(agent.outputType).toBe(researchNotesSchema);
+    expect(agent.instructions).toBe(researchInstructions(area));
+    expect(agent.instructions).toContain("제공되지 않은 tool 을 추가하거나 대체하지 않습니다.");
+    expect(agent.instructions).toContain("원인·이유·배경 질문이면 제공된 뉴스 tool 도 호출해 근거를 확인합니다.");
+    if (area === "macro") {
+      expect(agent.instructions).toContain("get_macro_indicators 가 제공되면 indicator=cpi 를 우선 조회합니다.");
+    } else {
+      expect(agent.instructions).not.toContain("indicator=cpi");
+      expect(agent.tools.some((tool) => tool.name === macroTool.name)).toBe(false);
+    }
+  });
+
   it("기본은 레지스트리의 모든 tool, 분류가 고른 목록을 주면 그것만 쓴다", () => {
     expect(createResearcherAgent("standard").tools).toHaveLength(muffinTools.length);
     expect(createResearcherAgent("standard", "fx", [fxTool]).tools.map((t) => t.name)).toEqual(["get_fx_krw_rate"]);
