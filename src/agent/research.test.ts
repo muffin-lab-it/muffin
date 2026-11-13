@@ -49,9 +49,15 @@ describe("researchInstructions", () => {
       expect(text).toContain("일반 지식이나 추정 원인을 그 번호에 연결하지 않습니다");
       expect(text).toContain("실패한 요청에는 메모용 번호를 만들지 말고");
       expect(text).toContain("원인·이유·배경 질문이면 제공된 뉴스 tool 도 호출해 근거를 확인합니다.");
-      expect(text).toContain("뉴스 검색 결과가 없으면 검색어를 더 짧고 넓게 바꿔 한 번만 재시도하고, 그래도 결과가 없으면 자료 부족을 gaps 에 적습니다.");
+      expect(text).toContain('뉴스 검색 결과가 없거나 "조건에 맞는 뉴스 기사가 없습니다" 오류이면 검색 결과 0건으로 보고');
+      expect(text).toContain("검색어를 더 짧고 넓게 바꿔 한 번만 재시도합니다.");
+      expect(text).toContain("같은 주제는 최초 검색과 보완 검색을 합쳐 최대 2회만 조회하며");
+      expect(text).toContain("보완 결과가 성공·부분 성공이어도 추가 검색하지 않습니다.");
+      expect(text).toContain("재검색도 실패하면 실패 내용과 부족한 자료를 gaps 에 적고 종료합니다.");
       expect(text).toContain("재검색의 sources 는 직전 검색과 동일하게 유지해 소스를 줄이거나 누락하지 않습니다.");
       expect(text).toContain("새 소스를 무조건 추가하지 않습니다.");
+      expect(text).toContain("HTTP 오류·타임아웃·인증 실패·모든 RSS 소스 조회 실패는 검색 결과 0건으로 간주하지 않습니다.");
+      expect(text).toContain("실제 실패 유형과 확인한 범위를 구분해 gaps 에 적습니다.");
     }
   });
 
@@ -74,12 +80,12 @@ describe("researchInstructions", () => {
     }
   });
 
-  it("환율 원인 질문에만 제공된 금리의 BOK·DFF 30일 조회와 뉴스 조사를 안내한다", () => {
+  it("환율 원인 질문에만 제공된 금리의 BOK·DFF 조회와 뉴스 조사를 안내한다", () => {
     const text = researchInstructions("fx");
     expect(text).toContain("환율 tool 을 먼저 호출합니다.");
     expect(text).toContain("원인·이유·배경 질문일 때만, 금리 tool 이 제공되면");
-    expect(text).toContain("한국은행 기준금리(series=BOK, days=30)");
-    expect(text).toContain("미국 실효 연방기금금리(series=DFF, days=30)");
+    expect(text).toContain("한국은행 기준금리(series=BOK)");
+    expect(text).toContain("미국 실효 연방기금금리(series=DFF)");
     expect(text).toContain("뉴스 tool 이 제공되면 함께 호출합니다.");
     expect(text).toContain("DGS10으로 두 지표를 대체하지 않습니다.");
     expect(text).toContain("DFF는 FOMC 목표금리와 동일한 지표가 아니며");
@@ -89,6 +95,25 @@ describe("researchInstructions", () => {
       expect(researchInstructions(area)).not.toContain("series=BOK");
       expect(researchInstructions(area)).not.toContain("series=DFF");
     }
+  });
+
+  it.each([
+    ["기간 미지정", "기간 미지정 또는 30일이면 days=30"],
+    ["명시적 30일", "기간 미지정 또는 30일이면 days=30"],
+    ["명시적 90일", "90일이면 days=90"],
+    ["명시적 365일", "1년 또는 365일이면 days=365"],
+    ["1년", "1년 또는 365일이면 days=365"],
+  ])("환율 힌트가 %s의 금리 기간과 BOK·DFF 동일 기간 계약을 전달한다", (_scenario, rule) => {
+    const text = createResearcherAgent("standard", "fx", [fxTool, rateTool, newsTool]).instructions;
+    expect(text).toContain("금리 조회도 사용자 지정 기간을 우선합니다.");
+    expect(text).toContain(rule);
+    expect(text).toContain("BOK·DFF 모두 같은 days 를 사용합니다.");
+  });
+
+  it("미지원 금리 기간을 지원 기간으로 몰래 바꾸지 않고 gaps 에 한계를 남기도록 안내한다", () => {
+    const text = researchInstructions("fx");
+    expect(text).toContain("지원하지 않는 기간은 임의로 30·90·365일로 바꾸어 조회하지 않고");
+    expect(text).toContain("지원 범위와 해당 기간의 자료 부족을 gaps 에 적습니다.");
   });
 });
 
