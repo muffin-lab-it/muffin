@@ -9,6 +9,7 @@
  */
 import { Agent, run, type RunContext } from "@openai/agents";
 import { muffinTools } from "../tools";
+import { parameters as newsParameters } from "../tools/news";
 import type { ResearchContext } from "./context";
 import { instructionsFor } from "./instructions";
 import { modelFor } from "./models";
@@ -58,12 +59,77 @@ export function researchInstructions(area?: Area): string {
 /** 조사 Agent 가 쓸 수 있는 tool 목록의 타입. 분류가 고른 것만 넘기고, 비면 전체를 씁니다. */
 export type ResearchTools = typeof muffinTools;
 
+/** News Tool 본체/공유 객체를 바꾸지 않고, 한 리포트의 0건 조건만 재실행하지 않습니다.
+ * 주제 식별자가 없으므로 주제별 2회 제한이나 검색어의 의미상 확장은 보장하지 않습니다.
+ */
+function guardNewsSearch(tool: ResearchTools[number]): ResearchTools[number] {
+  if (tool.name !== "get_korean_economic_news") return tool;
+  type Search = { query: string | null; sources: string[] };
+  type State = {
+    empty: Map<string, Search>;
+    pending: Map<string, { input: string; result: Promise<unknown> }>;
+  };
+  // Agent가 재사용되어도 실제 리포트 context별로 격리합니다. 전역/Tool 캐시와 무관합니다.
+  const requests = new WeakMap<ResearchContext, State>();
+  const blocked = (previous: Search, reason: string) => ({
+    error: `뉴스 검색 실행 차단: ${reason}`,
+    instruction: `직전 0건 검색 조건: ${JSON.stringify(previous)}. sources를 유지하고 query를 변경하세요. content나 limit만 바꾸는 것은 보완 검색이 아닙니다. 이미 짧은 검색어라면 query=null을 고려하되 무관한 기사는 근거로 쓰지 마세요. 이번 차단은 실제 검색을 실행하지 않았고 보완 기회를 소진하지 않습니다. 검색어 변경이 관련 기사 확보를 보장하지는 않습니다. 계속 자료가 없으면 gaps에 기록하세요.`,
+  });
+  return {
+    ...tool,
+    invoke: async (runContext, input, details) => {
+      let json: unknown;
+      try { json = JSON.parse(input); } catch { return tool.invoke(runContext, input, details); }
+      const parsed = newsParameters.safeParse(json);
+      // 잘못된 입력의 오류 처리/검증은 기존 SDK에 맡깁니다.
+      if (!parsed.success) return tool.invoke(runContext, input, details);
+      const { query, sources, content, limit } = parsed.data;
+      const search: Search = { query, sources: [...new Set(sources)].sort() };
+      const key = JSON.stringify(search);
+      const inputKey = JSON.stringify({ ...search, content, limit });
+      let state = requests.get(runContext.context);
+      if (!state) {
+        state = { empty: new Map(), pending: new Map() };
+        requests.set(runContext.context, state);
+      }
+      // 진행 중인 동일 입력은 결과/ID를 공유합니다. content/limit이 다른 요청은
+      // SDK의 실행 제한 안에서 직렬 대기시키지 않고, 선행 결과 확인을 안내합니다.
+      const pending = state.pending.get(key);
+      if (pending) {
+        if (pending.input !== inputKey) return {
+          error: "뉴스 검색 실행 차단: 같은 query와 sources의 검색이 진행 중입니다.",
+          instruction: `진행 중 검색 조건: ${key}. 아직 0건으로 판정한 것이 아닙니다. 먼저 그 결과를 확인하세요. 이번 요청은 수집을 실행하지 않았습니다. 0건이면 sources를 유지하고 query를 변경하고, 성공이면 실제 확보 범위 안에서 필요한 후속 조회를 판단하세요.`,
+        };
+        const output = await pending.result;
+        const previous = state.empty.get(key);
+        return previous ? blocked(previous, "같은 query와 sources에서 이미 결과 0건을 확인했습니다.") : output;
+      }
+      const previous = state.empty.get(key) ?? [...state.empty.values()].find((search) => search.query === query);
+      // query 그대로 sources만 바꾸는 우회도 막습니다. query까지 다른 경우는
+      // 별도 주제일 수 있으므로 요청 전체의 sources를 고정하지 않습니다.
+      if (previous) return blocked(previous, "이미 0건인 query를 반복할 수 없습니다. 보완 검색은 기존 sources를 유지하세요.");
+      const result = (async () => {
+        const output = await tool.invoke(runContext, input, details);
+        // defineTool의 정확한 0건 오류만 기억합니다. HTTP/인증/전체 RSS 실패,
+        // 정상 제목 fallback/partial 및 캐시 대체 결과는 여기에 해당하지 않습니다.
+        if (typeof output === "object" && output !== null && "error" in output &&
+            output.error === `${tool.name} 호출 실패: 조건에 맞는 뉴스 기사가 없습니다.`) {
+          state.empty.set(key, search);
+        }
+        return output;
+      })();
+      state.pending.set(key, { input: inputKey, result });
+      try { return await result; } finally { state.pending.delete(key); }
+    },
+  };
+}
+
 export function createResearcherAgent(depth: Depth, area?: Area, tools: ResearchTools = muffinTools) {
   return new Agent<ResearchContext, typeof researchNotesSchema>({
     name: "Muffin Researcher",
     model: modelFor(depth, "research"),
     instructions: researchInstructions(area),
-    tools: tools.length ? tools : muffinTools,
+    tools: (tools.length ? tools : muffinTools).map(guardNewsSearch),
     outputType: researchNotesSchema,
   });
 }
