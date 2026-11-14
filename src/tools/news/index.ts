@@ -175,9 +175,14 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
     },
     source,
     note: [
-      "RSS의 제목·발행일·링크만 확인했습니다. 기사 속 수치는 별도 검증이 필요합니다.",
-      content === "body" ? `본문 추출 상태: ${bodyStatus}. 요청 ${limit}건 중 ${collectedCount}건 확보했습니다.` : "기사 본문은 요청하지 않았습니다.",
-      titleFallback ? `본문은 0건이며 Google News 제목 목록 ${detailed.length}건만 대신 반환했습니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다.` : "",
+      content === "list"
+        ? "기사 본문은 요청하지 않았으며, RSS의 제목·발행일·링크만 확인했습니다."
+        : titleFallback
+          ? "본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다."
+          : `본문 확보 목표 ${limit}건 중 ${collectedCount}건의 기사 본문을 확보했습니다. 목표 대비 ${Math.max(0, limit - collectedCount)}건 부족합니다.`,
+      content === "body" ? `본문 목표 충족 상태(bodyStatus): ${bodyStatus}. 반환 기사 목록 ${detailed.length}건의 수량 충족 상태(resultStatus): ${resultStatus}.` : "",
+      titleFallback ? `본문은 0건이며 Google News 제목 목록 ${detailed.length}건만 대신 반환했습니다. 본문 확보 목표 ${limit}건 대비 ${limit}건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다.` : "",
+      "반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다.",
       "Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다.",
       failedSources.length ? `조회 실패 소스: ${failedSources.map(({ source }) => source).join(", ")}` : "",
     ].filter(Boolean).join(" "),
