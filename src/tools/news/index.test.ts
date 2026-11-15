@@ -86,6 +86,59 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("News Tool", () => {
   it.each([
+    { label: "목록 전체", content: "list", source: "yonhap", limit: 2, collected: 2, missing: 0, resultStatus: "complete", bodyStatus: "not_requested", body: "not_requested" },
+    { label: "목록 부족", content: "list", source: "yonhap", limit: 5, collected: 2, missing: 3, resultStatus: "partial", bodyStatus: "not_requested", body: "not_requested" },
+    { label: "본문 전체", content: "body", source: "yonhap", limit: 2, collected: 2, missing: 0, resultStatus: "complete", bodyStatus: "complete", body: "available" },
+    { label: "본문 부족", content: "body", source: "yonhap", limit: 5, collected: 2, missing: 3, resultStatus: "partial", bodyStatus: "partial", body: "available" },
+    { label: "제목 fallback 전체", content: "body", source: "google", limit: 2, collected: 0, missing: 2, resultStatus: "complete", bodyStatus: "partial", body: "unavailable" },
+    { label: "제목 fallback 부족", content: "body", source: "google", limit: 5, collected: 0, missing: 5, resultStatus: "partial", bodyStatus: "partial", body: "unavailable" },
+  ] as const)("$label의 data와 note가 일치하고 같은 메모를 기사별 Evidence에 전달한다", async ({ content, source, limit, collected, missing, resultStatus, bodyStatus, body }) => {
+    const calls = mockFeeds({ [source]: syntheticFeed(2, source) });
+    const { context, result } = await invokeNews({ sources: [source], query: null, limit, content });
+    const { data, note } = result;
+    expect(data).toMatchObject({ count: 2, requestedCount: limit, collectedCount: collected, missingCount: missing, resultStatus, bodyStatus });
+    expect(data.articles.map((article) => article.body.status)).toEqual([body, body]);
+    expect(data).toMatchObject({
+      inspectedCount: content === "body" ? 2 : 0,
+      failedCount: source === "google" ? 2 : 0,
+      failureCounts: source === "google" ? { original_url_unresolved: 2 } : {},
+    });
+    if (content === "list") {
+      expect(note).toMatch(/^기사 본문은 요청하지 않았으며, RSS의 제목·발행일·링크만 확인했습니다\./);
+      expect(note).not.toContain("건의 기사 본문을 확보했습니다");
+    } else {
+      expect(note).toContain(`본문 목표 충족 상태(bodyStatus): ${data.bodyStatus}.`);
+      expect(note).toContain(`반환 기사 목록 ${data.count}건의 수량 충족 상태(resultStatus): ${data.resultStatus}.`);
+      if (collected > 0) {
+        expect(note?.startsWith(`본문 확보 목표 ${data.requestedCount}건 중 ${data.collectedCount}건의 기사 본문을 확보했습니다.`)).toBe(true);
+        expect(note).toContain(`목표 대비 ${data.missingCount}건 부족합니다.`);
+        expect(note).not.toMatch(/링크만 확인|제목만|제목 목록만|본문 일부 추출/);
+      } else {
+        expect(note).toMatch(/^본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다\./);
+        expect(note).toContain(`본문은 0건이며 Google News 제목 목록 ${data.count}건만 대신 반환했습니다.`);
+        expect(note).toContain(`본문 확보 목표 ${data.requestedCount}건 대비 ${data.missingCount}건 부족합니다.`);
+        expect(note).toContain("제목에 없는 원인·인과관계를 추정하지 마세요");
+        expect(data.articles.every((article) => !("text" in article.body))).toBe(true);
+      }
+    }
+    expect(note).toContain("반환 기사별 body.status를 참조하세요.");
+    expect(note).toContain("기사 속 수치는 별도 검증이 필요합니다.");
+    expect(note).toContain("본문 확보와 원인·인과관계 입증은 별개입니다.");
+    expect(note).toContain("Google News 중계 링크");
+    expect(result.source).toHaveLength(data.count);
+    expect(context.evidence).toHaveLength(data.count);
+    expect(context.sources).toHaveLength(data.count);
+    data.articles.forEach((article, i) => {
+      const articleSource = { name: article.publisher, url: article.url, asOf: article.publishedAt };
+      expect(result.source[i]).toEqual({ id: `E1-${i + 1}`, ...articleSource });
+      expect(context.sources[i]).toEqual(articleSource);
+      expect(context.evidence[i]).toMatchObject({ id: `E1-${i + 1}`, source: articleSource, note });
+      expect(context.evidence[i].values).toEqual({ title: article.title, publisher: article.publisher, publishedAt: article.publishedAt, body });
+    });
+    expect(calls).toHaveLength(content === "body" && source === "yonhap" ? 3 : 1);
+  });
+
+  it.each([
     { content: "list" as const, limit: 1, count: 1 },
     { content: "list" as const, limit: 5, count: 5 },
     { content: "body" as const, limit: 1, count: 1 },
