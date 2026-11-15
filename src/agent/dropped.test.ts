@@ -22,4 +22,12 @@ describe("droppedNote", () => {
     const twice = droppedNote({ facts: [], dropped: [{ ref: "E2", reason: "a" }, { ref: "E2", reason: "b" }], unverified: [] }, [fx, rate]);
     expect(twice.split("\n").filter((l) => l.startsWith("- E2")).length).toBe(1);
   });
+
+  it("큰 움직임의 원인 후보로 다시 쓰는 id(except)는 목록에서 빠지고, 전부 빠지면 빈 문자열", () => {
+    const facts = { facts: [], dropped: [{ ref: "E1", reason: "현황 아님" }, { ref: "E2", reason: "단독 근거 아님" }], unverified: [] };
+    const note = droppedNote(facts, [fx, rate], new Set(["E2"]));
+    expect(note).toContain("- E1 ·");
+    expect(note).not.toContain("- E2 ·");
+    expect(droppedNote(facts, [fx, rate], new Set(["E1", "E2"]))).toBe("");
+  });
 });

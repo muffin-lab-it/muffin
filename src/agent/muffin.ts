@@ -20,7 +20,7 @@ import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
-import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
+import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode } from "./schema";
 import { applyVerification, summarizeVerification, verify } from "./verify";
@@ -158,8 +158,10 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 작성이 [증거 장부] 에서 보는 id (writerInput 과 같은 기준). null 이면 장부 전체를 봅니다.
   const shown = facts && facts.facts.length > 0 ? new Set(facts.facts.map((f) => f.ref)) : null;
   const dropped = new Set(facts?.dropped.map((d) => d.ref) ?? []);
+  // 큰 움직임이면 정제가 뺀 자료도 원인 후보 근거로 다시 보므로(movement.ts), 그 항목은 "쓰지 않은 자료" 목록에서 뺍니다 (두 안내가 어긋나지 않게)
+  const rescued = movement ? rescuedRefs(movement, ctx.evidence, dropped) : new Set<string>();
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
-  const input = [writerInput(question, ctx.evidence, notes, facts), droppedNote(facts, ctx.evidence), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : ""]
+  const input = [writerInput(question, ctx.evidence, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);

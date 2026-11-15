@@ -9,14 +9,15 @@ import type { Evidence, FactsOutput } from "./schema";
 
 export const DROPPED_HEADING = "[수집했지만 근거로 쓰지 않은 자료]";
 
-export function droppedNote(facts: FactsOutput | null | undefined, evidence: Evidence[]): string {
+/** except: 큰 움직임의 원인 후보로 다시 쓰는 id (movement.ts rescuedRefs). 그 항목은 [원인 후보] 가 설명하므로 여기서는 뺍니다 (두 안내가 어긋나지 않게) */
+export function droppedNote(facts: FactsOutput | null | undefined, evidence: Evidence[], except: Set<string> = new Set()): string {
   if (!facts || facts.dropped.length === 0) return "";
   const byId = new Map(evidence.map((e) => [e.id, e]));
   const seen = new Set<string>();
   const lines: string[] = [];
   for (const d of facts.dropped) {
     const e = byId.get(d.ref);
-    if (!e || seen.has(e.id)) continue; // 장부에 없는 번호(지어낸 id)는 자료가 아니므로 적지 않습니다
+    if (!e || seen.has(e.id) || except.has(e.id)) continue; // 장부에 없는 번호(지어낸 id)는 자료가 아니므로 적지 않습니다
     seen.add(e.id);
     const reason = d.reason.trim();
     lines.push(`- ${e.id} · ${e.label} · 기준일 ${e.source.asOf || "미제공"}${reason ? ` · 뺀 이유: ${reason}` : ""}`);

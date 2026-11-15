@@ -82,6 +82,18 @@ export type CauseCandidate = {
   otherPair?: true;
   /** 장부에 근거가 없을 때 무엇이 있으면 확인할 수 있는지 */
   needs: string;
+  /**
+   * 근거가 있을 때 작성이 그것으로 무엇을 어디에 쓰는지 (why 인지 caveats 인지, basis 는 무엇인지). 잰 통화에 따라 문장이 달라지면 함수.
+   * 11/15: "뒷받침하면 why" 만으로는 작성이 근거가 있어도 why 를 비우고 "원인 확정 불가" 로 끝냈습니다 (90일 환율 질문, 유로 · 엔 · 금리 · 기사 제목이 다 있었음).
+   */
+  how: string | ((m: Movement, refs: Evidence[]) => string);
+};
+
+/** 통화 코드 → 한국어 이름. 잰 쌍("USD/KRW" · "JPY(100)/KRW")과 다른 통화쌍 근거의 이름을 지시문에 씁니다 */
+const CURRENCY_NAMES: Record<string, string> = { USD: "달러", EUR: "유로", JPY: "엔" };
+const currencyNameOf = (pair: unknown) => {
+  const code = String(pair ?? "").split("/")[0]!.replace(/\(\d+\)/, "");
+  return CURRENCY_NAMES[code] ?? code;
 };
 
 /**
@@ -91,13 +103,29 @@ export type CauseCandidate = {
  */
 export const causeMap: Partial<Record<Area, CauseCandidate[]>> = {
   fx: [
-    { factor: "한미 금리 차이 (정책금리 · 국채 금리)", tool: areaTools.rate, needs: "한국 기준금리와 미국 정책금리" },
-    { factor: "국내외 경제 뉴스 (정책 · 지표 발표, 시장 이벤트)", tool: areaTools.news, needs: "같은 기간의 경제 뉴스" },
+    {
+      factor: "한미 금리 차이 (정책금리 · 국채 금리)",
+      tool: areaTools.rate,
+      needs: "한국 기준금리와 미국 정책금리",
+      how: "두 나라 금리가 같은 방향 · 같은 폭으로 움직여 차이가 그대로면 caveats 에 \"금리 차이로는 설명되지 않음\" 을 그 id 와 함께 적습니다. 차이가 벌어지거나 좁혀졌고 그 방향이 환율 방향과 맞으면 why 에 basis data 로 씁니다.",
+    },
+    {
+      factor: "국내외 경제 뉴스 (정책 · 지표 발표, 시장 이벤트)",
+      tool: areaTools.news,
+      needs: "같은 기간의 경제 뉴스",
+      how: "본문이 있는 기사는 본문이 말하는 원인을, 제목만 있는 기사는 제목이 직접 말하는 원인(예: \"강달러에 환율 반등 압력\")만 why 에 basis news 로 씁니다. evidence 에 본문인지 제목인지 적고, 제목에 없는 원인은 덧붙이지 않습니다.",
+    },
     {
       factor: "다른 통화 대비 흐름 (달러 전반의 강세 · 약세인지, 원화만의 움직임인지)",
       tool: areaTools.fx,
       otherPair: true,
       needs: "같은 기간 다른 통화(EUR · JPY)의 원화 환율",
+      // 잰 통화가 유로 · 엔일 수도 있어 "달러" 를 고정하지 않습니다 (Codex 리뷰)
+      how: (m, refs) => {
+        const base = currencyNameOf(m.pair);
+        const others = [...new Set(refs.map((e) => currencyNameOf(e.values.pair)))].join(" · ");
+        return `같은 기간 ${others} 대비로도 원화가 같은 방향이면 "${base}만의 움직임이 아니라 원화 전반의 강세(약세)" 를, ${base} 대비만 움직였으면 "${base} 쪽 요인" 을 why 에 basis data 로 씁니다 (refs 에 비교한 환율 id 전부). 원인의 범위를 좁히는 사실이라 why 에 들어갑니다.`;
+      },
     },
   ],
 };
@@ -385,12 +413,26 @@ function ledgerLine(e: Evidence): string {
   return lines.join("\n");
 }
 
+/** 원인 지도의 후보마다 이번 기간에 맞는 장부 근거. 잰 대상 자신은 근거가 아닙니다. 정제가 뺀 것도 포함합니다 (movementNote 가 표시) */
+function candidatesOf(m: Movement, evidence: Evidence[]): (CauseCandidate & { refs: Evidence[] })[] {
+  const target = evidence.find((e) => e.id === m.ref);
+  return (causeMap.fx ?? []).map((c) => ({ ...c, refs: evidence.filter((e) => e.tool === c.tool && e.id !== m.ref && fitsPeriod(e, c, m, target)) }));
+}
+
+/** 정제가 뺐지만 큰 움직임의 원인 후보 근거로 다시 쓰는 id. muffin.ts 가 "쓰지 않은 자료" 목록(dropped.ts)에서 이 id 를 뺍니다. 평소 범위면 비어 있습니다 */
+export function rescuedRefs(m: Movement, evidence: Evidence[], dropped: Set<string>): Set<string> {
+  if (m.level === "normal" || dropped.size === 0) return new Set();
+  return new Set(candidatesOf(m, evidence).flatMap((c) => c.refs).filter((e) => dropped.has(e.id)).map((e) => e.id));
+}
+
 /**
  * 작성 입력 끝에 붙는 [움직임 크기] (muffin.ts). 실제 방향과 크기를 먼저 알리고, 평소 범위면 원인을 단정하지 않게,
  * 크면 원인 지도의 후보마다 장부 근거를 보게 합니다.
  * shown 은 작성이 [증거 장부] 에서 이미 보는 id 입니다 (null 이면 장부 전체). 게이트의 C 번호 항목과 후보의 근거 중
  * 거기 없는 항목은 값을 붙여 보여 줍니다 (작성은 [증거 장부] 의 값만 숫자로 쓰므로).
- * dropped 는 정제가 질문과 무관하다고 뺀 id 이고, 원인 후보의 근거로 다시 넣지 않습니다.
+ * dropped 는 정제가 질문과 무관하다고 뺀 id 입니다. 큰 움직임의 원인 후보 근거로는 다시 씁니다 ("정제 제외" 표시 · 값 덧붙임).
+ * 11/16: 정제가 금리를 "단독 근거 아님", 제목만 있는 기사를 "인과 근거 어려움" 으로 빼면 후보가 전부 "장부에 없음" 이 되어
+ * 리포트가 "금리 · 뉴스 자료가 필요" 라고 적었습니다 (수집해 놓고 필요하다는 모순). 그 항목은 dropped.ts 목록에서 빠집니다 (muffin.ts rescuedRefs).
  */
 export function movementNote(m: Movement, calcId: string, evidence: Evidence[], shown: Set<string> | null, dropped: Set<string> = new Set()): string {
   const size = LEVEL_TEXT[m.level];
@@ -406,12 +448,10 @@ export function movementNote(m: Movement, calcId: string, evidence: Evidence[], 
       "- 이 정도 움직임은 뚜렷한 원인 없이도 생깁니다. why 에는 장부 근거가 있는 요인만 쓰고, 그 요인이 이번 변화를 일으켰다고 단정하지 않습니다. 근거가 없으면 why 를 비웁니다.",
     );
   } else {
-    const target = evidence.find((e) => e.id === m.ref);
-    const candidates = (causeMap.fx ?? []).map((c) => ({
-      ...c,
-      refs: evidence.filter((e) => e.tool === c.tool && e.id !== m.ref && !dropped.has(e.id) && fitsPeriod(e, c, m, target)),
-    }));
+    const candidates = candidatesOf(m, evidence);
     candidateRefs = candidates.flatMap((c) => c.refs);
+    const rescued = candidateRefs.filter((e) => dropped.has(e.id));
+    const label = (e: Evidence) => (dropped.has(e.id) ? `${e.id}(정제 제외)` : e.id);
     lines.push(
       "- 아래 [원인 후보] 를 하나씩 봅니다.",
       "",
@@ -419,7 +459,13 @@ export function movementNote(m: Movement, calcId: string, evidence: Evidence[], 
       "- 장부 근거가 이번 움직임을 뒷받침하면 why 에 쓰고 refs 에 그 id 를 적습니다.",
       "- 근거가 이번 움직임과 맞지 않으면(예: 금리 차이가 그대로) caveats 에 그 근거와 함께 \"이 요인으로는 설명되지 않음\" 을 적습니다.",
       "- 장부에 근거가 없는 후보는 why 에 쓰지 않고 dataGaps 에 무엇이 있어야 확인할 수 있는지 적습니다.",
-      ...candidates.map((c) => `- ${c.factor}: ${c.refs.length ? c.refs.map((e) => e.id).join(" · ") + windowNote(c.refs, m) : `장부에 없음 (필요한 것: ${c.needs})`}`),
+      "- 후보 하나라도 근거가 맞으면 why 를 비우지 않습니다. 모든 후보가 맞지 않거나 장부에 없을 때만 why 를 비우고 dataGaps 에 적습니다.",
+      ...(rescued.length
+        ? ["- \"정제 제외\" 가 붙은 항목은 정제가 이 질문의 직접 근거로 고르지 않은 자료이지만, 원인 후보를 확인하는 데는 씁니다. 값은 장부(사실 목록만 보면 아래 덧붙인 항목)에 있습니다."]
+        : []),
+      ...candidates.map((c) => (c.refs.length
+        ? `- ${c.factor}: ${c.refs.map(label).join(" · ")}${windowNote(c.refs, m)}\n  → ${typeof c.how === "function" ? c.how(m, c.refs) : c.how}`
+        : `- ${c.factor}: 장부에 없음 (필요한 것: ${c.needs})`)),
     );
   }
   const own = evidence.filter((e) => e.id === calcId);
