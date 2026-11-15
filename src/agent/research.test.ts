@@ -9,9 +9,11 @@ vi.mock("@openai/agents", async (importOriginal) => {
   return { ...actual, run: vi.fn() };
 });
 
-import { RunContext, run } from "@openai/agents";
+import { RunContext, run, invokeFunctionTool } from "@openai/agents";
 import { fxTool } from "../tools/fx";
-import { newsTool } from "../tools/news";
+import { newsTool, parameters as newsParameters, type Input as NewsInput } from "../tools/news";
+import { defineTool } from "../tools/define";
+import * as toolCache from "../tools/cache";
 import { macroTool } from "../tools/macro";
 import { rateTool } from "../tools/rate";
 import { muffinTools } from "../tools";
@@ -163,7 +165,7 @@ describe("createResearcherAgent", () => {
     const hint = hintAreaFor(undefined, tools.map((tool) => tool.name));
     expect(hint).toBe(area);
     const agent = createResearcherAgent("standard", hint, tools);
-    expect(agent.tools).toEqual(tools);
+    expect(agent.tools).toEqual(tools.map((tool) => tool === newsTool ? { ...tool, invoke: expect.any(Function) } : tool));
     expect(agent.name).toBe("Muffin Researcher");
     expect(agent.outputType).toBe(researchNotesSchema);
     expect(agent.instructions).toBe(researchInstructions(area));
@@ -189,16 +191,16 @@ describe("createResearcherAgent", () => {
     const agent = createResearcherAgent("standard", "news", selected);
     expect(agent.name).toBe("Muffin Researcher");
     expect(agent.outputType).toBe(researchNotesSchema);
-    expect(agent.tools).toEqual(selected);
+    expect(agent.tools).toEqual(selected.map((tool) => tool === newsTool ? { ...tool, invoke: expect.any(Function) } : tool));
     expect(selected).toEqual([newsTool, fxTool]);
     expect(agent.tools.some((tool) => tool.name === "calc_metrics")).toBe(false);
-    expect(createResearcherAgent("standard", "news", [newsTool]).tools).toEqual([newsTool]);
+    expect(createResearcherAgent("standard", "news", [newsTool]).tools).toEqual([{ ...newsTool, invoke: expect.any(Function) }]);
   });
 
   it("환율 힌트가 있어도 분류가 제공하지 않은 금리·뉴스 도구를 추가하지 않는다", () => {
     for (const selected of [[fxTool], [fxTool, newsTool], [fxTool, rateTool], [fxTool, rateTool, newsTool]]) {
       const agent = createResearcherAgent("standard", "fx", selected);
-      expect(agent.tools).toEqual(selected);
+      expect(agent.tools).toEqual(selected.map((tool) => tool === newsTool ? { ...tool, invoke: expect.any(Function) } : tool));
       expect(agent.name).toBe("Muffin Researcher");
       expect(agent.outputType).toBe(researchNotesSchema);
     }
@@ -289,5 +291,233 @@ describe("runResearch", () => {
     runMock.mockRejectedValueOnce(error);
     await expect(runResearch(createResearcherAgent("standard", "news"), "뉴스", new RunContext(new ResearchContext()))).rejects.toBe(error);
     expect(runMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// 실제 SDK FunctionTool.invoke → defineTool → 합성 execute 경로를 검사합니다.
+// 모델 실행은 하지 않으며, 기존 Tool의 성공/실패/증거 장부 처리 자체는 모킹하지 않습니다.
+describe("Research 뉴스 중복 실행 차단", () => {
+  const input: NewsInput = { sources: ["yonhap", "hankyung", "google"], query: "물가", content: "body", limit: 5 };
+  const noNews = "조건에 맞는 뉴스 기사가 없습니다.";
+  const sample = (body = "available", partial = false) => ({
+    data: {
+      articles: [{ title: "합성 가격 기사", publisher: "합성 매체", publishedAt: "2026-11-13T00:00:00.000Z", body: { status: body } }],
+      count: 1, collectedCount: body === "available" ? 1 : 0,
+      missingCount: body === "available" ? 4 : 5, resultStatus: partial ? "partial" : "complete",
+    },
+    source: [{ name: "합성 매체", url: "https://example.invalid/synthetic", asOf: "2026-11-13" }],
+    note: "합성 자료. 기사 수치는 별도 검증이 필요합니다.",
+  });
+  function setup(implementation: (args: NewsInput) => Promise<ReturnType<typeof sample>> = async () => sample()) {
+    const execute = vi.fn(implementation);
+    const original = defineTool({ name: newsTool.name, description: newsTool.description, parameters: newsParameters, execute,
+      evidence: (data) => data.articles.map((article) => ({ title: article.title, body: article.body.status })),
+    });
+    const originalInvoke = original.invoke;
+    const agent = createResearcherAgent("standard", "news", [original]);
+    const guarded = agent.tools[0];
+    if (guarded.type !== "function") throw new Error("Expected function tool");
+    const ctx = new RunContext(new ResearchContext());
+    const call = (overrides: Partial<NewsInput> = {}, context = ctx) => guarded.invoke(context, JSON.stringify({ ...input, ...overrides }));
+    return { execute, original, originalInvoke, agent, guarded, ctx, call };
+  }
+  const empty = async () => { throw new Error(noNews); };
+
+  it("최초 정상 요청의 인자·메모·Evidence ID와 Tool 메타데이터를 보존하고 공유 객체를 변경하지 않는다", async () => {
+    const h = setup();
+    const output = await h.call();
+    expect(h.execute).toHaveBeenCalledExactlyOnceWith(input, h.ctx.context);
+    expect(output).toMatchObject({ ...sample(), ids: ["E1-1"], source: [{ ...sample().source[0], id: "E1-1" }] });
+    expect(h.ctx.context.evidence.map((e) => e.id)).toEqual(["E1-1"]);
+    expect(h.guarded).toEqual({ ...h.original, invoke: expect.any(Function) });
+    expect(h.guarded).not.toBe(h.original);
+    expect(h.original.invoke).toBe(h.originalInvoke);
+  });
+
+  it.each([{}, { content: "list" as const }, { limit: 10 }])("0건 후 동일 query를 다시 실행하지 않는다: %j", async (overrides) => {
+    const h = setup(empty);
+    const first = await h.call();
+    expect(first).toMatchObject({ error: `${newsTool.name} 호출 실패: ${noNews}` });
+    const result = await h.call(overrides);
+    expect(result).toMatchObject({ error: expect.stringContaining("뉴스 검색 실행 차단"), instruction: expect.stringContaining('"query":"물가"') });
+    expect(result).not.toHaveProperty("ids");
+    expect(result).not.toHaveProperty("data");
+    expect(h.execute).toHaveBeenCalledTimes(1);
+    expect(h.ctx.context.evidence).toEqual([]);
+    expect(h.ctx.context.sources).toEqual([]);
+    expect(h.ctx.context.steps).toHaveLength(1); // 차단은 실제 수집 오류로 집계하지 않음
+  });
+
+  it("query=null 보완을 허용하고 차단을 여러 번 해도 보완 기회와 기존 장부를 보존한다", async () => {
+    const h = setup(async (args) => args.query === null ? sample() : empty());
+    h.ctx.context.addEvidence([{ id: "E0", tool: fxTool.name, label: "기존 근거", values: { rate: 1300 }, source: { name: "합성 FX", url: "https://example.invalid/fx", asOf: "2026-11-13" } }]);
+    const before = structuredClone(h.ctx.context.evidence);
+    const sources = structuredClone(h.ctx.context.sources);
+    await h.call();
+    await h.call({ content: "list" });
+    await h.call({ limit: 10 });
+    expect(h.ctx.context.evidence).toEqual(before);
+    expect(h.ctx.context.sources).toEqual(sources);
+    const wider = await h.call({ query: null });
+    expect(wider).toMatchObject({ ids: ["E1-1"], note: sample().note });
+    expect(h.execute).toHaveBeenCalledTimes(2);
+    expect(h.ctx.context.evidence.map((e) => e.id)).toEqual(["E0", "E1-1"]);
+    await h.call(); // 다른 검색 성공 후에도 과거 0건 조건을 기억함
+    expect(h.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("trim과 sources 순서 차이로 0건 중복 제한을 우회하지 못한다", async () => {
+    const h = setup(empty);
+    await h.call();
+    await h.call({ query: " 물가 ", sources: ["google", "yonhap", "hankyung"] });
+    expect(h.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("0건 query의 sources만 변경하는 우회를 막고 원래 sources의 변경 query는 허용한다", async () => {
+    const h = setup(async (args) => args.query === null ? sample() : empty());
+    await h.call();
+    expect(await h.call({ sources: ["google"] })).toMatchObject({ error: expect.stringContaining("sources") });
+    expect(h.execute).toHaveBeenCalledTimes(1);
+    await h.call({ query: null });
+    expect(h.execute).toHaveBeenCalledTimes(2);
+    // 성공 후 다른 자료 그룹의 정상 검색까지 sources를 고정하지 않음
+    await h.call({ query: null, sources: ["yonhap"] });
+    expect(h.execute).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(["HTTP 404", "인증 실패 401", "합성 timeout", "모든 뉴스 RSS 조회가 실패했습니다: 합성", "조건에 맞는 뉴스 기사가 없습니다. 추가 오류"]) (
+    "다른 오류를 0건으로 오인하지 않는다: %s", async (message) => {
+      const h = setup(async () => { throw new Error(message); });
+      await h.call();
+      await h.call();
+      expect(h.execute).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([["unavailable", true], ["available", true]] as const)("제목 fallback/본문 부분 성공(%s)을 0건으로 취급하지 않는다", async (body, partial) => {
+    const h = setup(async () => sample(body, partial));
+    expect(await h.call()).toMatchObject({ data: sample(body, partial).data, ids: ["E1-1"] });
+    expect(await h.call()).toMatchObject({ ids: ["E2-1"] });
+    expect(h.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("같은 Agent를 재사용해도 리포트 context가 다르면 각각 검색한다", async () => {
+    const h = setup(empty);
+    await h.call();
+    await h.call({}, new RunContext(new ResearchContext()));
+    expect(h.execute).toHaveBeenCalledTimes(2);
+    await h.call({}, new RunContext(h.ctx.context)); // 같은 장부를 감싼 RunContext는 같은 요청
+    expect(h.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("동시 동일 입력은 선행 0건을 기다리고 다른 content/limit은 진행 중으로 차단한다", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const h = setup(async () => { await gate; return empty(); });
+    const first = h.call();
+    const duplicate = h.call();
+    const second = h.call({ content: "list" });
+    const third = h.call({ limit: 10 });
+    expect(h.execute).toHaveBeenCalledTimes(1);
+    expect(await second).toMatchObject({ instruction: expect.stringContaining("아직 0건으로 판정한 것이 아닙니다") });
+    expect(await third).toMatchObject({ error: expect.stringContaining("진행 중") });
+    release();
+    const results = await Promise.all([first, duplicate, third]);
+    expect(results.slice(1)).toEqual([expect.objectContaining({ error: expect.stringContaining("차단") }), expect.objectContaining({ error: expect.stringContaining("차단") })]);
+    expect(h.execute).toHaveBeenCalledTimes(1);
+    expect(h.ctx.context.evidence).toEqual([]);
+  });
+
+  it("완전히 같은 동시 정상 요청은 결과와 Evidence ID를 공유한다", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const h = setup(async () => { await gate; return sample(); });
+    const a = h.call();
+    const b = h.call();
+    release();
+    const [first, second] = await Promise.all([a, b]);
+    expect(second).toBe(first);
+    expect(h.execute).toHaveBeenCalledTimes(1);
+    expect(h.ctx.context.evidence.map((e) => e.id)).toEqual(["E1-1"]);
+  });
+
+  it("동시 list/body를 SDK 타임아웃 안에서 직렬 실행하지 않고 결과 확인 후 body를 허용한다", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = setup(async (args) => {
+        await new Promise((resolve) => setTimeout(resolve, 8000));
+        return sample(args.content === "list" ? "not_requested" : "available");
+      });
+      const tool = { ...h.guarded, timeoutMs: 13000 };
+      const invoke = (content: "list" | "body") => invokeFunctionTool({ tool, runContext: h.ctx, input: JSON.stringify({ ...input, content }) });
+      const list = invoke("list");
+      expect(await invoke("body")).toMatchObject({ error: expect.stringContaining("진행 중") });
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(await list).toMatchObject({ data: { articles: [{ body: { status: "not_requested" } }] } });
+      const body = invoke("body");
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(await body).toMatchObject({ data: { articles: [{ body: { status: "available" } }] } });
+      expect(h.execute).toHaveBeenCalledTimes(2);
+      expect(h.ctx.context.evidence.map((e) => e.id)).toEqual(["E1-1", "E2-1"]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("다른 주제는 앞선 0건 검색의 sources에 묶지 않는다", async () => {
+    const h = setup(async (args) => args.query === "금리" ? sample() : empty());
+    await h.call({ query: "물가 상승", sources: ["yonhap"] });
+    await h.call({ query: "물가", sources: ["yonhap"] });
+    expect(await h.call({ query: "금리", sources: ["google"] })).toMatchObject({ ids: ["E1-1"] });
+    expect(h.execute).toHaveBeenCalledTimes(3);
+  });
+
+  it("잘못된 JSON/입력은 기존 SDK 오류로 처리하고 정상 검색을 오염시키지 않는다", async () => {
+    const h = setup();
+    const invalid = await h.guarded.invoke(h.ctx, '{');
+    expect(invalid).toEqual(await h.original.invoke(h.ctx, '{'));
+    await h.guarded.invoke(h.ctx, JSON.stringify({ ...input, limit: 100 }));
+    expect(h.execute).not.toHaveBeenCalled();
+    await h.call();
+    expect(h.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("차단 응답은 공통 캐시 fallback으로 바뀌지 않고 캐시 성공 응답은 0건으로 기록하지 않는다", async () => {
+    const recall = vi.spyOn(toolCache, "recall").mockResolvedValue(null);
+    try {
+      const h = setup(empty);
+      await h.call();
+      expect(recall).toHaveBeenCalledTimes(1);
+      recall.mockResolvedValue({ result: sample(), ageMs: 1000 });
+      expect(await h.call()).toMatchObject({ error: expect.stringContaining("차단") });
+      expect(recall).toHaveBeenCalledTimes(1);
+      expect(h.ctx.context.evidence).toEqual([]);
+      const another = new RunContext(new ResearchContext());
+      expect(await h.call({}, another)).toMatchObject({ ids: ["E1-1"], note: expect.stringContaining("이번 조회는 실패해") });
+      expect(await h.call({}, another)).toMatchObject({ ids: ["E2-1"] });
+      expect(h.execute).toHaveBeenCalledTimes(3);
+    } finally { recall.mockRestore(); }
+  });
+
+  it("invoke 예외 후에도 실행 중 상태를 해제하고 기존 예외를 보존한다", async () => {
+    const error = new Error("합성 SDK 예외");
+    const invoke = vi.fn().mockRejectedValueOnce(error).mockResolvedValueOnce({ error: "다른 오류" });
+    const agent = createResearcherAgent("standard", "news", [{ ...newsTool, invoke }]);
+    const tool = agent.tools[0];
+    if (tool.type !== "function") throw new Error("Expected function tool");
+    const ctx = new RunContext(new ResearchContext());
+    await expect(tool.invoke(ctx, JSON.stringify(input))).rejects.toBe(error);
+    await expect(tool.invoke(ctx, JSON.stringify(input))).resolves.toEqual({ error: "다른 오류" });
+    expect(invoke).toHaveBeenCalledTimes(2);
+  });
+
+  it("뉴스 이외 Tool은 원래 객체와 invoke를 사용한다", async () => {
+    const invoke = vi.fn().mockResolvedValue({ id: "E1", data: { value: 1 } });
+    const macro = { ...macroTool, invoke };
+    const agent = createResearcherAgent("standard", "macro", [macro, fxTool, rateTool, newsTool]);
+    expect(agent.tools.slice(0, 3)).toEqual([macro, fxTool, rateTool]);
+    const tool = agent.tools[0];
+    if (tool.type !== "function") throw new Error("Expected function tool");
+    const ctx = new RunContext(new ResearchContext());
+    expect(await tool.invoke(ctx, '{}')).toEqual({ id: "E1", data: { value: 1 } });
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(ctx, '{}');
   });
 });
