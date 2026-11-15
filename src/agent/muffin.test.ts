@@ -47,6 +47,8 @@ type Scenario = {
   writer: WriterOutput[];
   /** 조사가 장부에 남기는 환율 결과의 값. 기본은 유의성 게이트가 재지 않는 짧은 값 */
   fxValues?: Evidence["values"];
+  /** 조사가 환율 결과 다음에 더 남기는 장부 항목 (금리 · 뉴스 등) */
+  extraEvidence?: Evidence[];
 };
 
 /** 네 Agent 를 이름으로 구분해 흉내 냅니다. 조사는 장부에 E1 을 남기고, 정제는 장부에 C1 을 남깁니다. */
@@ -64,6 +66,7 @@ function mockRuns(s: Scenario) {
           { id: ctx.nextCallId(), tool: "get_fx_krw_rate", label: "환율 확인 · Frankfurter v2", values: s.fxValues ?? { rate: 1392.4, change: 27.3, changePct: 2 }, source },
         ]);
         ctx.addStep({ tool: "get_fx_krw_rate", status: "ok", ms: 5 });
+        if (s.extraEvidence) ctx.addEvidence(s.extraEvidence);
         return { finalOutput: s.notes === undefined ? notes : (s.notes ?? undefined) };
       case "Muffin Editor":
         if (s.facts === null) return { finalOutput: undefined };
@@ -291,6 +294,32 @@ describe("research() 다섯 단계", () => {
     expect(result.report.movement).toMatchObject({ ref: "E1", window: 90, level: "notable" });
     expect(result.report.notice).toMatch(/^USD\/KRW 30일 변화\(\+2\.00%\)는 직전 90일 기준 평소 폭\(±\d\.\d{2}%\)의 \d\.\d{2}배로, 평소보다 큰 움직임입니다\.$/);
     expect(result.report.verification.status).toBe("pass");
+  });
+
+  it("큰 움직임이면 정제가 뺀 원인 후보 근거를 '정제 제외' 로 다시 보여 주고, '쓰지 않은 자료' 목록에서는 뺀다 (11/16)", async () => {
+    stubDailyRates();
+    const dff: Evidence = {
+      id: "E2",
+      tool: "get_rate_data",
+      label: "금리 확인 · FRED — DFF",
+      values: { indicator: "미국 실효연방기금금리", rate: 3.88, unit: "%", asOf: "2026-10-16", comparisonDate: "2026-09-19", comparisonRate: 3.88, changePp: 0 },
+      source: { name: "FRED — DFF", url: "https://fred.stlouisfed.org/series/DFF", asOf: "2026-10-16" },
+    };
+    mockRuns({
+      fxValues: fullFx,
+      extraEvidence: [dff],
+      facts: { facts: [{ ref: "E1", fact: "달러당 1,392.4원" }], dropped: [{ ref: "E2", reason: "환율 원인의 단독 근거는 아님" }], unverified: [] },
+      writer: [good],
+    });
+    await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
+    const input = inputOf(3);
+    expect(input).toContain("[원인 후보]");
+    expect(input).toContain("- 한미 금리 차이 (정책금리 · 국채 금리): E2(정제 제외)");
+    expect(input).toContain('"정제 제외" 가 붙은 항목은');
+    // 작성이 사실 목록에서 못 보는 E2 의 값을 덧붙인다
+    expect(input).toContain("- E2 · 금리 확인 · FRED — DFF");
+    // 유일하게 뺀 항목이 다시 쓰이므로 "쓰지 않은 자료" 목록은 없다
+    expect(input).not.toContain("[수집했지만 근거로 쓰지 않은 자료]");
   });
 
   it("움직임을 재지 못하면 게이트 없이 리포트를 내고, 실패는 실행 기록에만 남는다", async () => {

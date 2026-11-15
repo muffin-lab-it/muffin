@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { muffinTools } from "../tools";
 import { stdev } from "../tools/calc/metrics";
-import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, seriesUrl, type Movement } from "./movement";
+import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
 import type { Evidence, WriterOutput } from "./schema";
 import { verify } from "./verify";
 
@@ -308,7 +308,8 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
     // 잰 대상(E1)은 자기 자신의 근거가 아니고, 다른 통화쌍(E4)만 근거다
     expect(note).toContain("원화만의 움직임인지): E4\n");
     // 근거가 있는 후보에는 그 근거로 무엇을 어디에 쓰는지 다음 줄에 붙고(11/15: 근거가 있어도 why 를 비우던 일), 근거가 맞으면 why 를 비우지 말라는 규칙이 있다
-    expect(note).toContain("원화만의 움직임인지): E4\n  → 같은 기간 유로 · 엔 대비로도 원화가 같은 방향이면");
+    // 비교한 통화 이름은 실제 근거(유로만)로, 잰 통화는 달러로 쓴다
+    expect(note).toContain("원화만의 움직임인지): E4\n  → 같은 기간 유로 대비로도 원화가 같은 방향이면 \"달러만의 움직임이 아니라 원화 전반의 강세(약세)\" 를, 달러 대비만 움직였으면");
     expect(note).toContain("E3-1 · E3-4\n  → 본문이 있는 기사는 본문이 말하는 원인을, 제목만 있는 기사는 제목이 직접 말하는 원인");
     expect(note).toContain("- 후보 하나라도 근거가 맞으면 why 를 비우지 않습니다.");
     // 사실 목록에 없는 E3-1 · E4 만 값을 붙인다
@@ -322,14 +323,34 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
     expect(bare).not.toContain("[덧붙인 장부 항목]");
   });
 
-  it("정제가 뺀 근거는 다시 넣지 않고, 비교 기간이 다른 금리는 수준만 근거로 쓰게 한다", () => {
+  it("정제가 뺀 근거도 큰 움직임의 원인 후보에는 '정제 제외' 표시로 다시 넣고 값을 덧붙이며, 비교 기간이 다른 금리는 수준만 근거로 쓰게 한다", () => {
     const yearRate = { ...rate, id: "E2", values: { ...rate.values, comparisonDate: "2025-10-30" } };
     const monthRate = { ...rate, id: "E5", values: { ...rate.values, comparisonDate: "2026-10-01" } };
-    const note = movementNote(notable, "C2", [fxEvidence("E1"), yearRate, monthRate, news], null, new Set(["E3-1"]));
-    // 정제가 무관하다고 뺀 기사(E3-1)는 근거가 아니다
-    expect(note).toContain("- 국내외 경제 뉴스 (정책 · 지표 발표, 시장 이벤트): 장부에 없음");
+    const ledger = [fxEvidence("E1"), yearRate, monthRate, news];
+    const note = movementNote(notable, "C2", ledger, null, new Set(["E3-1"]));
+    // 11/16: 정제가 뺀 기사(E3-1)도 후보 근거로 다시 보되 표시한다 (뺀 채로 두면 "뉴스 자료가 필요" 라고 모순되게 적었음)
+    expect(note).toContain("- 국내외 경제 뉴스 (정책 · 지표 발표, 시장 이벤트): E3-1(정제 제외)\n  →");
+    expect(note).toContain('- "정제 제외" 가 붙은 항목은 정제가 이 질문의 직접 근거로 고르지 않은 자료이지만, 원인 후보를 확인하는 데는 씁니다.');
+    // 장부 전체를 보면 값을 덧붙이지 않고, 사실 목록만 보면 뺀 항목의 값을 덧붙인다
+    expect(note).not.toContain("[덧붙인 장부 항목]");
+    const filtered = movementNote(notable, "C2", ledger, new Set(["E1", "E2", "E5"]), new Set(["E3-1"]));
+    expect(filtered).toContain("[덧붙인 장부 항목]");
+    expect(filtered).toContain("- E3-1 · 경제 뉴스 확인 · 연합뉴스");
     // 1년 비교 금리(E2)는 이번 30일과 기간이 달라 수준만, 30일 비교(E5)는 그대로
     expect(note).toContain("- 한미 금리 차이 (정책금리 · 국채 금리): E2 · E5 (E2 는 비교 기간이 이번 기간과 달라 변화폭이 아니라 지금 수준만 근거로 씁니다)");
+    // 다시 쓰는 id 는 muffin.ts 가 "쓰지 않은 자료" 목록에서 뺀다. 평소 범위면 후보를 안 보므로 비어 있다
+    expect(rescuedRefs(notable, ledger, new Set(["E3-1", "E9"]))).toEqual(new Set(["E3-1"]));
+    expect(rescuedRefs(normal, ledger, new Set(["E3-1"]))).toEqual(new Set());
+    // 뺀 것이 없으면 표시 줄도 없다
+    expect(movementNote(notable, "C2", ledger, null)).not.toContain("정제 제외");
+  });
+
+  it("다른 통화 지시는 잰 통화 기준으로 쓴다: 유로를 쟀으면 '유로만의 움직임' 과 비교한 통화 이름 (Codex 리뷰)", () => {
+    const eurMove: Movement = { ...notable, ref: "E4", pair: "EUR/KRW" };
+    const ledger = [fxEvidence("E1"), fxEvidence("E4", { pair: "EUR/KRW", unit: "KRW per 1 EUR" }), fxEvidence("E6", { pair: "JPY(100)/KRW", unit: "KRW per 100 JPY" })];
+    const note = movementNote(eurMove, "C2", ledger, null);
+    expect(note).toContain("원화만의 움직임인지): E1 · E6\n  → 같은 기간 달러 · 엔 대비로도 원화가 같은 방향이면 \"유로만의 움직임이 아니라 원화 전반의 강세(약세)\" 를, 유로 대비만 움직였으면 \"유로 쪽 요인\" 을");
+    expect(note).not.toContain("달러만의 움직임");
   });
 
   it("원인 지도의 tool 은 모두 레지스트리에 있다", () => {
