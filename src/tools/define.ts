@@ -206,6 +206,8 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         if (!cached) {
           ctx?.addStep({ tool: spec.name, status: "error", ms: Date.now() - started, error: message, ...(breaker ? { breaker } : {}) });
           return {
+            // 이 문구 모양(`<tool> 호출 실패: <원인>`)에 조사 단계의 뉴스 재호출 차단(src/agent/research.ts guardNewsSearch)이 기대고 있습니다.
+            // 뉴스 tool 의 "조건에 맞는 뉴스 기사가 없습니다." 를 정확히 비교해 0건을 기억하므로, 접두어나 구분자를 바꾸면 그쪽도 같이 고칩니다 (안 맞으면 차단만 꺼지고 호출은 예전처럼 됩니다).
             error: `${spec.name} 호출 실패: ${message}`,
             instruction: "이 tool 의 데이터 없이 리포트를 작성하고, 해당 데이터를 확인하지 못했다고 명시할 것. 값을 추측하지 말 것.",
           };
