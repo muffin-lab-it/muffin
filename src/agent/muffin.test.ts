@@ -381,6 +381,7 @@ describe("정제가 뺀 자료를 작성에 알림 (11/13)", () => {
 
 describe("토큰 집계 (리포트 비용용)", () => {
   it("합계와 함께 단계별 모델 칸(byModel)에 쌓인다: 분류 · 정제는 작은 모델, 조사 · 작성은 깊이별 모델", async () => {
+    mockRuns({ writer: [good] });
     const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
     const byModel = result.usage?.byModel ?? {};
     const small = modelFor("standard", "plan");
