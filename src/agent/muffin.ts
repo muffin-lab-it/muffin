@@ -18,6 +18,7 @@ import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
+import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
@@ -71,7 +72,8 @@ export type ResearchResult = {
   facts: FactsOutput | null;
   /** 조사 · 작성에 쓴 모델과 토큰 (네 단계 합계). 로그·비용 추적용 */
   model?: string;
-  usage?: { requests: number; inputTokens: number; outputTokens: number };
+  /** 토큰 합계와 모델별(byModel). 모델별이 있어야 단가를 적용해 리포트 한 장의 비용을 냅니다 (src/lib/pricing.ts) */
+  usage?: UsageSummary;
 };
 
 /**
@@ -88,11 +90,13 @@ export async function research(input: ResearchInput, options: ResearchOptions = 
 
 async function runStages({ question, depth, area }: ResearchInput, { onEvent, deadline }: ResearchOptions & { deadline: number }): Promise<ResearchResult> {
   const emit = (event: MuffinEvent) => onEvent?.(event);
-  const usage = { requests: 0, inputTokens: 0, outputTokens: 0 };
-  const addUsage = (rc: RunContext<ResearchContext>) => {
+  const usage: UsageSummary = { requests: 0, inputTokens: 0, outputTokens: 0, byModel: {} };
+  // 단계마다 그 단계의 모델 칸에도 쌓습니다 (분류 · 정제는 작은 모델, 조사 · 작성은 깊이별 모델이라 단가가 다름)
+  const addUsage = (rc: RunContext<ResearchContext>, stage: ModelStage) => {
     usage.requests += rc.usage.requests;
     usage.inputTokens += rc.usage.inputTokens;
     usage.outputTokens += rc.usage.outputTokens;
+    addModelUsage(usage.byModel!, modelFor(depth, stage), rc.usage);
   };
   // 다섯 단계가 같은 장부를 봅니다. 조사가 E 번호를, 정제의 계산이 C 번호를 쌓습니다.
   const ctx = new ResearchContext({ onStep: (step) => emit({ type: "step", step }) });
@@ -101,7 +105,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   emit({ type: "stage", stage: "plan", status: "start" });
   const planCtx = new RunContext(ctx);
   const planned = await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(question, area, depth), planCtx, defaultPlan(question, area));
-  addUsage(planCtx);
+  addUsage(planCtx, "plan");
   const plan = { ...normalizePlan(planned, question, area), mode: modeFor(planned.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
   emit({ type: "stage", stage: "plan", status: "done" });
@@ -129,7 +133,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const tools = muffinTools.filter((t) => plan.tools.includes(t.name));
   const researchCtx = new RunContext(ctx);
   const notes = await runResearch(tuned(createResearcherAgent(depth, hintAreaFor(area, plan.tools), tools), "research", depth), question, researchCtx);
-  addUsage(researchCtx);
+  addUsage(researchCtx, "research");
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
@@ -138,7 +142,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const gate: Promise<MovementResult> = plan.intent === "cause" ? measureMovement(ctx.evidence, { question, area }) : Promise.resolve({ movement: null });
   const editCtx = new RunContext(ctx);
   const facts = await runEdit(tuned(createEditorAgent(depth), "edit", depth), editInput(question, plan, ctx.evidence, notes), editCtx);
-  addUsage(editCtx);
+  addUsage(editCtx, "edit");
   // 게이트 결과는 정제가 끝난 뒤 장부에 올려서 C 번호가 정제의 계산 다음에 오게 합니다.
   const { movement, step: gateStep } = await gate;
   if (gateStep) ctx.addStep(gateStep);
@@ -160,7 +164,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
   let output = await runWriter(writer, input, writeCtx);
-  addUsage(writeCtx);
+  addUsage(writeCtx, "write");
   emit({ type: "stage", stage: "write", status: "done" });
 
   // ✅ 검증. 실패하면 실패 목록을 들고 작성에게 1회 수정 요청. 그래도 남으면 applyVerification 이 뺍니다.
@@ -173,7 +177,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
     revisions = 1;
     const reviseCtx = new RunContext(ctx);
     output = await runWriter(writer, `${input}\n\n${revisionNote(result.failures)}`, reviseCtx);
-    addUsage(reviseCtx);
+    addUsage(reviseCtx, "write");
     result = verify(output, ctx.evidence);
   }
   const applied = applyVerification(output, result);

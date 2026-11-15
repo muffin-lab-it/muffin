@@ -9,7 +9,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 import { run, type RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
-import { research, hintAreaFor } from "./muffin";
+import { research, hintAreaFor, modelFor } from "./muffin";
 import { DECISION_NOTICE } from "./report";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
 
@@ -376,5 +376,18 @@ describe("정제가 뺀 자료를 작성에 알림 (11/13)", () => {
     mockRuns({ writer: [good] });
     await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
     expect(call(3)[1]).not.toContain("[수집했지만 근거로 쓰지 않은 자료]");
+  });
+});
+
+describe("토큰 집계 (리포트 비용용)", () => {
+  it("합계와 함께 단계별 모델 칸(byModel)에 쌓인다: 분류 · 정제는 작은 모델, 조사 · 작성은 깊이별 모델", async () => {
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
+    const byModel = result.usage?.byModel ?? {};
+    const small = modelFor("standard", "plan");
+    const big = modelFor("standard", "write");
+    expect(Object.keys(byModel).sort()).toEqual([...new Set([small, big])].sort());
+    // 모킹한 run 은 토큰을 쓰지 않으므로 0 이지만 칸은 있어야 합니다 (실제 실행은 단계마다 요청 1 이상)
+    expect(byModel[small]).toEqual({ requests: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 });
+    expect(result.usage).toMatchObject({ requests: 0, inputTokens: 0, outputTokens: 0 });
   });
 });

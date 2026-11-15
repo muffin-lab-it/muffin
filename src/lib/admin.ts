@@ -10,6 +10,7 @@ import type { Verification } from "../agent/schema";
 import { formatAge } from "./age";
 import { sampleRuns } from "./admin.sample";
 import { dbEnabled, getDb } from "./db";
+import { costOf, meanCost, sumCost, type Cost, type UsageSummary } from "./pricing";
 
 const HOUR = 60 * 60_000;
 /** 화면이 고를 수 있는 기간과 막대 한 칸의 길이 */
@@ -43,7 +44,7 @@ export type RunRow = {
   input?: { question: string; depth: string; area?: string } | null;
   ms: number;
   model?: string | null;
-  usage?: { requests: number; inputTokens: number; outputTokens: number } | null;
+  usage?: UsageSummary | null;
   steps?: ToolStep[] | null;
   rewrites?: number | null;
   /** why 는 11/5 이후 기록에만 있음 (깊이별 원인 수) */
@@ -56,6 +57,8 @@ export type TimeStat = { count: number; avgMs: number; p90Ms: number };
 /** 깊이별 비교: 응답 시간에 더해 리포트당 평균 토큰 · 숫자 카드 · 원인 수와 다시 쓰기 비율 (Easy / Deep 가 실제로 무엇이 다른지) */
 export type DepthStat = { depth: string } & TimeStat & {
   tokens: { input: number; output: number } | null;
+  /** 리포트당 평균 추정 비용 (모델별 토큰 기록이 있는 요청만) */
+  cost: Cost | null;
   /** 리포트당 평균 숫자 카드 수 (검증 기록이 있는 요청만) */
   numbers: number | null;
   /** 리포트당 평균 원인 수 */
@@ -105,6 +108,8 @@ export type RunsSummary = {
   byDepth: DepthStat[];
   /** 리포트를 만든 요청당 평균 토큰 */
   tokens: { input: number; output: number } | null;
+  /** 리포트당 추정 비용(평균 · 기간 합계). 모델별 토큰 기록(11/15 이후)이 있는 리포트만 세고, unknown 은 기록이 없어 못 센 수 */
+  cost: { count: number; avg: Cost; total: Cost; unknown: number } | null;
   /** 리포트를 만든 요청 중 숫자 검증을 거친 것 (skipped 제외) */
   verification: { checked: number; pass: number; rewritten: number; numbers: number; unverified: number; advice: number } | null;
   intents: { intent: string; count: number }[];
@@ -189,6 +194,7 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
         depth,
         ...stat,
         tokens: used.length ? { input: Math.round(mean(used.map((u) => u.inputTokens))!), output: Math.round(mean(used.map((u) => u.outputTokens))!) } : null,
+        cost: ((costs) => (costs.length ? meanCost(costs) : null))(rows.flatMap((r) => { const c = costOf(r.usage); return c ? [c] : []; })),
         numbers: round1(mean(verified.map((r) => r.verification!.numbers.total))),
         why: round1(mean(verified.flatMap((r) => (r.verification!.why ? [r.verification!.why.data + r.verification!.why.news + r.verification!.why.none] : [])))),
         rewritten: verified.length ? verified.filter((r) => (r.verification!.revisions ?? r.rewrites ?? 0) > 0).length / verified.length : null,
@@ -203,6 +209,9 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
         output: Math.round(usages.reduce((sum, u) => sum + u.outputTokens, 0) / usages.length),
       }
     : null;
+
+  const reportCosts = reports.flatMap((r) => { const c = costOf(r.usage); return c ? [c] : []; });
+  const cost = reportCosts.length ? { count: reportCosts.length, avg: meanCost(reportCosts), total: sumCost(reportCosts), unknown: reports.length - reportCosts.length } : null;
 
   const checked = reports.filter((r) => r.verification && r.verification.status !== "skipped");
   const verification = checked.length
@@ -300,6 +309,7 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
     time: timeStat(reports.map((r) => r.ms)),
     byDepth,
     tokens,
+    cost,
     verification,
     intents,
     tools,

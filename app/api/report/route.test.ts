@@ -71,7 +71,8 @@ describe("POST /api/report", () => {
   it("trims questions and preserves the success response contract", async () => {
     const response = await POST(request({ question: "  환율 현황  " }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ report: fixture.report, steps: [], rewrites: 0, id: "json-test-id" });
+    // usage 는 11/15 부터 함께 갑니다. 모델별 기록(byModel)이 없는 fixture 라 cost 는 없습니다
+    expect(await response.json()).toEqual({ report: fixture.report, steps: [], rewrites: 0, id: "json-test-id", usage: fixture.usage });
     expect(research).toHaveBeenCalledWith({ question: "환율 현황", depth: "standard" });
     expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ quality: expect.objectContaining({ whyUnsupported: fixture.report.why.filter((why) => why.basis === "none").length }) }));
   });

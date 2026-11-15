@@ -1,4 +1,5 @@
 import type { ToolStep } from "./context";
+import type { Cost, UsageSummary } from "../lib/pricing";
 import type { Intent, Report, ReportMode, Verification } from "./schema";
 
 /** 다섯 단계. 순서는 muffin.ts 가 고정합니다: plan → research → edit → write → verify */
@@ -26,7 +27,8 @@ export type MuffinEvent =
   | { type: "plan"; intent: Intent; mode: ReportMode; tools: string[] }
   | { type: "step"; step: ToolStep }
   | { type: "verify"; verification: Verification }
-  | { type: "report"; report: Report; steps: ToolStep[]; rewrites: number; id: string }
+  /** usage · cost 는 11/15 부터: 토큰 합계(모델별 포함)와 단가로 센 추정 비용. 녹화 재생은 녹화에 usage 가 있을 때만 */
+  | { type: "report"; report: Report; steps: ToolStep[]; rewrites: number; id: string; usage?: UsageSummary; cost?: Cost }
   | { type: "error"; message: string; id?: string };
 
 /** tool 이름 → 진행상황 화면에 보여줄 한국어 라벨. tool 이 추가되면 여기에 한 줄. */

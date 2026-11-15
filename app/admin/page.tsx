@@ -12,6 +12,7 @@ import { BUDGET_MS, healthOf, loadRuns, MAX_PAGES, PAGE, parseRange, RANGES, sum
 import { isAdminAuthorized } from "@/src/lib/admin-auth";
 import { failedLabels, loadEvals, metricLines, withinRatio, type EvalRow, type LoadedEvals } from "@/src/lib/admin-evals";
 import { componentStatusLabels, healthOfComponent, healthOfImpact, healthOfIndicator, impactLabels, incidentStatusLabels, loadVendorStatus, vendorVerdict, type VendorStatus } from "@/src/lib/admin-status";
+import { formatCost, PRICE_AS_OF } from "@/src/lib/pricing";
 import { redactSecrets } from "@/src/lib/redact";
 import styles from "./admin.module.css";
 import { EvalSummary } from "./EvalSummary";
@@ -408,6 +409,7 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
         <Kpi label="평균 응답" value={s.time ? seconds(s.time.avgMs) : "-"} sub={s.time ? `리포트 ${count(s.time.count)}건` : undefined}>
           <Sparkline values={s.buckets.map((b) => b.avgMs)} label="시간대별 평균 응답 시간 추이" />
         </Kpi>
+        <Kpi label="리포트당 비용" value={s.cost ? formatCost(s.cost.avg) : "-"} sub={s.cost ? `합계 ${formatCost(s.cost.total)} · ${count(s.cost.count)}건${s.cost.unknown ? ` · 기록 없음 ${count(s.cost.unknown)}` : ""}` : `모델별 토큰 기록이 있는 리포트 없음 (${PRICE_AS_OF} 이후)`} />
         <Kpi label="검증 통과" value={v ? percent(v.pass, v.checked) : "-"} sub={v ? `다시 쓰기 ${percent(v.rewritten, v.checked)}` : undefined} health={health.verification} />
         <Kpi label="남은 권유 표현" value={v ? `${count(v.advice)}건` : "-"} sub="목표 0" health={health.advice} />
       </section>
@@ -528,6 +530,7 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
                   <p className={styles.depthFacts}>
                     {d.numbers !== null ? `숫자 ${d.numbers}개 · 원인 ${d.why === null ? "-" : `${d.why}개`} · 다시 쓰기 ${percent(d.rewritten ?? 0, 1)}` : "검증 기록 없음"}
                     {d.tokens ? ` · 토큰 ${count(d.tokens.input)}/${count(d.tokens.output)}` : ""}
+                    {d.cost ? ` · 비용 ${formatCost(d.cost)}` : ""}
                   </p>
                   <div className={styles.depthTrack} aria-hidden="true">
                     <span className={`${styles.depthAvg} ${styles[`depth_${d.depth}`] ?? ""}`} style={{ width: `${Math.min(100, (d.avgMs / 60_000) * 100)}%` }} />
@@ -565,6 +568,7 @@ function Dashboard({ s, health, now }: { s: RunsSummary; health: ReturnType<type
             <dl className={styles.facts}>
               <div><dt>입력 토큰</dt><dd>{count(s.tokens.input)}</dd></div>
               <div><dt>출력 토큰</dt><dd>{count(s.tokens.output)}</dd></div>
+              <div><dt>리포트당 비용</dt><dd>{s.cost ? formatCost(s.cost.avg) : "-"}</dd></div>
             </dl>
           )}
         </Panel>

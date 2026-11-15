@@ -179,13 +179,13 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
                 <tr key={key}>
                   <th scope="row">{statLabels[key]}</th>
                   {finished.map((c) => (
-                    <td key={c.depth}>{formatStat(key, reportStats(c.result!.report, c.ms ?? null)[key])}</td>
+                    <td key={c.depth}>{formatStat(key, reportStats(c.result!.report, c.ms ?? null, c.result!.cost ?? null)[key])}</td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="muted">글자 수는 요약 · 원인 · 영향 · 주의점의 합입니다. 응답 시간은 녹화면 그때 걸린 시간, 실시간이면 지금 걸린 시간입니다.</p>
+          <p className="muted">글자 수는 요약 · 원인 · 영향 · 주의점의 합입니다. 응답 시간은 녹화면 그때 걸린 시간, 실시간이면 지금 걸린 시간입니다. 비용은 모델별 토큰에 단가(USD/100만 토큰)를 곱한 추정값이고, 녹화는 11/15 이후 녹화분부터 보입니다.</p>
         </section>
       )}
 

@@ -5,6 +5,7 @@ import { research, type ResearchResult } from "@/src/agent/muffin";
 import { areas, depths } from "@/src/agent/schema";
 import { BODY_LIMIT, BODY_TOO_LARGE_MESSAGE, BodyTooLargeError, checkOrigin, ORIGIN_DENIED_MESSAGE, readJsonLimited } from "@/src/lib/guard";
 import { clip, newRunId } from "@/src/lib/log";
+import { costOf } from "@/src/lib/pricing";
 import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 
@@ -82,7 +83,8 @@ export async function POST(req: Request) {
       verification: pickVerification(result.report.verification),
       intent: result.plan.intent,
     }, req);
-    return NextResponse.json({ report: result.report, steps, rewrites: result.rewrites, id });
+    const cost = costOf(result.usage);
+    return NextResponse.json({ report: result.report, steps, rewrites: result.rewrites, id, ...(result.usage ? { usage: result.usage } : {}), ...(cost ? { cost } : {}) });
   } catch (err) {
     const diagnostic = clip(redactSecrets(err instanceof Error ? err.message : String(err)), 500);
     const message = "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";

@@ -66,7 +66,7 @@ flowchart LR
 | 요청 바디 | `{ question: string, depth?: "easy" \| "standard" \| "deep", area?: "fx" \| "etf" \| "news" \| "rate" \| "macro" }`. question 은 trim 후 1~500자, depth 기본 standard |
 | 요청 헤더 ✚ | `X-Muffin-Client: <uuid v4>` 브라우저 익명 id. `api.ts` 가 자동으로 붙임. 서버는 `readClientId(req.headers)`(`src/lib/client.ts`)로 읽고, 없거나 uuid v4 가 아니면 undefined → IP 로 처리 |
 | 요청 id | `newRunId()`. 응답의 `id`, 스트림 헤더 `X-Request-Id`, 로그, 저장 기록 id 가 모두 같은 값 |
-| 200 (JSON) | `{ report: Report, steps: ToolStep[], rewrites: number, id: string }` |
+| 200 (JSON) | `{ report: Report, steps: ToolStep[], rewrites: number, id: string, usage?, cost? }`. `usage` 는 토큰 합계와 모델별(`byModel`), `cost` 는 단가(`src/lib/pricing.ts`)로 센 추정 비용 `{ usd, krw, partial }` (11/15 ✚ 리더). 스트림의 `report` 이벤트도 같은 두 칸을 가짐 |
 | 400 | `{ error: "question(필수), depth, area 를 확인하세요.", id }` |
 | 403 ✚ | `{ error: "허용되지 않은 출처입니다.", id }` 출처 검사 실패 (은경) |
 | 413 ✚ | `{ error: "요청이 너무 큽니다.", id }` 바디 크기 초과 (은경) |

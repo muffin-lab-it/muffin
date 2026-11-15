@@ -10,11 +10,21 @@ import type { ToolStep } from "../agent/context";
 import type { MuffinEvent } from "../agent/events";
 import type { Area, Depth, Report } from "../agent/schema";
 import { CLIENT_HEADER, getClientId } from "./client";
+import type { Cost, UsageSummary } from "./pricing";
 
 export type ReportRequest = { question: string; depth: Depth; area?: Area };
 /** 리플레이: 녹화된 실행(src/replays)을 같은 이벤트로 다시 받습니다. speed 는 0.25~10 (기본 1) */
 export type ReplayRequest = { replay: string; speed?: number };
-export type ReportResponse = { report: Report; steps: ToolStep[]; rewrites: number; /** 서버 로그의 요청 id */ id?: string };
+export type ReportResponse = {
+  report: Report;
+  steps: ToolStep[];
+  rewrites: number;
+  /** 서버 로그의 요청 id */
+  id?: string;
+  /** 11/15: 토큰 합계(모델별 포함)와 단가로 센 추정 비용. /compare 의 "비용" 줄이 씁니다 */
+  usage?: UsageSummary;
+  cost?: Cost;
+};
 
 /** API 실패. 429(호출 제한)면 retryAfterSec 로 다시 시도할 수 있을 때까지 남은 초를 알 수 있습니다. */
 export class ApiError extends Error {
@@ -57,7 +67,7 @@ export async function createReport(input: ReportRequest): Promise<ReportResponse
   });
   const json = (await res.json().catch(() => ({}))) as Partial<ReportResponse> & ErrorBody;
   if (!res.ok || !json.report) throw failure(json, res.status, res.headers.get("Retry-After"));
-  return { report: json.report, steps: json.steps ?? [], rewrites: json.rewrites ?? 0, id: json.id };
+  return { report: json.report, steps: json.steps ?? [], rewrites: json.rewrites ?? 0, id: json.id, ...(json.usage ? { usage: json.usage } : {}), ...(json.cost ? { cost: json.cost } : {}) };
 }
 
 /**
@@ -80,7 +90,7 @@ export async function streamReport(input: ReportRequest | ReplayRequest, onEvent
     const event = JSON.parse(line) as MuffinEvent;
     onEvent(event);
     if (event.type === "report") {
-      final = { report: event.report, steps: event.steps, rewrites: event.rewrites, id: event.id };
+      final = { report: event.report, steps: event.steps, rewrites: event.rewrites, id: event.id, ...(event.usage ? { usage: event.usage } : {}), ...(event.cost ? { cost: event.cost } : {}) };
     } else if (event.type === "error") {
       throw failure({ error: event.message, id: event.id }, res.status);
     }

@@ -12,6 +12,7 @@ import type { ToolStep } from "../agent/context";
 import type { MuffinEvent } from "../agent/events";
 import { areas, depths, intents, reportModes, reportSchema, verificationSchema, type Report } from "../agent/schema";
 import { replays } from "../replays";
+import { usageSummarySchema } from "./pricing";
 import { recordedLabel, type ReplayMeta } from "./replay-meta";
 
 /** 녹화 id: 파일 이름이자 주소의 일부 */
@@ -50,6 +51,8 @@ export const replaySchema = z.object({
   depth: z.enum(depths),
   area: z.enum(areas).optional(),
   model: z.string().optional(),
+  /** 녹화 때 쓴 토큰(모델별 포함). 11/15 이후 녹화에만 있고, 재생할 때 비용 줄에 씁니다 */
+  usage: usageSummarySchema.optional(),
   /** 실제로 걸린 시간 */
   ms: z.number().int().nonnegative(),
   events: z.array(timedEventSchema),
