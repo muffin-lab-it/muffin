@@ -18,8 +18,8 @@ const fixture: ResearchResult = {
   plan: { intent: "cause", mode: "research", tools: ["get_fx_krw_rate"], reason: "fixture" }, facts: null,
   model: "fixture-model", usage: { requests: 1, inputTokens: 10, outputTokens: 20 },
 };
-const request = (body: unknown) => new Request("http://localhost/api/report", {
-  method: "POST", body: JSON.stringify(body),
+const request = (body: unknown, headers: Record<string, string> = {}) => new Request("http://localhost/api/report", {
+  method: "POST", headers, body: JSON.stringify(body),
 });
 beforeEach(() => {
   vi.resetAllMocks();
@@ -29,6 +29,30 @@ beforeEach(() => {
   vi.mocked(mockResearch).mockResolvedValue(fixture);
 });
 afterEach(() => vi.unstubAllEnvs());
+
+describe("POST /api/report · 출처 검사 · 바디 크기 (src/lib/guard.ts)", () => {
+  it("허용 목록 밖의 Origin 은 바디를 읽기 전에 403 이고 research 를 부르지 않는다", async () => {
+    const response = await POST(request({ question: "환율 알려줘" }, { Origin: "https://evil.example" }));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "허용되지 않은 출처입니다.", id: "json-test-id" });
+    expect(research).not.toHaveBeenCalled();
+    expect(logRun).not.toHaveBeenCalled();
+  });
+
+  it("배포 주소 Origin 은 통과한다", async () => {
+    const response = await POST(request({ question: "환율 알려줘" }, { Origin: "https://muffin-kappa.vercel.app" }));
+    expect(response.status).toBe(200);
+    expect(research).toHaveBeenCalledTimes(1);
+  });
+
+  it("16KB 를 넘는 바디는 413 이고 research 를 부르지 않는다", async () => {
+    const response = await POST(request({ question: "가".repeat(6_000) }));
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "요청이 너무 큽니다.", id: "json-test-id" });
+    expect(research).not.toHaveBeenCalled();
+    expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ ok: false, stage: "input", error: "body too large" }));
+  });
+});
 
 describe("POST /api/report", () => {
   it.each([{}, { question: " \n\t " }, { question: "a".repeat(501) }])("rejects invalid input before research: %j", async (body) => {

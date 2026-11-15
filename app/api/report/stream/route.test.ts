@@ -47,8 +47,8 @@ const fixture: ResearchResult = {
   usage: { requests: 1, inputTokens: 10, outputTokens: 20 },
 };
 const validInput = { question: "환율이 왜 올랐나요?", depth: "standard", area: "fx" };
-const request = (body: unknown = validInput, signal?: AbortSignal) => new Request("http://localhost/api/report/stream", {
-  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal,
+const request = (body: unknown = validInput, signal?: AbortSignal, extraHeaders: Record<string, string> = {}) => new Request("http://localhost/api/report/stream", {
+  method: "POST", headers: { "Content-Type": "application/json", ...extraHeaders }, body: JSON.stringify(body), signal,
 });
 const events = async (response: Response): Promise<MuffinEvent[]> => (await response.text()).trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
 const stage: MuffinEvent = { type: "stage", stage: "research", status: "start" };
@@ -63,6 +63,33 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
+});
+
+describe("POST /api/report/stream · 출처 검사 · 바디 크기 (src/lib/guard.ts)", () => {
+  it("허용 목록 밖의 Origin 은 바디를 읽기 전에 403 JSON 으로 끝나고 research 를 부르지 않는다", async () => {
+    const response = await POST(request(validInput, undefined, { Origin: "https://evil.example" }));
+    expect(response.status).toBe(403);
+    expect(response.headers.get("X-Request-Id")).toBe("test-request-id");
+    expect(await response.json()).toEqual({ error: "허용되지 않은 출처입니다.", id: "test-request-id" });
+    expect(research).not.toHaveBeenCalled();
+    expect(logRun).not.toHaveBeenCalled();
+  });
+
+  it("배포 주소 · 미리보기 주소 Origin 은 통과한다", async () => {
+    for (const origin of ["https://muffin-kappa.vercel.app", "https://muffin-git-feat-x-thdude37-2971s-projects.vercel.app"]) {
+      const response = await POST(request(validInput, undefined, { Origin: origin }));
+      expect(response.status).toBe(200);
+    }
+    expect(research).toHaveBeenCalledTimes(2);
+  });
+
+  it("16KB 를 넘는 바디는 413 으로 끝나고 research 를 부르지 않는다", async () => {
+    const response = await POST(request({ ...validInput, question: "가".repeat(6_000) }));
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "요청이 너무 큽니다.", id: "test-request-id" });
+    expect(research).not.toHaveBeenCalled();
+    expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ ok: false, stage: "input", error: "body too large" }));
+  });
 });
 
 describe("POST /api/report/stream", () => {
