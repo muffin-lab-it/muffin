@@ -5,7 +5,7 @@
  * 큰 움직임만 원인 후보마다 장부 근거를 보게 하려는 것입니다.
  *
  *  - 대상: 질문의 주제가 환율일 때(isFxQuestion)만, 조사가 받은 환율 결과(get_fx_krw_rate) 중 질문에 나온 통화의 것.
- *    질문에 통화가 없으면 장부의 환율 결과가 한 통화일 때만 그것을 잽니다.
+ *    질문에 통화가 없으면 장부의 환율 결과가 한 통화면 그것을, 여러 통화면 달러(USD)를 잽니다 ("환율" 은 보통 원/달러). 달러가 없으면 재지 않습니다.
  *    ETF 원인 질문에서 조사가 환율을 보조로 받아 와도 재지 않습니다. ETF · 금리 · 물가는 아직 재지 않습니다.
  *  - 계산: 같은 출처(Frankfurter)에서 이번 기간 직전 90일의 일별 환율을 받아 하루 변화율의 표준편차를 구합니다.
  *    평소 폭 = 표준편차 × √(이번 기간의 관측 수), z-score = 이번 변화 ÷ 평소 폭 (metrics.ts 의 movementZ).
@@ -275,8 +275,10 @@ export async function measureMovement(evidence: Evidence[], { question, area }: 
   const found = targets(evidence);
   const currency = currencyOf(question);
   // 질문이 통화를 말했는데 그 통화의 결과가 없으면(유로를 물었는데 달러만 있음, 위안처럼 tool 에 없는 통화) 다른 통화를 대신 재지 않습니다.
-  // 통화를 말하지 않았으면 장부의 환율 결과가 한 통화일 때만 잽니다 (여러 통화면 어느 것을 물었는지 모름).
-  const target = currency ? found.find((t) => t.currency === currency) : new Set(found.map((t) => t.currency)).size === 1 ? found[0] : undefined;
+  // 통화를 말하지 않았으면 장부의 환율 결과가 한 통화면 그것을, 여러 통화면 달러를 잽니다 ("환율" 은 보통 원/달러이고, 조사가 달러 · 유로 · 엔을 함께 받아 오면
+  // 그때마다 게이트가 빠졌음 — 11/15 "최근 90일간 환율이 왜 움직였어?"). 달러 없이 여러 통화면 어느 것을 물었는지 몰라 재지 않습니다.
+  const currencies = new Set(found.map((t) => t.currency));
+  const target = currency ? found.find((t) => t.currency === currency) : currencies.size === 1 ? found[0] : found.find((t) => t.currency === "USD");
   if (!target) return { movement: null };
   const started = Date.now();
   const step = (status: ToolStep["status"], error?: string): ToolStep => ({ tool: MOVEMENT_TOOL, status, ms: Date.now() - started, ...(error ? { error } : {}) });
