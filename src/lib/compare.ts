@@ -3,7 +3,7 @@
  * 리포트 두 장의 차이를 숫자로 요약합니다 (글자 수 · 숫자 카드 · 원인 · 영향 · 주의점 · 더해볼 것 · 출처 · 응답 시간). 무거운 import 없음.
  */
 import type { Depth, Report } from "../agent/schema";
-import { formatCost, KRW_PER_USD, type Cost } from "./pricing";
+import { formatCost, type Cost } from "./pricing";
 import type { ReplayMeta } from "./replay-meta";
 
 export const depthOrder: readonly Depth[] = ["easy", "standard", "deep"];
@@ -37,8 +37,8 @@ export type ReportStats = {
   sources: number;
   evidence: number;
   ms: number | null;
-  /** 추정 비용 (USD). 모델별 토큰 기록이 없으면 null */
-  cost: number | null;
+  /** 추정 비용. 모델별 토큰 기록이 없으면 null. 단가를 모르는 모델이 섞이면 partial 이라 문구에 그대로 남깁니다 */
+  cost: Cost | null;
 };
 
 export const statLabels: Record<keyof ReportStats, string> = {
@@ -68,14 +68,14 @@ export function reportStats(report: Report, ms: number | null = null, cost: Cost
     sources: report.sources.length,
     evidence: report.evidence.length,
     ms,
-    cost: cost ? cost.usd : null,
+    cost,
   };
 }
 
-export function formatStat(key: keyof ReportStats, value: number | null): string {
+export function formatStat(key: keyof ReportStats, value: number | Cost | null): string {
   if (value === null) return "-";
+  if (typeof value === "object") return formatCost(value);
   if (key === "ms") return `${(value / 1000).toFixed(1)}초`;
-  if (key === "cost") return formatCost({ usd: value, krw: value * KRW_PER_USD, partial: false });
   if (key === "chars") return `${value.toLocaleString("ko-KR")}자`;
   return `${value}개`;
 }
