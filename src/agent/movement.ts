@@ -82,6 +82,11 @@ export type CauseCandidate = {
   otherPair?: true;
   /** 장부에 근거가 없을 때 무엇이 있으면 확인할 수 있는지 */
   needs: string;
+  /**
+   * 근거가 있을 때 작성이 그것으로 무엇을 어디에 쓰는지 (why 인지 caveats 인지, basis 는 무엇인지).
+   * 11/15: "뒷받침하면 why" 만으로는 작성이 근거가 있어도 why 를 비우고 "원인 확정 불가" 로 끝냈습니다 (90일 환율 질문, 유로 · 엔 · 금리 · 기사 제목이 다 있었음).
+   */
+  how: string;
 };
 
 /**
@@ -91,13 +96,24 @@ export type CauseCandidate = {
  */
 export const causeMap: Partial<Record<Area, CauseCandidate[]>> = {
   fx: [
-    { factor: "한미 금리 차이 (정책금리 · 국채 금리)", tool: areaTools.rate, needs: "한국 기준금리와 미국 정책금리" },
-    { factor: "국내외 경제 뉴스 (정책 · 지표 발표, 시장 이벤트)", tool: areaTools.news, needs: "같은 기간의 경제 뉴스" },
+    {
+      factor: "한미 금리 차이 (정책금리 · 국채 금리)",
+      tool: areaTools.rate,
+      needs: "한국 기준금리와 미국 정책금리",
+      how: "두 나라 금리가 같은 방향 · 같은 폭으로 움직여 차이가 그대로면 caveats 에 \"금리 차이로는 설명되지 않음\" 을 그 id 와 함께 적습니다. 차이가 벌어지거나 좁혀졌고 그 방향이 환율 방향과 맞으면 why 에 basis data 로 씁니다.",
+    },
+    {
+      factor: "국내외 경제 뉴스 (정책 · 지표 발표, 시장 이벤트)",
+      tool: areaTools.news,
+      needs: "같은 기간의 경제 뉴스",
+      how: "본문이 있는 기사는 본문이 말하는 원인을, 제목만 있는 기사는 제목이 직접 말하는 원인(예: \"강달러에 환율 반등 압력\")만 why 에 basis news 로 씁니다. evidence 에 본문인지 제목인지 적고, 제목에 없는 원인은 덧붙이지 않습니다.",
+    },
     {
       factor: "다른 통화 대비 흐름 (달러 전반의 강세 · 약세인지, 원화만의 움직임인지)",
       tool: areaTools.fx,
       otherPair: true,
       needs: "같은 기간 다른 통화(EUR · JPY)의 원화 환율",
+      how: "같은 기간 유로 · 엔 대비로도 원화가 같은 방향이면 \"달러만의 움직임이 아니라 원화 전반의 강세(약세)\" 를, 달러 대비만 움직였으면 \"달러 쪽 요인\" 을 why 에 basis data 로 씁니다 (refs 에 비교한 환율 id 전부). 원인의 범위를 좁히는 사실이라 why 에 들어갑니다.",
     },
   ],
 };
@@ -419,7 +435,10 @@ export function movementNote(m: Movement, calcId: string, evidence: Evidence[], 
       "- 장부 근거가 이번 움직임을 뒷받침하면 why 에 쓰고 refs 에 그 id 를 적습니다.",
       "- 근거가 이번 움직임과 맞지 않으면(예: 금리 차이가 그대로) caveats 에 그 근거와 함께 \"이 요인으로는 설명되지 않음\" 을 적습니다.",
       "- 장부에 근거가 없는 후보는 why 에 쓰지 않고 dataGaps 에 무엇이 있어야 확인할 수 있는지 적습니다.",
-      ...candidates.map((c) => `- ${c.factor}: ${c.refs.length ? c.refs.map((e) => e.id).join(" · ") + windowNote(c.refs, m) : `장부에 없음 (필요한 것: ${c.needs})`}`),
+      "- 후보 하나라도 근거가 맞으면 why 를 비우지 않습니다. 모든 후보가 맞지 않거나 장부에 없을 때만 why 를 비우고 dataGaps 에 적습니다.",
+      ...candidates.map((c) => (c.refs.length
+        ? `- ${c.factor}: ${c.refs.map((e) => e.id).join(" · ")}${windowNote(c.refs, m)}\n  → ${c.how}`
+        : `- ${c.factor}: 장부에 없음 (필요한 것: ${c.needs})`)),
     );
   }
   const own = evidence.filter((e) => e.id === calcId);
