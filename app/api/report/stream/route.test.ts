@@ -264,3 +264,32 @@ describe("POST /api/report/stream", () => {
     expect(logRun).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("POST /api/report/stream · 토큰 · 비용", () => {
+  it("report 이벤트에 usage 와 단가로 센 cost 를 함께 보낸다 (모델별 기록이 없으면 cost 없음)", async () => {
+    vi.mocked(research).mockResolvedValue({
+      ...fixture,
+      usage: {
+        requests: 4,
+        inputTokens: 11_000,
+        outputTokens: 1_100,
+        byModel: {
+          "gpt-5.4-mini": { requests: 2, inputTokens: 1_000, cachedInputTokens: 0, outputTokens: 100 },
+          "gpt-6-luna": { requests: 2, inputTokens: 10_000, cachedInputTokens: 0, outputTokens: 1_000 },
+        },
+      },
+    });
+    const list = await events(await POST(request()));
+    const last = list.at(-1)!;
+    expect(last.type).toBe("report");
+    if (last.type !== "report") return;
+    expect(last.usage?.byModel?.["gpt-6-luna"]?.inputTokens).toBe(10_000);
+    // mini: 1000×0.75 + 100×4.5 = 1200, luna: 10000×0.1 + 1000×0.5 = 1500 → 2700 / 1e6
+    expect(last.cost).toEqual({ usd: 0.0027, krw: expect.any(Number), partial: false });
+
+    vi.mocked(research).mockResolvedValue(fixture);
+    const plain = (await events(await POST(request()))).at(-1)!;
+    expect(plain.type === "report" && plain.cost).toBeFalsy();
+    expect(plain.type === "report" && plain.usage).toEqual(fixture.usage);
+  });
+});

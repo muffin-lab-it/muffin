@@ -33,5 +33,10 @@ describe("Easy / Deep 나란히 보기", () => {
     expect(formatStat("chars", 1234)).toBe("1,234자");
     expect(formatStat("numbers", 3)).toBe("3개");
     expect(formatStat("ms", null)).toBe("-");
+    // 비용은 Cost 그대로 받아 "일부 모델 단가 없음" 표시를 잃지 않습니다 (Codex 리뷰)
+    expect(formatStat("cost", { usd: 0.0112, krw: 14.95, partial: false })).toBe("$0.011 · 약 15원");
+    expect(formatStat("cost", { usd: 0.0112, krw: 14.95, partial: true })).toBe("$0.011 · 약 15원 (일부 모델 단가 없음)");
+    expect(formatStat("cost", null)).toBe("-");
+    expect(reportStats(report, 1_000, { usd: 0.01, krw: 13.4, partial: true }).cost).toEqual({ usd: 0.01, krw: 13.4, partial: true });
   });
 });

@@ -6,6 +6,7 @@ import { research, type ResearchResult } from "@/src/agent/muffin";
 import { areas, depths, type Intent, type Report } from "@/src/agent/schema";
 import { BODY_LIMIT, BODY_TOO_LARGE_MESSAGE, BodyTooLargeError, checkOrigin, ORIGIN_DENIED_MESSAGE, readJsonLimited } from "@/src/lib/guard";
 import { clip, newRunId, type RunLog } from "@/src/lib/log";
+import { costOf } from "@/src/lib/pricing";
 import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 import { fitSpeed, getReplay, playReplay, publicStep, replayedReport, REPLAY_ID, SPEED_MAX, SPEED_MIN } from "@/src/lib/replay";
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
     const run: Run = async (onEvent) => {
       await playReplay(replay, onEvent, { speed, signal: req.signal });
       const planned = replay.events.find((e) => e.type === "plan");
-      return { report: replayedReport(replay), steps: replay.steps, rewrites: replay.rewrites, model: `replay:${replay.id}`, ...(planned && planned.type === "plan" ? { intent: planned.intent } : {}) };
+      return { report: replayedReport(replay), steps: replay.steps, rewrites: replay.rewrites, model: `replay:${replay.id}`, ...(replay.usage ? { usage: replay.usage } : {}), ...(planned && planned.type === "plan" ? { intent: planned.intent } : {}) };
     };
     return streamResponse(req, run, { id, started, at, mock: true, input, headers });
   }
@@ -157,6 +158,8 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
           });
           if (closed) return;
           const steps = result.steps.map(publicStep);
+          // 토큰과 추정 비용도 함께 보냅니다 (/compare 의 "비용" 줄). 모델별 기록이 없으면(모킹 · 옛 녹화) cost 는 없습니다
+          const cost = costOf(result.usage);
           finish(
             {
               ok: true,
@@ -169,7 +172,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
               verification: pickVerification(result.report.verification),
               ...(result.intent ? { intent: result.intent } : {}),
             },
-            { type: "report", report: result.report, steps, rewrites: result.rewrites, id },
+            { type: "report", report: result.report, steps, rewrites: result.rewrites, id, ...(result.usage ? { usage: result.usage } : {}), ...(cost ? { cost } : {}) },
           );
         } catch (err) {
           const diagnostic = clip(redactSecrets(err instanceof Error ? err.message : String(err)), 500);

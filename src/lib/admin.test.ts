@@ -426,3 +426,23 @@ describe("loadRuns (runs 표 조회)", () => {
     await expect(loadRuns(NOW)).rejects.toThrow("runs 표 조회 실패: permission denied for table runs");
   });
 });
+
+describe("리포트당 비용 (모델별 토큰 기록이 있는 리포트만)", () => {
+  it("평균 · 합계 · 기록 없는 수를 세고 깊이별 비교에도 넣는다. 범위 밖 · 실패는 세지 않는다", () => {
+    const byModel = {
+      "gpt-5.4-mini": { requests: 2, inputTokens: 1_000, cachedInputTokens: 0, outputTokens: 100 },
+      "gpt-6-luna": { requests: 2, inputTokens: 10_000, cachedInputTokens: 0, outputTokens: 1_000 },
+    };
+    const rows = [
+      run({ usage: { requests: 4, inputTokens: 11_000, outputTokens: 1_100, byModel } }),
+      run({ usage: { requests: 4, inputTokens: 11_000, outputTokens: 1_100, byModel }, input: { question: "물가 왜 올랐어?", depth: "deep", area: "macro" } }),
+      run({ usage: { requests: 4, inputTokens: 11_000, outputTokens: 1_100 } }),
+      run({ intent: "out_of_scope", usage: { requests: 1, inputTokens: 100, outputTokens: 10, byModel } }),
+      run({ ok: false, stage: "agent", error: "x", usage: { requests: 4, inputTokens: 11_000, outputTokens: 1_100, byModel } }),
+    ];
+    const s = summarizeRuns(rows, NOW, "24h");
+    expect(s.cost).toEqual({ count: 2, avg: { usd: 0.0027, krw: expect.any(Number), partial: false }, total: { usd: 0.0054, krw: expect.any(Number), partial: false }, unknown: 1 });
+    expect(s.byDepth.find((d) => d.depth === "standard")?.cost).toEqual({ usd: 0.0027, krw: expect.any(Number), partial: false });
+    expect(summarizeRuns([run()], NOW, "24h").cost).toBeNull();
+  });
+});

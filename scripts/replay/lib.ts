@@ -38,6 +38,7 @@ export function buildReplay(
     depth: meta.depth,
     ...(meta.area ? { area: meta.area } : {}),
     ...(result.model ? { model: result.model } : {}),
+    ...(result.usage ? { usage: result.usage } : {}),
     ms: meta.ms,
     events,
     report: JSON.parse(redactSecrets(JSON.stringify(result.report))),
