@@ -169,7 +169,7 @@ describe("유의성 게이트: measureMovement", () => {
     expect(isFxQuestion("미국 금리 때문에 달러가 왜 올랐어?")).toBe(false);
   });
 
-  it("질문에 나온 통화의 환율 결과를 잰다 (여럿이면 먼저 나온 통화, 없으면 첫 결과)", async () => {
+  it("질문에 나온 통화의 환율 결과를 잰다 (여럿이면 먼저 나온 통화, 통화가 없으면 한 통화이거나 달러)", async () => {
     expect(currencyOf("요즘 원달러 환율이 왜 이렇게 내렸어?")).toBe("USD");
     expect(currencyOf("엔화가 달러보다 왜 더 떨어졌어?")).toBe("JPY");
     expect(currencyOf("100엔 환율이 왜 내렸어?")).toBe("JPY");
@@ -190,8 +190,18 @@ describe("유의성 게이트: measureMovement", () => {
     stubFetch(dailyRows(undefined, undefined, "JPY"));
     const ledger = [fxEvidence("E1"), fxEvidence("E2", { pair: "JPY(100)/KRW", rate: 905.1, "comparison.rate": 912.4 })];
     expect((await measureMovement(ledger, { question: "엔화가 왜 이렇게 떨어졌어?", area: "fx" })).movement?.ref).toBe("E2");
-    // 통화를 말하지 않았는데 장부에 여러 통화가 있으면 어느 것을 물었는지 몰라 재지 않고, 한 통화뿐이면 그것을 잰다
-    expect(await measureMovement(ledger, { question: "환율이 왜 움직여?", area: "fx" })).toEqual({ movement: null });
+    // 통화를 말하지 않았는데 장부에 여러 통화가 있으면 달러를 잰다 (조사가 달러 · 유로 · 엔을 함께 받아 와도 게이트가 빠지지 않게)
+    stubFetch(dailyRows());
+    expect((await measureMovement(ledger, { question: "환율이 왜 움직여?", area: "fx" })).movement?.ref).toBe("E1");
+    // 달러 없이 여러 통화면 어느 것을 물었는지 몰라 재지 않는다
+    const noUsd = [
+      fxEvidence("E2", { pair: "JPY(100)/KRW", rate: 905.1, "comparison.rate": 912.4 }),
+      fxEvidence("E4", { pair: "EUR/KRW", unit: "KRW per 1 EUR", rate: 1551.2, "comparison.rate": 1560.9 }),
+    ];
+    const skipped = stubFetch(dailyRows());
+    expect(await measureMovement(noUsd, { question: "환율이 왜 움직여?", area: "fx" })).toEqual({ movement: null });
+    expect(skipped).not.toHaveBeenCalled();
+    // 한 통화뿐이면 그것을 잰다
     stubFetch(dailyRows());
     const usdOnly = [fxEvidence("E1"), fxEvidence("E3", { "comparison.asOf": "2026-10-26" })];
     expect((await measureMovement(usdOnly, { question: "환율이 왜 움직여?", area: "fx" })).movement?.ref).toBe("E1");
