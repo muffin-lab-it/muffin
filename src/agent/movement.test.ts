@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { muffinTools } from "../tools";
 import { stdev } from "../tools/calc/metrics";
-import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
+import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
 import type { Evidence, WriterOutput } from "./schema";
 import { verify } from "./verify";
 
@@ -351,6 +351,21 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
     const note = movementNote(eurMove, "C2", ledger, null);
     expect(note).toContain("원화만의 움직임인지): E1 · E6\n  → 같은 기간 달러 · 엔 대비로도 원화가 같은 방향이면 \"유로만의 움직임이 아니라 원화 전반의 강세(약세)\" 를, 유로 대비만 움직였으면 \"유로 쪽 요인\" 을");
     expect(note).not.toContain("달러만의 움직임");
+  });
+
+  it("missingPairs: 잰 대상과 같은 기간이 없는 다른 통화를 같은 days 로 돌려준다 (조사 뒤 코드가 채울 목록)", () => {
+    // USD 만 있으면(2026-10-03 → 11-02, 30일) 유로 · 엔
+    expect(missingPairs([fxEvidence("E1")], "환율이 왜 움직여?", "fx")).toEqual([{ currency: "EUR", days: 30 }, { currency: "JPY", days: 30 }]);
+    // 같은 기간 유로가 있으면 엔만, 기간이 다른 유로(E3)는 없는 것으로 본다
+    expect(missingPairs([fxEvidence("E1"), fxEvidence("E2", { pair: "EUR/KRW" })], "환율이 왜 움직여?", "fx")).toEqual([{ currency: "JPY", days: 30 }]);
+    expect(missingPairs([fxEvidence("E1"), fxEvidence("E3", { pair: "EUR/KRW", "comparison.asOf": "2026-10-26" })], "환율이 왜 움직여?", "fx")).toEqual([{ currency: "EUR", days: 30 }, { currency: "JPY", days: 30 }]);
+    // 유로를 물었으면 유로가 대상이고 달러는 이미 있으니 엔만
+    expect(missingPairs([fxEvidence("E1"), fxEvidence("E2", { pair: "EUR/KRW" })], "유로 환율 왜 올랐어?", "fx")).toEqual([{ currency: "JPY", days: 30 }]);
+    expect(missingPairs([fxEvidence("E2", { pair: "EUR/KRW" })], "유로 환율 왜 올랐어?", "fx")).toEqual([{ currency: "USD", days: 30 }, { currency: "JPY", days: 30 }]);
+    // 잴 대상이 없으면 아무것도: 유로를 물었는데 달러만, 환율이 주제가 아님, 환율 결과 없음
+    expect(missingPairs([fxEvidence("E1")], "유로 환율 왜 올랐어?", "fx")).toEqual([]);
+    expect(missingPairs([fxEvidence("E1")], "KODEX 200 왜 떨어졌어?", "etf")).toEqual([]);
+    expect(missingPairs([], "환율이 왜 움직여?", "fx")).toEqual([]);
   });
 
   it("원인 지도의 tool 은 모두 레지스트리에 있다", () => {

@@ -19,6 +19,7 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
+import { ensureOtherPairs } from "./supplement";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
@@ -134,6 +135,8 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const researchCtx = new RunContext(ctx);
   const notes = await runResearch(tuned(createResearcherAgent(depth, hintAreaFor(area, plan.tools), tools), "research", depth), question, researchCtx);
   addUsage(researchCtx, "research");
+  // 환율 원인 질문이면 원인 지도가 필요로 하는 같은 기간 다른 통화 환율을 코드가 채웁니다 (조사가 받아 오지 않은 통화만, src/agent/supplement.ts)
+  if (plan.intent === "cause") await ensureOtherPairs(ctx, question, area, tools);
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
