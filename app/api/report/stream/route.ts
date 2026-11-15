@@ -4,6 +4,7 @@ import type { MuffinEvent } from "@/src/agent/events";
 import { isMockMode, mockResearch } from "@/src/agent/mock";
 import { research, type ResearchResult } from "@/src/agent/muffin";
 import { areas, depths, type Intent, type Report } from "@/src/agent/schema";
+import { BODY_LIMIT, BODY_TOO_LARGE_MESSAGE, BodyTooLargeError, checkOrigin, ORIGIN_DENIED_MESSAGE, readJsonLimited } from "@/src/lib/guard";
 import { clip, newRunId, type RunLog } from "@/src/lib/log";
 import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
@@ -53,8 +54,23 @@ export async function POST(req: Request) {
   const started = Date.now();
   const at = new Date(started).toISOString();
   const mock = isMockMode();
-  const raw = await req.json().catch(() => null);
   const headers = { "Cache-Control": "no-store", "X-Request-Id": id };
+
+  // 출처 검사(docs/web-spec.md 4.6): 허용 목록 밖의 출처는 바디를 읽기 전에 403. 실행 기록에는 남기지 않습니다 (외부에서 몰려와도 DB 에 쓰지 않게)
+  if (!checkOrigin(req).ok) {
+    console.warn(`report/stream origin denied (${id}): ${clip(req.headers.get("origin") ?? req.headers.get("referer") ?? "(none)", 200)}`);
+    return Response.json({ error: ORIGIN_DENIED_MESSAGE, id }, { status: 403, headers });
+  }
+  // 바디는 16KB 까지만 읽습니다. 넘으면 413, JSON 이 아니면 null → 아래 입력 검사가 400
+  let raw: unknown = null;
+  try {
+    raw = await readJsonLimited(req, BODY_LIMIT.report);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      recordRun({ id, at, mock, ok: false, stage: "input", ms: Date.now() - started, error: "body too large" }, req);
+      return Response.json({ error: BODY_TOO_LARGE_MESSAGE, id }, { status: 413, headers });
+    }
+  }
 
   // 리플레이: { replay: id, speed? }. 녹화된 실행을 다시 보내므로 키가 없어도 되고, 로그에는 mock 으로 남겨 운영 통계에서 뺍니다
   if (raw && typeof raw === "object" && "replay" in raw) {
