@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { muffinTools } from "../tools";
 import { stdev } from "../tools/calc/metrics";
-import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
+import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, pickTarget, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
 import type { Evidence, WriterOutput } from "./schema";
 import { verify } from "./verify";
 
@@ -366,6 +366,19 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
     expect(missingPairs([fxEvidence("E1")], "유로 환율 왜 올랐어?", "fx")).toEqual([]);
     expect(missingPairs([fxEvidence("E1")], "KODEX 200 왜 떨어졌어?", "etf")).toEqual([]);
     expect(missingPairs([], "환율이 왜 움직여?", "fx")).toEqual([]);
+  });
+
+  it("미리 고른 대상을 넘기면 보강으로 통화가 늘어도 같은 통화를 잰다 (유로만 있던 장부에 달러가 더해져도 유로, Codex 리뷰)", async () => {
+    const eurOnly = [fxEvidence("E2", { pair: "EUR/KRW", unit: "KRW per 1 EUR", rate: 1551.2, "comparison.rate": 1560.9 })];
+    const target = pickTarget(eurOnly, "환율이 왜 움직여?", "fx");
+    expect(target?.currency).toBe("EUR");
+    // 보강 목록은 그 대상 기준(달러 · 엔)
+    expect(missingPairs(eurOnly, "환율이 왜 움직여?", "fx", target)).toEqual([{ currency: "USD", days: 30 }, { currency: "JPY", days: 30 }]);
+    const after = [...eurOnly, fxEvidence("E1")];
+    // 다시 고르면 달러로 바뀌지만, 미리 고른 대상을 넘기면 유로를 잰다
+    expect(pickTarget(after, "환율이 왜 움직여?", "fx")?.currency).toBe("USD");
+    stubFetch(dailyRows(undefined, undefined, "EUR"));
+    expect((await measureMovement(after, { question: "환율이 왜 움직여?", area: "fx", target })).movement?.pair).toBe("EUR/KRW");
   });
 
   it("원인 지도의 tool 은 모두 레지스트리에 있다", () => {

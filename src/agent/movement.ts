@@ -130,7 +130,7 @@ export const causeMap: Partial<Record<Area, CauseCandidate[]>> = {
   ],
 };
 
-type Target = { ref: string; pair: string; currency: string; from: string; to: string; fromRate: number; toRate: number };
+export type Target = { ref: string; pair: string; currency: string; from: string; to: string; fromRate: number; toRate: number };
 export type DailyRate = { date: string; rate: number };
 
 const DAY_MS = 86_400_000;
@@ -319,16 +319,17 @@ export const PAIR_CURRENCIES = ["USD", "EUR", "JPY"] as const;
  * 원인 지도가 필요로 하는 같은 기간 다른 통화 환율 중 장부에 없는 것 (muffin.ts 가 조사 뒤 환율 tool 로 채웁니다, src/agent/supplement.ts).
  * days 는 잰 대상의 비교 기준일 → 최신 기준일 달력 일수라, 같은 days 로 부르면 같은 비교 기간이 나옵니다. 잴 대상이 없으면 빈 배열.
  */
-export function missingPairs(evidence: Evidence[], question: string, area?: Area): { currency: string; days: number }[] {
-  const target = pickTarget(evidence, question, area);
+export function missingPairs(evidence: Evidence[], question: string, area?: Area, target: Target | undefined = pickTarget(evidence, question, area)): { currency: string; days: number }[] {
   if (!target) return [];
   const have = new Set(targets(evidence).filter((t) => t.from === target.from && t.to === target.to).map((t) => t.currency));
   const days = Math.min(365, Math.max(1, dayNumber(target.to) - dayNumber(target.from)));
   return PAIR_CURRENCIES.filter((c) => c !== target.currency && !have.has(c)).map((currency) => ({ currency, days }));
 }
 
-export async function measureMovement(evidence: Evidence[], { question, area }: { question: string; area?: Area }): Promise<MovementResult> {
-  const target = pickTarget(evidence, question, area);
+export async function measureMovement(
+  evidence: Evidence[],
+  { question, area, target = pickTarget(evidence, question, area) }: { question: string; area?: Area; /** 미리 고른 대상 (muffin.ts: 보강 전에 골라 보강 뒤에도 같은 통화를 잽니다) */ target?: Target },
+): Promise<MovementResult> {
   if (!target) return { movement: null };
   const started = Date.now();
   const step = (status: ToolStep["status"], error?: string): ToolStep => ({ tool: MOVEMENT_TOOL, status, ms: Date.now() - started, ...(error ? { error } : {}) });

@@ -330,11 +330,13 @@ describe("research() 다섯 단계", () => {
     mockRuns({ writer: [good] });
     await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
     expect(ensureOtherPairs).toHaveBeenCalledTimes(1);
-    const [ctx, question, area, tools] = vi.mocked(ensureOtherPairs).mock.calls[0]!;
+    const [ctx, question, area, tools, target] = vi.mocked(ensureOtherPairs).mock.calls[0]!;
     expect(question).toBe("환율 왜 올랐어?");
     expect(area).toBe("fx");
     expect(ctx.evidence.map((e) => e.id)).toContain("E1");
     expect(tools.map((t) => t.name)).toContain("get_fx_krw_rate");
+    // 잴 대상은 보강 전에 골라서 넘긴다 (기본 환율 값은 비교 기준일이 없어 대상이 없음 → undefined)
+    expect(target).toBeUndefined();
 
     vi.mocked(ensureOtherPairs).mockClear();
     mockRuns({ plan: { intent: "status", tools: ["get_fx_krw_rate"], reason: "현황" }, writer: [good] });

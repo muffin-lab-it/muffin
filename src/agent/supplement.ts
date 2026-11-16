@@ -10,17 +10,18 @@
  */
 import { RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
-import { missingPairs } from "./movement";
+import { missingPairs, type Target } from "./movement";
 import { areaTools } from "./plan";
 import type { Area } from "./schema";
 
 /** 레지스트리 tool 중 여기서 쓰는 부분 (Agents SDK FunctionTool 의 name · invoke) */
 export type InvokableTool = { name: string; invoke: (runContext: RunContext<ResearchContext>, input: string) => Promise<unknown> };
 
-export async function ensureOtherPairs(ctx: ResearchContext, question: string, area: Area | undefined, tools: readonly InvokableTool[]): Promise<{ currency: string; days: number }[]> {
+/** target: muffin.ts 가 보강 전에 고른 잴 대상. 보강으로 통화가 늘어도 게이트가 같은 통화를 재게 밖에서 한 번만 고릅니다 (Codex 리뷰) */
+export async function ensureOtherPairs(ctx: ResearchContext, question: string, area: Area | undefined, tools: readonly InvokableTool[], target?: Target): Promise<{ currency: string; days: number }[]> {
   const fx = tools.find((t) => t.name === areaTools.fx);
   if (!fx) return [];
-  const missing = missingPairs(ctx.evidence, question, area);
+  const missing = missingPairs(ctx.evidence, question, area, target);
   if (missing.length === 0) return [];
   const rc = new RunContext(ctx);
   // 래퍼가 실패를 장부 · step 에 남기므로 여기서는 리포트를 멈추지 않습니다
