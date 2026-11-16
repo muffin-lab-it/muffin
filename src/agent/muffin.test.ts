@@ -6,7 +6,10 @@ vi.mock("@openai/agents", async (importOriginal) => {
   return { ...actual, run: vi.fn(), withTrace: (_name: unknown, fn: () => unknown) => fn() };
 });
 
+vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []) }));
+
 import { run, type RunContext } from "@openai/agents";
+import { ensureOtherPairs } from "./supplement";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
 import { research, hintAreaFor, modelFor } from "./muffin";
@@ -320,6 +323,25 @@ describe("research() 다섯 단계", () => {
     expect(input).toContain("- E2 · 금리 확인 · FRED — DFF");
     // 유일하게 뺀 항목이 다시 쓰이므로 "쓰지 않은 자료" 목록은 없다
     expect(input).not.toContain("[수집했지만 근거로 쓰지 않은 자료]");
+  });
+
+  it("환율 원인 질문이면 조사 뒤 다른 통화 환율을 코드가 채운다 (supplement.ts). 원인 질문이 아니면 부르지 않는다", async () => {
+    vi.mocked(ensureOtherPairs).mockClear();
+    mockRuns({ writer: [good] });
+    await research({ question: "환율 왜 올랐어?", depth: "standard", area: "fx" });
+    expect(ensureOtherPairs).toHaveBeenCalledTimes(1);
+    const [ctx, question, area, tools, target] = vi.mocked(ensureOtherPairs).mock.calls[0]!;
+    expect(question).toBe("환율 왜 올랐어?");
+    expect(area).toBe("fx");
+    expect(ctx.evidence.map((e) => e.id)).toContain("E1");
+    expect(tools.map((t) => t.name)).toContain("get_fx_krw_rate");
+    // 잴 대상은 보강 전에 골라서 넘긴다 (기본 환율 값은 비교 기준일이 없어 대상이 없음 → undefined)
+    expect(target).toBeUndefined();
+
+    vi.mocked(ensureOtherPairs).mockClear();
+    mockRuns({ plan: { intent: "status", tools: ["get_fx_krw_rate"], reason: "현황" }, writer: [good] });
+    await research({ question: "오늘 환율 얼마야?", depth: "standard", area: "fx" });
+    expect(ensureOtherPairs).not.toHaveBeenCalled();
   });
 
   it("움직임을 재지 못하면 게이트 없이 리포트를 내고, 실패는 실행 기록에만 남는다", async () => {

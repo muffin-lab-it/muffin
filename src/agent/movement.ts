@@ -130,7 +130,7 @@ export const causeMap: Partial<Record<Area, CauseCandidate[]>> = {
   ],
 };
 
-type Target = { ref: string; pair: string; currency: string; from: string; to: string; fromRate: number; toRate: number };
+export type Target = { ref: string; pair: string; currency: string; from: string; to: string; fromRate: number; toRate: number };
 export type DailyRate = { date: string; rate: number };
 
 const DAY_MS = 86_400_000;
@@ -298,15 +298,38 @@ async function fetchSeries(currency: string, from: string, to: string): Promise<
  * 원인 질문에서 muffin.ts 가 정제와 동시에 부릅니다. 주제가 환율이 아니거나 장부에 잴 환율 결과가 없으면 아무것도 부르지 않고,
  * 재다가 실패해도 throw 하지 않고 error step 을 돌려줍니다 (게이트 없이 리포트를 이어 가도록).
  */
-export async function measureMovement(evidence: Evidence[], { question, area }: { question: string; area?: Area }): Promise<MovementResult> {
-  if (!isFxQuestion(question, area)) return { movement: null };
+/**
+ * 잴 대상 고르기. 주제가 환율이 아니면 없음.
+ * 질문이 통화를 말했는데 그 통화의 결과가 없으면(유로를 물었는데 달러만 있음, 위안처럼 tool 에 없는 통화) 다른 통화를 대신 재지 않습니다.
+ * 통화를 말하지 않았으면 장부의 환율 결과가 한 통화면 그것을, 여러 통화면 달러를 잽니다 ("환율" 은 보통 원/달러이고, 조사가 달러 · 유로 · 엔을 함께 받아 오면
+ * 그때마다 게이트가 빠졌음 — 11/15 "최근 90일간 환율이 왜 움직였어?"). 달러 없이 여러 통화면 어느 것을 물었는지 몰라 재지 않습니다.
+ */
+export function pickTarget(evidence: Evidence[], question: string, area?: Area): Target | undefined {
+  if (!isFxQuestion(question, area)) return undefined;
   const found = targets(evidence);
   const currency = currencyOf(question);
-  // 질문이 통화를 말했는데 그 통화의 결과가 없으면(유로를 물었는데 달러만 있음, 위안처럼 tool 에 없는 통화) 다른 통화를 대신 재지 않습니다.
-  // 통화를 말하지 않았으면 장부의 환율 결과가 한 통화면 그것을, 여러 통화면 달러를 잽니다 ("환율" 은 보통 원/달러이고, 조사가 달러 · 유로 · 엔을 함께 받아 오면
-  // 그때마다 게이트가 빠졌음 — 11/15 "최근 90일간 환율이 왜 움직였어?"). 달러 없이 여러 통화면 어느 것을 물었는지 몰라 재지 않습니다.
   const currencies = new Set(found.map((t) => t.currency));
-  const target = currency ? found.find((t) => t.currency === currency) : currencies.size === 1 ? found[0] : found.find((t) => t.currency === "USD");
+  return currency ? found.find((t) => t.currency === currency) : currencies.size === 1 ? found[0] : found.find((t) => t.currency === "USD");
+}
+
+/** 환율 tool 이 다루는 통화. 원인 지도의 "다른 통화 대비 흐름" 은 잰 통화를 뺀 나머지를 같은 기간으로 봅니다 */
+export const PAIR_CURRENCIES = ["USD", "EUR", "JPY"] as const;
+
+/**
+ * 원인 지도가 필요로 하는 같은 기간 다른 통화 환율 중 장부에 없는 것 (muffin.ts 가 조사 뒤 환율 tool 로 채웁니다, src/agent/supplement.ts).
+ * days 는 잰 대상의 비교 기준일 → 최신 기준일 달력 일수라, 같은 days 로 부르면 같은 비교 기간이 나옵니다. 잴 대상이 없으면 빈 배열.
+ */
+export function missingPairs(evidence: Evidence[], question: string, area?: Area, target: Target | undefined = pickTarget(evidence, question, area)): { currency: string; days: number }[] {
+  if (!target) return [];
+  const have = new Set(targets(evidence).filter((t) => t.from === target.from && t.to === target.to).map((t) => t.currency));
+  const days = Math.min(365, Math.max(1, dayNumber(target.to) - dayNumber(target.from)));
+  return PAIR_CURRENCIES.filter((c) => c !== target.currency && !have.has(c)).map((currency) => ({ currency, days }));
+}
+
+export async function measureMovement(
+  evidence: Evidence[],
+  { question, area, target = pickTarget(evidence, question, area) }: { question: string; area?: Area; /** 미리 고른 대상 (muffin.ts: 보강 전에 골라 보강 뒤에도 같은 통화를 잽니다) */ target?: Target },
+): Promise<MovementResult> {
   if (!target) return { movement: null };
   const started = Date.now();
   const step = (status: ToolStep["status"], error?: string): ToolStep => ({ tool: MOVEMENT_TOOL, status, ms: Date.now() - started, ...(error ? { error } : {}) });
