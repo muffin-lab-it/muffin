@@ -5,7 +5,9 @@ import r2 from "./etf-decision-easy.json";
 import r3 from "./fx-cause.json";
 import r4 from "./fx-cause-deep.json";
 import r5 from "./fx-cause-easy.json";
-import r6 from "./rate-compare.json";
+import r6 from "./macro-cause.json";
+import r7 from "./macro-cause-deep.json";
+import r8 from "./rate-compare.json";
 
 export const replays: Record<string, unknown> = {
   "etf-decision": r0,
@@ -14,5 +16,7 @@ export const replays: Record<string, unknown> = {
   "fx-cause": r3,
   "fx-cause-deep": r4,
   "fx-cause-easy": r5,
-  "rate-compare": r6,
+  "macro-cause": r6,
+  "macro-cause-deep": r7,
+  "rate-compare": r8,
 };
