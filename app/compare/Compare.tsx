@@ -10,7 +10,7 @@ import { areaLabels, ReportView } from "@/app/components/ReportView";
 import type { MuffinEvent } from "@/src/agent/events";
 import type { Area, Depth } from "@/src/agent/schema";
 import { streamReport, type ReportResponse } from "@/src/lib/api";
-import { depthHints, depthLabels, depthOrder, formatStat, groupByQuestion, reportStats, statLabels, statOrder, type CompareGroup } from "@/src/lib/compare";
+import { columnOrder, depthHints, depthLabels, depthOrder, formatStat, groupByQuestion, reportStats, statLabels, statOrder, type CompareGroup } from "@/src/lib/compare";
 import { recordedLabel, type ReplayMeta } from "@/src/lib/replay-meta";
 import manifest from "@/src/replays/manifest.json";
 import styles from "./compare.module.css";
@@ -53,7 +53,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
 
   const playGroup = useCallback(
     (g: CompareGroup, speed: number) => {
-      const columns: Column[] = depthOrder.flatMap((d) => (g.replays[d] ? [{ depth: d, replay: g.replays[d], events: [], startedAt: Date.now() }] : []));
+      const columns: Column[] = columnOrder.flatMap((d) => (g.replays[d] ? [{ depth: d, replay: g.replays[d], events: [], startedAt: Date.now() }] : []));
       void start({ question: g.question, ...(g.area ? { area: g.area } : {}), mode: "replay", columns, speed });
     },
     [start],
@@ -102,7 +102,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
           className={styles.liveForm}
           onSubmit={(e) => {
             e.preventDefault();
-            const columns: Column[] = depthOrder.filter((d) => liveDepths.includes(d)).map((d) => ({ depth: d, events: [], startedAt: Date.now() }));
+            const columns: Column[] = columnOrder.filter((d) => liveDepths.includes(d)).map((d) => ({ depth: d, events: [], startedAt: Date.now() }));
             if (columns.length < 2 || !liveQuestion.trim()) return;
             void start({ question: liveQuestion.trim(), area: liveArea, mode: "live", columns, speed: 1 });
           }}
@@ -134,7 +134,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
   }
 
   const done = session.columns.every((c) => c.result || c.error);
-  const finished = session.columns.filter((c) => c.result);
+  const finished = [...session.columns].sort((a, b) => depthOrder.indexOf(a.depth) - depthOrder.indexOf(b.depth)).filter((c) => c.result);
   return (
     <>
       {session.mode === "replay" ? (

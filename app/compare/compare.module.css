@@ -7,7 +7,9 @@
 .secondary { opacity: 0.75; }
 .liveForm { display: grid; gap: 12px; }
 .banner { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: #fff7e6; color: #7a4b00; font-size: 14px; line-height: 20px; }
-.columns { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 16px; align-items: start; }
+/* 열은 최소 520px 을 보장합니다. 1280px 화면이면 두 열까지 나란히, 세 번째(Standard)는 아래 줄로 내려갑니다.
+   리포트 머리(큰 제목 + 그림)가 좁은 칸에서 낱말 단위로 꺾이던 문제(11/17). 세 열을 꼭 나란히 보려면 1600px 이상 화면 */
+.columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr)); gap: 16px; align-items: start; }
 .col { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .colHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .colHead small { color: var(--ink-3); }

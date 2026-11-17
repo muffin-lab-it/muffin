@@ -7,6 +7,8 @@ import { formatCost, type Cost } from "./pricing";
 import type { ReplayMeta } from "./replay-meta";
 
 export const depthOrder: readonly Depth[] = ["easy", "standard", "deep"];
+/** 나란히 놓는 순서. 두 열까지만 한 줄에 들어가므로(compare.module.css) 차이가 가장 큰 Easy · Deep 을 먼저 두고 Standard 는 뒤로 */
+export const columnOrder: readonly Depth[] = ["easy", "deep", "standard"];
 export const depthLabels: Record<Depth, string> = { easy: "Easy", standard: "Standard", deep: "Deep Dive" };
 export const depthHints: Record<Depth, string> = { easy: "쉽게 핵심만 빠르게", standard: "균형 잡힌 핵심과 배경", deep: "깊이 있는 리포트로 진지하게" };
 
