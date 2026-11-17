@@ -1,0 +1,24 @@
+.page { display: grid; gap: 36px; }
+.head { display: grid; gap: 6px; }
+.eyebrow { margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 600; }
+.section { display: grid; gap: 10px; }
+.section h2 { font-size: 19px; margin: 0; }
+.note { margin: 0; color: var(--ink-2); font-size: 14px; }
+.empty { margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); font-size: 14px; }
+.tableWrap { overflow-x: auto; border: 1px solid var(--line, #e3e6ea); border-radius: 10px; background: var(--surface, #fff); }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; font-variant-numeric: tabular-nums; }
+.table th, .table td { padding: 10px 12px; text-align: left; border-top: 1px solid var(--line, #e3e6ea); vertical-align: top; }
+.table thead th { border-top: 0; background: var(--surface-2); font-size: 12.5px; color: var(--ink-2); font-weight: 600; }
+.table th[scope="row"] { font-weight: 500; white-space: nowrap; }
+.table small { display: block; font-size: 11.5px; color: var(--ink-3); font-weight: 400; }
+.good { color: #1b7a52; font-weight: 600; }
+.bad { color: #b3261e; font-weight: 600; }
+.tiles { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tiles div { border: 1px solid var(--line, #e3e6ea); border-radius: 10px; padding: 12px 14px; background: var(--surface, #fff); min-width: 0; }
+.tiles dt { font-size: 12.5px; color: var(--ink-2); margin: 0 0 2px; }
+.tiles dd { margin: 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tiles dd small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.links { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14.5px; }
+.foot { border-top: 1px solid var(--line, #e3e6ea); padding-top: 12px; font-size: 12.5px; color: var(--ink-3); }
+.foot p { margin: 0; }
+@media (prefers-color-scheme: dark) { .good { color: #63c99a; } .bad { color: #f28b82; } }
