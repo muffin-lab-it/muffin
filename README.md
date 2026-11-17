@@ -17,41 +17,27 @@
 한 번의 질문은 다섯 단계를 지나갑니다. 에이전트 넷과 코드 하나입니다. 순서는 코드가 고정하고, 모델은 각 단계 안에서만 판단합니다. 단계 사이를 잇는 것은 **증거 장부**입니다. Tool 결과마다 번호(`E1`, `E2`…)가 붙고 계산 결과는 `C1`…, 리포트의 숫자와 원인은 이 번호를 인용해야 하며, 검증은 이 번호로 원본과 대조합니다.
 
 ```mermaid
-flowchart TB
-    U(["👤 질문 · 관심 영역 · 깊이"]) --> PL
+flowchart LR
+    U(["👤 질문 · 관심 영역 · 깊이"]) --> P
 
-    subgraph P["🧁 Muffin Agent — src/agent"]
-        direction TB
-        PL["📋 분류 Agent · plan.ts<br/>의도 · 부를 Tool · 모드"]
-        RS["🔍 조사 Agent · research.ts<br/>Tool 호출 · 조사 메모 · 실패 보완"]
-        ED["✂️ 정제 Agent · edit.ts<br/>사실 고르기 · 계산(C 번호) · 뺀 것 기록"]
-        WR["✍️ 작성 Agent · write.ts + depth.ts<br/>사실 목록만 보고 · 깊이별 문체"]
-        VF["✅ 검증 · verify.ts (코드)<br/>숫자 대조 · 근거 표시 · 권유 검사"]
-        PL --> RS --> ED --> WR --> VF
-        VF -- "실패 항목만 1회 수정, Tool 재호출 없음" --> WR
-    end
-
-    subgraph T["데이터 Tools — src/tools (팀원)"]
+    subgraph AGENT["🧁 Muffin Agent · src/agent — 순서는 코드가 고정"]
         direction LR
-        FX["💵 FX"]
-        ETF["📈 ETF"]
-        NEWS["📰 News"]
-        RATE["🏦 Rate"]
-        MACRO["📊 Macro"]
+        P["📋 분류<br/>plan.ts<br/><small>의도 · 부를 Tool</small>"] --> R["🔍 조사<br/>research.ts<br/><small>Tool 호출 · 메모</small>"] --> E["✂️ 정제<br/>edit.ts<br/><small>사실 고르기 · 계산</small>"] --> W["✍️ 작성<br/>write.ts · depth.ts<br/><small>사실 목록만 · 깊이별</small>"] --> V["✅ 검증<br/>verify.ts (코드)<br/><small>숫자 대조 · 근거 · 권유</small>"]
+        V -. "실패 항목만 1회 수정" .-> W
     end
-    CALC["🧮 Calc · src/tools/calc (리더)<br/>변동률 · 차이 · %p"]
 
-    RS <--> T
-    ED <--> CALC
-    T -. "결과마다 E1…En" .-> L[("증거 장부")]
-    CALC -. "C1…Cn + lineage" .-> L
-    L --> ED
-    L --> WR
-    L --> VF
+    V --> OUT["리포트 v2<br/><small>숫자마다 ✓ · 원인마다 근거 등급 · 출처 · AI 고지</small>"] --> UI["화면 · 보관함"]
 
-    VF --> R["리포트 v2<br/>숫자마다 ✓ 🧮 · 원인마다 📊 📰 ❔ · 출처 · AI 고지"]
-    R --> UI["화면 · History"]
-    P -. "stage · plan · step · verify 이벤트 (스트리밍)" .-> UI
+    subgraph DATA["데이터 · 계산 Tool — src/tools"]
+        direction LR
+        T["💵 환율 · 📈 ETF · 📰 뉴스 · 🏦 금리 · 📊 물가<br/><small>팀원 1인 1 Tool</small>"]
+        C["🧮 계산<br/><small>변동률 · 차이 · %p (리더)</small>"]
+    end
+
+    R <--> T
+    E <--> C
+    T -. "결과마다 E1…En" .-> L[("증거 장부<br/><small>정제 · 작성 · 검증이 같은 번호를 봅니다</small>")]
+    C -. "C1…Cn" .-> L
 ```
 
 | 단계 | 하는 일 | 구현 | 담당 · 파일 |
