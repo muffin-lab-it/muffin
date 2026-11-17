@@ -85,7 +85,7 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
 
       <section className={styles.section} aria-labelledby="q-ops">
         <h2 id="q-ops">3. 운영 최근 7일</h2>
-        <p className={styles.note}>배포된 사이트에서 실제로 만들어진 리포트의 집계입니다. 연습 · 재생은 뺍니다.</p>
+        <p className={styles.note}>배포된 사이트에서 실제로 만들어진 리포트의 집계입니다. 연습 · 재생은 뺍니다.{ops?.truncated ? " 7일치가 한 번에 읽는 상한을 넘어 최신 기록만 집계했습니다." : ""}</p>
         {!ops ? (
           <p className={styles.empty}>실행 기록을 지금 읽지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>
         ) : (

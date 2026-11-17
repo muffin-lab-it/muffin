@@ -13,7 +13,7 @@ const weekly = [
     { label: "검증 통과", pass: 19, total: 19, rate: 1, threshold: 0.9, ok: true },
   ] },
 ];
-const ops = { since: "2026-11-10T00:00:00.000Z", until: "2026-11-17T00:00:00.000Z", reports: 56, successRate: 0.95, p90Ms: 40200, avgMs: 27000, cost: { usd: 0.0112, krw: 14.95, partial: false } };
+const ops = { since: "2026-11-10T00:00:00.000Z", until: "2026-11-17T00:00:00.000Z", reports: 56, successRate: 0.95, p90Ms: 40200, avgMs: 27000, cost: { usd: 0.0112, krw: 14.95, partial: false }, truncated: false };
 
 describe("QualityView (심사용 공개 페이지)", () => {
   it("주간 평가를 날짜 열 · 지표 행으로 그리고, 기준 미달 칸을 표시한다", () => {

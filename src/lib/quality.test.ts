@@ -21,7 +21,7 @@ describe("quality: 공개 페이지 데이터", () => {
 
   it("운영 집계에서는 리포트 수 · 성공률 · p90 · 평균 · 비용만 꺼낸다", () => {
     const s = { range: "7d", since: "a", until: "b", total: 60, ok: 57, failed: 3, time: { count: 56, avgMs: 27000, p90Ms: 40000 }, cost: { count: 10, avg: { usd: 0.01, krw: 13.4, partial: false }, total: { usd: 0.1, krw: 134, partial: false }, unknown: 46 } } as never;
-    expect(opsPoint(s)).toEqual({ since: "a", until: "b", reports: 56, successRate: 0.95, p90Ms: 40000, avgMs: 27000, cost: { usd: 0.01, krw: 13.4, partial: false } });
-    expect(opsPoint({ range: "7d", since: "a", until: "b", total: 0, ok: 0, failed: 0, time: null, cost: null } as never)).toMatchObject({ reports: 0, successRate: null, p90Ms: null, cost: null });
+    expect(opsPoint(s)).toEqual({ since: "a", until: "b", reports: 56, successRate: 0.95, p90Ms: 40000, avgMs: 27000, cost: { usd: 0.01, krw: 13.4, partial: false }, truncated: false });
+    expect(opsPoint({ range: "7d", since: "a", until: "b", total: 0, ok: 0, failed: 0, time: null, cost: null } as never, true)).toMatchObject({ reports: 0, successRate: null, p90Ms: null, cost: null, truncated: true });
   });
 });
