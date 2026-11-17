@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Evidence, FactsOutput, ResearchNotes, WriterOutput } from "./schema";
-import { adviceGuardrail, revisionNote, writerInput, writerInstructions } from "./write";
+import { adviceGuardrail, revisionNote, toolWritingRules, writerInput, writerInstructions, writingRules } from "./write";
 import { depthInstructions } from "./depth";
 
 const evidence: Evidence[] = [
@@ -35,12 +35,52 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
+  it.each(["easy", "standard", "deep"] as const)("%s 에서 본문 확보 상태와 원인 근거 부족을 구분한다", (depth) => {
+    for (const mode of ["research", "decision_facts"] as const) {
+      const text = writerInstructions(depth, "news", mode);
+      expect(text).toContain("기사별 values.body 값으로만 판단합니다");
+      expect(text).toContain("available 은 본문 확보, unavailable 은 본문 미확보, not_requested 는 본문 미요청");
+      expect(text).toContain("본문은 확인했지만 원인 설명은 확인되지 않았습니다");
+      expect(text).toContain("해당 기사의 body 가 unavailable 일 때만");
+      expect(text).toContain("summary · dataGaps · caveats 를 포함한 리포트 전체");
+      expect(text).toContain("입력에 body 값이 없는 기사의 확보 상태는 추정하지 않고");
+      expect(text).toContain("본문 확보 목표의 부족 수량을 제목만 확인한 기사 수로 바꾸지 않습니다");
+    }
+  });
+
   it.each(["easy", "standard", "deep"] as const)("%s 에서 새 계산은 금지하고 장부의 퍼센트 표기 반올림은 허용한다", (depth) => {
     const text = writerInstructions(depth, "etf");
     expect(text).toContain("계산하지 않습니다. 퍼센트(%, %p)는 소수 둘째 자리로 반올림해 적습니다");
     expect(text).toContain("numbers 의 value · change 와 summary · why · impact · caveats 본문 모두 소수 둘째 자리로 반올림");
     expect(text).not.toContain("계산하거나 반올림하지 않습니다");
-    expect(text).toContain("C 항목이 없으면 그 숫자는 쓰지 않습니다");
+    expect(text).toContain("Tool 이 이미 계산해 E 번호 장부에 제공한 차이 · 변동률도 인용할 수 있습니다");
+    expect(text).toContain("장부에 없는 새 계산 결과는 정제의 calc_metrics 가 만든 C 번호가 있어야");
+    expect(text).not.toContain("C 번호 항목에만 있습니다");
+    expect(text).not.toContain("C 항목이 없으면 그 숫자는 쓰지 않습니다");
+    expect(text).not.toContain("꼭 환산하면");
+  });
+
+  it.each([undefined, "fx", "etf", "news", "rate", "macro"] as const)("%s 질문에도 공통 규칙과 모든 근거 Tool 규칙을 분리해 전달한다", (area) => {
+    const text = writerInstructions("standard", area);
+    expect(text.indexOf("[공통 규칙: 숫자 · 단위 · 인용]")).toBeLessThan(text.indexOf("[Tool별 규칙]"));
+    expect(text).toContain(toolWritingRules);
+    expect(writingRules).not.toContain("values.body");
+    expect(text).toContain("질문의 관심 영역이 달라도 사용한 근거의 규칙은 같습니다");
+    for (const tool of ["get_fx_krw_rate", "get_etf_kr_price", "get_rate_data", "get_macro_indicators", "get_korean_economic_news", "calc_metrics"]) {
+      expect(toolWritingRules).toContain(`: ${tool}]`);
+    }
+  });
+
+  it("Tool의 단위·기준시점·근거 범위와 충돌하던 표현을 교정한다", () => {
+    const text = writerInstructions("standard");
+    expect(text).toContain("기사 근거에 숫자가 없으면 숫자를 억지로 붙이지 않습니다");
+    expect(text).toContain("JPY는 100엔 기준");
+    expect(text).toContain("period.closeFrom · period.indexCloseFrom 의 기준일은 period.from");
+    expect(text).toContain("DFF는 실효 연방기금금리");
+    expect(text).toContain("발표일·조회일이 아닙니다");
+    expect(text).toContain("월별 관측값은 YYYY-MM로 표시합니다");
+    expect(text).toContain("공식 통계로 독립 검증된 값이라고 표현하지 않습니다");
+    expect(text).toContain("from · to 는 입력값");
   });
 
   it("영역별 힌트가 명시된 목적과 목적이 없는 경우의 기본 관점, 미보유 맥락을 전달한다", () => {
@@ -121,6 +161,8 @@ describe("writerInput", () => {
     expect(text).toContain("[질문]\n환율 왜 올랐어?");
     expect(text).toContain("- E1 · 환율 확인 · Frankfurter v2 · 기준일 2026-10-19");
     expect(text).toContain('values: {"rate":1392.4,"changePct":2}');
+    expect(text).toContain("tool: get_fx_krw_rate");
+    expect(text).toContain("tool: get_korean_economic_news");
     expect(text).toContain("note: 주말은 직전 영업일 값");
     expect(text).toContain("- E2-1 · 경제 뉴스 확인 · 연합뉴스");
     expect(text).toContain("계산: pp_diff ← E3, E4");
@@ -146,6 +188,8 @@ describe("writerInput", () => {
     expect(text).toContain("- E1 · 환율 확인 · Frankfurter v2");
     expect(text).toContain("- C1 · 계산 · 한미 금리 차이");
     expect(text).not.toContain("E2-1");
+    expect(text).toContain("tool: calc_metrics");
+    expect(text).not.toContain("tool: get_korean_economic_news");
     expect(text).not.toContain("[조사 메모]");
     // 조사의 gaps 와 정제의 unverified 가 함께 "확인하지 못한 것" 으로 간다
     expect(text).toContain("- 금리 tool 실패");
