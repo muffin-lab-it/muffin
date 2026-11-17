@@ -289,6 +289,9 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
     expect(filtered).toContain("[덧붙인 장부 항목]");
     expect(filtered).toContain("- C2 · 평소 움직임과 비교 · USD/KRW 30일 변화의 크기 (직전 90일 기준) · 기준일 2026-11-02");
     expect(filtered).toContain('"typicalMovePct":1.69');
+    // 작성 입력의 [증거 장부] 와 같은 줄 구성 (tool · note · 계산) 이라 작성이 Tool 별 규칙을 똑같이 고를 수 있다
+    expect(filtered).toContain("  tool: calc_movement\n  note: 직전 90일");
+    expect(filtered).toContain("  계산: zscore ← E1");
   });
 
   it("평소보다 크면 원인 지도의 후보마다 장부 근거 id 를 붙이고, 작성이 못 보는 근거는 값을 덧붙인다", () => {
