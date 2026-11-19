@@ -3,7 +3,7 @@ import { RunContext } from "@openai/agents";
 import { ResearchContext } from "../../agent/context";
 import type { Evidence } from "../../agent/schema";
 import { extractNumbers, matchValue, numericCandidates } from "../../agent/verify";
-import { calcEvidence, calcTool, execute } from "./index";
+import { calcEvidence, calcTool, execute, perFromUnit } from "./index";
 import { diff, movementZ, pctChange, ppDiff, round, scale, stdev } from "./metrics";
 
 const kr: Evidence = {
@@ -252,7 +252,8 @@ describe("scale: 단위당 값을 사용자가 말한 금액으로 환산 (11/19
     expect(scale(1333.26, 20000)).toBe(26665200);
     const ctx = ledger();
     ctx.addEvidence([jpy]);
-    const input = { op: "scale", a: { ref: "E4", key: "change" }, b: null, amount: 100000, per: 100, label: "10만 엔 환전 원화 차이" };
+    // per 는 장부 단위에서 읽는다 (null 로 넘겨도 100). 금액 · 기준은 장부에 올리지 않아 "100,000원" 이 C1 로 통과하지 않는다
+    const input = { op: "scale", a: { ref: "E4", key: "change" }, b: null, amount: 100000, per: null, label: "10만 엔 환전 원화 차이" };
     const r = await execute(input as never, ctx);
     expect(r.data).toMatchObject({ op: "scale", value: -3200, unit: "원", amount: 100000, per: 100 });
     expect(r.data.formula).toBe("E4.change -3.2 × 100000 ÷ 100 = -3200원");
@@ -260,10 +261,24 @@ describe("scale: 단위당 값을 사용자가 말한 금액으로 환산 (11/19
     expect(r.note).toContain("수수료");
     await invoke(ctx, input);
     const c1 = ctx.evidence.find((e) => e.id === "C1")!;
-    expect(c1.values).toMatchObject({ scaled: -3200, from: -3.2, amount: 100000, per: 100, unit: "원" });
+    expect(c1.values).toEqual({ scaled: -3200, from: -3.2, unit: "원" });
     const [n] = extractNumbers("3,200원 감소");
     expect(matchValue(n!, numericCandidates(c1))).toMatchObject({ key: "scaled" });
     expect(matchValue(extractNumbers("-3,200원")[0]!, numericCandidates(c1))).toMatchObject({ key: "scaled" });
+    expect(matchValue(extractNumbers("100,000원")[0]!, numericCandidates(c1))).toBeNull();
+    expect(matchValue(extractNumbers("100원")[0]!, numericCandidates(c1))).toBeNull();
+  });
+  it("per 는 단위에서 읽고, 단위와 다른 per 는 실패하며, 단위에서 못 읽으면 per 가 필수다", async () => {
+    expect(perFromUnit("KRW per 100 JPY")).toBe(100);
+    expect(perFromUnit("KRW per 1 USD")).toBe(1);
+    expect(perFromUnit("%")).toBeNull();
+    const ctx = ledger();
+    ctx.addEvidence([jpy]);
+    await expect(execute({ op: "scale", a: { ref: "E4", key: "change" }, b: null, amount: 100000, per: 1, label: "x" } as never, ctx)).rejects.toThrow("단위(KRW per 100 JPY, 100단위당)와 다릅니다");
+    // 금리(%)처럼 단위당 값이 아닌 것은 per 를 넘겨야 한다
+    await expect(execute({ op: "scale", a: { ref: "E2", key: "rate" }, b: null, amount: 1000000, per: null, label: "x" } as never, ctx)).rejects.toThrow("per 를 넘기세요");
+    const r = await execute({ op: "scale", a: { ref: "E2", key: "rate" }, b: null, amount: 1000000, per: 100, label: "100만 원의 연 3% 이자" } as never, ctx);
+    expect(r.data).toMatchObject({ value: 30000, unit: "%", per: 100 });
   });
   it("amount 가 없으면 실패하고, 다른 op 에 b 가 없어도 실패한다 (C 번호를 쓰지 않음)", async () => {
     const ctx = ledger();
