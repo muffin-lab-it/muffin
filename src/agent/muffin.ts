@@ -19,7 +19,8 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
-import { ensureOtherPairs } from "./supplement";
+import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
+import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
@@ -138,7 +139,11 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 환율 원인 질문이면 원인 지도가 필요로 하는 같은 기간 다른 통화 환율을 코드가 채웁니다 (조사가 받아 오지 않은 통화만, src/agent/supplement.ts).
   // 잴 대상은 보강 전에 한 번만 고릅니다. 보강으로 통화가 늘어난 뒤 다시 고르면 대상이 바뀔 수 있습니다 (유로만 있던 장부에 달러가 더해지면 달러로)
   const fxTarget = plan.intent === "cause" ? pickTarget(ctx.evidence, question, area) : undefined;
-  if (plan.intent === "cause") await ensureOtherPairs(ctx, question, area, tools, fxTarget);
+  if (plan.intent === "cause") {
+    await ensureOtherPairs(ctx, question, area, tools, fxTarget);
+    // 물가 원인 질문이면 품목군별 등락률 · 기여도를 채웁니다 (src/agent/supplement.ts, 11/19 페르소나 테스트: 물가 "왜" 에 원인 0개)
+    await ensureCpiCategories(ctx, question, tools);
+  }
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
@@ -165,8 +170,10 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const dropped = new Set(facts?.dropped.map((d) => d.ref) ?? []);
   // 큰 움직임이면 정제가 뺀 자료도 원인 후보 근거로 다시 보므로(movement.ts), 그 항목은 "쓰지 않은 자료" 목록에서 뺍니다 (두 안내가 어긋나지 않게)
   const rescued = movement ? rescuedRefs(movement, ctx.evidence, dropped) : new Set<string>();
+  // 물가 품목군 항목도 정제가 뺐더라도 원인 후보로 다시 봅니다 (src/agent/cpi.ts)
+  if (plan.intent === "cause") for (const id of cpiRescuedRefs(ctx.evidence, dropped)) rescued.add(id);
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
-  const input = [writerInput(question, ctx.evidence, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : ""]
+  const input = [writerInput(question, ctx.evidence, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);

@@ -72,13 +72,15 @@ const valueLabels: Record<string, string> = {
   "period.from": "기간 시작", "period.to": "기간 끝", "period.months": "기간 (개월)", "period.days": "기간 (일)", from: "시작", to: "끝", periodDays: "기간 (일)",
   movePct: "이번 변화율 (%)", typicalMovePct: "평소 변화 폭 (%)", zScore: "평소 대비 (표준편차 배수)", timesTypical: "평소 폭 대비 배수", level: "판정",
   baselineStart: "기준 구간 시작", baselineEnd: "기준 구간 끝", baselineCount: "기준 구간 관측 수",
-  name: "이름", code: "종목 코드", baseIndex: "기초지수", "latest.date": "최근 거래일", "latest.close": "종가", "latest.change": "전일 대비 변화", "latest.changePct": "전일 대비 변화율 (%)",
+  name: "이름", code: "코드", baseIndex: "기초지수", "latest.date": "최근 거래일", "latest.close": "종가", "latest.change": "전일 대비 변화", "latest.changePct": "전일 대비 변화율 (%)",
   "latest.nav": "순자산가치 (NAV)", "latest.premiumPct": "괴리율 (%)", "latest.open": "시가", "latest.high": "고가", "latest.low": "저가", "latest.volume": "거래량", "latest.tradeValue": "거래대금",
   "latest.netAssets": "순자산", "latest.indexClose": "기초지수 종가", "period.closeFrom": "기간 시작 종가", "period.indexCloseFrom": "기간 시작 지수", "period.returnPct": "기간 수익률 (%)",
   "period.indexReturnPct": "지수 수익률 (%)", "period.trackingDiffPp": "추적 차이 (%p)", "period.high": "기간 고가", "period.low": "기간 저가",
   "latest.month": "최근 월", "latest.value": "최근 값", "latest.previousMonth.month": "전월", "latest.previousMonth.value": "전월 값", "latest.previousMonth.change": "전월 대비 변화",
   "latest.previousYear.month": "전년 같은 달", "latest.previousYear.value": "전년 같은 달 값", "latest.previousYear.change": "전년 같은 달 대비 변화",
   publishedAt: "발행일", publisher: "언론사", body: "본문 상태", url: "주소",
+  category: "품목군", weight: "가중치 (12개 합 1000)", index: "지수", previousYearIndex: "전년 같은 달 지수", yoyPct: "전년 같은 달 대비 (%)",
+  contributionPp: "총지수 등락 기여도 (%p, 근사)", contributionSumPp: "12개 품목군 기여도 합 (%p)", month: "기준 월", previousYearMonth: "비교 월",
 };
 /** 원본 값 표시. 소수가 긴 값(-0.2169840746809312)은 소수 넷째 자리까지, 큰 정수는 천 단위 쉼표. 연도 · 월 · 코드처럼 보이는 정수는 그대로 둡니다. */
 export function formatEvidenceValue(key: string, value: unknown): string {

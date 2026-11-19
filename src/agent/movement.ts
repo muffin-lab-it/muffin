@@ -430,7 +430,7 @@ function windowNote(refs: Evidence[], m: Movement): string {
 }
 
 /** 작성 입력의 [증거 장부] 와 같은 모양의 한 항목. */
-function ledgerLine(e: Evidence): string {
+export function ledgerLine(e: Evidence): string {
   const lines = [`- ${e.id} · ${e.label} · 기준일 ${e.source.asOf}`, `  values: ${JSON.stringify(e.values)}`];
   // write.ts ledgerLines 와 같은 모양. 작성은 tool 이름으로 Tool 별 규칙을 고릅니다 (#100)
   lines.push(`  tool: ${e.tool}`);
