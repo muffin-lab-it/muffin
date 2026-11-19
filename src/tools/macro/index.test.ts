@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RunContext } from "@openai/agents";
 import { ResearchContext } from "../../agent/context";
 import fixture from "./fixture.json";
-import { execute, macroTool, parameters, type Input } from "./index";
+import { execute, executeCategories, macroTool, parameters, type Input } from "./index";
 
 // 실제 원응답에서 타입을 추론한다. 오류 사례는 복사본만 수정한다.
 
@@ -41,25 +41,25 @@ function mockApi(body: unknown, status = 200) {
   return fetchMock;
 }
 
-function krBody(indicator: Input["indicator"] = "cpi"): EcosBody {
+function krBody(indicator: "cpi" | "unemployment" = "cpi"): EcosBody {
   return structuredClone(cases[`KR_${indicator}`].response);
 }
 
-function usBody(indicator: Input["indicator"] = "cpi"): FredBody {
+function usBody(indicator: "cpi" | "unemployment" = "cpi"): FredBody {
   return structuredClone(cases[`US_${indicator}`].response);
 }
 
 function changeKr(
   month: string,
   changes: Partial<EcosRow>,
-  indicator: Input["indicator"] = "cpi"
+  indicator: "cpi" | "unemployment" = "cpi"
 ) {
   const body = krBody(indicator);
   Object.assign(body.StatisticSearch.row.find(r => r.TIME === month)!, changes);
   return body;
 }
 
-function changeUs(month: string, value: string, indicator: Input["indicator"] = "cpi") {
+function changeUs(month: string, value: string, indicator: "cpi" | "unemployment" = "cpi") {
   const body = usBody(indicator);
   body.observations.find(r => r.date === `${month.slice(0, 4)}-${month.slice(4)}-01`)!.value = value;
   return body;
@@ -486,5 +486,79 @@ describe("입력·응답 검증과 인증정보 보호", () => {
       status: "ok"
     }]);
     expect(context.sources).toHaveLength(1);
+  });
+});
+
+describe("cpi_categories: 지출목적별 품목군 (fixture 기반)", () => {
+  const sample = cases.KR_cpi_categories;
+  function mockCategoryApi(overrides: Partial<Record<"total" | "latest" | "previousYear" | "previousMonth", unknown>> = {}) {
+    const bodies = { ...structuredClone(sample.responses), ...overrides };
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const path = new URL(url).pathname;
+      const body = path.endsWith("/0") ? bodies.total : path.includes("/M/202610/202610") ? bodies.latest : path.includes("/M/202510/202510") ? bodies.previousYear : path.includes("/M/202609/202609") ? bodies.previousMonth : { RESULT: { CODE: "INFO-200", MESSAGE: "no data" } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("총지수 전년비 · 전월비와 12개 품목군의 등락률 · 기여도를 전년 기여도 큰 순으로 돌려주고 출처는 13개", async () => {
+    vi.setSystemTime(new Date("2026-11-19T12:00:00+09:00"));
+    const calls = mockCategoryApi();
+    const result = await executeCategories(parameters.parse(sample.input));
+    expect(calls).toHaveBeenCalledTimes(4);
+    expect(result.data).toMatchObject({ month: "202610", previousYearMonth: "202510", previousMonth: "202609", weightBase: 1000, contributionFormula: "weight / 1000 * pct" });
+    expect(result.data.total.yoyPct).toBeCloseTo(2.818941, 5);
+    expect(result.data.total.momPct).toBeCloseTo(0.2491, 3);
+    const dining = result.data.categories.find((c) => c.code === "K")!;
+    expect(dining.momPct).toBeCloseTo(0.5913, 3);
+    expect(dining.momContributionPp).toBeCloseTo(0.0856, 3);
+    expect(Math.abs(result.data.momContributionSumPp - result.data.total.momPct)).toBeLessThan(0.05);
+    expect(result.data.categories).toHaveLength(12);
+    expect(result.data.categories.map((c) => c.code).slice(0, 3)).toEqual(["G", "K", "D"]);
+    expect(result.data.categories[0]).toMatchObject({ name: "교통", weight: 110.6 });
+    expect(result.data.categories[0]!.contributionPp).toBeCloseTo(0.7525, 3);
+    expect(result.data.categories.reduce((sum, c) => sum + c.weight, 0)).toBeCloseTo(1000, 6);
+    expect(Math.abs(result.data.contributionSumPp - result.data.total.yoyPct)).toBeLessThan(0.1);
+    expect(Array.isArray(result.source) ? result.source : []).toHaveLength(13);
+    expect(result.note).toContain("근사치");
+    for (const [, init] of calls.mock.calls) expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("endMonth null 이면 총지수의 최신 관측 월(202610)을 찾아 그 달과 전년 동월을 조회한다", async () => {
+    vi.setSystemTime(new Date("2026-11-19T12:00:00+09:00"));
+    mockCategoryApi();
+    const result = await executeCategories({ country: "KR", indicator: "cpi_categories", endMonth: null, months: 1 });
+    expect(result.data.month).toBe("202610");
+    expect(result.data.previousYearMonth).toBe("202510");
+  });
+
+  it("장부에는 총지수 + 품목군 13개 항목이 E-1 … E-13 으로 올라가고 품목군마다 등락률 · 기여도 · 가중치가 있다", async () => {
+    vi.setSystemTime(new Date("2026-11-19T12:00:00+09:00"));
+    mockCategoryApi();
+    const ctx = new ResearchContext();
+    await macroTool.invoke(new RunContext(ctx), JSON.stringify(sample.input));
+    expect(ctx.evidence).toHaveLength(13);
+    expect(ctx.evidence[0]).toMatchObject({ id: "E1-1", values: { indicator: "cpi_categories", category: "총지수", weight: 1000 } });
+    expect(ctx.evidence[1]).toMatchObject({ id: "E1-2", values: { category: "교통", code: "G", weight: 110.6 } });
+    expect(typeof ctx.evidence[1]!.values.yoyPct).toBe("number");
+    expect(typeof ctx.evidence[1]!.values.contributionPp).toBe("number");
+    expect(typeof ctx.evidence[1]!.values.momContributionPp).toBe("number");
+    expect(ctx.evidence[0]!.values.previousMonth).toBe("202609");
+    expect(ctx.evidence[12]!.values.category).toBe("주류 및 담배");
+  });
+
+  it("미국은 지원하지 않고, 품목군 하나가 빠지면 실패한다 (빈 값으로 돌려주지 않음)", async () => {
+    vi.setSystemTime(new Date("2026-11-19T12:00:00+09:00"));
+    await expect(executeCategories({ country: "US", indicator: "cpi_categories", endMonth: null, months: 1 })).rejects.toThrow("한국(ECOS)만");
+    const latest = structuredClone(sample.responses.latest);
+    latest.StatisticSearch.row = latest.StatisticSearch.row.filter((r) => r.ITEM_CODE1 !== "K");
+    latest.StatisticSearch.list_total_count = latest.StatisticSearch.row.length;
+    mockCategoryApi({ latest });
+    await expect(executeCategories(parameters.parse(sample.input))).rejects.toThrow("품목군 K");
+  });
+
+  it("execute 로 cpi_categories 를 부르면 안내하며 실패한다", async () => {
+    await expect(execute({ country: "KR", indicator: "cpi_categories", endMonth: null, months: 1 })).rejects.toThrow("executeCategories");
   });
 });
