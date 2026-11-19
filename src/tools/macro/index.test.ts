@@ -491,24 +491,29 @@ describe("입력·응답 검증과 인증정보 보호", () => {
 
 describe("cpi_categories: 지출목적별 품목군 (fixture 기반)", () => {
   const sample = cases.KR_cpi_categories;
-  function mockCategoryApi(overrides: Partial<Record<"total" | "latest" | "previousYear", unknown>> = {}) {
+  function mockCategoryApi(overrides: Partial<Record<"total" | "latest" | "previousYear" | "previousMonth", unknown>> = {}) {
     const bodies = { ...structuredClone(sample.responses), ...overrides };
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       const path = new URL(url).pathname;
-      const body = path.endsWith("/0") ? bodies.total : path.includes("/M/202610/202610") ? bodies.latest : path.includes("/M/202510/202510") ? bodies.previousYear : { RESULT: { CODE: "INFO-200", MESSAGE: "no data" } };
+      const body = path.endsWith("/0") ? bodies.total : path.includes("/M/202610/202610") ? bodies.latest : path.includes("/M/202510/202510") ? bodies.previousYear : path.includes("/M/202609/202609") ? bodies.previousMonth : { RESULT: { CODE: "INFO-200", MESSAGE: "no data" } };
       return new Response(JSON.stringify(body), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
   }
 
-  it("총지수 전년비와 12개 품목군의 등락률 · 기여도를 기여도 큰 순으로 돌려주고 출처는 13개", async () => {
+  it("총지수 전년비 · 전월비와 12개 품목군의 등락률 · 기여도를 전년 기여도 큰 순으로 돌려주고 출처는 13개", async () => {
     vi.setSystemTime(new Date("2026-11-19T12:00:00+09:00"));
     const calls = mockCategoryApi();
     const result = await executeCategories(parameters.parse(sample.input));
-    expect(calls).toHaveBeenCalledTimes(3);
-    expect(result.data).toMatchObject({ month: "202610", previousYearMonth: "202510", weightBase: 1000, contributionFormula: "weight / 1000 * yoyPct" });
+    expect(calls).toHaveBeenCalledTimes(4);
+    expect(result.data).toMatchObject({ month: "202610", previousYearMonth: "202510", previousMonth: "202609", weightBase: 1000, contributionFormula: "weight / 1000 * pct" });
     expect(result.data.total.yoyPct).toBeCloseTo(2.818941, 5);
+    expect(result.data.total.momPct).toBeCloseTo(0.2491, 3);
+    const dining = result.data.categories.find((c) => c.code === "K")!;
+    expect(dining.momPct).toBeCloseTo(0.5913, 3);
+    expect(dining.momContributionPp).toBeCloseTo(0.0856, 3);
+    expect(Math.abs(result.data.momContributionSumPp - result.data.total.momPct)).toBeLessThan(0.05);
     expect(result.data.categories).toHaveLength(12);
     expect(result.data.categories.map((c) => c.code).slice(0, 3)).toEqual(["G", "K", "D"]);
     expect(result.data.categories[0]).toMatchObject({ name: "교통", weight: 110.6 });
@@ -538,6 +543,8 @@ describe("cpi_categories: 지출목적별 품목군 (fixture 기반)", () => {
     expect(ctx.evidence[1]).toMatchObject({ id: "E1-2", values: { category: "교통", code: "G", weight: 110.6 } });
     expect(typeof ctx.evidence[1]!.values.yoyPct).toBe("number");
     expect(typeof ctx.evidence[1]!.values.contributionPp).toBe("number");
+    expect(typeof ctx.evidence[1]!.values.momContributionPp).toBe("number");
+    expect(ctx.evidence[0]!.values.previousMonth).toBe("202609");
     expect(ctx.evidence[12]!.values.category).toBe("주류 및 담배");
   });
 

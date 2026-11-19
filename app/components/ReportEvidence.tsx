@@ -81,6 +81,7 @@ const valueLabels: Record<string, string> = {
   publishedAt: "발행일", publisher: "언론사", body: "본문 상태", url: "주소",
   category: "품목군", weight: "가중치 (12개 합 1000)", index: "지수", previousYearIndex: "전년 같은 달 지수", yoyPct: "전년 같은 달 대비 (%)",
   contributionPp: "총지수 등락 기여도 (%p, 근사)", contributionSumPp: "12개 품목군 기여도 합 (%p)", month: "기준 월", previousYearMonth: "비교 월",
+  previousMonth: "전월", previousMonthIndex: "전월 지수", momPct: "전월 대비 (%)", momContributionPp: "총지수 전월 대비 기여도 (%p, 근사)", momContributionSumPp: "12개 품목군 전월 기여도 합 (%p)",
 };
 /** 원본 값 표시. 소수가 긴 값(-0.2169840746809312)은 소수 넷째 자리까지, 큰 정수는 천 단위 쉼표. 연도 · 월 · 코드처럼 보이는 정수는 그대로 둡니다. */
 export function formatEvidenceValue(key: string, value: unknown): string {

@@ -10,6 +10,26 @@ import type { Evidence } from "./schema";
 /** why 에 쓰라고 권하는 품목군 수 (기여도 큰 순) */
 export const TOP_CATEGORIES = 3;
 
+/** 질문이 묻는 비교 기준. "지난달 · 전월 · 이번 달" 이면 전월 대비, 그 밖("최근 · 요즘 · 왜 올랐어")은 전년 같은 달 대비 */
+export type CpiBasis = "yoy" | "mom";
+export function cpiBasisFor(question: string): CpiBasis {
+  return /지난\s*달|전월|이번\s*달|한\s*달\s*전|저번\s*달|월간/.test(question) ? "mom" : "yoy";
+}
+
+const FIELDS = {
+  yoy: { pct: "yoyPct", contribution: "contributionPp", sum: "contributionSumPp", label: "전년 같은 달 대비" },
+  mom: { pct: "momPct", contribution: "momContributionPp", sum: "momContributionSumPp", label: "전월 대비" },
+} as const;
+
+/** 기준(전년 · 전월)에 맞는 기여도로, 총지수가 움직인 방향으로 많이 보탠 순 */
+export function rankCategories(categories: Evidence[], basis: CpiBasis, total: Evidence | undefined): Evidence[] {
+  const f = FIELDS[basis];
+  const falling = Number(total?.values[f.pct] ?? 0) < 0;
+  return categories
+    .filter((e) => typeof e.values[f.contribution] === "number")
+    .sort((a, b) => (falling ? 1 : -1) * (Number(a.values[f.contribution]) - Number(b.values[f.contribution])));
+}
+
 /**
  * 품목군 장부 항목. 한 번의 tool 호출(같은 E 번호 앞부분, E2-1 · E2-2 …)이 한 묶음이고, 묶음이 여럿이면(다른 월 · 같은 월 중복 조회)
  * 관측 월이 가장 최근인 묶음, 같으면 나중 호출을 씁니다 (Codex 리뷰). total 은 총지수 항목, categories 는 총지수가 움직인 방향으로 기여도가 큰 순
@@ -40,25 +60,36 @@ export function cpiRescuedRefs(evidence: Evidence[], dropped: Set<string>): Set<
 
 const signed = (v: unknown, unit: string) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(2)}${unit}`;
 
-/** 작성 입력에 덧붙이는 [물가 원인 후보]. 품목군 자료가 없으면 빈 문자열. shown 은 작성이 보는 사실 목록의 id (null 이면 장부 전체) */
-export function cpiCauseNote(evidence: Evidence[], shown: Set<string> | null): string {
-  const { total, categories } = cpiCategoryEntries(evidence);
+/**
+ * 작성 입력에 덧붙이는 [물가 원인 후보]. 품목군 자료가 없으면 빈 문자열. shown 은 작성이 보는 사실 목록의 id (null 이면 장부 전체).
+ * 질문이 전월 대비를 물으면 전월 기여도, 아니면 전년 같은 달 대비 기여도를 기준으로 삼습니다 (Codex 리뷰: 전월 질문에 전년 기여도를 원인으로 쓰지 않게).
+ */
+export function cpiCauseNote(evidence: Evidence[], shown: Set<string> | null, question = ""): string {
+  const { total, categories: byYear } = cpiCategoryEntries(evidence);
+  if (byYear.length === 0) return "";
+  const basis = cpiBasisFor(question);
+  const f = FIELDS[basis];
+  const categories = rankCategories(byYear, basis, total);
   if (categories.length === 0) return "";
   const month = String(categories[0]!.values.month ?? "");
   const monthText = /^\d{6}$/.test(month) ? `${month.slice(0, 4)}년 ${Number(month.slice(4))}월` : month;
-  const falling = Number(total?.values.yoyPct ?? 0) < 0;
-  const direction = falling ? "내렸습니다" : "올랐습니다";
+  const falling = Number(total?.values[f.pct] ?? 0) < 0;
   const move = falling ? "하락" : "상승";
+  const word = (v: unknown) => (Number(v) < 0 ? "내렸" : "올랐");
+  const totalText = total
+    ? `전년 같은 달보다 ${signed(total.values.yoyPct, "%")} ${word(total.values.yoyPct)}고, 전월보다 ${signed(total.values.momPct, "%")} ${word(total.values.momPct)}습니다 (${total.id})`
+    : "움직였습니다";
   const lines = [
-    `[물가 원인 후보] 소비자물가 총지수는 ${monthText} 기준 전년 같은 달보다 ${total ? signed(total.values.yoyPct, "%") : "?"} ${direction}${total ? ` (${total.id})` : ""}. 품목군별 기여도(가중치 ÷ 1000 × 등락률, 근사)를 총지수 ${move}에 많이 보탠 순서로 적었습니다.`,
-    ...categories.slice(0, TOP_CATEGORIES).map((e) => `- ${e.values.category}: 전년 대비 ${signed(e.values.yoyPct, "%")} · 기여 ${signed(e.values.contributionPp, "%p")} · 가중치 ${e.values.weight} (${e.id})`),
+    `[물가 원인 후보] 소비자물가 총지수는 ${monthText} 기준 ${totalText}. 이 질문은 ${f.label} 기준으로 답합니다. 그 기준의 품목군별 기여도(가중치 ÷ 1000 × 등락률, 근사)를 총지수 ${move}에 많이 보탠 순서로 적었습니다.`,
+    ...categories.slice(0, TOP_CATEGORIES).map((e) => `- ${e.values.category}: ${f.label} ${signed(e.values[f.pct], "%")} · 기여 ${signed(e.values[f.contribution], "%p")} · 가중치 ${e.values.weight} (${e.id})`),
   ];
   const rest = categories.slice(TOP_CATEGORIES);
-  if (rest.length) lines.push(`- 나머지 ${rest.length}개 품목군: ${rest.map((e) => `${e.values.category} ${signed(e.values.contributionPp, "%p")} (${e.id})`).join(", ")}`);
-  if (total && typeof total.values.contributionSumPp === "number") lines.push(`- 12개 기여도 합 ${signed(total.values.contributionSumPp, "%p")} (총지수 등락률과의 차이는 근사 오차)`);
+  if (rest.length) lines.push(`- 나머지 ${rest.length}개 품목군: ${rest.map((e) => `${e.values.category} ${signed(e.values[f.contribution], "%p")} (${e.id})`).join(", ")}`);
+  if (total && typeof total.values[f.sum] === "number") lines.push(`- 12개 기여도 합 ${signed(total.values[f.sum], "%p")} (총지수 등락률과의 차이는 근사 오차)`);
   lines.push(
     "규칙:",
     `- why 에 위 상위 ${TOP_CATEGORIES}개 안의 품목군을 "데이터" 근거(basis data, refs 에 그 id)로 씁니다. 등락률 · 기여도 숫자는 장부 값 그대로 쓰고, 그 품목군이 총지수 ${move}의 얼마를 차지했는지로 설명합니다.`,
+    `- 두 기준(전년 같은 달 · 전월)을 섞지 않고, 문장에 어느 기준인지 적습니다. 장부의 다른 기준 값(${basis === "yoy" ? "momPct · momContributionPp" : "yoyPct · contributionPp"})은 이 질문의 원인으로 쓰지 않습니다.`,
     `- 총지수와 반대로 움직인 품목군은 ${move} 원인이 아니라 "상쇄한 요인" 으로만 적습니다. 등락률이 커도 기여도가 작은 품목군은 원인으로 올리지 않습니다 (가중치가 작음).`,
     "- 품목군 가격이 왜 올랐는지(기후 · 환율 · 정책 등)는 이 자료로 알 수 없습니다. 뉴스 장부가 같은 품목을 말할 때만 news 근거로 덧붙이고, 제목에 없는 원인은 추정하지 않습니다.",
     "- caveats 에 \"품목군 기여도는 가중치 × 등락률의 근사치로 통계청 공식 기여도와 소수점 차이가 날 수 있음\" 을 한 줄 적습니다.",

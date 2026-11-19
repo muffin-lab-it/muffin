@@ -375,6 +375,11 @@ export type CategoryPoint = {
   yoyPct: number;
   /** weight / 1000 * yoyPct (근사), 소수점 6자리 */
   contributionPp: number;
+  previousMonthIndex: number;
+  /** (index / previousMonthIndex - 1) * 100, 소수점 6자리 */
+  momPct: number;
+  /** weight / 1000 * momPct (근사), 소수점 6자리 */
+  momContributionPp: number;
 };
 
 export type CategoryData = {
@@ -387,12 +392,15 @@ export type CategoryData = {
   seasonalAdjustment: "not_seasonally_adjusted";
   month: string;
   previousYearMonth: string;
+  previousMonth: string;
   weightBase: typeof WEIGHT_BASE;
   contributionFormula: string;
-  total: { index: number; previousYearIndex: number; yoyPct: number };
-  /** 품목군 기여도 합. 총지수 등락률과의 차이는 근사 오차 */
+  total: { index: number; previousYearIndex: number; yoyPct: number; previousMonthIndex: number; momPct: number };
+  /** 품목군 전년 동월 대비 기여도 합. 총지수 등락률과의 차이는 근사 오차 */
   contributionSumPp: number;
-  /** 기여도 큰 순 */
+  /** 품목군 전월 대비 기여도 합 */
+  momContributionSumPp: number;
+  /** 전년 동월 대비 기여도 큰 순 */
   categories: CategoryPoint[];
 };
 
@@ -445,16 +453,27 @@ export async function executeCategories(rawInput: Input): Promise<ToolResult<Cat
   if (previousTotal === undefined) {
     throw new Error(`${previousYearMonth} 총지수 관측값이 없어 전년 동월 비교를 할 수 없습니다.`);
   }
-  // 2) 두 달의 전체 항목을 받아 한 글자 코드(12개 품목군)만 남깁니다 (호출 2회)
-  const [latest, previous] = await Promise.all([fetchTopLevelItems(last, key), fetchTopLevelItems(previousYearMonth, key)]);
+  const previousMonth = shiftMonth(last, -1);
+  const previousMonthTotal = totals.get(previousMonth);
+  if (previousMonthTotal === undefined) {
+    throw new Error(`${previousMonth} 총지수 관측값이 없어 전월 비교를 할 수 없습니다.`);
+  }
+  // 2) 세 달(최신 · 전년 동월 · 전월)의 전체 항목을 받아 한 글자 코드(12개 품목군)만 남깁니다 (호출 3회)
+  const [latest, previous, prior] = await Promise.all([fetchTopLevelItems(last, key), fetchTopLevelItems(previousYearMonth, key), fetchTopLevelItems(previousMonth, key)]);
   const categories = CATEGORY_CODES.map((code): CategoryPoint => {
     const now = latest.get(code);
     const before = previous.get(code);
-    if (!now || !before) {
-      throw new Error(`품목군 ${code} 의 ${!now ? last : previousYearMonth} 관측값이 없습니다.`);
+    const lastMonth = prior.get(code);
+    if (!now || !before || !lastMonth) {
+      throw new Error(`품목군 ${code} 의 ${!now ? last : !before ? previousYearMonth : previousMonth} 관측값이 없습니다.`);
     }
     const yoyPct = round6((now.value / before.value - 1) * 100);
-    return { code, name: now.name, weight: now.weight, index: now.value, previousYearIndex: before.value, yoyPct, contributionPp: round6((now.weight / WEIGHT_BASE) * yoyPct) };
+    const momPct = round6((now.value / lastMonth.value - 1) * 100);
+    return {
+      code, name: now.name, weight: now.weight, index: now.value,
+      previousYearIndex: before.value, yoyPct, contributionPp: round6((now.weight / WEIGHT_BASE) * yoyPct),
+      previousMonthIndex: lastMonth.value, momPct, momContributionPp: round6((now.weight / WEIGHT_BASE) * momPct),
+    };
   }).sort((a, b) => b.contributionPp - a.contributionPp);
   const weightSum = categories.reduce((sum, c) => sum + c.weight, 0);
   if (Math.abs(weightSum - WEIGHT_BASE) > 1) {
@@ -473,17 +492,22 @@ export async function executeCategories(rawInput: Input): Promise<ToolResult<Cat
       seasonalAdjustment: "not_seasonally_adjusted",
       month: last,
       previousYearMonth,
+      previousMonth,
       weightBase: WEIGHT_BASE,
-      contributionFormula: "weight / 1000 * yoyPct",
-      total: { index: latestTotal, previousYearIndex: previousTotal, yoyPct: round6((latestTotal / previousTotal - 1) * 100) },
+      contributionFormula: "weight / 1000 * pct",
+      total: {
+        index: latestTotal, previousYearIndex: previousTotal, yoyPct: round6((latestTotal / previousTotal - 1) * 100),
+        previousMonthIndex: previousMonthTotal, momPct: round6((latestTotal / previousMonthTotal - 1) * 100),
+      },
       contributionSumPp: round6(categories.reduce((sum, c) => sum + c.contributionPp, 0)),
+      momContributionSumPp: round6(categories.reduce((sum, c) => sum + c.momContributionPp, 0)),
       categories,
     },
     source: [
       { name: `한국은행 ECOS — ${series.name}`, url, asOf },
       ...categories.map((c) => ({ name: `한국은행 ECOS — 소비자물가지수 · ${c.name}`, url, asOf })),
     ],
-    note: "asOf는 마지막 관측 월의 첫날 표기이며 발표일·조회일이 아닙니다. 등락률은 전년 같은 달 대비 %, 기여도는 가중치 ÷ 1000 × 등락률의 근사치(%p)라 통계청 공식 기여도와 소수점 차이가 날 수 있고, 12개 기여도 합과 총지수 등락률도 소폭 다릅니다. " +
+    note: "asOf는 마지막 관측 월의 첫날 표기이며 발표일·조회일이 아닙니다. 등락률은 전년 같은 달 대비(yoyPct)와 전월 대비(momPct) 두 가지(%)이고 기여도(contributionPp · momContributionPp)는 가중치 ÷ 1000 × 등락률의 근사치(%p)라 통계청 공식 기여도와 소수점 차이가 날 수 있고, 12개 기여도 합과 총지수 등락률도 소폭 다릅니다. " +
       "가중치는 ECOS 가 주는 2020년 기준값입니다. 기여도가 큰 품목군은 총지수 변화를 구성하는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없습니다. 한국 원계열이며 투자 판단은 제공하지 않습니다.",
   };
 }
@@ -588,15 +612,23 @@ export const macroTool = defineTool({
     "사용자가 명시한 기간을 우선하고, 기간이 없으면 최신값 months 1, '요즘' 3, '최근 흐름' 6을 선택한다. " +
     "최근 3개월은 달력 분기와 다르다. CPI 변화는 %, 실업률 변화는 %포인트. " +
     "두 지표나 두 국가가 필요하면 각각 호출하고 실제 관측 월·단위·계절조정을 밝혀 설명한다. " +
-    "indicator=cpi_categories(한국만)는 최신 월의 지출목적별 12개 품목군 전년 동월 대비 등락률과 총지수 등락 기여도(가중치 ÷ 1000 × 등락률, 근사)를 기여도 큰 순으로 돌려준다. 물가가 왜 올랐는지 물으면 cpi 와 함께 조회한다. " +
+    "indicator=cpi_categories(한국만)는 최신 월의 지출목적별 12개 품목군 전년 동월 대비 · 전월 대비 등락률과 총지수 등락 기여도(가중치 ÷ 1000 × 등락률, 근사)를 전년 동월 기여도 큰 순으로 돌려준다. 물가가 왜 올랐는지 물으면 cpi 와 함께 조회한다. " +
     "null 비교값은 추측하지 않는다. 다른 국가·GDP·분기 집계·원인 단정·투자 권유는 제공하지 않는다.",
   parameters,
   execute: run,
   // 품목군 조회는 출처(총지수 + 12개 품목군)마다 핵심 값을 둬서 E5-2 처럼 품목군 하나를 인용할 수 있게 합니다. 그 밖은 기본 선택과 같습니다
   evidence: (data) => isCategoryData(data)
     ? [
-      { indicator: data.indicator, category: "총지수", code: "0", weight: data.weightBase, month: data.month, previousYearMonth: data.previousYearMonth, index: data.total.index, previousYearIndex: data.total.previousYearIndex, yoyPct: data.total.yoyPct, contributionSumPp: data.contributionSumPp },
-      ...data.categories.map((c) => ({ indicator: data.indicator, category: c.name, code: c.code, weight: c.weight, month: data.month, previousYearMonth: data.previousYearMonth, index: c.index, previousYearIndex: c.previousYearIndex, yoyPct: c.yoyPct, contributionPp: c.contributionPp })),
+      {
+        indicator: data.indicator, category: "총지수", code: "0", weight: data.weightBase, month: data.month, previousYearMonth: data.previousYearMonth, previousMonth: data.previousMonth,
+        index: data.total.index, previousYearIndex: data.total.previousYearIndex, yoyPct: data.total.yoyPct, contributionSumPp: data.contributionSumPp,
+        previousMonthIndex: data.total.previousMonthIndex, momPct: data.total.momPct, momContributionSumPp: data.momContributionSumPp,
+      },
+      ...data.categories.map((c) => ({
+        indicator: data.indicator, category: c.name, code: c.code, weight: c.weight, month: data.month, previousYearMonth: data.previousYearMonth, previousMonth: data.previousMonth,
+        index: c.index, previousYearIndex: c.previousYearIndex, yoyPct: c.yoyPct, contributionPp: c.contributionPp,
+        previousMonthIndex: c.previousMonthIndex, momPct: c.momPct, momContributionPp: c.momContributionPp,
+      })),
     ]
     : pickPrimitives(data),
 });
