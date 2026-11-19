@@ -35,7 +35,7 @@ export const parameters = z.object({
   a: operand.describe("기준 값 (from, 빼는 값). scale 에서는 환산할 단위당 값 (예: 100엔당 환율 변화 change). 예: 과거 환율, 한국 기준금리"),
   b: operand.nullable().describe("비교 값 (to). 예: 오늘 환율, 미국 정책금리. scale 에서는 null"),
   amount: z.number().positive().nullable().describe("scale 에서만: 사용자가 말한 금액 (10만 엔이면 100000). 다른 op 는 null"),
-  per: z.number().positive().nullable().describe("scale 에서만: a 가 몇 단위당 값인지. 장부 unit 이 'KRW per 100 JPY' 처럼 적혀 있으면 null 로 두면 거기서 읽는다. 단위에 없을 때만 넘긴다. 다른 op 는 null"),
+  per: z.number().positive().nullable().describe("scale 에서만, 보통 null: a 가 몇 단위당 값인지는 장부 unit('KRW per 100 JPY' → 100)에서 읽는다. 넘기면 그 값과 같아야 한다. 다른 op 는 null"),
   label: z.string().describe("무엇을 계산했는지 짧은 이름. 예: 한미 기준금리 차이, USD/KRW 30일 변동률"),
 });
 export type Input = z.infer<typeof parameters>;
@@ -115,15 +115,16 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     // 금액 환산: 100엔당 변화 × (10만 엔 ÷ 100). 금액은 질문에서 옵니다. per 는 장부 단위("KRW per 100 JPY")에서 읽는 것이 먼저이고,
     // 단위에 없을 때만 입력 per 를 씁니다. 단위와 입력이 다르면 실패합니다 (Codex 리뷰: per 를 1 로 넘겨 −320,000원이 장부에 오르던 것).
     if (!input.amount) throw new Error("scale 은 amount(환산할 금액)가 필요합니다. 예: 10만 엔이면 100000");
-    const fromUnit = perFromUnit(ua);
-    if (fromUnit !== null && input.per !== null && input.per !== fromUnit) {
-      throw new Error(`per ${input.per} 가 ${input.a.ref}.${input.a.key} 의 단위(${ua}, ${fromUnit}단위당)와 다릅니다`);
+    // 단위당 원화 값(KRW per 100 JPY 의 환율 · 변화)만 환산합니다. 금리(%) × 금액 같은 비율 계산은 결과 단위가 달라져(30000%) 제공하지 않습니다 (Codex 리뷰)
+    const per = perFromUnit(ua);
+    if (per === null) {
+      throw new Error(`scale 은 단위당 원화 값(KRW per …)에만 씁니다. ${input.a.ref}.${input.a.key} 의 단위는 ${ua || "없음"} 입니다. 이자 · 비율 × 금액 계산은 아직 제공하지 않습니다`);
     }
-    const per = fromUnit ?? input.per;
-    if (per === null) throw new Error(`${input.a.ref}.${input.a.key} 의 단위(${ua || "없음"})에서 몇 단위당 값인지 알 수 없습니다. per 를 넘기세요`);
+    if (input.per !== null && input.per !== per) {
+      throw new Error(`per ${input.per} 가 ${input.a.ref}.${input.a.key} 의 단위(${ua}, ${per}단위당)와 다릅니다`);
+    }
     const value = scale(a.value, input.amount, per);
-    // 단위당 원화 값(KRW per 100 JPY)을 금액으로 환산하면 원입니다. 그 밖은 a 의 단위 그대로
-    const unit = /^KRW per/.test(ua) ? "원" : ua;
+    const unit = "원";
     const formula = `${input.a.ref}.${input.a.key} ${a.value} × ${input.amount} ÷ ${per} = ${value}${unit}`;
     return {
       data: { op: input.op, label: input.label, value, unit, a: { ...input.a, value: a.value, unit: ua }, amount: input.amount, per, formula },
@@ -197,8 +198,8 @@ export const calcTool = defineTool({
   description:
     "장부의 두 값으로 변동률(pct_change, %) · 차이(diff) · 퍼센트포인트 차이(pp_diff, %p)를 계산한다. " +
     "값은 장부 id(E 번호)와 값 키로 가리키고 숫자를 직접 넘기지 않는다. 결과는 C 번호로 장부에 남아 리포트가 인용할 수 있다. " +
-    "scale 은 장부의 단위당 값(a)을 사용자가 말한 금액으로 환산한다 (amount 는 질문의 금액, per 는 a 의 단위가 몇 단위당인지: KRW per 100 JPY 면 100). " +
-    "사용자가 '10만 엔', '2만 달러' 처럼 금액을 말하면 변화량 · 환율에 scale 을 써서 그 금액 기준 원화를 낸다. 수수료 · 우대율은 계산하지 않는다. " +
+    "scale 은 장부의 단위당 원화 값(a: 환율 rate 나 그 변화 change, unit 이 KRW per …)을 사용자가 말한 금액(amount)으로 환산해 원으로 낸다. " +
+    "사용자가 '10만 엔', '2만 달러' 처럼 금액을 말하면 환율 · 변화량에 scale 을 쓴다. 금리 × 금액(이자) · 수수료 · 우대율은 계산하지 않는다. " +
     "두 값이 아닌 계산(평균 · 시계열 · z-score)은 아직 제공하지 않음.",
   parameters,
   execute,

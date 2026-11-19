@@ -272,17 +272,16 @@ describe("scale: 단위당 값을 사용자가 말한 금액으로 환산 (11/19
     expect(card!.status).toBe("derived");
     expect(card!.status === "derived" && card!.key).toBe("scaled");
   });
-  it("per 는 단위에서 읽고, 단위와 다른 per 는 실패하며, 단위에서 못 읽으면 per 가 필수다", async () => {
+  it("per 는 단위에서 읽고, 단위와 다른 per 는 실패하며, 단위당 원화 값이 아닌 것(금리 %)은 환산하지 않는다", async () => {
     expect(perFromUnit("KRW per 100 JPY")).toBe(100);
     expect(perFromUnit("KRW per 1 USD")).toBe(1);
     expect(perFromUnit("%")).toBeNull();
     const ctx = ledger();
     ctx.addEvidence([jpy]);
     await expect(execute({ op: "scale", a: { ref: "E4", key: "change" }, b: null, amount: 100000, per: 1, label: "x" } as never, ctx)).rejects.toThrow("단위(KRW per 100 JPY, 100단위당)와 다릅니다");
-    // 금리(%)처럼 단위당 값이 아닌 것은 per 를 넘겨야 한다
-    await expect(execute({ op: "scale", a: { ref: "E2", key: "rate" }, b: null, amount: 1000000, per: null, label: "x" } as never, ctx)).rejects.toThrow("per 를 넘기세요");
-    const r = await execute({ op: "scale", a: { ref: "E2", key: "rate" }, b: null, amount: 1000000, per: 100, label: "100만 원의 연 3% 이자" } as never, ctx);
-    expect(r.data).toMatchObject({ value: 30000, unit: "%", per: 100 });
+    // 금리 3% × 100만 원 같은 이자 계산은 결과 단위가 %(30000%) 가 되므로 막는다 (Codex 리뷰)
+    await expect(execute({ op: "scale", a: { ref: "E2", key: "rate" }, b: null, amount: 1000000, per: 100, label: "x" } as never, ctx)).rejects.toThrow("단위당 원화 값(KRW per …)에만");
+    expect(ctx.evidence.some((e) => e.id.startsWith("C"))).toBe(false);
   });
   it("amount 가 없으면 실패하고, 다른 op 에 b 가 없어도 실패한다 (C 번호를 쓰지 않음)", async () => {
     const ctx = ledger();
