@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RunContext } from "@openai/agents";
 import { ResearchContext } from "../../agent/context";
 import type { Evidence } from "../../agent/schema";
-import { extractNumbers, matchValue, numericCandidates } from "../../agent/verify";
+import { extractNumbers, matchValue, numericCandidates, verifyNumbers } from "../../agent/verify";
 import { calcEvidence, calcTool, execute, perFromUnit } from "./index";
 import { diff, movementZ, pctChange, ppDiff, round, scale, stdev } from "./metrics";
 
@@ -261,12 +261,16 @@ describe("scale: 단위당 값을 사용자가 말한 금액으로 환산 (11/19
     expect(r.note).toContain("수수료");
     await invoke(ctx, input);
     const c1 = ctx.evidence.find((e) => e.id === "C1")!;
-    expect(c1.values).toEqual({ scaled: -3200, from: -3.2, unit: "원" });
+    expect(c1.values).toEqual({ scaled: -3200, from: -3.2, amount: 100000, unit: "원" });
     const [n] = extractNumbers("3,200원 감소");
     expect(matchValue(n!, numericCandidates(c1))).toMatchObject({ key: "scaled" });
     expect(matchValue(extractNumbers("-3,200원")[0]!, numericCandidates(c1))).toMatchObject({ key: "scaled" });
-    expect(matchValue(extractNumbers("100,000원")[0]!, numericCandidates(c1))).toBeNull();
+    // per(100) 는 장부에 없어 "100원" 이 계산값으로 통과하지 않는다
     expect(matchValue(extractNumbers("100원")[0]!, numericCandidates(c1))).toBeNull();
+    // 작성이 라벨에 금액을 적어도(10만 엔) 카드 전체가 걸리지 않는다 — amount 가 장부에 있어서
+    const [card] = verifyNumbers([{ label: "10만 엔 환전 원화 차이", value: "3,200원 감소", change: "", ref: "C1", asOf: "2026-11-19" }], ctx.evidence);
+    expect(card!.status).toBe("derived");
+    expect(card!.status === "derived" && card!.key).toBe("scaled");
   });
   it("per 는 단위에서 읽고, 단위와 다른 per 는 실패하며, 단위에서 못 읽으면 per 가 필수다", async () => {
     expect(perFromUnit("KRW per 100 JPY")).toBe(100);

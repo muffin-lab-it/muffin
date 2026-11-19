@@ -180,8 +180,9 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
 export function calcEvidence(data: CalcData): EvidenceValues {
   const from = data.a.value;
   // 환산 결과(원)는 scaled 로. 키 이름에 단위가 없어 검증기가 "3,200원" 을 수준 값으로 맞춥니다.
-  // amount · per 는 장부에 올리지 않습니다 — 올리면 "100,000원" 이 C 번호로 검증을 통과합니다 (Codex 리뷰). 식은 note · formula 에 남습니다
-  if (data.op === "scale") return { scaled: data.value, from, ...(data.unit ? { unit: data.unit } : {}) };
+  // amount 는 계산 입력이라 diff 의 from · to 처럼 장부에 둡니다. 카드 라벨의 "10만 엔" 이 장부와 대조되므로 없으면 카드 전체가 걸립니다 (Codex 리뷰).
+  // per 는 단위에서 읽은 값이라 올리지 않습니다 ("100원" 이 계산값으로 통과하지 않게). 식은 note · formula 에 남습니다
+  if (data.op === "scale") return { scaled: data.value, from, amount: data.amount ?? 0, ...(data.unit ? { unit: data.unit } : {}) };
   const to = data.b ? data.b.value : from;
   if (data.op === "pct_change") return { changePct: data.value, from, to };
   // %p 결과: from · to 는 계산에 쓴 값의 단위(% 또는 %p). 25bp − 50bp 같은 bp 결과는 changeBp

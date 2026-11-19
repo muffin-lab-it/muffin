@@ -35,7 +35,7 @@
 |---|---|---|
 | `pct_change` | `{ changePct, from, to }` | `2.00%` |
 | `diff` | `{ change, from, to, unit? }`. % · %p 끼리면 `pp_diff` 와 같은 `{ changePp, from, to, unit: "%" }` | `27.30원` · `0.88%p` |
-| `scale` | `{ scaled, from, unit? }` (amount · per 는 장부에 올리지 않음 — 금액이 검증을 통과하지 않게) | `-3,200원` |
+| `scale` | `{ scaled, from, amount, unit? }` (amount 는 계산 입력이라 둠 — 카드 라벨 "10만 엔" 이 대조됨. per 는 단위에서 읽은 값이라 안 올림) | `-3,200원` |
 | `pp_diff` | `{ changePp, from, to, unit }`. `unit` 은 계산에 쓴 값의 단위(`%` 또는 `%p`) | `0.88%p` (from · to 는 `3.00%`, `3.88%`) |
 | `diff` (bp 끼리) | `{ changeBp, from, to, unit: "bp" }` | `25bp` |
 
