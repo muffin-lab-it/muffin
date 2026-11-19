@@ -10,9 +10,13 @@ import type { Evidence } from "./schema";
 /** why 에 쓰라고 권하는 품목군 수 (기여도 큰 순) */
 export const TOP_CATEGORIES = 3;
 
-/** 질문이 묻는 비교 기준. "지난달 · 전월 · 이번 달" 이면 전월 대비, 그 밖("최근 · 요즘 · 왜 올랐어")은 전년 같은 달 대비 */
+/**
+ * 질문이 묻는 비교 기준. "전년 · 작년 · 1년 전 · 지난해" 가 있으면 전년 같은 달 대비(명시한 연간 비교가 우선, Codex 리뷰),
+ * 아니면 "지난달 · 전월 · 이번 달" 이 있을 때 전월 대비, 그 밖("최근 · 요즘 · 왜 올랐어")은 전년 같은 달 대비.
+ */
 export type CpiBasis = "yoy" | "mom";
 export function cpiBasisFor(question: string): CpiBasis {
+  if (/전년|작년|지난\s*해|1\s*년\s*전|연간|해\s*전/.test(question)) return "yoy";
   return /지난\s*달|전월|이번\s*달|한\s*달\s*전|저번\s*달|월간/.test(question) ? "mom" : "yoy";
 }
 

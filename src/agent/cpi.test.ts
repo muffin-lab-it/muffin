@@ -64,6 +64,9 @@ describe("cpiCauseNote: 품목군 기여도를 작성의 원인 후보로", () =
     expect(cpiBasisFor("지난달 대비 물가가 왜 올랐어?")).toBe("mom");
     expect(cpiBasisFor("이번 달 물가 왜 이래?")).toBe("mom");
     expect(cpiBasisFor("최근 우리나라 물가가 왜 올랐어?")).toBe("yoy");
+    // 연간 비교를 명시하면 달 낱말이 있어도 전년 기준
+    expect(cpiBasisFor("이번 달 물가가 전년 동월 대비 왜 올랐어?")).toBe("yoy");
+    expect(cpiBasisFor("지난달 물가, 작년보다 얼마나 올랐고 왜?")).toBe("yoy");
     const all = [transport, dining, housing, tobacco, total];
     expect(rankCategories([transport, dining, housing, tobacco], "mom", total).map((e) => e.id)).toEqual(["E5-3", "E5-4", "E5-2", "E5-5"]);
     const note = cpiCauseNote(all, null, "지난달 대비 물가가 왜 올랐어?");

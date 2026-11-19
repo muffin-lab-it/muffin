@@ -766,4 +766,22 @@ describe("변화량이 값인 카드 (11/19)", () => {
     // 수준 값 카드가 현재가를 변화처럼 적는 건 그대로 막는다
     expect(level.status === "verified" && level.changeOk).toBe(false);
   });
+
+  it("% 로 적힌 수준 값(ETF 괴리율)은 변화량이 아니므로 change 되풀이를 허용하지 않는다", () => {
+    const etf: Evidence = {
+      id: "E9", tool: "get_etf_kr_price", label: "ETF 확인 · KRX",
+      values: { name: "KODEX 200", "latest.close": 79400, "latest.premiumPct": -0.2169840746809312, "period.returnPct": -11.71 },
+      source: src("KRX", "2026-11-18"),
+    };
+    const [premium, ret] = verifyNumbers(
+      [
+        num("KODEX 200 괴리율", "-0.22%", "전일 대비 -0.22%", "E9", "2026-11-18"),
+        num("KODEX 200 30일 수익률", "-11.71%", "30일 전과 비교해 -11.71%", "E9", "2026-11-18"),
+      ],
+      [...ledger, etf],
+    );
+    expect(premium.status === "verified" && premium.key).toBe("latest.premiumPct");
+    expect(premium.status === "verified" && premium.changeOk).toBe(false);
+    expect(ret.status === "verified" && ret.changeOk).toBe(true);
+  });
 });

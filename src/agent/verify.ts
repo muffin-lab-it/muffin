@@ -332,6 +332,8 @@ function describe(candidates: Candidate[]): string {
 export const PREV_KEY = /comparison|previous|prev\b|ago|before|prior|from$/i;
 /** 수준(level)이 아닌 변화량 · 비율 키. 기준일 역할 검사를 하지 않습니다. */
 const NOT_LEVEL_KEY = /change|diff|delta|pct|pp\b|bp\b|return|spread|gap|yoy|mom|qoq/i;
+/** 그중 시간에 따른 변화량만 (괴리율 · 스프레드 · 차이 같은 수준 값 제외). change 되풀이 허용에 씁니다 */
+const CHANGE_VALUE_KEY = /change|yoy|mom|qoq|return/i;
 
 /**
  * value 가 맞은 키의 역할(최신 값 / 비교 시점 값)이 asOf 와 어긋나는지. 장부에 든 날짜 문자열(asOf · comparisonDate · latest.month …)과
@@ -397,9 +399,10 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
     // 문장(기사 제목) 속 숫자는 오름 · 내림 낱말이 붙은 변화량만 받습니다: "14.0원 오른 1337.7원 마감" 의 1337.7원 카드는 변화 "+14.0원" 을
     // 같은 제목에서 확인하고, "1324원에서 1337원으로 상승" 의 1324원(수준)은 변화로 받지 않습니다. "14.0원 내린" 은 "-14.0원" 과 맞습니다.
     const matched = hitValue(m);
-    // value 자체가 변화량 키(yoy · changePct · latest.previousYear.change …)에 맞은 카드는 change 에 같은 숫자를 되풀이해도 틀린 게 아닙니다
-    // (11/19: CPI "전년 동월 대비 2.82%" 카드의 change "+2.82%" 가 걸려 다시 쓰기 1회 · 10초). "현재가를 변화처럼" 은 수준 값 카드에서만 막습니다.
-    const valueIsChange = NOT_LEVEL_KEY.test(m.key);
+    // value 자체가 시간 변화량 키(yoy · changePct · latest.previousYear.change · period.returnPct)에 맞은 카드는 change 에 같은 숫자를 되풀이해도 틀린 게 아닙니다
+    // (11/19: CPI "전년 동월 대비 2.82%" 카드의 change "+2.82%" 가 걸려 다시 쓰기 1회 · 10초). 괴리율(premiumPct) · 스프레드처럼 % 로 적힌 수준 값은
+    // NOT_LEVEL_KEY 에 걸려도 변화량이 아니므로 여기 넣지 않습니다 (Codex 리뷰). "현재가를 변화처럼" 은 수준 값 카드에서 그대로 막습니다.
+    const valueIsChange = CHANGE_VALUE_KEY.test(m.key);
     const changeCandidates = candidates.filter(
       (c) => (!c.key.endsWith("#text") || c.movement === true) && (valueIsChange || !nearlyEqual(c.value, matched) || (c.key !== m.key && NOT_LEVEL_KEY.test(c.key))),
     );
