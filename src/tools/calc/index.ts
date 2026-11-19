@@ -35,7 +35,7 @@ export const parameters = z.object({
   a: operand.describe("기준 값 (from, 빼는 값). scale 에서는 환산할 단위당 값 (예: 100엔당 환율 변화 change). 예: 과거 환율, 한국 기준금리"),
   b: operand.nullable().describe("비교 값 (to). 예: 오늘 환율, 미국 정책금리. scale 에서는 null"),
   amount: z.number().positive().nullable().describe("scale 에서만: 사용자가 말한 금액 (10만 엔이면 100000). 다른 op 는 null"),
-  per: z.number().positive().nullable().describe("scale 에서만: a 가 몇 단위당 값인지. 장부 unit 이 'KRW per 100 JPY' 면 100, 'KRW per 1 USD' 면 1. 다른 op 는 null"),
+  per: z.number().positive().nullable().describe("scale 에서만: a 가 몇 단위당 값인지. 장부 unit 이 'KRW per 100 JPY' 처럼 적혀 있으면 null 로 두면 거기서 읽는다. 단위에 없을 때만 넘긴다. 다른 op 는 null"),
   label: z.string().describe("무엇을 계산했는지 짧은 이름. 예: 한미 기준금리 차이, USD/KRW 30일 변동률"),
 });
 export type Input = z.infer<typeof parameters>;
@@ -87,6 +87,12 @@ function unitOfValue(e: Evidence, key: string): string {
   return unitOf(e);
 }
 
+/** 환율 단위 "KRW per 100 JPY" 의 100. 그 꼴이 아니면 null (금리 % · 지수 등은 단위당 값이 아님) */
+export function perFromUnit(unit: string): number | null {
+  const m = /^KRW per (\d+(?:\.\d+)?) [A-Z]{3}$/.exec(unit);
+  return m ? Number(m[1]) : null;
+}
+
 /** 오류 메시지용. 예: "E1.rate(KRW per USD) · E2.rate(%)" */
 function describeUnits(a: Operand, ua: string, b: Operand, ub: string): string {
   return `${a.ref}.${a.key}(${ua || "단위 없음"}) · ${b.ref}.${b.key}(${ub || "단위 없음"})`;
@@ -106,9 +112,15 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
   const a = readValue(ctx, input.a);
   const ua = unitOfValue(a.evidence, input.a.key);
   if (input.op === "scale") {
-    // 금액 환산: 100엔당 변화 × (10만 엔 ÷ 100). 금액은 질문에서, per 는 a 의 단위에서 온 것이라 둘 다 입력으로 받습니다 (장부에는 없는 값).
+    // 금액 환산: 100엔당 변화 × (10만 엔 ÷ 100). 금액은 질문에서 옵니다. per 는 장부 단위("KRW per 100 JPY")에서 읽는 것이 먼저이고,
+    // 단위에 없을 때만 입력 per 를 씁니다. 단위와 입력이 다르면 실패합니다 (Codex 리뷰: per 를 1 로 넘겨 −320,000원이 장부에 오르던 것).
     if (!input.amount) throw new Error("scale 은 amount(환산할 금액)가 필요합니다. 예: 10만 엔이면 100000");
-    const per = input.per ?? 1;
+    const fromUnit = perFromUnit(ua);
+    if (fromUnit !== null && input.per !== null && input.per !== fromUnit) {
+      throw new Error(`per ${input.per} 가 ${input.a.ref}.${input.a.key} 의 단위(${ua}, ${fromUnit}단위당)와 다릅니다`);
+    }
+    const per = fromUnit ?? input.per;
+    if (per === null) throw new Error(`${input.a.ref}.${input.a.key} 의 단위(${ua || "없음"})에서 몇 단위당 값인지 알 수 없습니다. per 를 넘기세요`);
     const value = scale(a.value, input.amount, per);
     // 단위당 원화 값(KRW per 100 JPY)을 금액으로 환산하면 원입니다. 그 밖은 a 의 단위 그대로
     const unit = /^KRW per/.test(ua) ? "원" : ua;
@@ -167,8 +179,9 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
  */
 export function calcEvidence(data: CalcData): EvidenceValues {
   const from = data.a.value;
-  // 환산 결과(원)는 scaled 로. 키 이름에 단위가 없어 검증기가 "3,200원" 을 수준 값으로 맞춥니다
-  if (data.op === "scale") return { scaled: data.value, from, amount: data.amount ?? 0, per: data.per ?? 1, ...(data.unit ? { unit: data.unit } : {}) };
+  // 환산 결과(원)는 scaled 로. 키 이름에 단위가 없어 검증기가 "3,200원" 을 수준 값으로 맞춥니다.
+  // amount · per 는 장부에 올리지 않습니다 — 올리면 "100,000원" 이 C 번호로 검증을 통과합니다 (Codex 리뷰). 식은 note · formula 에 남습니다
+  if (data.op === "scale") return { scaled: data.value, from, ...(data.unit ? { unit: data.unit } : {}) };
   const to = data.b ? data.b.value : from;
   if (data.op === "pct_change") return { changePct: data.value, from, to };
   // %p 결과: from · to 는 계산에 쓴 값의 단위(% 또는 %p). 25bp − 50bp 같은 bp 결과는 changeBp
