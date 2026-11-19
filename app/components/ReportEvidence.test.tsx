@@ -17,6 +17,14 @@ function news(): Evidence {
     note: "합성 자료입니다. 제목에서 확인한 정보만 사용합니다.",
   };
 }
+function rate(): Evidence {
+  return {
+    id: "E1", tool: "get_rate_data", label: "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+    values: { indicator: "한국은행 기준금리", rate: 3, unit: "%", asOf: "2026-11-16", comparisonDate: "2026-10-17", comparisonRate: 3, changePp: 0, changeBp: 0, requestedDays: 30, observationCount: 31, "latest.premiumPct": -0.2169840746809312, "latest.volume": 1234567 },
+    source: { name: "한국은행 경제통계시스템(ECOS)", url: "https://ecos.bok.or.kr", asOf: "2026-11-16" },
+    note: "기준금리는 정책금리로, 시장금리와 다를 수 있습니다.",
+  };
+}
 function renderEntry(entry: Evidence) {
   return load(renderToStaticMarkup(<EvidenceRecord entry={entry} evidence={[entry]} />));
 }
@@ -32,7 +40,7 @@ describe("뉴스 원본 정보 (정적 렌더링)", () => {
     expect($.text()).toContain("제목만 확인");
     expect($.text()).toContain("본문 내용이나 원인 관계를 확인한 근거는 아닙니다");
     expect($.text()).toContain("공식 데이터로 독립 검증된 사실과 구분");
-    expect($(".evidence-note").text()).toBe(news().note);
+    expect($(".evidence-note")).toHaveLength(0); // 뉴스 note 는 모델용 지시문이라 사용자에게 보이지 않는다 (11/19)
   });
 
   it("서버의 날짜 표시에는 실행 시각에 따라 변하는 상대 날짜를 넣지 않는다", () => {
@@ -106,7 +114,12 @@ describe("뉴스 원본 정보 (정적 렌더링)", () => {
     entry.values.title = "<img src=x onerror=alert(1)>";
     const $ = renderEntry(entry);
     expect($("script, img")).toHaveLength(0);
-    expect($(".evidence-note").text()).toBe(entry.note);
+    expect($(".evidence-title").text()).toBe(entry.values.title);
+    const data = rate();
+    data.note = "<script>alert(1)</script>";
+    const $data = renderEntry(data);
+    expect($data("script")).toHaveLength(0);
+    expect($data(".evidence-note").text()).toBe(data.note);
   });
 });
 
@@ -115,7 +128,7 @@ describe("뉴스 날짜 경계", () => {
   it.each([
     ["2026-11-10T00:00:00Z", "3일 전"],
     ["2026-11-10", "3일 전"],
-    ["2026-11-13T00:00:00Z", "0일 전"],
+    ["2026-11-13T00:00:00Z", "오늘"],
     ["2026-11-14", "미래 발행일"],
     ["2000-01-01", `${Math.floor((now - Date.parse("2000-01-01")) / 86_400_000)}일 전`],
   ])("%s의 나이를 제공된 표시 시각 기준으로 계산한다", (value, relative) => {
@@ -130,7 +143,7 @@ describe("뉴스 날짜 경계", () => {
   });
   it("날짜 전용 기록은 현지 자정 직후에도 당일을 미래로 표시하지 않는다", () => {
     const localMorning = new Date(2026, 10, 13, 0, 30).getTime();
-    expect(newsDate("2026-11-13", localMorning).relative).toBe("0일 전");
+    expect(newsDate("2026-11-13", localMorning).relative).toBe("오늘");
     expect(newsDate("2026-11-12", localMorning).relative).toBe("1일 전");
     expect(newsDate("2026-11-14", localMorning).relative).toBe("미래 발행일");
   });
@@ -191,5 +204,25 @@ describe("계산 입력과 기존 검증 정보 (정적 계약)", () => {
       expect($(".num .check-unverified")).toHaveLength(r.numbers.length);
       expect($(".num .check-reported, .num .check-derived, .num .check-verified")).toHaveLength(0);
     }
+  });
+});
+
+describe("원본 값 표 (11/19 페르소나 테스트 반영)", () => {
+  it("영어 항목명은 한글 라벨로 보여 주고 원래 키는 dt 의 title 에 남긴다", () => {
+    const $ = renderEntry(rate());
+    const labels = $("dt").map((_, el) => $(el).text()).get();
+    expect(labels).toEqual(expect.arrayContaining(["비교 날짜", "변화 (bp)", "요청 기간 (일)", "관측 수", "괴리율 (%)", "거래량"]));
+    expect(labels).not.toContain("comparisonDate");
+    expect($("dt[title='comparisonDate']")).toHaveLength(1);
+  });
+  it("긴 소수는 소수 넷째 자리까지, 큰 정수는 천 단위 쉼표로 보여 준다", () => {
+    const text = renderEntry(rate())("dd").text();
+    expect(text).toContain("-0.217");
+    expect(text).not.toContain("-0.2169840746809312");
+    expect(text).toContain("1,234,567");
+    expect(text).toContain("2026-11-16");
+  });
+  it("뉴스가 아닌 원본의 note 는 그대로 보여 준다", () => {
+    expect(renderEntry(rate())(".evidence-note").text()).toBe("기준금리는 정책금리로, 시장금리와 다를 수 있습니다.");
   });
 });

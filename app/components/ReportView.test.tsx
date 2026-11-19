@@ -57,7 +57,7 @@ describe("리포트 증거 표시 계약", () => {
     expect($(".num details")).toHaveLength(0);
     expect(panel.find(".evidence-meta").text()).not.toContain("자료 E99");
     expect(panel.find(".evidence-title").text()).toBe("별도 관측값");
-    expect(panel.find("dd").text()).toBe("1444");
+    expect(panel.find("dd").text()).toBe("1,444"); // 원본 값 표는 큰 정수를 천 단위 쉼표로 보여 준다 (11/19);
     expect(panel.find("a")).toHaveLength(1);
     expect(panel.text()).toContain(original.source.name);
   });
@@ -443,4 +443,42 @@ it("도구 기록은 표에서 도구·상태·시간·비고를 구분한다", 
   expect($(".tool-table tbody tr").first().find(".tool-duration").text()).toBe("912ms");
   expect($(".tool-table tbody tr").last().text()).toContain("❌ 실패");
   expect($(".tool-table tbody tr").last().text()).toContain("조회 실패");
+});
+
+describe("원인 칸 · 영향 칸 · 비교 기간 (11/19 페르소나 테스트 반영)", () => {
+  it("원인이 없고 움직임이 평소 범위면 원인을 따로 찾지 않았다고 설명한다", () => {
+    const report = fixture();
+    report.why = [];
+    report.movement = { ref: report.evidence[0]!.id, zScore: 0.2, window: 90, level: "normal" };
+    const text = render(report).text();
+    expect(text).toContain("평소 범위 안이라 원인을 따로 찾지 않았습니다");
+    expect(text).not.toContain("데이터가 아직 없습니다");
+  });
+  it("원인이 없고 움직임이 크면 후보를 봤지만 근거가 부족했다고 설명한다", () => {
+    const report = fixture();
+    report.why = [];
+    report.movement = { ref: report.evidence[0]!.id, zScore: 2.4, window: 90, level: "extreme" };
+    expect(render(report).text()).toContain("원인 후보(금리 차이 · 뉴스 · 다른 통화)를 확인했지만");
+  });
+  it("원인이 없고 게이트 결과도 없으면 자료를 확보하지 못했다고 설명한다", () => {
+    const report = fixture();
+    report.why = [];
+    delete report.movement;
+    expect(render(report).text()).toContain("원인을 뒷받침할 자료를 확보하지 못했습니다");
+  });
+  it("영향 카드가 없으면 영향 칸 제목을 그리지 않는다", () => {
+    const report = fixture();
+    report.impact = [];
+    delete report.impactTitles;
+    const $ = render(report);
+    expect($.text()).not.toContain("내 생활에 미치는 영향");
+    expect($("h2").filter((_, el) => $(el).text() === "숫자 너머의 이야기")).toHaveLength(1);
+  });
+  it("비교 시작일이 없으면 '시작일 미제공' 대신 비교 기간 줄을 생략한다", () => {
+    const report = fixture();
+    report.numbers[0]!.changeDetail = { key: "latest.change", value: -300, unit: "원", to: "2026-11-18", basis: "전일과 비교" };
+    const $ = render(report);
+    expect($.text()).not.toContain("시작일 미제공");
+    expect($(".metric-period").filter((_, el) => $(el).text().includes("2026-11-18"))).toHaveLength(0);
+  });
 });

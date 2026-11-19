@@ -62,11 +62,30 @@ function EvidenceInputLink({ evidenceId, evidence }: { evidenceId: string; evide
     : <span>{label}</span>;
 }
 
+// tool 이 돌려준 키 이름을 사람이 읽는 라벨로. 없는 키는 원래 이름 그대로 (dt 의 title 에는 항상 원래 키를 남깁니다)
 const valueLabels: Record<string, string> = {
   op: "계산 방식", result: "결과", unit: "단위", a: "입력 값 1", b: "입력 값 2",
   rate: "값", value: "값", pair: "통화", date: "자료 날짜", asOf: "자료 날짜", title: "기사 제목", formula: "계산식",
   comparisonRate: "비교 값", comparisonAsOf: "비교 날짜", change: "변화량", changePct: "변화율 (%)", changePp: "변화 (%p)",
+  comparisonDate: "비교 날짜", "comparison.rate": "비교 값", "comparison.asOf": "비교 날짜", changeBp: "변화 (bp)", requestedDays: "요청 기간 (일)", observationCount: "관측 수",
+  indicator: "지표", indicatorName: "지표 이름", seriesCode: "통계 코드", country: "국가", frequency: "주기", seasonalAdjustment: "계절조정", changeUnit: "변화량 단위", changeFormula: "변화율 계산식",
+  "period.from": "기간 시작", "period.to": "기간 끝", "period.months": "기간 (개월)", "period.days": "기간 (일)", from: "시작", to: "끝", periodDays: "기간 (일)",
+  movePct: "이번 변화율 (%)", typicalMovePct: "평소 변화 폭 (%)", zScore: "평소 대비 (표준편차 배수)", timesTypical: "평소 폭 대비 배수", level: "판정",
+  baselineStart: "기준 구간 시작", baselineEnd: "기준 구간 끝", baselineCount: "기준 구간 관측 수",
+  name: "이름", code: "종목 코드", baseIndex: "기초지수", "latest.date": "최근 거래일", "latest.close": "종가", "latest.change": "전일 대비 변화", "latest.changePct": "전일 대비 변화율 (%)",
+  "latest.nav": "순자산가치 (NAV)", "latest.premiumPct": "괴리율 (%)", "latest.open": "시가", "latest.high": "고가", "latest.low": "저가", "latest.volume": "거래량", "latest.tradeValue": "거래대금",
+  "latest.netAssets": "순자산", "latest.indexClose": "기초지수 종가", "period.closeFrom": "기간 시작 종가", "period.indexCloseFrom": "기간 시작 지수", "period.returnPct": "기간 수익률 (%)",
+  "period.indexReturnPct": "지수 수익률 (%)", "period.trackingDiffPp": "추적 차이 (%p)", "period.high": "기간 고가", "period.low": "기간 저가",
+  "latest.month": "최근 월", "latest.value": "최근 값", "latest.previousMonth.month": "전월", "latest.previousMonth.value": "전월 값", "latest.previousMonth.change": "전월 대비 변화",
+  "latest.previousYear.month": "전년 같은 달", "latest.previousYear.value": "전년 같은 달 값", "latest.previousYear.change": "전년 같은 달 대비 변화",
+  publishedAt: "발행일", publisher: "언론사", body: "본문 상태", url: "주소",
 };
+/** 원본 값 표시. 소수가 긴 값(-0.2169840746809312)은 소수 넷째 자리까지, 큰 정수는 천 단위 쉼표. 연도 · 월 · 코드처럼 보이는 정수는 그대로 둡니다. */
+export function formatEvidenceValue(key: string, value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+  if (Number.isInteger(value)) return Math.abs(value) >= 1000 && !/year|month|date|code|id$/i.test(key) ? value.toLocaleString("ko-KR") : String(value);
+  return value.toLocaleString("ko-KR", { maximumFractionDigits: 4 });
+}
 const operationLabels: Record<string, string> = { spread: "차이", diff: "차이", pct_change: "변화율", pp_diff: "%p 차이" };
 
 let displayTime: number | null = null;
@@ -105,7 +124,8 @@ export function newsDate(value: unknown, now: number | null = null) {
   const elapsed = current === null ? null : value.length === 10
     ? Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()) - midnight
     : current.getTime() - timestamp;
-  const relative = elapsed === null ? null : elapsed < 0 ? "미래 발행일" : `${Math.floor(elapsed / 86_400_000)}일 전`;
+  const days = elapsed === null ? null : Math.floor(elapsed / 86_400_000);
+  const relative = elapsed === null || days === null ? null : elapsed < 0 ? "미래 발행일" : days === 0 ? "오늘" : `${days}일 전`;
   return { label: date, dateTime: value, relative };
 }
 
@@ -165,12 +185,13 @@ function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence;
       {duplicate ? null : Object.keys(entry.values).length > 0 ? (
         <dl className="evidence-values">
           {Object.entries(entry.values).map(([key, value]) => (
-            <div key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : String(value)}</dd></div>
+            <div key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : formatEvidenceValue(key, value)}</dd></div>
           ))}
         </dl>
       ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
       </>}
-      {entry.note && <p className="evidence-note">{entry.note}</p>}
+      {/* 뉴스 tool 의 note 는 모델에게 주는 지시문(본문 상태 · 추정 금지)이라 사용자에게는 위의 본문 상태 줄로 대신합니다 (11/19 페르소나 테스트 14/20 지적) */}
+      {entry.note && !isNews && <p className="evidence-note">{entry.note}</p>}
     </div>
   );
 }

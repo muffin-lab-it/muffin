@@ -537,8 +537,8 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(applied.output.impact).toEqual(["수입 물가가 오를 수 있습니다."]);
     expect(applied.output.dataGaps).toEqual(["금리 데이터 없음", "검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았습니다)"]);
     expect(applied.removed).toHaveLength(4);
-    expect(applied.removed).toContain("impact 2번째 항목 삭제: 투자 권유 표현");
-    expect(applied.removed).toContain("원인 2번째 근거 표시 수정: basis 가 data 인데 숫자 데이터가 있는 증거(refs)가 없음");
+    expect(applied.removed).toContain("생활 영향 카드 2번을 뺌: 투자 권유 표현");
+    expect(applied.removed).toContain("원인 2번의 근거 표시를 고침: basis 가 data 인데 숫자 데이터가 있는 증거(refs)가 없음");
     expect(JSON.stringify(applied)).not.toContain("매수하세요");
 
     const v = summarizeVerification(applied, 1);
@@ -563,9 +563,9 @@ describe("verify · applyVerification · summarizeVerification", () => {
     const applied = applyVerification(sneaky, r);
     expect(applied.output.dataGaps).toEqual(["금리 데이터 없음"]);
     expect(applied.output.numbers).toHaveLength(1);
-    expect(applied.removed).toContain("dataGaps 2번째 항목 삭제: 투자 권유 표현");
-    expect(applied.removed).toContain("숫자 2번째 항목 삭제: 투자 권유 표현");
-    expect(applied.removed).toContain("숫자 3번째 항목 삭제: 투자 권유 표현");
+    expect(applied.removed).toContain("확인하지 못한 것 2번을 뺌: 투자 권유 표현");
+    expect(applied.removed).toContain("숫자 카드 2번을 뺌: 투자 권유 표현");
+    expect(applied.removed).toContain("숫자 카드 3번을 뺌: 투자 권유 표현");
     expect(JSON.stringify(applied)).not.toContain("사세요");
     expect(JSON.stringify(applied)).not.toContain("매수하세요");
     expect(summarizeVerification(applied, 1).advice).toBe(0);
@@ -598,7 +598,7 @@ describe("verify · applyVerification · summarizeVerification", () => {
     const a = applyVerification(mixed, verify(mixed, ledger));
     expect(a.output.summary).toBe("달러가 올랐습니다.");
     // 권유 문장은 removed 에도 남기지 않는다 (리포트 어디에도 권유 표현이 없어야 함)
-    expect(a.removed).toEqual(["summary 의 권유 문장 삭제"]);
+    expect(a.removed).toEqual(["요약에서 투자 권유로 읽히는 문장을 뺌"]);
     expect(JSON.stringify(a)).not.toContain("살 때");
     expect(summarizeVerification(a, 1)).toMatchObject({ status: "partial", advice: 0 });
 
@@ -665,7 +665,7 @@ describe("headline · impactTitles · topicReasons (11/10)", () => {
     expect(r.failures.some((f) => f.startsWith("headline 의 숫자 5.00%"))).toBe(true);
     const applied = applyVerification(withHeadline, r);
     expect(applied.output.headline).toBeNull();
-    expect(applied.removed).toContain("headline 삭제: 장부에 없는 숫자 5.00%");
+    expect(applied.removed).toContain("핵심 한 문장을 뺌: 출처 자료에 없는 숫자 5.00%");
   });
 
   it("headline 의 권유 표현은 실패이고, 남으면 headline 을 뺀다. 장부 숫자만 쓴 headline 은 그대로 남는다", () => {
@@ -690,12 +690,12 @@ describe("headline · impactTitles · topicReasons (11/10)", () => {
     const applied = applyVerification(titled, verify(titled, ledger));
     expect(applied.output.impact).toEqual(["수입 물가가 오를 수 있습니다.", "달러 자산의 원화 가치가 오릅니다."]);
     expect(applied.output.impactTitles).toEqual(["수입 물가", ""]);
-    expect(applied.removed).toContain("impactTitles 3번째 비움: 투자 권유 표현");
+    expect(applied.removed).toContain("생활 영향 제목 3번을 비움: 투자 권유 표현");
 
     const mismatch: WriterOutput = { ...titled, impactTitles: ["수입 물가"] };
     const applied2 = applyVerification(mismatch, verify(mismatch, ledger));
     expect(applied2.output.impactTitles).toEqual([]);
-    expect(applied2.removed).toContain("impactTitles 삭제: 짝이 되는 목록과 개수가 다름 (1 vs 3)");
+    expect(applied2.removed).toContain("생활 영향 제목을 모두 뺌: 짝이 되는 목록과 개수가 다름 (1 vs 3)");
   });
 
   it("topicReasons 도 nextTopics 와 짝을 맞추고, 새 칸이 없는 출력(예전 테스트 · 범위 밖)은 null · 빈 배열로 나간다", () => {
@@ -743,8 +743,8 @@ describe("impactTitles · topicReasons 의 숫자 (로컬 Codex 11/11)", () => {
     const applied = applyVerification(withNumbers, r);
     expect(applied.output.impactTitles).toEqual(["", "달러 자산 2.00% 상승"]);
     expect(applied.output.topicReasons).toEqual(["", "환율의 배경이라서"]);
-    expect(applied.removed).toContain("impactTitles 1번째 비움: 장부에 없는 숫자 99.99%");
-    expect(applied.removed).toContain("topicReasons 1번째 비움: 장부에 없는 숫자 5.00%");
+    expect(applied.removed).toContain("생활 영향 제목 1번을 비움: 출처 자료에 없는 숫자 99.99%");
+    expect(applied.removed).toContain("주제 추천 이유 1번을 비움: 출처 자료에 없는 숫자 5.00%");
     expect(summarizeVerification(applied, 0).status).toBe("partial");
   });
 });
