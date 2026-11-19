@@ -34,11 +34,17 @@ export function isPriceQuestion(question: string): boolean {
   return /물가|소비자물가|인플레|\bcpi\b/i.test(question);
 }
 
-/** 품목군 조회 입력. 최신 월 하나면 됩니다 (months 는 tool 이 무시) */
+/** 품목군 조회 입력. endMonth 는 조사가 받은 총지수의 관측 월로 바꿔 보냅니다 (months 는 tool 이 무시) */
 export const CPI_CATEGORIES_INPUT = { country: "KR", indicator: "cpi_categories", endMonth: null, months: 1 } as const;
 
 export function hasCpiCategories(evidence: Evidence[]): boolean {
   return evidence.some((e) => e.values.indicator === "cpi_categories");
+}
+
+/** 조사가 받아 온 한국 CPI 총지수 항목의 최신 관측 월 (YYYYMM). 없으면 undefined */
+export function krCpiMonth(evidence: Evidence[]): string | undefined {
+  const cpi = evidence.find((e) => e.values.indicator === "cpi" && e.values.country === "KR" && /^\d{6}$/.test(String(e.values["latest.month"] ?? "")));
+  return cpi ? String(cpi.values["latest.month"]) : undefined;
 }
 
 /**
@@ -48,6 +54,9 @@ export function hasCpiCategories(evidence: Evidence[]): boolean {
 export async function ensureCpiCategories(ctx: ResearchContext, question: string, tools: readonly InvokableTool[]): Promise<boolean> {
   const macro = tools.find((t) => t.name === areaTools.macro);
   if (!macro || !isPriceQuestion(question) || hasCpiCategories(ctx.evidence)) return false;
-  await macro.invoke(new RunContext(ctx), JSON.stringify(CPI_CATEGORIES_INPUT)).catch(() => undefined);
+  // 조사가 한국 CPI 총지수를 받아 왔을 때만, 그 관측 월에 맞춰 품목군을 받습니다. 미국 물가 질문이나 과거 월 질문에 최신 한국 품목군을 붙이지 않게 (Codex 리뷰)
+  const month = krCpiMonth(ctx.evidence);
+  if (!month) return false;
+  await macro.invoke(new RunContext(ctx), JSON.stringify({ ...CPI_CATEGORIES_INPUT, endMonth: month })).catch(() => undefined);
   return true;
 }

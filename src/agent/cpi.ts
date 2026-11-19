@@ -10,11 +10,13 @@ import type { Evidence } from "./schema";
 /** why 에 쓰라고 권하는 품목군 수 (기여도 큰 순) */
 export const TOP_CATEGORIES = 3;
 
-/** 품목군 장부 항목. total 은 총지수 항목, categories 는 기여도 큰 순 */
+/** 품목군 장부 항목. 관측 월이 여러 개면 가장 최근 월 묶음만 씁니다 (Codex 리뷰). total 은 총지수 항목, categories 는 기여도 큰 순 */
 export function cpiCategoryEntries(evidence: Evidence[]): { total?: Evidence; categories: Evidence[] } {
   const entries = evidence.filter((e) => e.values.indicator === "cpi_categories");
-  const total = entries.find((e) => e.values.category === "총지수");
-  const categories = entries
+  const month = entries.map((e) => String(e.values.month ?? "")).sort().at(-1);
+  const same = entries.filter((e) => String(e.values.month ?? "") === month);
+  const total = same.find((e) => e.values.category === "총지수");
+  const categories = same
     .filter((e) => e !== total && typeof e.values.contributionPp === "number")
     .sort((a, b) => Number(b.values.contributionPp) - Number(a.values.contributionPp));
   return { total, categories };

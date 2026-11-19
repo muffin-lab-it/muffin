@@ -49,17 +49,17 @@ describe("ensureCpiCategories: 물가 원인 질문의 품목군별 등락률 ·
   const macroTool = (invoke = vi.fn(async () => "ok")): InvokableTool & { invoke: ReturnType<typeof vi.fn> } => ({ name: "get_macro_indicators", invoke });
   const cpi: Evidence = {
     id: "E1", tool: "get_macro_indicators", label: "물가 · 고용 지표 확인 · 한국은행 ECOS",
-    values: { indicator: "cpi", country: "KR", "latest.value": 120.73, "latest.previousYear.change": 2.818941 },
+    values: { indicator: "cpi", country: "KR", "latest.month": "202610", "latest.value": 120.73, "latest.previousYear.change": 2.818941 },
     source: { name: "한국은행 ECOS — 소비자물가지수 총지수", url: "https://ecos.bok.or.kr/", asOf: "2026-10-01" },
   };
 
-  it("물가 질문이면 거시지표 tool 을 cpi_categories 로 한 번 부른다 (같은 장부 · 같은 래퍼)", async () => {
+  it("물가 질문이면 거시지표 tool 을 조사가 받은 총지수의 관측 월로 cpi_categories 한 번 부른다 (같은 장부 · 같은 래퍼)", async () => {
     const ctx = new ResearchContext();
     ctx.addEvidence([cpi]);
     const tool = macroTool();
     expect(await ensureCpiCategories(ctx, "최근 우리나라 물가가 왜 올랐어?", [tool])).toBe(true);
     expect(tool.invoke).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(tool.invoke.mock.calls[0]![1] as string)).toEqual(CPI_CATEGORIES_INPUT);
+    expect(JSON.parse(tool.invoke.mock.calls[0]![1] as string)).toEqual({ ...CPI_CATEGORIES_INPUT, endMonth: "202610" });
     expect(tool.invoke.mock.calls[0]![0].context).toBe(ctx);
   });
 
@@ -72,6 +72,11 @@ describe("ensureCpiCategories: 물가 원인 질문의 품목군별 등락률 ·
     const full = new ResearchContext();
     full.addEvidence([cpi, { ...cpi, id: "E2-1", values: { indicator: "cpi_categories", category: "교통", yoyPct: 6.8, contributionPp: 0.75 } }]);
     expect(await ensureCpiCategories(full, "물가가 왜 올랐어?", [tool])).toBe(false);
+    // 조사가 한국 CPI 총지수를 받아 오지 않았으면(미국 물가 · 조회 실패) 최신 한국 품목군을 붙이지 않는다
+    expect(await ensureCpiCategories(new ResearchContext(), "물가가 왜 올랐어?", [tool])).toBe(false);
+    const us = new ResearchContext();
+    us.addEvidence([{ ...cpi, values: { ...cpi.values, country: "US" } }]);
+    expect(await ensureCpiCategories(us, "미국 물가가 왜 올랐어?", [tool])).toBe(false);
     expect(tool.invoke).not.toHaveBeenCalled();
     expect(["소비자물가 상승 원인은?", "인플레이션이 왜 심해?", "CPI 가 왜 올랐어"].every(isPriceQuestion)).toBe(true);
     expect(isPriceQuestion("KODEX 200 사도 돼?")).toBe(false);
@@ -79,6 +84,7 @@ describe("ensureCpiCategories: 물가 원인 질문의 품목군별 등락률 ·
 
   it("tool 호출이 실패해도 throw 하지 않는다", async () => {
     const ctx = new ResearchContext();
+    ctx.addEvidence([cpi]);
     const tool = macroTool(vi.fn(async () => { throw new Error("ECOS 503"); }));
     await expect(ensureCpiCategories(ctx, "물가가 왜 올랐어?", [tool])).resolves.toBe(true);
   });

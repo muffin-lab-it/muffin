@@ -34,6 +34,15 @@ describe("cpiCauseNote: 품목군 기여도를 작성의 원인 후보로", () =
     expect(cpiCauseNote([], null)).toBe("");
   });
 
+  it("관측 월이 여러 개면 가장 최근 월 묶음만 쓴다", () => {
+    const oldTotal = { ...total, id: "E3-1", values: { ...total.values, month: "202509", previousYearMonth: "202409", yoyPct: 2.1 } };
+    const oldTransport = { ...transport, id: "E3-2", values: { ...transport.values, month: "202509", contributionPp: 9.9 } };
+    const { total: t, categories } = cpiCategoryEntries([oldTotal, oldTransport, total, dining, transport]);
+    expect(t?.id).toBe("E5-1");
+    expect(categories.map((e) => e.id)).toEqual(["E5-2", "E5-3"]);
+    expect(cpiCauseNote([oldTotal, oldTransport, total, dining, transport], null)).not.toContain("E3-");
+  });
+
   it("entries 는 기여도 큰 순이고, rescued 는 정제가 뺀 품목군 id 만", () => {
     const { total: t, categories } = cpiCategoryEntries([tobacco, dining, transport, total]);
     expect(t?.id).toBe("E5-1");
