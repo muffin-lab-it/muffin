@@ -180,10 +180,19 @@ describe("11/10 새 칸: headline · impactTitles · topicReasons · changeDetai
     expect(r.evidence[1]!.source).not.toHaveProperty("pageUrl");
   });
 
-  it("범위 밖 고정 본문도 새 칸을 갖는다 (모델이 만든 출력과 같은 모양)", () => {
+  it("범위 밖 고정 본문도 새 칸을 갖고, 추천 질문은 질문의 영역에 맞춘다 (이유는 질문 수와 같음)", () => {
     const out = outOfScopeOutput("비트코인 얼마야?");
-    expect(out).toMatchObject({ headline: null, impactTitles: [], topicReasons: [] });
+    expect(out).toMatchObject({ headline: null, impactTitles: [] });
+    expect(out.topicReasons).toHaveLength(out.nextTopics.length);
+    expect(out.nextTopics).toContain("오늘 달러 환율 얼마야?");
     expect(writerSchema.parse(out)).toBeTruthy();
+    // 11/19 페르소나 테스트에서 거절당한 생활 금융 질문들
+    expect(outOfScopeOutput("환전 우대 90%일 때 10만 엔 여행 예산은 어떻게 계산하나요?").nextTopics[0]).toBe("오늘 원엔 환율 얼마야?");
+    expect(outOfScopeOutput("환율 우대 90%는 달러 가격이 90% 싸다는 뜻인가요?").nextTopics[0]).toBe("오늘 달러 환율 얼마야?");
+    expect(outOfScopeOutput("예금과 적금의 연 3%는 받는 이자가 같은가요?").nextTopics).toContain("한국 기준금리 미국이랑 얼마나 차이 나?");
+    expect(outOfScopeOutput("물가지수의 기준연도는 무슨 뜻인가요?").nextTopics[0]).toBe("최근 우리나라 물가가 왜 올랐어?");
+    expect(outOfScopeOutput("듀레이션 5년 채권 ETF 볼록성은 왜 필요한가요?").nextTopics[0]).toBe("KODEX 200 요즘 어때?");
+    expect(outOfScopeOutput("비트코인 얼마야?").summary).not.toMatch(/사세요|매수|매도/);
   });
 
   it("normalizeReport 는 11/10 전에 저장된 v2 기록에도 출처의 pageUrl 을 채운다", () => {
