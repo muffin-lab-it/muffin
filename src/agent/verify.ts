@@ -397,8 +397,11 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
     // 문장(기사 제목) 속 숫자는 오름 · 내림 낱말이 붙은 변화량만 받습니다: "14.0원 오른 1337.7원 마감" 의 1337.7원 카드는 변화 "+14.0원" 을
     // 같은 제목에서 확인하고, "1324원에서 1337원으로 상승" 의 1324원(수준)은 변화로 받지 않습니다. "14.0원 내린" 은 "-14.0원" 과 맞습니다.
     const matched = hitValue(m);
+    // value 자체가 변화량 키(yoy · changePct · latest.previousYear.change …)에 맞은 카드는 change 에 같은 숫자를 되풀이해도 틀린 게 아닙니다
+    // (11/19: CPI "전년 동월 대비 2.82%" 카드의 change "+2.82%" 가 걸려 다시 쓰기 1회 · 10초). "현재가를 변화처럼" 은 수준 값 카드에서만 막습니다.
+    const valueIsChange = NOT_LEVEL_KEY.test(m.key);
     const changeCandidates = candidates.filter(
-      (c) => (!c.key.endsWith("#text") || c.movement === true) && (!nearlyEqual(c.value, matched) || (c.key !== m.key && NOT_LEVEL_KEY.test(c.key))),
+      (c) => (!c.key.endsWith("#text") || c.movement === true) && (valueIsChange || !nearlyEqual(c.value, matched) || (c.key !== m.key && NOT_LEVEL_KEY.test(c.key))),
     );
     const changeNumbers = extractNumbers(n.change).filter(isDataNumber);
     const changeHits = changeNumbers.map((c) => matchValue(c, changeCandidates));

@@ -34,13 +34,29 @@ describe("cpiCauseNote: 품목군 기여도를 작성의 원인 후보로", () =
     expect(cpiCauseNote([], null)).toBe("");
   });
 
-  it("관측 월이 여러 개면 가장 최근 월 묶음만 쓴다", () => {
+  it("호출 묶음이 여럿이면 관측 월이 가장 최근인 묶음만, 같은 월이면 나중 호출만 쓴다", () => {
     const oldTotal = { ...total, id: "E3-1", values: { ...total.values, month: "202509", previousYearMonth: "202409", yoyPct: 2.1 } };
     const oldTransport = { ...transport, id: "E3-2", values: { ...transport.values, month: "202509", contributionPp: 9.9 } };
     const { total: t, categories } = cpiCategoryEntries([oldTotal, oldTransport, total, dining, transport]);
     expect(t?.id).toBe("E5-1");
     expect(categories.map((e) => e.id)).toEqual(["E5-2", "E5-3"]);
     expect(cpiCauseNote([oldTotal, oldTransport, total, dining, transport], null)).not.toContain("E3-");
+    // 같은 월을 두 번 조회했으면 (E5 · E7) 나중 묶음만 — 품목군이 두 번 나오지 않는다
+    const again = [total, transport, dining].map((e) => ({ ...e, id: e.id.replace("E5-", "E7-") }));
+    const dup = cpiCategoryEntries([total, transport, dining, ...again]);
+    expect(dup.total?.id).toBe("E7-1");
+    expect(dup.categories.map((e) => e.id)).toEqual(["E7-2", "E7-3"]);
+  });
+
+  it("총지수가 내렸으면 가장 많이 끌어내린 품목군부터, 문구도 하락 기준", () => {
+    const downTotal = { ...total, values: { ...total.values, yoyPct: -0.8, contributionSumPp: -0.81 } };
+    const down = { ...dining, values: { ...dining.values, yoyPct: -3.1, contributionPp: -0.45 } };
+    const { categories } = cpiCategoryEntries([transport, down, downTotal, tobacco]);
+    expect(categories.map((e) => e.id)).toEqual(["E5-3", "E5-5", "E5-2"]);
+    const note = cpiCauseNote([transport, down, downTotal, tobacco], null);
+    expect(note).toContain("-0.80% 내렸습니다 (E5-1)");
+    expect(note).toContain("총지수 하락에 많이 보탠 순서");
+    expect(note).toContain("상쇄한 요인");
   });
 
   it("entries 는 기여도 큰 순이고, rescued 는 정제가 뺀 품목군 id 만", () => {
