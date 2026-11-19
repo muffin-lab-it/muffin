@@ -32,6 +32,18 @@ export function ppDiff(from: number, to: number): number {
   return diff(from, to);
 }
 
+/**
+ * 금액 환산. 단위당 값(100엔당 변화 −3.2원)을 사용자가 말한 금액(10만 엔)으로 늘립니다: value × amount ÷ per.
+ * 11/19 페르소나 테스트: "10만 엔 기준 차이" 를 모델이 계산하지 않아 "확인하지 못했다" 로 끝났습니다.
+ */
+export function scale(value: number, amount: number, per = 1): number {
+  assertFinite("value", value);
+  assertFinite("amount", amount);
+  assertFinite("per", per);
+  if (amount <= 0 || per <= 0) throw new Error("환산 금액(amount)과 단위당 기준(per)은 0보다 커야 합니다");
+  return round((value * amount) / per);
+}
+
 /** 표본 표준편차. 관측값이 2개 미만이거나 모두 같으면 정의되지 않으므로 throw. */
 export function stdev(series: number[]): number {
   if (series.length < 2) throw new Error("표준편차는 관측값이 2개 이상 필요합니다");

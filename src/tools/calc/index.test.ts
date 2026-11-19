@@ -4,7 +4,7 @@ import { ResearchContext } from "../../agent/context";
 import type { Evidence } from "../../agent/schema";
 import { extractNumbers, matchValue, numericCandidates } from "../../agent/verify";
 import { calcEvidence, calcTool, execute } from "./index";
-import { diff, movementZ, pctChange, ppDiff, round, stdev } from "./metrics";
+import { diff, movementZ, pctChange, ppDiff, round, scale, stdev } from "./metrics";
 
 const kr: Evidence = {
   id: "E2",
@@ -69,7 +69,7 @@ describe("metrics (순수 함수)", () => {
 describe("calc_metrics tool", () => {
   it("장부의 두 값으로 %p 차이를 내고 C1 · lineage · 계산 note 를 장부에 남긴다", async () => {
     const ctx = ledger();
-    const out = (await invoke(ctx, { op: "pp_diff", a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "한미 기준금리 차이" })) as {
+    const out = (await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "한미 기준금리 차이" })) as {
       id: string;
       data: { value: number; unit: string; formula: string };
       lineage: { op: string; inputs: string[] };
@@ -95,8 +95,8 @@ describe("calc_metrics tool", () => {
 
   it("변동률은 changePct, 차이는 change 로 올라가 검증기가 단위를 맞춰 본다", async () => {
     const ctx = ledger();
-    await invoke(ctx, { op: "pct_change", a: { ref: "E1", key: "comparison.rate" }, b: { ref: "E1", key: "rate" }, label: "USD/KRW 30일 변동률" });
-    await invoke(ctx, { op: "diff", a: { ref: "E1", key: "comparison.rate" }, b: { ref: "E1", key: "rate" }, label: "USD/KRW 30일 변동폭" });
+    await invoke(ctx, { op: "pct_change", amount: null, per: null, a: { ref: "E1", key: "comparison.rate" }, b: { ref: "E1", key: "rate" }, label: "USD/KRW 30일 변동률" });
+    await invoke(ctx, { op: "diff", amount: null, per: null, a: { ref: "E1", key: "comparison.rate" }, b: { ref: "E1", key: "rate" }, label: "USD/KRW 30일 변동폭" });
 
     const [c1, c2] = [ctx.findEvidence("C1")!, ctx.findEvidence("C2")!];
     expect(c1.values).toEqual({ changePct: 1.999853, from: 1365.1, to: 1392.4 });
@@ -119,14 +119,14 @@ describe("calc_metrics tool", () => {
     const ctx = ledger();
     const fail = async (input: unknown) => JSON.stringify(await invoke(ctx, input));
 
-    expect(await fail({ op: "diff", a: { ref: "E9", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "x" })).toContain("장부에 없는 id E9");
-    expect(await fail({ op: "diff", a: { ref: "E2", key: "nope" }, b: { ref: "E3", key: "rate" }, label: "x" })).toContain("nope 값이 없습니다");
-    expect(await fail({ op: "diff", a: { ref: "E1", key: "pair" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("숫자가 아닙니다");
-    expect(await fail({ op: "pp_diff", a: { ref: "E1", key: "comparison.rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("pp_diff 는 % 값");
+    expect(await fail({ op: "diff", amount: null, per: null, a: { ref: "E9", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "x" })).toContain("장부에 없는 id E9");
+    expect(await fail({ op: "diff", amount: null, per: null, a: { ref: "E2", key: "nope" }, b: { ref: "E3", key: "rate" }, label: "x" })).toContain("nope 값이 없습니다");
+    expect(await fail({ op: "diff", amount: null, per: null, a: { ref: "E1", key: "pair" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("숫자가 아닙니다");
+    expect(await fail({ op: "pp_diff", amount: null, per: null, a: { ref: "E1", key: "comparison.rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("pp_diff 는 % 값");
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1", "E2", "E3"]);
     expect(ctx.steps.every((s) => s.status === "error")).toBe(true);
     // 다음 성공은 C1 부터
-    const ok = (await invoke(ctx, { op: "pp_diff", a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "차이" })) as { id: string };
+    const ok = (await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "차이" })) as { id: string };
     expect(ok.id).toBe("C1");
   });
 
@@ -137,18 +137,18 @@ describe("calc_metrics tool", () => {
     const fail = async (input: unknown) => JSON.stringify(await invoke(ctx, input));
 
     // 환율(KRW per USD) 과 금리(%) 는 어떤 계산도 안 된다. 예전엔 pp_diff 가 통과해 -1389.4%p 가 장부에 올라갔다
-    expect(await fail({ op: "pp_diff", a: { ref: "E1", key: "rate" }, b: { ref: "E2", key: "rate" }, label: "x" })).toContain("단위가 다른 값은 계산하지 않습니다: E1.rate(KRW per USD) · E2.rate(%)");
-    expect(await fail({ op: "diff", a: { ref: "E2", key: "rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("단위가 다른 값");
-    expect(await fail({ op: "pct_change", a: { ref: "E2", key: "rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("단위가 다른 값");
+    expect(await fail({ op: "pp_diff", amount: null, per: null, a: { ref: "E1", key: "rate" }, b: { ref: "E2", key: "rate" }, label: "x" })).toContain("단위가 다른 값은 계산하지 않습니다: E1.rate(KRW per USD) · E2.rate(%)");
+    expect(await fail({ op: "diff", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("단위가 다른 값");
+    expect(await fail({ op: "pct_change", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E1", key: "rate" }, label: "x" })).toContain("단위가 다른 값");
     // 한쪽 단위를 몰라도, 아는 쪽이 % 가 아니면 pp_diff 는 안 된다
-    expect(await fail({ op: "pp_diff", a: { ref: "E1", key: "rate" }, b: { ref: "E4", key: "value" }, label: "x" })).toContain("pp_diff 는 % 값 사이에서만 씁니다: E1.rate(KRW per USD) · E4.value(단위 없음)");
+    expect(await fail({ op: "pp_diff", amount: null, per: null, a: { ref: "E1", key: "rate" }, b: { ref: "E4", key: "value" }, label: "x" })).toContain("pp_diff 는 % 값 사이에서만 씁니다: E1.rate(KRW per USD) · E4.value(단위 없음)");
     expect(ctx.evidence.map((e) => e.id)).toEqual(["E1", "E2", "E3", "E4"]);
     expect(ctx.steps.every((s) => s.status === "error")).toBe(true);
 
     // 단위를 모르는 쪽은 키 이름으로 본다. value 는 % 라는 표시가 없어 pp_diff 가 안 된다
-    expect(await fail({ op: "pp_diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })).toContain("pp_diff 는 % 값 사이에서만 씁니다: E4.value(단위 없음) · E2.rate(%)");
+    expect(await fail({ op: "pp_diff", amount: null, per: null, a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })).toContain("pp_diff 는 % 값 사이에서만 씁니다: E4.value(단위 없음) · E2.rate(%)");
     // diff 는 한쪽 단위를 모르면 막지 않고, 결과 단위는 비워 둔다
-    const d = (await invoke(ctx, { op: "diff", a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })) as { id: string; data: { unit: string } };
+    const d = (await invoke(ctx, { op: "diff", amount: null, per: null, a: { ref: "E4", key: "value" }, b: { ref: "E2", key: "rate" }, label: "x" })) as { id: string; data: { unit: string } };
     expect(d).toMatchObject({ id: "C1", data: { unit: "" } });
   });
 
@@ -163,11 +163,11 @@ describe("calc_metrics tool", () => {
     };
     ctx.addEvidence([etf]);
     // 예전엔 단위를 모르면 막지 않아 종가 − NAV 가 -185.96%p 로 장부에 올라갔다 (2026-10-28 정제 기준선 eval)
-    expect(JSON.stringify(await invoke(ctx, { op: "pp_diff", a: { ref: "E4", key: "latest.nav" }, b: { ref: "E4", key: "latest.close" }, label: "x" }))).toContain(
+    expect(JSON.stringify(await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E4", key: "latest.nav" }, b: { ref: "E4", key: "latest.close" }, label: "x" }))).toContain(
       "pp_diff 는 % 값 사이에서만 씁니다: E4.latest.nav(단위 없음) · E4.latest.close(단위 없음)",
     );
     const track = (await invoke(ctx, {
-      op: "pp_diff",
+      op: "pp_diff", amount: null, per: null,
       a: { ref: "E4", key: "period.indexReturnPct" },
       b: { ref: "E4", key: "period.returnPct" },
       label: "추적 차이",
@@ -195,24 +195,24 @@ describe("calc_metrics tool", () => {
     const fail = async (input: unknown) => JSON.stringify(await invoke(ctx, input));
 
     // 예전엔 환율 항목의 unit("KRW per 1 USD" · "KRW per 100 JPY")만 봐서 "엔화가 달러보다 얼마나 더 떨어졌나" 를 계산하지 못했다
-    const gap = (await invoke(ctx, { op: "pp_diff", a: { ref: "E5", key: "changePct" }, b: { ref: "E4", key: "changePct" }, label: "달러 − 엔 변동률 차이" })) as {
+    const gap = (await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E5", key: "changePct" }, b: { ref: "E4", key: "changePct" }, label: "달러 − 엔 변동률 차이" })) as {
       id: string;
       data: { value: number; unit: string };
     };
     expect(gap).toMatchObject({ id: "C1", data: { value: 3.5, unit: "%p" } });
     // 환율 값 자체는 통화마다 단위가 달라 어떤 계산도 안 된다
-    expect(await fail({ op: "diff", a: { ref: "E5", key: "rate" }, b: { ref: "E4", key: "rate" }, label: "x" })).toContain(
+    expect(await fail({ op: "diff", amount: null, per: null, a: { ref: "E5", key: "rate" }, b: { ref: "E4", key: "rate" }, label: "x" })).toContain(
       "단위가 다른 값은 계산하지 않습니다: E5.rate(KRW per 100 JPY) · E4.rate(KRW per 1 USD)",
     );
     // bp 끼리의 차이는 %p 가 아니다 (예전엔 항목 unit "%" 만 봐서 25bp − 50bp 가 "25%p" 로 계산됐다)
-    expect(await fail({ op: "pp_diff", a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changeBp" }, label: "x" })).toContain(
+    expect(await fail({ op: "pp_diff", amount: null, per: null, a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changeBp" }, label: "x" })).toContain(
       "pp_diff 는 % 값 사이에서만 씁니다: E6.changeBp(bp) · E7.changeBp(bp)",
     );
-    expect(await fail({ op: "diff", a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changePp" }, label: "x" })).toContain("단위가 다른 값");
+    expect(await fail({ op: "diff", amount: null, per: null, a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changePp" }, label: "x" })).toContain("단위가 다른 값");
 
     // bp 끼리 · %p 끼리의 diff 는 결과 단위를 키 이름으로, 계산에 쓴 값의 단위를 unit 으로 남겨 리포트가 "25bp" · "0.25%p" 로 인용할 수 있다
-    await invoke(ctx, { op: "diff", a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changeBp" }, label: "변동폭 차이 (bp)" });
-    await invoke(ctx, { op: "diff", a: { ref: "E6", key: "changePp" }, b: { ref: "E7", key: "changePp" }, label: "변동폭 차이 (%p)" });
+    await invoke(ctx, { op: "diff", amount: null, per: null, a: { ref: "E6", key: "changeBp" }, b: { ref: "E7", key: "changeBp" }, label: "변동폭 차이 (bp)" });
+    await invoke(ctx, { op: "diff", amount: null, per: null, a: { ref: "E6", key: "changePp" }, b: { ref: "E7", key: "changePp" }, label: "변동폭 차이 (%p)" });
     const [bpGap, ppGap] = [ctx.findEvidence("C2")!, ctx.findEvidence("C3")!];
     expect(bpGap.values).toEqual({ changeBp: 25, from: 25, to: 50, unit: "bp" });
     expect(ppGap.values).toEqual({ changePp: 0.25, from: 0.25, to: 0.5, unit: "%p" });
@@ -224,7 +224,7 @@ describe("calc_metrics tool", () => {
   });
 
   it("장부 없이 단독으로 부르면 throw (Agent 밖에서는 ResearchContext 를 만들어 넘긴다)", async () => {
-    const input = { op: "diff" as const, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "x" };
+    const input = { op: "diff" as const, amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "x" };
     await expect(execute(input)).rejects.toThrow("장부(ResearchContext)");
     const result = await execute(input, ledger());
     expect(result.data.value).toBe(0.88);
@@ -236,5 +236,40 @@ describe("calc_metrics tool", () => {
     // 예전엔 { change, unit: "%" } 로 올라가 리포트가 "0.88%p" 로도 "0.88%" 로도 인용할 수 없었다 (2026-10-30 한미 물가 상승률 차이)
     const c: Evidence = { id: "C1", tool: "calc_metrics", label: "계산 · x", values, source: { name: "x", url: "", asOf: "2026-10-16" } };
     expect(matchValue(extractNumbers("0.88%p")[0], numericCandidates(c))?.key).toBe("changePp");
+  });
+});
+
+describe("scale: 단위당 값을 사용자가 말한 금액으로 환산 (11/19)", () => {
+  const jpy: Evidence = {
+    id: "E4",
+    tool: "get_fx_krw_rate",
+    label: "환율 확인 · Frankfurter",
+    values: { rate: 836.49, "comparison.rate": 839.69, change: -3.2, changePct: -0.38, unit: "KRW per 100 JPY", pair: "JPY(100)/KRW" },
+    source: { name: "Frankfurter", url: "https://api.frankfurter.dev", asOf: "2026-11-19" },
+  };
+  it("100엔당 변화 −3.2원 × 10만 엔 ÷ 100 = −3,200원. 단위는 원, lineage 는 a 하나, 장부엔 scaled 로 올라 '3,200원 감소' 가 맞는다", async () => {
+    expect(scale(-3.2, 100000, 100)).toBe(-3200);
+    expect(scale(1333.26, 20000)).toBe(26665200);
+    const ctx = ledger();
+    ctx.addEvidence([jpy]);
+    const input = { op: "scale", a: { ref: "E4", key: "change" }, b: null, amount: 100000, per: 100, label: "10만 엔 환전 원화 차이" };
+    const r = await execute(input as never, ctx);
+    expect(r.data).toMatchObject({ op: "scale", value: -3200, unit: "원", amount: 100000, per: 100 });
+    expect(r.data.formula).toBe("E4.change -3.2 × 100000 ÷ 100 = -3200원");
+    expect(r.lineage).toEqual({ op: "scale", inputs: ["E4"] });
+    expect(r.note).toContain("수수료");
+    await invoke(ctx, input);
+    const c1 = ctx.evidence.find((e) => e.id === "C1")!;
+    expect(c1.values).toMatchObject({ scaled: -3200, from: -3.2, amount: 100000, per: 100, unit: "원" });
+    const [n] = extractNumbers("3,200원 감소");
+    expect(matchValue(n!, numericCandidates(c1))).toMatchObject({ key: "scaled" });
+    expect(matchValue(extractNumbers("-3,200원")[0]!, numericCandidates(c1))).toMatchObject({ key: "scaled" });
+  });
+  it("amount 가 없으면 실패하고, 다른 op 에 b 가 없어도 실패한다 (C 번호를 쓰지 않음)", async () => {
+    const ctx = ledger();
+    ctx.addEvidence([jpy]);
+    await expect(execute({ op: "scale", a: { ref: "E4", key: "change" }, b: null, amount: null, per: 100, label: "x" } as never, ctx)).rejects.toThrow("amount");
+    await expect(execute({ op: "diff", a: { ref: "E4", key: "change" }, b: null, amount: null, per: null, label: "x" } as never, ctx)).rejects.toThrow("b(비교 값)");
+    expect(ctx.evidence.some((e) => e.id.startsWith("C"))).toBe(false);
   });
 });

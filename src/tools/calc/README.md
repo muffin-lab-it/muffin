@@ -11,6 +11,7 @@
 | `pct_change` | (b − a) / \|a\| × 100 | % | 30일 전 환율 → 오늘 환율 변동률 |
 | `diff` | b − a | 입력과 같은 단위 (% · %p 끼리면 %p) | 오늘 환율 − 30일 전 환율 (원) |
 | `pp_diff` | b − a | %p | 미국 정책금리 − 한국 기준금리 |
+| `scale` | a × amount ÷ per | a 가 `KRW per …` 면 원, 아니면 a 의 단위 | 100엔당 변화 −3.2원 × 100,000 ÷ 100 = −3,200원 (10만 엔 환전 차이). `b` 는 null |
 
 값은 **장부에서만** 읽습니다. 숫자를 직접 넘길 수 없고, 없는 id · 키를 가리키면 실패합니다. 평균 · 시계열 계산은 없습니다. 유의성 게이트의 z-score 는 이 tool 이 아니라 원인 질문에서 코드가 직접 계산합니다 (`src/agent/movement.ts`, 순수 함수는 `metrics.ts` 의 `movementZ`).
 
@@ -34,6 +35,7 @@
 |---|---|---|
 | `pct_change` | `{ changePct, from, to }` | `2.00%` |
 | `diff` | `{ change, from, to, unit? }`. % · %p 끼리면 `pp_diff` 와 같은 `{ changePp, from, to, unit: "%" }` | `27.30원` · `0.88%p` |
+| `scale` | `{ scaled, from, amount, per, unit? }` | `-3,200원` |
 | `pp_diff` | `{ changePp, from, to, unit }`. `unit` 은 계산에 쓴 값의 단위(`%` 또는 `%p`) | `0.88%p` (from · to 는 `3.00%`, `3.88%`) |
 | `diff` (bp 끼리) | `{ changeBp, from, to, unit: "bp" }` | `25bp` |
 
