@@ -555,6 +555,11 @@ function stripSentences(text: string, unmatched: string[]): string {
  *  - impactTitles · topicReasons(11/10): 짝 목록(impact · nextTopics)과 개수가 다르면 통째로 버리고, 뺀 항목의 것은 같이 빼며, 장부에 없는 숫자나 권유 표현이 든 것은 빈 문자열로 둡니다.
  *  - 뺀 숫자가 있으면 dataGaps 에 한 줄 적어 사용자에게 보입니다.
  */
+/** verification.removed 는 화면("검증이 한 일")에 그대로 보이므로 칸 이름을 사용자 말로 씁니다 (11/19 페르소나 테스트: "impact 2번째 항목 삭제" 같은 개발 문구 지적). scripts/scoring.ts 는 "숫자 " 로 시작하는 줄을 셉니다. */
+const FIELD_NAMES: Record<"impact" | "caveats" | "nextTopics" | "dataGaps" | "impactTitles" | "topicReasons", string> = {
+  impact: "생활 영향 카드", caveats: "주의점", nextTopics: "이어서 알아볼 주제", dataGaps: "확인하지 못한 것", impactTitles: "생활 영향 제목", topicReasons: "주제 추천 이유",
+};
+
 export function applyVerification(output: WriterOutput, result: VerifyResult): Applied {
   // removed 에는 문장 원문을 되풀이하지 않습니다 (권유 표현이 거기로 새지 않게). 숫자 항목은 라벨과 값만 적습니다.
   const removed: string[] = [];
@@ -564,22 +569,22 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
   const summaryText = textByField("summary").get(0);
   if (summaryText) {
     summary = stripSentences(summary, summaryText.unmatched);
-    removed.push(`summary 의 문장 삭제: 장부에 없는 숫자 ${summaryText.unmatched.join(", ")}`);
+    removed.push(`요약에서 문장을 뺌: 출처 자료에 없는 숫자 ${summaryText.unmatched.join(", ")}`);
   }
   if (hasAdvice(summary)) {
     summary = stripAdvice(summary);
-    removed.push("summary 의 권유 문장 삭제");
+    removed.push("요약에서 투자 권유로 읽히는 문장을 뺌");
   }
   if (summary.trim() === "") summary = SUMMARY_FALLBACK;
 
   let headline = output.headline ?? null;
   const headlineText = textByField("headline").get(0);
   if (headline && headlineText) {
-    removed.push(`headline 삭제: 장부에 없는 숫자 ${headlineText.unmatched.join(", ")}`);
+    removed.push(`핵심 한 문장을 뺌: 출처 자료에 없는 숫자 ${headlineText.unmatched.join(", ")}`);
     headline = null;
   }
   if (headline && hasAdvice(headline)) {
-    removed.push("headline 삭제: 투자 권유 표현");
+    removed.push("핵심 한 문장을 뺌: 투자 권유 표현");
     headline = null;
   }
 
@@ -590,16 +595,16 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
   output.numbers.forEach((n, i) => {
     const f = result.numbers[i];
     if (hasAdvice(n.label) || hasAdvice(n.value) || hasAdvice(n.change)) {
-      removed.push(`숫자 ${i + 1}번째 항목 삭제: 투자 권유 표현`);
+      removed.push(`숫자 카드 ${i + 1}번을 뺌: 투자 권유 표현`);
       return;
     }
     if (!f || f.status === "unverified") {
-      removed.push(`숫자 "${n.label}" ${n.value}: ${f?.reason ?? "검증 결과 없음"}`);
+      removed.push(`숫자 카드 "${n.label}" ${n.value} 를 뺌: ${f?.reason ?? "검증 결과 없음"}`);
       droppedNumbers += 1;
       return;
     }
     if (!f.changeOk) {
-      removed.push(`숫자 "${n.label}" 의 change "${n.change}" 삭제: ${f.changeProblem}`);
+      removed.push(`숫자 카드 "${n.label}" 의 변화량 "${n.change}" 을 뺌: ${f.changeProblem}`);
       numbers.push({ ...n, change: "" });
     } else {
       numbers.push(n);
@@ -613,7 +618,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
     .map((w, i) => {
       const f = result.why[i];
       if (!f || f.ok) return w;
-      removed.push(`원인 ${i + 1}번째 근거 표시 수정: ${f.problems.join("; ")}`);
+      removed.push(`원인 ${i + 1}번의 근거 표시를 고침: ${f.problems.join("; ")}`);
       return {
         ...w,
         ...(f.fix.basis ? { basis: f.fix.basis } : {}),
@@ -624,12 +629,12 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
     .filter((w, i) => {
       const t = whyText.get(i);
       if (t) {
-        removed.push(`원인 ${i + 1}번째 항목 삭제: 장부에 없는 숫자 ${t.unmatched.join(", ")}`);
+        removed.push(`원인 ${i + 1}번을 뺌: 출처 자료에 없는 숫자 ${t.unmatched.join(", ")}`);
         return false;
       }
       // 근거 표시를 고친 뒤의 문장으로 다시 봅니다 (원문 집합과 비교하면 고친 항목을 놓침)
       if (hasAdvice(`${w.claim} ${w.evidence}`)) {
-        removed.push(`원인 ${i + 1}번째 항목 삭제: 투자 권유 표현`);
+        removed.push(`원인 ${i + 1}번을 뺌: 투자 권유 표현`);
         return false;
       }
       return true;
@@ -643,11 +648,11 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
       .filter((i) => {
         const t = texts.get(i);
         if (t) {
-          removed.push(`${field} ${i + 1}번째 항목 삭제: 장부에 없는 숫자 ${t.unmatched.join(", ")}`);
+          removed.push(`${FIELD_NAMES[field]} ${i + 1}번을 뺌: 출처 자료에 없는 숫자 ${t.unmatched.join(", ")}`);
           return false;
         }
         if (hasAdvice(xs[i]!)) {
-          removed.push(`${field} ${i + 1}번째 항목 삭제: 투자 권유 표현`);
+          removed.push(`${FIELD_NAMES[field]} ${i + 1}번을 뺌: 투자 권유 표현`);
           return false;
         }
         return true;
@@ -660,18 +665,18 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
   const alignWith = (texts: string[] | undefined, total: number, keep: number[], field: "impactTitles" | "topicReasons"): string[] => {
     if (!texts || texts.length === 0) return [];
     if (texts.length !== total) {
-      removed.push(`${field} 삭제: 짝이 되는 목록과 개수가 다름 (${texts.length} vs ${total})`);
+      removed.push(`${FIELD_NAMES[field]}을 모두 뺌: 짝이 되는 목록과 개수가 다름 (${texts.length} vs ${total})`);
       return [];
     }
     const findings = textByField(field);
     return keep.map((i) => {
       const t = findings.get(i);
       if (t) {
-        removed.push(`${field} ${i + 1}번째 비움: 장부에 없는 숫자 ${t.unmatched.join(", ")}`);
+        removed.push(`${FIELD_NAMES[field]} ${i + 1}번을 비움: 출처 자료에 없는 숫자 ${t.unmatched.join(", ")}`);
         return "";
       }
       if (hasAdvice(texts[i]!)) {
-        removed.push(`${field} ${i + 1}번째 비움: 투자 권유 표현`);
+        removed.push(`${FIELD_NAMES[field]} ${i + 1}번을 비움: 투자 권유 표현`);
         return "";
       }
       return texts[i]!;

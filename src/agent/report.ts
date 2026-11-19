@@ -123,3 +123,18 @@ export function assembleReport(
     disclosure: DISCLOSURE,
   };
 }
+
+/**
+ * why 가 비었을 때 화면이 보여 줄 한 줄. 유의성 게이트 결과(movement.level)로 "평소 범위라 원인을 찾지 않음" 과
+ * "후보를 봤지만 근거 부족" 을 구분합니다 (11/19 페르소나 테스트: 20명 중 17명이 "데이터가 없다" 는 빈 칸을 지적).
+ */
+export function whyEmptyNote(report: Pick<Report, "movement">): string {
+  const level = report.movement?.level;
+  if (level === "normal") {
+    return "이번 움직임은 지난 90일의 평소 범위 안이라 원인을 따로 찾지 않았습니다. 평소보다 크게 움직일 때 금리 차이 · 뉴스 · 다른 통화 같은 원인 후보를 확인합니다.";
+  }
+  if (level === "notable" || level === "extreme") {
+    return "평소보다 큰 움직임이라 원인 후보(금리 차이 · 뉴스 · 다른 통화)를 확인했지만, 이번 움직임을 설명하는 근거는 부족했습니다. 아래 '주의점과 확인하지 못한 것' 을 참고하세요.";
+  }
+  return "이번 리포트에서는 원인을 뒷받침할 자료를 확보하지 못했습니다. 아래 '주의점과 확인하지 못한 것' 에 무엇이 부족했는지 적었습니다.";
+}

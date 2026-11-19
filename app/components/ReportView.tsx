@@ -5,6 +5,7 @@ import { reportChange } from "./reportChange";
 import Image from "next/image";
 import resultMuffin from "../result-muffin.png";
 import { labelFor } from "@/src/agent/events";
+import { whyEmptyNote } from "@/src/agent/report";
 import { formatAge } from "@/src/lib/age";
 import { ReportDisplay, ReportModeToggle } from "./ReportDisplay";
 import { ReportHelp } from "./ReportHelp";
@@ -95,7 +96,7 @@ export function ReportView({
                 <div className="metric-label"><span className="category-chip" data-category={category(n.ref)}>{category(n.ref)}</span><small>{n.label}</small></div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`}><b>{n.value}</b></EvidenceReference>
                 {change && <i className={change.direction}>{change.text}</i>}
-                {n.changeDetail && (n.changeDetail.from || n.changeDetail.to) && <small className="metric-period">비교 기간 {n.changeDetail.from ?? "시작일 미제공"} → {n.changeDetail.to ?? "종료일 미제공"}</small>}
+                {n.changeDetail?.from && n.changeDetail.to && <small className="metric-period">비교 기간 {n.changeDetail.from} → {n.changeDetail.to}</small>}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${n.asOf}` : "자료 날짜 미제공"}</span>
                   <span className={`report-badge check-${check}`}>{{ verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" }[check]}</span>
@@ -113,7 +114,7 @@ export function ReportView({
           <section>
             <h2>숫자 너머의 이야기</h2><p className="section-guide">지금의 수치가 나온 배경을 읽고, 설명 옆 배지로 근거의 종류를 확인해 보세요.</p>
             {report.why.length === 0 ? (
-              <p className="muted">이 질문의 원인을 설명할 데이터가 아직 없습니다.</p>
+              <p className="muted">{whyEmptyNote(report)}</p>
             ) : (
               <ul>
                 {report.why.map((w, i) => (
@@ -127,10 +128,10 @@ export function ReportView({
             )}
           </section>
 
-          <section>
+          {report.impact.length > 0 && <section>
             <h2>내 생활에 미치는 영향</h2><p className="section-guide">내 소비와 자산에 해당하는 카드를 골라, 어떤 영향을 받을 수 있는지 살펴보세요.</p>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
-          </section>
+          </section>}
 
           {report.charts && report.charts.length > 0 && (
             <section>

@@ -372,3 +372,10 @@
 @media(max-width:600px) { .report :global(.verification-list) { padding-left:30px; padding-right:12px; } }
 
 .report :global(.verification-detail p > .evidence-link) { color:#1d4ed8; text-decoration:underline; text-underline-offset:3px; }
+
+/* 11/19 페르소나 테스트: 폰에서 차트 축 글씨가 6~7px 로 보임. SVG 는 viewBox(640px) 비율로 줄어드니 좁은 화면에서는 SVG 단위 글씨를 키운다 */
+@media (max-width: 600px) {
+  .report :global(.chart-grid) text, .report :global(.chart-axis) text { font-size:20px; }
+  .report :global(.chart-axis-guide) text { font-size:20px; }
+  .report :global(.chart-last-label) { font-size:22px; }
+}

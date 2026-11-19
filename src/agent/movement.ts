@@ -489,6 +489,10 @@ export function movementNote(m: Movement, calcId: string, evidence: Evidence[], 
       ...(rescued.length
         ? ["- \"정제 제외\" 가 붙은 항목은 정제가 이 질문의 직접 근거로 고르지 않은 자료이지만, 원인 후보를 확인하는 데는 씁니다. 값은 장부(사실 목록만 보면 아래 덧붙인 항목)에 있습니다."]
         : []),
+      // 11/19 페르소나 테스트: 달러만 물었는데 유로 · 엔 카드가 같이 나온 리포트. 다른 통화는 원인 후보 확인용이지 카드 재료가 아닙니다
+      ...(candidates.some((c) => c.otherPair && c.refs.length)
+        ? ["- 다른 통화(유로 · 엔) 값은 원인 후보 확인용입니다. 질문이 달러만 물었으면 numbers 카드로 내지 않고 why · caveats 에서만 씁니다."]
+        : []),
       ...candidates.map((c) => (c.refs.length
         ? `- ${c.factor}: ${c.refs.map(label).join(" · ")}${windowNote(c.refs, m)}\n  → ${typeof c.how === "function" ? c.how(m, c.refs) : c.how}`
         : `- ${c.factor}: 장부에 없음 (필요한 것: ${c.needs})`)),
