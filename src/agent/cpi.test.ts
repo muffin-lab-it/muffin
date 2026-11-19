@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cpiBasisFor, cpiCategoryEntries, cpiCauseNote, cpiRescuedRefs, rankCategories } from "./cpi";
+import { cpiBasisFor, cpiCategoryEntries, cpiCauseNote, cpiRescuedRefs, isRateChangeQuestion, rankCategories } from "./cpi";
 import type { Evidence } from "./schema";
 
 function entry(id: string, values: Evidence["values"]): Evidence {
@@ -78,6 +78,16 @@ describe("cpiCauseNote: 품목군 기여도를 작성의 원인 후보로", () =
     expect(note.indexOf("음식 및 숙박")).toBeLessThan(note.indexOf("- 교통"));
     expect(note).toContain("12개 기여도 합 +0.25%p");
     expect(note).toContain("yoyPct · contributionPp");
+  });
+
+  it("둔화 · 가속 질문이면 기여도를 지금 등락률의 구성으로만 쓰게 하고 why 강제 규칙을 빼며, 둔화 원인은 모른다고 적게 한다", () => {
+    expect(["물가상승률이 왜 둔화했어?", "요즘 물가 상승 폭이 왜 줄었어?", "인플레이션이 왜 꺾였어?"].every(isRateChangeQuestion)).toBe(true);
+    expect(["최근 우리나라 물가가 왜 올랐어?", "지난달 대비 물가가 왜 올랐어?"].some(isRateChangeQuestion)).toBe(false);
+    const note = cpiCauseNote([total, transport, dining, housing, tobacco], null, "물가상승률이 왜 둔화했어?");
+    expect(note).toContain("등락률 변화의 원인이 아닙니다");
+    expect(note).toContain("둔화 · 가속의 원인이라고 쓰지 않습니다");
+    expect(note).not.toContain("품목군 자료가 있으면 why 를 비우지 않습니다");
+    expect(note).toContain("- 교통: 전년 같은 달 대비 +6.80%");
   });
 
   it("entries 는 기여도 큰 순이고, rescued 는 정제가 뺀 품목군 id 만", () => {

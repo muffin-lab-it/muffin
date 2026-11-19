@@ -18,6 +18,11 @@ export const TOP_CATEGORIES = 3;
 export type CpiBasis = "yoy" | "mom";
 const EXPLICIT_MOM = /(전월|전달|지난\s*달|저번\s*달|한\s*달\s*전)\s*(대비|보다|에\s*비해|과\s*비교|와\s*비교)/;
 const EXPLICIT_YOY = /(전년\s*(동월|같은\s*달)?|작년\s*(같은\s*달|동월)?|지난\s*해|1\s*년\s*전)\s*(대비|보다|에\s*비해|과\s*비교|와\s*비교)/;
+/** 등락률의 변화(둔화 · 가속 · 상승 폭 축소)를 묻는 질문인지. 품목군 기여도는 "지금 등락률의 구성" 이지 "등락률이 왜 바뀌었나" 의 근거가 아닙니다 (Codex 리뷰) */
+export function isRateChangeQuestion(question: string): boolean {
+  return /둔화|가속|상승\s*폭|오름\s*폭|하락\s*폭|(상승률|물가\s*상승률|인플레이션)[^.?!]{0,12}(낮아|높아|줄|늘|떨어|꺾|완화|진정)/.test(question);
+}
+
 export function cpiBasisFor(question: string): CpiBasis {
   if (EXPLICIT_MOM.test(question)) return "mom";
   if (EXPLICIT_YOY.test(question)) return "yoy";
@@ -94,6 +99,19 @@ export function cpiCauseNote(evidence: Evidence[], shown: Set<string> | null, qu
   const rest = categories.slice(TOP_CATEGORIES);
   if (rest.length) lines.push(`- 나머지 ${rest.length}개 품목군: ${rest.map((e) => `${e.values.category} ${signed(e.values[f.contribution], "%p")} (${e.id})`).join(", ")}`);
   if (total && typeof total.values[f.sum] === "number") lines.push(`- 12개 기여도 합 ${signed(total.values[f.sum], "%p")} (총지수 등락률과의 차이는 근사 오차)`);
+  if (isRateChangeQuestion(question)) {
+    // 둔화 · 가속 질문: 지금 등락률의 구성만 말하고, 등락률이 왜 바뀌었는지는 모른다고 적게 합니다
+    lines.push(
+      "규칙:",
+      "- 이 질문은 등락률이 왜 바뀌었는지(둔화 · 가속)를 묻습니다. 위 기여도는 지금 등락률을 구성하는 품목군이지, 등락률 변화의 원인이 아닙니다 (기여도가 가장 커도 그 기여가 줄었을 수 있음).",
+      `- why 에는 위 품목군을 "지금 ${move}을 구성하는 요인" 으로만 쓰고(basis data, refs), 둔화 · 가속의 원인이라고 쓰지 않습니다. 둔화 · 가속 원인은 품목군별 기여도 변화 자료가 없어 확인할 수 없다고 dataGaps 에 적습니다.`,
+      "- 뉴스 장부가 둔화 · 가속 배경을 말할 때만 news 근거로 덧붙이고, 제목에 없는 원인은 추정하지 않습니다.",
+      "- caveats 에 \"품목군 기여도는 가중치 × 등락률의 근사치로 통계청 공식 기여도와 소수점 차이가 날 수 있음\" 을 한 줄 적습니다.",
+    );
+    const unseenRate = shown ? [total, ...categories].filter((e): e is Evidence => !!e && !shown.has(e.id)) : [];
+    if (unseenRate.length) lines.push("", "[덧붙인 장부 항목] 정제가 사실 목록에 넣지 않은 품목군 항목입니다. 원인 후보의 숫자는 이 값을 씁니다.", ...unseenRate.map(ledgerLine));
+    return lines.join("\n");
+  }
   lines.push(
     "규칙:",
     `- why 에 위 상위 ${TOP_CATEGORIES}개 안의 품목군을 "데이터" 근거(basis data, refs 에 그 id)로 씁니다. 등락률 · 기여도 숫자는 장부 값 그대로 쓰고, 그 품목군이 총지수 ${move}의 얼마를 차지했는지로 설명합니다.`,
