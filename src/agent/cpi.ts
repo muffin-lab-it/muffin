@@ -11,12 +11,16 @@ import type { Evidence } from "./schema";
 export const TOP_CATEGORIES = 3;
 
 /**
- * 질문이 묻는 비교 기준. "전년 · 작년 · 1년 전 · 지난해" 가 있으면 전년 같은 달 대비(명시한 연간 비교가 우선, Codex 리뷰),
- * 아니면 "지난달 · 전월 · 이번 달" 이 있을 때 전월 대비, 그 밖("최근 · 요즘 · 왜 올랐어")은 전년 같은 달 대비.
+ * 질문이 묻는 비교 기준 (Codex 리뷰 2건 반영).
+ *  1. "전월 대비 · 지난달보다" 처럼 비교를 명시한 말이 먼저입니다. "작년 10월 물가가 전월 대비 왜 올랐어?" 의 "작년" 은 관측 시점이지 비교 기준이 아닙니다.
+ *  2. 명시한 비교가 없으면 "지난달 · 이번 달" 같은 달 낱말이 있을 때 전월 대비, 그 밖("최근 · 요즘 · 왜 올랐어")은 전년 같은 달 대비.
  */
 export type CpiBasis = "yoy" | "mom";
+const EXPLICIT_MOM = /(전월|전달|지난\s*달|저번\s*달|한\s*달\s*전)\s*(대비|보다|에\s*비해|과\s*비교|와\s*비교)/;
+const EXPLICIT_YOY = /(전년\s*(동월|같은\s*달)?|작년\s*(같은\s*달|동월)?|지난\s*해|1\s*년\s*전)\s*(대비|보다|에\s*비해|과\s*비교|와\s*비교)/;
 export function cpiBasisFor(question: string): CpiBasis {
-  if (/전년|작년|지난\s*해|1\s*년\s*전|연간|해\s*전/.test(question)) return "yoy";
+  if (EXPLICIT_MOM.test(question)) return "mom";
+  if (EXPLICIT_YOY.test(question)) return "yoy";
   return /지난\s*달|전월|이번\s*달|한\s*달\s*전|저번\s*달|월간/.test(question) ? "mom" : "yoy";
 }
 

@@ -67,6 +67,9 @@ describe("cpiCauseNote: 품목군 기여도를 작성의 원인 후보로", () =
     // 연간 비교를 명시하면 달 낱말이 있어도 전년 기준
     expect(cpiBasisFor("이번 달 물가가 전년 동월 대비 왜 올랐어?")).toBe("yoy");
     expect(cpiBasisFor("지난달 물가, 작년보다 얼마나 올랐고 왜?")).toBe("yoy");
+    // 관측 시점의 "작년" 은 비교 기준이 아니다 — 명시한 "전월 대비" 가 이긴다
+    expect(cpiBasisFor("작년 10월 물가가 전월 대비 왜 올랐어?")).toBe("mom");
+    expect(cpiBasisFor("올해 10월 물가는 전년 동월 대비 왜 올랐어?")).toBe("yoy");
     const all = [transport, dining, housing, tobacco, total];
     expect(rankCategories([transport, dining, housing, tobacco], "mom", total).map((e) => e.id)).toEqual(["E5-3", "E5-4", "E5-2", "E5-5"]);
     const note = cpiCauseNote(all, null, "지난달 대비 물가가 왜 올랐어?");
