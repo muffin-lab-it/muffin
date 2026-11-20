@@ -70,6 +70,18 @@ describe("POST /api/history", () => {
     expect(f.rows).toHaveLength(1);
   });
 
+  it("브라우저 id 를 대문자로 보내도 같은 브라우저로 본다 (Postgres 는 uuid 를 소문자로 돌려줌, Codex 리뷰)", async () => {
+    const upper = A.toUpperCase();
+    expect((await save({ id: "req-u", input, report }, { client: upper })).status).toBe(201);
+    expect(f.rows[0].client_id).toBe(A);
+    const again = await save({ id: "req-u", input, report }, { client: upper });
+    expect(again.status).toBe(200);
+    expect((await save({ id: "req-u", input, report }, { client: A })).status).toBe(200);
+    expect((await save({ id: "req-u", input, report }, { client: B.toUpperCase() })).status).toBe(409);
+    expect((await GET_ONE(req("GET", "/api/history/req-u", { client: upper }), ctx("req-u"))).status).toBe(200);
+    expect((await DELETE(req("DELETE", "/api/history/req-u", { client: upper }), ctx("req-u"))).status).toBe(204);
+  });
+
   it("브라우저당 100개를 넘으면 오래된 것부터 지운다", async () => {
     for (let i = 0; i < 100; i++) f.rows.push({ id: `old-${i}`, client_id: A, created_at: `2026-10-01T00:00:${String(i % 60).padStart(2, "0")}.${String(i).padStart(3, "0")}Z`, input, report, steps: [] });
     f.rows.push({ id: "b-1", client_id: B, created_at: "2026-09-01T00:00:00.000Z", input, report, steps: [] });

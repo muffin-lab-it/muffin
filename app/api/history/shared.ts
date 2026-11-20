@@ -31,7 +31,8 @@ export function serverError(action: string, err: unknown) {
 
 export function guard(req: Request, { origin }: { origin: boolean }): { clientId: string } | { response: NextResponse } {
   if (origin && !checkOrigin(req).ok) return { response: errorJson(403, ORIGIN_DENIED_MESSAGE) };
-  const clientId = readClientId(req.headers);
+  // uuid 는 대소문자가 같은 값입니다. Postgres 는 client_id 를 소문자로 돌려주므로 여기서 소문자로 맞춥니다 (Codex 리뷰).
+  const clientId = readClientId(req.headers)?.toLowerCase();
   if (!clientId) return { response: errorJson(400, "브라우저 id(X-Muffin-Client)가 없거나 형식이 맞지 않아요.") };
   if (!dbEnabled()) return { response: errorJson(503, "저장소 설정을 확인해 주세요.") };
   return { clientId };

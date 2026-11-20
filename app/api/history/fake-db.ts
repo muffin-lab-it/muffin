@@ -1,6 +1,7 @@
 /**
  * 테스트 전용: Supabase 쿼리 빌더 중 History 저장소가 쓰는 부분만 메모리에서 흉내 냅니다.
  * select · insert · delete, eq · lt · in, order · limit · range, single · maybeSingle 을 지원하고, 고유키(id) 충돌은 23505 로 돌려줍니다.
+ * Postgres 처럼 uuid 열(client_id)은 소문자로 저장하고, uuid 끼리의 eq 는 대소문자를 무시합니다.
  */
 type Row = Record<string, unknown>;
 type Result = { data: unknown; error: { message: string; code?: string } | null };
@@ -31,6 +32,7 @@ export function createFakeDb(initial: Row[] = []) {
       let out: Row[];
       if (op === "insert") {
         const row = { created_at: new Date(Date.now() + rows.length).toISOString(), steps: [], ...inserted } as Row;
+        if (typeof row.client_id === "string") row.client_id = row.client_id.toLowerCase();
         if (rows.some((r) => r.id === row.id)) return { data: null, error: { message: "duplicate key", code: "23505" } };
         rows.push(row);
         out = [row];
@@ -69,7 +71,8 @@ export function createFakeDb(initial: Row[] = []) {
         return builder;
       },
       eq(key: string, value: unknown) {
-        filters.push((r) => r[key] === value);
+        const uuid = key === "client_id" && typeof value === "string";
+        filters.push((r) => (uuid ? String(r[key]).toLowerCase() === (value as string).toLowerCase() : r[key] === value));
         return builder;
       },
       lt(key: string, value: string) {

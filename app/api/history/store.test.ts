@@ -33,6 +33,11 @@ describe("History 저장소", () => {
     expect(f.rows).toHaveLength(1);
   });
 
+  it("같은 id 의 주인 비교는 uuid 대소문자를 무시한다", async () => {
+    await insertReport({ id: "r1", client_id: A, input, report, steps: [] });
+    expect((await insertReport({ id: "r1", client_id: A.toUpperCase(), input, report, steps: [] })).status).toBe("existing");
+  });
+
   it("고유키 말고 다른 DB 오류는 throw 한다", async () => {
     f.state.failNext = "connection refused";
     await expect(insertReport({ id: "r1", client_id: A, input, report, steps: [] })).rejects.toThrow("reports 저장 실패: connection refused");
