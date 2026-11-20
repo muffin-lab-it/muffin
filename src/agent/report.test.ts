@@ -216,6 +216,7 @@ describe("11/20 QA: 환율 기준 · 빈 원인 안내 · 미국 상장 ETF", ()
     expect(notes[0]).toContain("Frankfurter v2");
     expect(notes[0]).toContain("포털 · 은행 앱");
     expect(fxBasisCaveats([fx], ["포털에 보이는 실시간 환율과 다를 수 있습니다."])).toEqual([]);
+    expect(fxBasisCaveats([fx], ["환율은 일별 기준환율이며 실시간 매수·매도 호가가 아닙니다."])).toEqual([]);
     expect(fxBasisCaveats([evidence("E1", "https://a.example")])).toEqual([]);
   });
 

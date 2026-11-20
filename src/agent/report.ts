@@ -190,11 +190,11 @@ const FX_TOOL = "get_fx_krw_rate";
 /**
  * 환율 자료를 쓴 리포트의 "주의점" 에 코드가 넣는 한 줄 (11/20 QA: "환율이 네이버에서 검색한 것과 다름. 왜지?").
  * tool 의 note 는 원본 보기에만 있어 잘 안 보이므로, 어떤 환율인지와 왜 다를 수 있는지를 주의점에 적습니다.
- * 검증 뒤에 붙여 검증 대상이 아니고, 작성이 이미 같은 설명(포털 · 은행 앱)을 썼으면 넣지 않습니다.
+ * 검증 뒤에 붙여 검증 대상이 아니고, 작성이 이미 같은 설명(실시간 환율과 다름)을 썼으면 넣지 않습니다 (같은 말이 두 줄 나오지 않게).
  */
 export function fxBasisCaveats(evidence: Evidence[], caveats: string[] = []): string[] {
   const fx = evidence.find((e) => e.tool === FX_TOOL);
-  if (!fx || caveats.some((c) => /포털|은행 앱/.test(c))) return [];
+  if (!fx || caveats.some((c) => /포털|은행 앱|실시간/.test(c))) return [];
   return [
     `환율은 하루 한 번 집계되는 기준 환율입니다 (출처: ${fx.source.name}). 포털 · 은행 앱의 실시간 환율이나 수수료가 붙는 실제 환전 금액과는 다를 수 있습니다.`,
   ];

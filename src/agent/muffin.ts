@@ -112,7 +112,17 @@ export async function research(input: ResearchInput, options: ResearchOptions = 
   return withTrace("Muffin research", () => runStages(input, { ...options, deadline }));
 }
 
-async function runStages({ question, depth, area }: ResearchInput, { onEvent, deadline }: ResearchOptions & { deadline: number }): Promise<ResearchResult> {
+/**
+ * 화면이 영역을 여러 개 골랐을 때 질문 앞에 붙이는 머리말("관심 영역: 환율, ETF\n\n", app/components/home-form.ts)을 뗀 질문.
+ * 머리말의 "ETF · 금리 · 물가" 가 질문의 낱말로 읽혀 환율 원인 질문의 유의성 게이트가 통째로 빠졌습니다 (11/20 베타: "환율 변동이 왜이렇게 심해?" →
+ * 평소 범위 안내 · 차트 없이 "원인은 확인하기 어렵습니다"). 분류에는 고른 영역을 알리려고 원문을 주고, 나머지 단계와 코드 판별은 뗀 질문을 씁니다.
+ */
+export function plainQuestion(question: string): string {
+  return question.replace(/^관심 영역: [^\r\n]+\r?\n\r?\n/, "").trim() || question;
+}
+
+async function runStages({ question: asked, depth, area }: ResearchInput, { onEvent, deadline }: ResearchOptions & { deadline: number }): Promise<ResearchResult> {
+  const question = plainQuestion(asked);
   const emit = (event: MuffinEvent) => onEvent?.(event);
   const usage: UsageSummary = { requests: 0, inputTokens: 0, outputTokens: 0, byModel: {} };
   // 단계마다 그 단계의 모델 칸에도 쌓습니다 (분류 · 정제는 작은 모델, 조사 · 작성은 깊이별 모델이라 단가가 다름)
@@ -132,7 +142,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   const foreign = foreignEtfOutput(question);
   const planned = foreign
     ? { intent: "out_of_scope" as const, tools: [], reason: "미국 상장 ETF 는 조회할 수 없음" }
-    : await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(question, area, depth), planCtx, defaultPlan(question, area));
+    : await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(asked, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx, "plan");
   const plan = { ...normalizePlan(planned, question, area), mode: modeFor(planned.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
