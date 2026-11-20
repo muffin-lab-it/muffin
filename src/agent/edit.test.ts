@@ -11,7 +11,8 @@ vi.mock("@openai/agents", async (importOriginal) => {
 
 import { RunContext, run } from "@openai/agents";
 import { ResearchContext } from "./context";
-import { cleanFacts, createEditorAgent, editInput, editInstructions, runEdit } from "./edit";
+import { execute as calcExecute } from "../tools/calc";
+import { cleanFacts, createEditorAgent, editInput, editInstructions, reversedCalcIds, runEdit } from "./edit";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes } from "./schema";
 
 const runMock = run as unknown as ReturnType<typeof vi.fn>;
@@ -71,6 +72,10 @@ describe("editInput · editInstructions", () => {
     expect(text).toContain("환율 rate(unit 이 원/달러 등)는 가격입니다");
     // 괴리 금액 부호: NAV − 종가로 계산하면 괴리율(+)과 반대로 나옴
     expect(text).toContain("괴리 금액은 종가 − NAV 입니다 (a 에 NAV, b 에 종가)");
+    // 기간 변화 방향: 11/20 QA 에서 a = latest.close, b = period.closeFrom 으로 넣어 "6,125원 하락" 카드가 +6125 로 빠짐
+    expect(text).toContain("키 이름이 …From 이거나 comparison 으로 시작하는 값은 늘 a 자리입니다");
+    expect(text).toContain("a = period.closeFrom, b = latest.close");
+    expect(text).toContain("값이 내렸으면 결과는 음수여야 합니다");
     expect(text).toContain("퍼센트끼리 pct_change 를 쓰지 않습니다");
     // 비교 질문은 차이를 C 번호로, 답에 안 쓰는 계산은 하지 않음
     expect(text).toContain("compare(비교)");
@@ -149,6 +154,89 @@ describe("runEdit", () => {
     const ctx = () => new RunContext(new ResearchContext());
     expect(await runEdit(createEditorAgent("easy"), "input", ctx())).toBeNull();
     expect(await runEdit(createEditorAgent("easy"), "input", ctx())).toBeNull();
+  });
+});
+
+describe("방향이 반대인 계산 거르기 (11/20 QA)", () => {
+  // note 는 src/tools/calc 가 남기는 식 그대로: 차이는 "b − a = 값", 변동률은 "a → b = 값%"
+  const calc = (id: string, op: string, note: string) => ({ id, note, lineage: { op, inputs: ["E1"] } });
+
+  it("기준 값(…From · comparison · NAV)이 b 자리에 있으면 반대로 본다", () => {
+    const ids = reversedCalcIds([
+      // 실제 QA: a = latest.close, b = period.closeFrom → +6125 ("6,125원 하락" 카드가 빠짐)
+      calc("C1", "diff", "E1.period.closeFrom 86755 − E1.latest.close 80630 = 6125원. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      // 실제 eval: 괴리 금액을 NAV − 종가로 (a = latest.close, b = latest.nav)
+      calc("C2", "diff", "E1.latest.nav 80764.08 − E1.latest.close 80630 = 134.08원. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      calc("C3", "pct_change", "E2.rate 1392.4 → E2.comparison.rate 1365.1 = -1.96%. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+    ]);
+    expect([...ids]).toEqual(["C1", "C2", "C3"]);
+  });
+
+  it("맞는 방향 · 기준 값이 없는 계산 · 계산이 아닌 항목은 그대로 둔다", () => {
+    const ids = reversedCalcIds([
+      calc("C1", "diff", "E1.latest.close 80630 − E1.period.closeFrom 86755 = -6125원. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      calc("C2", "diff", "E1.latest.close 80630 − E1.latest.nav 80764.08 = -134.08원. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      calc("C3", "pp_diff", "E2.rate 3.88 − E1.rate 3 = 0.88%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      calc("C4", "pp_diff", "E3-1.period.returnPct -27.15 − E1.period.returnPct -26.69 = -0.47%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      calc("C5", "pct_change", "E2.comparison.rate 1365.1 → E2.rate 1392.4 = 2%. 장부 값으로 계산한 결과이며 출처 링크는 없습니다"),
+      { id: "E1", note: "T+1 공개 데이터" },
+      { id: "C6", lineage: { op: "scale", inputs: ["E2"] }, note: "E2.change 6.1 × 100000 ÷ 100 = 6100원. 환전 수수료 제외" },
+    ]);
+    expect([...ids]).toEqual([]);
+  });
+
+  it("계산 tool 이 실제로 남기는 식으로도 방향을 읽는다 (calc 의 note 형식이 바뀌면 여기서 깨짐)", async () => {
+    const ctx = new ResearchContext();
+    ctx.addEvidence([
+      {
+        id: "E1",
+        tool: "get_etf_kr_price",
+        label: "국내 ETF 시세 확인 · KODEX 200",
+        values: { "latest.close": 80630, "period.closeFrom": 86755 },
+        source: { name: "KODEX 200", url: "https://www.data.go.kr/data/15094806/openapi.do", asOf: "2026-11-19" },
+      },
+    ]);
+    const label = "KODEX 200 30일 종가 변화";
+    const wrong = await calcExecute({ op: "diff", label, a: { ref: "E1", key: "latest.close" }, b: { ref: "E1", key: "period.closeFrom" }, amount: null, per: null }, ctx);
+    const right = await calcExecute({ op: "diff", label, a: { ref: "E1", key: "period.closeFrom" }, b: { ref: "E1", key: "latest.close" }, amount: null, per: null }, ctx);
+    const ids = reversedCalcIds([
+      { id: "C1", note: wrong.note, lineage: wrong.lineage },
+      { id: "C2", note: right.note, lineage: right.lineage },
+    ]);
+    expect([...ids]).toEqual(["C1"]);
+  });
+
+  it("cleanFacts 는 반대 방향 계산을 인용한 사실을 빼고 이유를 남긴다", () => {
+    const out = cleanFacts(
+      { facts: [{ ref: "E1", fact: "종가 80,630원" }, { ref: "C1", fact: "30일 종가 6,125원 하락" }, { ref: "C1", fact: "같은 계산 다른 문장" }], dropped: [], unverified: [] },
+      new Set(["E1", "C1"]),
+      new Set(["C1"]),
+    );
+    expect(out.facts).toEqual([{ ref: "E1", fact: "종가 80,630원" }]);
+    expect(out.dropped).toEqual([{ ref: "C1", reason: expect.stringContaining("방향이 반대") }]);
+  });
+
+  it("runEdit 은 장부의 계산 note 를 보고 반대 방향 계산을 거른다", async () => {
+    const ctx = new ResearchContext();
+    ctx.addEvidence(evidence);
+    runMock.mockImplementationOnce(async (...args: unknown[]) => {
+      const runCtx = (args[2] as { context: RunContext<ResearchContext> }).context.context;
+      runCtx.addEvidence([
+        {
+          id: runCtx.nextCalcId(),
+          tool: "calc_metrics",
+          label: "계산 · 30일 환율 변화",
+          values: { change: -27.3, from: 1392.4, to: 1365.1 },
+          source: { name: "30일 환율 변화", url: "", asOf: "2026-10-19" },
+          note: "E1.comparison.rate 1365.1 − E1.rate 1392.4 = -27.3. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+          lineage: { op: "diff", inputs: ["E1"] },
+        },
+      ]);
+      return { finalOutput: { facts: [{ ref: "E1", fact: "USD/KRW 1,392.40원" }, { ref: "C1", fact: "30일 27.3원 상승" }], dropped: [], unverified: [] } };
+    });
+    const out = await runEdit(createEditorAgent("standard"), "input", new RunContext(ctx));
+    expect(out?.facts.map((f) => f.ref)).toEqual(["E1"]);
+    expect(out?.dropped.map((d) => d.ref)).toEqual(["C1"]);
   });
 });
 

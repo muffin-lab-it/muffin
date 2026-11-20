@@ -49,6 +49,9 @@ export const editRules = `[역할: ✂️ 정제]
   - 가격 · 금액 · 지수 · 환율(원, 달러, 포인트)은 변동률이면 pct_change, 크기 차이면 diff. 이런 값에는 pp_diff 를 쓰지 않습니다.
   - 종류가 다른 두 값(가격과 금리, 환율과 지수)은 계산하지 않습니다.
 - a 는 기준(과거 · 비교 대상), b 는 비교 값(현재)입니다. 두 값의 기준일이 다르면 사실 문장에 두 기준일을 모두 적습니다.
+  - 기간 변화는 기간 시작 값이 a, 끝(최신) 값이 b 입니다. 키 이름이 …From 이거나 comparison 으로 시작하는 값은 늘 a 자리입니다.
+    예: ETF 30일 종가 변화는 a = period.closeFrom, b = latest.close (지수는 a = period.indexCloseFrom, b = latest.indexClose), 환율은 a = comparison.rate, b = rate.
+    값이 내렸으면 결과는 음수여야 합니다 (예: 기간 시작 86,755원, 최신 80,630원이면 음수). a 와 b 를 바꾸면 부호가 뒤집혀 "하락" 문장과 맞지 않고 검증에서 빠집니다.
   - 괴리 금액은 종가 − NAV 입니다 (a 에 NAV, b 에 종가). 괴리율(premiumPct)과 부호가 같아야 합니다: 종가가 NAV 보다 높으면 둘 다 +.
 - 계산이 실패하면 그 사실은 빼고 unverified 에 무엇을 확인하지 못했는지 적습니다. 결과를 추측해서 적지 않습니다.
 
@@ -114,7 +117,7 @@ export function editInput(question: string, plan: PlanOutput, evidence: Evidence
  *  - dropped: facts 에서 쓴 ref 는 뺀 것이 아니므로 지웁니다. 장부에 없는 ref 와 중복도 지웁니다
  *  - unverified: 빈 문장과 중복을 지웁니다
  */
-export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>): FactsOutput {
+export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>, reversedCalcs: ReadonlySet<string> = new Set()): FactsOutput {
   const facts: FactsOutput["facts"] = [];
   const unknown: FactsOutput["dropped"] = [];
   const seenFacts = new Set<string>();
@@ -123,6 +126,10 @@ export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>): Fa
     if (!fact) continue;
     if (!ledgerIds.has(f.ref)) {
       if (!unknown.some((d) => d.ref === f.ref)) unknown.push({ ref: f.ref, reason: "장부에 없는 번호라 사실에서 뺌" });
+      continue;
+    }
+    if (reversedCalcs.has(f.ref)) {
+      if (!unknown.some((d) => d.ref === f.ref)) unknown.push({ ref: f.ref, reason: "계산의 기준 값이 b 자리에 있어(방향이 반대) 부호를 믿을 수 없어 사실에서 뺌" });
       continue;
     }
     const key = `${f.ref}\u0000${fact}`;
@@ -142,6 +149,36 @@ export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>): Fa
   return { facts, dropped: [...dropped, ...unknown], unverified };
 }
 
+/** 기간 시작 · 비교 시점 · NAV 처럼 늘 a(기준) 자리여야 하는 장부 키. 예: period.closeFrom, comparison.rate, comparisonRate, latest.nav */
+function isBaseKey(key: string): boolean {
+  const parts = key.split(".");
+  const last = parts.at(-1) ?? "";
+  return /From$/.test(last) || parts.some((p) => /^comparison/i.test(p)) || /^nav$/i.test(last);
+}
+
+/** 계산 장부 항목의 note 에 남은 식에서 a · b 의 키를 읽습니다. 차이는 "b − a", 변동률은 "a → b" 로 적혀 있습니다 (src/tools/calc). */
+function calcKeys(note: string): { a: string; b: string } | null {
+  const diff = /^([^.\s]+)\.(\S+) \S+ − ([^.\s]+)\.(\S+) \S+ = /.exec(note);
+  if (diff) return { b: diff[2], a: diff[4] };
+  const change = /^([^.\s]+)\.(\S+) \S+ → ([^.\s]+)\.(\S+) \S+ = /.exec(note);
+  if (change) return { a: change[2], b: change[4] };
+  return null;
+}
+
+/**
+ * 방향이 반대인 계산(C 번호). 기준 값(…From · comparison · NAV)을 b 에, 최신 값을 a 에 넣으면 부호가 뒤집혀
+ * "6,125원 하락" 문장이 +6125 와 맞지 않고 검증에서 빠집니다 (11/20 QA). 지시문으로 막지 못한 것을 여기서 거릅니다.
+ */
+export function reversedCalcIds(evidence: readonly Pick<Evidence, "id" | "note" | "lineage">[]): Set<string> {
+  const out = new Set<string>();
+  for (const e of evidence) {
+    if (!e.lineage || !e.note) continue;
+    const keys = calcKeys(e.note);
+    if (keys && isBaseKey(keys.b) && !isBaseKey(keys.a)) out.add(e.id);
+  }
+  return out;
+}
+
 /**
  * 정제 Agent 를 한 번 실행합니다. 계산 tool 결과는 runCtx 안의 장부에 C 번호로 쌓입니다.
  * 출력은 cleanFacts 로 장부와 맞춥니다 (계산 tool 이 만든 C 번호도 장부에 있으므로 통과).
@@ -155,7 +192,8 @@ export async function runEdit(
   try {
     const result = await run(agent, input, { context: runCtx });
     if (!result.finalOutput) return null;
-    return cleanFacts(result.finalOutput, new Set(runCtx.context.evidence.map((e) => e.id)));
+    const { evidence } = runCtx.context;
+    return cleanFacts(result.finalOutput, new Set(evidence.map((e) => e.id)), reversedCalcIds(evidence));
   } catch {
     return null;
   }
