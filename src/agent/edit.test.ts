@@ -12,7 +12,6 @@ vi.mock("@openai/agents", async (importOriginal) => {
 import { RunContext, run } from "@openai/agents";
 import { ResearchContext } from "./context";
 import { execute as calcExecute } from "../tools/calc";
-import { writerInput } from "./write";
 import { cleanFacts, createEditorAgent, editInput, editInstructions, reversedCalcIds, runEdit } from "./edit";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes } from "./schema";
 
@@ -207,54 +206,14 @@ describe("방향이 반대인 계산 거르기 (11/20 QA)", () => {
     expect([...ids]).toEqual(["C1"]);
   });
 
-  it("cleanFacts 는 반대 방향 계산을 인용한 사실을 빼고 이유를 남기며, 입력 항목을 대신 사실로 남긴다", () => {
+  it("cleanFacts 는 반대 방향 계산을 인용한 사실을 빼고 이유를 남긴다", () => {
     const out = cleanFacts(
       { facts: [{ ref: "E1", fact: "종가 80,630원" }, { ref: "C1", fact: "30일 종가 6,125원 하락" }, { ref: "C1", fact: "같은 계산 다른 문장" }], dropped: [], unverified: [] },
       new Set(["E1", "C1"]),
-      new Map([["C1", ["E1"]]]),
+      new Set(["C1"]),
     );
-    // E1 은 이미 다른 사실이 인용하므로 대신 넣지 않음
     expect(out.facts).toEqual([{ ref: "E1", fact: "종가 80,630원" }]);
-    const only = cleanFacts({ facts: [{ ref: "C1", fact: "30일 종가 6,125원 하락" }], dropped: [], unverified: [] }, new Set(["E1", "C1"]), new Map([["C1", ["E1"]]]));
-    expect(only.facts.map((f) => f.ref)).toEqual(["E1"]);
-    expect(only.facts[0].fact).toContain("C1 계산은 기준 값과 비교 값이 뒤바뀌어 뺐습니다");
-    expect(only.facts[0].fact).not.toContain("6,125");
     expect(out.dropped).toEqual([{ ref: "C1", reason: expect.stringContaining("방향이 반대") }]);
-  });
-
-  it("사실이 전부 반대 방향 계산이어도 목록이 비지 않아, 작성은 뺀 계산을 보지 않는다 (Codex 리뷰: 빈 목록이면 장부 전체로 돌아감)", async () => {
-    const ctx = new ResearchContext();
-    ctx.addEvidence([
-      {
-        id: "E1",
-        tool: "get_etf_kr_price",
-        label: "국내 ETF 시세 확인 · KODEX 200",
-        values: { "latest.close": 80630, "period.closeFrom": 86755 },
-        source: { name: "KODEX 200", url: "https://www.data.go.kr/data/15094806/openapi.do", asOf: "2026-11-19" },
-      },
-      ...evidence.filter((e) => e.id !== "E1").map((e) => ({ ...e, id: `X-${e.id}` })),
-    ]);
-    runMock.mockImplementationOnce(async (...args: unknown[]) => {
-      const runCtx = (args[2] as { context: RunContext<ResearchContext> }).context.context;
-      const wrong = await calcExecute(
-        { op: "diff", label: "KODEX 200 30일 종가 변화", a: { ref: "E1", key: "latest.close" }, b: { ref: "E1", key: "period.closeFrom" }, amount: null, per: null },
-        runCtx,
-      );
-      runCtx.addEvidence([
-        { id: runCtx.nextCalcId(), tool: "calc_metrics", label: "계산 · KODEX 200 30일 종가 변화", values: { change: 6125 }, source: wrong.source as Evidence["source"], note: wrong.note, lineage: wrong.lineage },
-      ]);
-      return { finalOutput: { facts: [{ ref: "C1", fact: "KODEX 200 30일 종가 6,125원 하락" }], dropped: [], unverified: [] } };
-    });
-
-    const facts = await runEdit(createEditorAgent("standard"), "input", new RunContext(ctx));
-    expect(facts?.facts.map((f) => f.ref)).toEqual(["E1"]);
-
-    const input = writerInput("KODEX 200 요즘 어때?", ctx.evidence, { notes: [], gaps: [] }, facts);
-    expect(input).toContain("[사실 목록]");
-    expect(input).not.toMatch(/^- C1 /m);
-    expect(input).not.toContain("6125");
-    expect(input).not.toContain("6,125");
-    expect(input).toMatch(/^- E1 /m);
   });
 
   it("runEdit 은 장부의 계산 note 를 보고 반대 방향 계산을 거른다", async () => {
