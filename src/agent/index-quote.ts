@@ -53,24 +53,50 @@ const num = (s: string) => Number(s.replace(/,/g, ""));
 
 /**
  * 기사 본문에서 그 지수의 마감 문장을 읽습니다: "코스피는 전장보다 267.93포인트(5.21%) 내린 4,869.96에 거래를 마쳤다",
- * "코스닥은 전일 대비 39.13포인트(5.71%)내린 645.68에". 변화는 방향을 붙여 돌려줍니다. 없으면 null.
+ * "코스닥은 전일 대비 39.13포인트(5.71%)내린 645.68에 장을 마쳤다". 변화는 방향을 붙여 돌려줍니다. 마감 문장이 아니면 null.
  */
 export function parseClose(text: string, index: KrIndexName): TodayClose | null {
+  const hit = closeMatch(text, index);
+  return hit ? { close: hit.close, change: hit.change, changePct: hit.changePct } : null;
+}
+
+/** parseClose 와 같되, 그 문장에서 지수 이름 앞에 온 말(lead)도 돌려줍니다. "전날 코스피는…" 처럼 다른 날의 마감을 다시 쓴 문장을 가리는 데 씁니다 */
+function closeMatch(text: string, index: KrIndexName): (TodayClose & { lead: string }) | null {
   const re = new RegExp(
     `${escapeRe(index)}(?:\\s*지수)?[은는이가]?\\s*(?:전장|전\\s*거래일|전일)\\s*(?:보다|대비)\\s*([\\d,]+\\.\\d+)\\s*포인트\\s*\\(\\s*([\\d.]+)\\s*%\\s*\\)\\s*(내린|하락한|떨어진|밀린|오른|상승한|뛴)\\s*([\\d,]+\\.\\d+)`,
   );
   const m = re.exec(text);
   if (!m) return null;
+  // 마감 값만 받습니다. 개장 · 장중 기사("5,147.89에 출발했다")도 전일 종가 + 변화폭 검산은 통과하므로, 같은 문장에 마감 표현이 있어야 합니다 (#123 Codex 리뷰)
+  const rest = text.slice(m.index + m[0].length).split(/(?<!\d)\.(?!\d)|\n/)[0] ?? "";
+  if (/^.{0,12}(출발|개장|장중|거래되|거래\s*중|기록\s*중)/.test(rest) || !/마쳤|마감|마친/.test(rest)) return null;
   const sign = /내린|하락한|떨어진|밀린/.test(m[3]!) ? -1 : 1;
-  return { close: num(m[4]!), change: sign * num(m[1]!), changePct: sign * Number(m[2]) };
+  const lead = text.slice(0, m.index).split(/(?<!\d)\.(?!\d)|\n/).at(-1) ?? "";
+  return { close: num(m[4]!), change: sign * num(m[1]!), changePct: sign * Number(m[2]), lead };
 }
 
-/** 검산: 공식 전일 종가 + 기사의 변화폭이 기사의 종가와 맞는지 (반올림 오차 0.02 포인트) */
+/** 검산: 공식 전일 종가 + 기사의 변화폭이 기사의 종가와 맞는지 (반올림 오차 0.02 포인트), 등락률이 그 변화폭과 맞는지 */
 export function consistent(prevClose: number, today: TodayClose): boolean {
-  return Math.abs(prevClose + today.change - today.close) <= 0.02;
+  // 등락률도 변화폭 ÷ 전일 종가와 맞아야 합니다 (기사 표기는 소수 둘째 자리 반올림). 맞지 않는 % 가 장부에 올라 카드로 나가지 않게 (#123 Codex 리뷰)
+  return Math.abs(prevClose + today.change - today.close) <= 0.02 && Math.abs((today.change / prevClose) * 100 - today.changePct) <= 0.011;
 }
 
 const kstDate = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date(iso));
+
+/**
+ * 기사가 말하는 거래일. 발행일이 아니라 본문의 "20일 코스피는…" 에서 읽습니다: 다음 날 아침 · 주말에 나온 기사가 전 거래일 마감을 다시 쓰면
+ * 발행일을 종가 날짜로 적으면 틀립니다 (#123 Codex 리뷰). 본문의 날짜("N일")가 발행일이나 그 전 나흘 안의 날과 맞을 때만 그 날짜를, 못 읽으면 null.
+ */
+export function sessionDate(text: string, publishedAt: string): string | null {
+  const day = /(?:^|[^\d])(\d{1,2})일/.exec(text)?.[1];
+  if (!day) return null;
+  const published = Date.parse(publishedAt);
+  for (let back = 0; back <= 4; back += 1) {
+    const date = kstDate(new Date(published - back * 86_400_000).toISOString());
+    if (Number(date.slice(8, 10)) === Number(day)) return date;
+  }
+  return null;
+}
 
 type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; limit: number; content: "body" }) => Promise<{ data: NewsData }>;
 
@@ -90,10 +116,11 @@ export async function addTodayClose(ctx: ResearchContext, index: KrIndexName, ne
     const results = await Promise.all(queries.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: 5, content: "body" }).catch(() => null)));
     for (const article of results.flatMap((r) => r?.data.articles ?? [])) {
       if (article.body.status !== "available") continue;
-      const date = kstDate(article.publishedAt);
-      if (date <= prevDate) continue;
-      const today = parseClose(article.body.text, index);
-      if (!today || !consistent(prevClose, today)) continue;
+      const date = sessionDate(article.body.text, article.publishedAt);
+      if (!date || date <= prevDate) continue;
+      const today = closeMatch(article.body.text, index);
+      // "21일 … 전날 코스피는 … 마쳤다" 처럼 다른 날의 마감을 다시 쓴 문장은 본문의 날짜가 그 종가의 날짜가 아니라 건너뜁니다 (#123 Codex 리뷰)
+      if (!today || /전날|어제|지난|전주|앞서/.test(today.lead) || !consistent(prevClose, today)) continue;
       const entry: Evidence = {
         id: ctx.nextCalcId(),
         tool: INDEX_TODAY_TOOL,
