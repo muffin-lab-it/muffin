@@ -1,8 +1,18 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
-const EvidenceScope = createContext<{ prefix: string; selection: string | null; select: (key: string) => void } | null>(null);
+type Scope = {
+  prefix: string;
+  selection: string | null;
+  select: (key: string) => void;
+  /** 근거 보기로 내려간 뒤 돌아갈 자리(숫자 카드 id)와 도착한 장부 번호 (11/21 QA 2 · 외부 F8: 돌아오기가 번거로웠음) */
+  origin: string | null;
+  target: string | null;
+  visit: (origin: string | null, target: string | null) => void;
+  returnToOrigin: () => void;
+};
+const EvidenceScope = createContext<Scope | null>(null);
 
 /** 링크 클릭과 URL 해시 복원 모두 접힌 조상 패널을 먼저 엽니다. */
 function openContainingDetails(target: HTMLElement) {
@@ -13,10 +23,15 @@ function openContainingDetails(target: HTMLElement) {
   }
 }
 
+function clearHighlights() {
+  document.querySelectorAll<HTMLElement>("[data-highlight='true']").forEach(element => element.removeAttribute("data-highlight"));
+}
+
 /** 여러 리포트가 있어도 각자의 자료 패널로 이동합니다. */
 export function ReportEvidenceScope({ children }: { children: ReactNode }) {
   const prefix = useId();
   const [selection, select] = useState<string | null>(null);
+  const [visit, setVisit] = useState<{ origin: string | null; target: string | null }>({ origin: null, target: null });
   useEffect(() => {
     const revealHash = () => {
       let id: string;
@@ -32,7 +47,21 @@ export function ReportEvidenceScope({ children }: { children: ReactNode }) {
     window.addEventListener("hashchange", revealHash);
     return () => window.removeEventListener("hashchange", revealHash);
   }, [prefix]);
-  return <EvidenceScope.Provider value={{ prefix, selection, select }}>{children}</EvidenceScope.Provider>;
+  const value = useMemo<Scope>(() => ({
+    prefix,
+    selection,
+    select,
+    origin: visit.origin,
+    target: visit.target,
+    visit: (origin, target) => setVisit({ origin, target }),
+    returnToOrigin: () => {
+      clearHighlights();
+      const element = visit.origin ? document.getElementById(visit.origin) : null;
+      setVisit({ origin: null, target: null });
+      if (element) requestAnimationFrame(() => { element.focus({ preventScroll: true }); element.scrollIntoView({ block: "center" }); });
+    },
+  }), [prefix, selection, visit]);
+  return <EvidenceScope.Provider value={value}>{children}</EvidenceScope.Provider>;
 }
 
 export function useEvidenceTarget(evidenceId: string) {
@@ -40,22 +69,29 @@ export function useEvidenceTarget(evidenceId: string) {
   return scope === null ? null : `${scope.prefix}-evidence-${evidenceId}`;
 }
 
-export function ReportEvidenceLink({ targetId, label, children, className = "" }: { targetId: string; label: string; children?: ReactNode; className?: string }) {
+/** 돌아올 자리 표시용 감싸개 (숫자 카드). 같은 리포트 안에서만 유효한 id 를 붙입니다. */
+export function EvidenceOrigin({ name, className, children, ...rest }: { name: string; className?: string; children: ReactNode; [key: `data-${string}`]: string | undefined }) {
+  const id = useEvidenceTarget(name);
+  return <div id={id ?? undefined} className={className} tabIndex={-1} {...rest}>{children}</div>;
+}
+
+export function ReportEvidenceLink({ targetId, label, children, className = "", valueKey, originId }: { targetId: string; label: string; children?: ReactNode; className?: string; valueKey?: string; originId?: string }) {
   const scope = useContext(EvidenceScope);
-  return <a className={`evidence-link ${className}`} aria-label={children ? label : undefined} href={`#${encodeURIComponent(targetId)}`} onClick={(event) => {
+  return <a className={`evidence-link ${className}`} aria-label={children ? label : undefined} href={`#${encodeURIComponent(targetId)}`} data-value-key={valueKey} data-origin={originId} onClick={(event) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const target = document.getElementById(targetId);
     if (!target) return;
+    event.preventDefault();
     const group = target.closest<HTMLElement>("[data-source-group]")?.dataset.sourceGroup;
     openContainingDetails(target);
-    if (group && scope) {
-      event.preventDefault();
-      scope.select(group);
-      window.history.pushState(null, "", `#${encodeURIComponent(targetId)}`);
-      requestAnimationFrame(() => { target.focus({ preventScroll: true }); target.scrollIntoView({ block: "start" }); });
-      return;
-    }
-    target.focus({ preventScroll: true });
+    // 값 키가 있으면 그 줄을 열고 색칠해 그 줄로 내려갑니다 (11/21 QA 2: 카드 맨 위로만 가서 어느 값인지 몰랐음)
+    const row = valueKey ? target.querySelector<HTMLElement>(`[data-key="${CSS.escape(valueKey)}"]`) : null;
+    clearHighlights();
+    if (row) { openContainingDetails(row); row.setAttribute("data-highlight", "true"); }
+    if (group && scope) scope.select(group);
+    scope?.visit(originId ?? null, target.dataset.evidenceId ?? null);
+    window.history.pushState(null, "", `#${encodeURIComponent(targetId)}`);
+    requestAnimationFrame(() => { target.focus({ preventScroll: true }); (row ?? target).scrollIntoView({ block: row ? "center" : "start" }); });
   }}>{children ?? label}</a>;
 }
 

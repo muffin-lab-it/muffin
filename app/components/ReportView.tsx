@@ -16,7 +16,7 @@ import styles from "./ReportView.module.css";
 import type { ToolStep } from "@/src/agent/context";
 import type { Area, Evidence, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
-import { ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
+import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 import { formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, publisherOf, valueTone } from "./format";
 import { splitAreaPrefix } from "./home-form";
@@ -45,6 +45,26 @@ type ReportViewProps = {
   area?: Area;
   question?: string;
 };
+
+type NumberItem = Report["numbers"][number];
+const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" } as const;
+/** 비교값 · 변화량 · 수익률처럼 본값에 딸린 숫자인지 (11/21 하니 4: 현재 값 · 비교 값 · 변동폭이 카드 셋으로 나뉘어 같은 숫자가 반복됨) */
+export function isSubValue(number: Pick<NumberItem, "label" | "value">): boolean {
+  return /^[+−-]/.test(number.value.trim()) || /비교|대비|변화|변동|차이|수익률|변화율|전일|전월|전년|\d+일\s*전/.test(number.label);
+}
+/** 같은 장부를 가리키는 딸린 숫자를 본값 카드 안으로 묶습니다. 본값이 없는 장부의 숫자는 그대로 따로 둡니다 */
+export function groupNumbers(numbers: NumberItem[]): { main: NumberItem; index: number; subs: { n: NumberItem; index: number }[] }[] {
+  const mainByRef = new Map<string, number>();
+  numbers.forEach((number, index) => { if (number.ref && !isSubValue(number) && !mainByRef.has(number.ref)) mainByRef.set(number.ref, index); });
+  const subsOf = new Map<number, number[]>();
+  numbers.forEach((number, index) => {
+    const main = number.ref ? mainByRef.get(number.ref) : undefined;
+    if (main !== undefined && main !== index && isSubValue(number)) subsOf.set(main, [...(subsOf.get(main) ?? []), index]);
+  });
+  const consumed = new Set([...subsOf.values()].flat());
+  return numbers.map((number, index) => ({ number, index })).filter(({ index }) => !consumed.has(index))
+    .map(({ number, index }) => ({ main: number, index, subs: (subsOf.get(index) ?? []).map(sub => ({ n: numbers[sub], index: sub })) }));
+}
 
 /** 원인 문장의 근거 링크. 뉴스는 기사로 바로 새 창, 데이터는 아래 출처 칸으로 (11/20 QA 3: "원본 보기" 가 기사인 줄 알았는데 아래로 내려가 두 번 눌러야 했음). */
 function ReasonLinks({ refs, evidence }: { refs: string[]; evidence: Evidence[] }) {
@@ -87,6 +107,7 @@ export function ReportView({
     ? <div className="report-meta-line">{areaChips}{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}</div>
     : null;
   const newsEntries = report.evidence.filter(isNewsEvidence);
+  const cards = groupNumbers(report.numbers);
   // 도구 표는 리포트에서 빼고(11/20 QA 7 · 하니 5, 전체 표는 /admin) 저장본 · 실패 · 호출 생략만 주의점 옆에 메모로 남깁니다
   const toolNotes = (steps ?? []).filter(step => step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open");
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
@@ -122,8 +143,10 @@ export function ReportView({
       {report.numbers.length > 0 ? (
       <section className={styles.metrics}>
         <div className="metrics-heading"><h2>오늘의 숫자</h2></div>
-        <div className="numbers" data-count={report.numbers.length}>
-          {report.numbers.map((n, i) => {
+        <div className="numbers" data-count={cards.length}>
+          {cards.map(card => {
+            const n = card.main;
+            const i = card.index;
             const change = n.change && !/^이번\s*주$/.test(n.change.trim())
               ? reportChange(n.change, n.changeDetail)
               : null;
@@ -132,20 +155,32 @@ export function ReportView({
             const basis = entry ? fxBasisNote(entry.tool, entry.source.name) : null;
             const check = report.verification.status === "skipped" ? "unverified" : n.check;
             const tone = valueTone(n.value);
+            const valueKey = n.match?.key.replace(/#text$/, "");
+            const origin = `number-${i}`;
             return (
-              <div className="num" data-kind={check} key={i}>
+              <EvidenceOrigin name={origin} className="num" data-kind={check} key={i}>
                 <div className="metric-label"><small>{n.label}</small></div>
-                <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`}><b className={tone ?? undefined}>{n.value}</b></EvidenceReference>
+                <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`} valueKey={valueKey} origin={origin}><b className={tone ?? undefined}>{n.value}</b></EvidenceReference>
                 {change && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
                 {n.changeDetail?.from && n.changeDetail.to && <small className="metric-period">비교 기간 {formatDateKo(n.changeDetail.from)} → {formatDateKo(n.changeDetail.to)}</small>}
+                {card.subs.length > 0 && <ul className="num-subs">{card.subs.map(sub => {
+                  const subCheck = report.verification.status === "skipped" ? "unverified" : sub.n.check;
+                  // 딸린 숫자의 비교 기간 · 다른 기준일은 그대로 남깁니다 (Codex 리뷰: 묶으면서 기간 · 날짜가 사라지지 않게)
+                  const subChange = sub.n.change && !/^이번\s*주$/.test(sub.n.change.trim()) ? reportChange(sub.n.change, sub.n.changeDetail) : null;
+                  const detail = [
+                    sub.n.changeDetail?.from && sub.n.changeDetail.to ? `비교 기간 ${formatDateKo(sub.n.changeDetail.from)} → ${formatDateKo(sub.n.changeDetail.to)}` : subChange?.text,
+                    sub.n.asOf && sub.n.asOf !== n.asOf ? `기준일 ${formatDateKo(sub.n.asOf)}` : null,
+                  ].filter(Boolean).join(" · ");
+                  return <li key={sub.index}><span className="num-sub-label">{sub.n.label}</span><b className={valueTone(sub.n.value) ?? undefined}>{sub.n.value}</b><span className={`report-badge check-${subCheck}`}>{checkLabels[subCheck]}</span>{detail && <small className="num-sub-detail">{detail}</small>}</li>;
+                })}</ul>}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>
                   {source && <span className="metric-source">{source.name}</span>}
-                  {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`}><span>근거 보기</span></EvidenceReference>}
-                  <span className={`report-badge check-${check}`}>{{ verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" }[check]}</span>
+                  {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference>}
+                  <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
                 </div>
                 {basis && <small className="metric-basis">{basis}</small>}
-              </div>
+              </EvidenceOrigin>
             );
           })}
         </div>
