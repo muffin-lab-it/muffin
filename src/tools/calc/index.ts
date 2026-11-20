@@ -103,6 +103,24 @@ function laterAsOf(a: Evidence, b: Evidence): string {
   return a.source.asOf > b.source.asOf ? a.source.asOf : b.source.asOf;
 }
 
+/** 이미 있는 값으로 보는 오차. 검증기의 RELATIVE_TOLERANCE 와 같습니다 (tool 이 2.00 으로 반올림해 준 변동률과 계산값 1.999853) */
+const SAME_VALUE_TOLERANCE = 0.001;
+
+/**
+ * 같은 장부 항목의 두 값으로 계산했는데, 그 항목에 크기가 같은 값이 이미 있으면 그 키를 돌려줍니다 (부호는 보지 않음).
+ * tool 이 이미 준 차이 · 변동률을 정제가 다시 계산하다 앞뒤를 바꾸면 같은 크기에 부호만 반대인 C 번호가 생기고,
+ * 작성이 그 번호를 인용한 숫자는 검증에서 빠집니다 (11/20 eval: period.trackingDiffPp −0.165 가 있는데 수익률 두 개로 +0.165447 을 다시 만듦).
+ * 서로 다른 항목 사이의 계산(한미 금리차 등)은 tool 이 미리 준 값이 없으므로 보지 않습니다. 우연히 같은 숫자를 막지 않기 위해서입니다.
+ */
+function existingValue(evidence: Evidence, value: number, inputKeys: string[]): { key: string; value: number } | null {
+  if (value === 0) return null;
+  for (const [key, raw] of Object.entries(evidence.values)) {
+    if (inputKeys.includes(key) || typeof raw !== "number" || raw === 0) continue;
+    if (Math.abs(Math.abs(raw) - Math.abs(value)) <= Math.abs(value) * SAME_VALUE_TOLERANCE) return { key, value: raw };
+  }
+  return null;
+}
+
 /**
  * 장부에서 두 값을 읽어 계산합니다. defineTool 이 두 번째 인자로 장부(ctx)를 넘겨 줍니다.
  * Agent 없이 테스트할 때는 ResearchContext 를 만들어 addEvidence 한 뒤 직접 부릅니다.
@@ -157,6 +175,15 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     value = diff(a.value, b.value);
     // 두 퍼센트 값의 차이는 %p 입니다 (3.88% − 3% = 0.88%p). %p · bp 끼리의 차이는 그 단위 그대로입니다.
     unit = ua === ub ? (ua === "%" ? "%p" : ua) : "";
+  }
+
+  if (input.a.ref === input.b.ref) {
+    const existing = existingValue(a.evidence, value, [input.a.key, input.b.key]);
+    if (existing) {
+      throw new Error(
+        `이미 장부에 있는 값입니다: ${input.a.ref}.${existing.key} = ${existing.value}. 다시 계산하지 말고 ${input.a.ref} 의 그 값을 facts 에 쓰세요 (부호 · 단위도 장부 그대로)`,
+      );
+    }
   }
 
   // 변동률은 a → b (과거 → 현재) 순서로, 차이는 b − a 로 적습니다. 이 식이 note 를 거쳐 작성 · 원본 보기에 그대로 보입니다.
