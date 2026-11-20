@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
   if (!mock && !process.env.OPENAI_API_KEY) {
     recordRun({ id, at, ok: false, stage: "config", mock, input, ms: ms(), error: "OPENAI_API_KEY missing" }, req);
-    return NextResponse.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 503 });
+    return NextResponse.json({ error: "리포트 서비스 설정을 확인해 주세요.", id }, { status: 500 });
   }
 
   try {

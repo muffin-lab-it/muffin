@@ -55,6 +55,23 @@ describe("POST /api/report · 출처 검사 · 바디 크기 (src/lib/guard.ts)"
 });
 
 describe("POST /api/report", () => {
+  it("returns 429 and Retry-After before reading a second rate-limited request", async () => {
+    vi.stubEnv("RATE_LIMIT_IP_10M", "1");
+    const headers = { "X-Forwarded-For": "203.0.113.200" };
+    expect((await POST(request({ question: "첫 요청" }, headers))).status).toBe(200);
+
+    const response = await POST(request({ question: "두 번째 요청" }, headers));
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("600");
+    expect(await response.json()).toEqual({
+      error: "요청이 많아요. 10분 뒤 다시 시도해 주세요.",
+      id: "json-test-id",
+      retryAfterSec: 600,
+    });
+    expect(research).toHaveBeenCalledOnce();
+    expect(logRun).toHaveBeenLastCalledWith(expect.objectContaining({ ok: false, stage: "limited", error: "rate limit exceeded" }));
+  });
+
   it.each([{}, { question: " \n\t " }, { question: "a".repeat(501) }])("rejects invalid input before research: %j", async (body) => {
     const response = await POST(request(body));
     expect(response.status).toBe(400);
