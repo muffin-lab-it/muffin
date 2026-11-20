@@ -31,6 +31,7 @@ import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleRepor
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
+import { trimRepeats } from "./trim";
 import { applyVerification, summarizeVerification, verify } from "./verify";
 import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
 
@@ -276,11 +277,13 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조회가 실패해 저장된 응답을 쓴 tool 은 코드가 "확인하지 못한 것" 에 적습니다 (검증 뒤라 검증 대상이 아님)
   const gaps = fallbackGaps(ctx.steps);
   // 환율 자료를 썼으면 어떤 환율인지(포털 · 은행 앱과 다를 수 있음)를 코드가 "주의점" 에 적습니다
-  const fxNotes = fxBasisCaveats(ctx.evidence, applied.output.caveats);
+  // 같은 한계를 주의점 · 확인하지 못한 것에 되풀이한 줄을 줄입니다 (src/agent/trim.ts). 코드가 넣는 줄은 그 뒤에 붙여 줄어들지 않습니다
+  const trimmed = trimRepeats(applied.output);
+  const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
-    ...applied.output,
-    caveats: [...applied.output.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, applied.output.caveats) : [])],
-    dataGaps: [...applied.output.dataGaps, ...gaps],
+    ...trimmed,
+    caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
+    dataGaps: [...trimmed.dataGaps, ...gaps],
   };
 
   return {
