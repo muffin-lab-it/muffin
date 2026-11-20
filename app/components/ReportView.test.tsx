@@ -7,9 +7,9 @@ import legacy from "@/src/agent/fixtures/report.v1.sample.json";
 import { normalizeReport } from "@/src/agent/normalize";
 import type { ToolStep } from "@/src/agent/context";
 import { reportSchema, type Report } from "@/src/agent/schema";
-import { ReportView } from "./ReportView";
+import { ReportView, groupNumbers } from "./ReportView";
 import { formatDateKo } from "./format";
-import { SourceLink, EvidenceRecord } from "./ReportEvidence";
+import { SourceLink, EvidenceRecord, formatEvidenceValue } from "./ReportEvidence";
 
 function fixture(): Report {
   return reportSchema.parse(structuredClone(sample.report));
@@ -423,7 +423,8 @@ it("검증의 근거 번호와 원인별 원본 보기 링크가 실제 원본�
 it("원본 자료마다 실제 근거 번호를 표시한다", () => {
   const report = fixture();
   const $ = render(report);
-  expect($(".evidence-record").map((_, el) => $(el).attr("data-evidence-id")).get()).toEqual(report.evidence.map(entry => entry.id));
+  // 11/21 QA 4: 쓴 자료가 앞, 안 쓴 자료는 뒤에 접히므로 순서 대신 전부 있는지 봅니다
+  expect($(".evidence-record").map((_, el) => $(el).attr("data-evidence-id")).get().sort()).toEqual(report.evidence.map(entry => entry.id).sort());
 });
 
 it("검증은 항상 ON이며 토글 없이 필수 고지·원본 탐색을 제공한다", () => {
@@ -625,5 +626,81 @@ describe("11/21 QA 1묶음", () => {
     const text = render(report).text();
     expect(text).not.toContain("본문을 확보한 기사입니다");
     expect(text).toContain("본문 확보");
+  });
+});
+
+describe("11/21 QA 2묶음 A", () => {
+  it("같은 장부의 비교값 · 변화량 · 수익률은 본값 카드 안으로 묶인다 (하니 4)", () => {
+    const report = fixture();
+    const ref = report.evidence[0]!.id;
+    const base = report.numbers[0]!;
+    report.numbers = [
+      { ...base, label: "KODEX 200 종가", value: "80,630원", ref },
+      { ...base, label: "30일 가격 수익률", value: "−7.06%", ref },
+      { ...base, label: "코스피 200 수익률", value: "−6.89%", ref },
+    ];
+    const $ = render(report);
+    expect($(".num")).toHaveLength(1);
+    expect($(".numbers").attr("data-count")).toBe("1");
+    expect($(".num .num-subs li")).toHaveLength(2);
+    expect($(".num .num-subs").text()).toContain("30일 가격 수익률");
+    expect($(".num .num-subs b").first().attr("class")).toContain("tone-down");
+  });
+  it("본값이 없는 장부의 딸린 숫자와 다른 장부의 숫자는 따로 둔다", () => {
+    const report = fixture();
+    const base = report.numbers[0]!;
+    const cards = groupNumbers([
+      { ...base, label: "미국 − 한국 금리 차이", value: "0.88%p", ref: "C1" },
+      { ...base, label: "한국 기준금리", value: "3.00%", ref: "E1" },
+      { ...base, label: "기준금리 비교값", value: "3.00%", ref: "E1" },
+      { ...base, label: "미국 금리", value: "3.88%", ref: "E2" },
+    ]);
+    expect(cards.map(card => [card.main.label, card.subs.length])).toEqual([["미국 − 한국 금리 차이", 0], ["한국 기준금리", 1], ["미국 금리", 0]]);
+  });
+  it("근거 보기 링크는 대조한 값 키와 돌아올 자리를 들고 간다 (QA 2 · 외부 F8)", () => {
+    const report = fixture();
+    report.numbers[0]!.match = { key: "rate", policy: "exact" };
+    const $ = render(report);
+    const link = $(".num").first().find("a.metric-value-link");
+    expect(link.attr("data-value-key")).toBe("rate");
+    expect(link.attr("data-origin")).toMatch(/number-0$/);
+    expect($(".num").first().attr("id")).toBe(link.attr("data-origin"));
+    expect($(".evidence-values > div[data-key='rate']").length).toBeGreaterThan(0);
+    expect($(".evidence-return")).toHaveLength(0); // 아직 내려가기 전이라 돌아가기 버튼 없음
+  });
+  it("출처 탭은 리포트가 쓴 자료부터, 안 쓴 자료는 뒤에 접힌다 (QA 4)", () => {
+    const report = fixture();
+    const rate = (id: string): Report["evidence"][number] => ({ id, tool: "get_rate_data", label: "금리 확인", values: { rate: 3, unit: "%" }, source: { name: "한국은행 ECOS", url: "https://ecos.bok.or.kr/", asOf: "2026-11-19" } });
+    const fx: Report["evidence"][number] = { id: "E3", tool: "get_fx_krw_rate", label: "환율 확인", values: { rate: 1392.4, change: 27.3, changePct: 2, comparisonRate: 1365.1, comparisonAsOf: "2026-09-19", asOf: "2026-10-19", pair: "USD/KRW" }, source: { name: "Frankfurter v2", url: "https://api.frankfurter.dev/v2/rates", asOf: "2026-10-19" } };
+    report.evidence = [rate("E1"), rate("E2"), fx];
+    report.numbers = [{ ...report.numbers[0]!, label: "USD/KRW", value: "1,392.40원", ref: "E3", match: { key: "rate", policy: "exact" } }];
+    report.why = []; report.charts = []; report.sources = [];
+    const $ = render(report);
+    expect($(".source-chips")).toHaveLength(0);
+    expect($(".source-panel").map((_, el) => $(el).attr("data-source-group")).get()).toEqual(["환율"]);
+    expect($(".source-unused > summary").text()).toContain("조회했지만 리포트에 쓰지 않은 자료 2개");
+    expect($(".source-unused .evidence-record")).toHaveLength(2);
+    expect($(".source-unused").attr("open")).toBeUndefined();
+    const card = $(".source-panel[data-source-group='환율'] .evidence-record");
+    expect(card.find(".evidence-values").first().find("dt").first().attr("title")).toBe("rate");
+    expect(card.find(".evidence-values").first().find("dt")).toHaveLength(4);
+    expect(card.find(".evidence-more > summary").text()).toBe("원본 값 전체 보기 (7개)");
+    expect(card.find(".evidence-more").attr("open")).toBeUndefined();
+  });
+  it("계산 장부는 note 첫 문장을 계산식으로 보여 준다 (QA 4)", () => {
+    const report = fixture();
+    const calc = report.evidence.find(entry => entry.lineage);
+    expect(calc).toBeDefined();
+    calc!.note = "E3.rate 3.88 − E2.rate 3.00 = 0.88%p. 장부 값으로 계산한 결과이며 출처 링크는 없습니다";
+    const $ = render(report);
+    const record = $(`.evidence-record[data-evidence-id='${calc!.id}']`);
+    expect(record.find(".evidence-formula").text()).toContain("= 0.88%p");
+    expect(record.find(".evidence-note").text()).toBe("장부 값으로 계산한 결과이며 출처 링크는 없습니다");
+  });
+  it("거래대금 같은 큰 원화 금액은 조 · 억으로 (QA 4)", () => {
+    expect(formatEvidenceValue("latest.tradeValue", 1532179713324)).toBe("1조 5,322억 원");
+    expect(formatEvidenceValue("latest.netAssets", 250000000000)).toBe("2,500억 원");
+    expect(formatEvidenceValue("latest.close", 80630)).toBe("80,630");
+    expect(formatEvidenceValue("changePp", -0.2169840746809312)).toBe("-0.217");
   });
 });
