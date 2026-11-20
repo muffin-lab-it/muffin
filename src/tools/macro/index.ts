@@ -9,7 +9,7 @@ const monthSchema = z.string().regex(/^(19|20)\d{2}(0[1-9]|1[0-2])$/, "월은 YY
 
 export const parameters = z.object({
   country: z.enum(["KR", "US"]).describe("KR 한국, US 미국. 다른 국가는 지원하지 않음"),
-  indicator: z.enum(["cpi", "unemployment", "cpi_categories"]).describe("cpi 소비자물가지수, unemployment 실업률, cpi_categories 한국 소비자물가 지출목적별 12개 품목군의 전년 동월 대비 등락률과 기여도(한국만, months 는 무시)"),
+  indicator: z.enum(["cpi", "unemployment", "cpi_categories"]).describe("cpi 소비자물가지수, unemployment 실업률, cpi_categories 한국 소비자물가 지출목적별 12개 품목군의 전년 동월 대비·전월 대비 등락률(%)과 근사 기여도(%p)(한국만, months 는 무시)"),
   endMonth: monthSchema.nullable().describe("종료 월 YYYYMM. null이면 실제 최신 관측 월 조회"),
   months: z.number().int().min(1).max(60).describe("연속 월 수. 최신값 1, 요즘 3, 최근 흐름 6. 명시된 사용자 기간 우선"),
 });
@@ -507,8 +507,8 @@ export async function executeCategories(rawInput: Input): Promise<ToolResult<Cat
       { name: `한국은행 ECOS — ${series.name}`, url, asOf },
       ...categories.map((c) => ({ name: `한국은행 ECOS — 소비자물가지수 · ${c.name}`, url, asOf })),
     ],
-    note: "asOf는 마지막 관측 월의 첫날 표기이며 발표일·조회일이 아닙니다. 등락률은 전년 같은 달 대비(yoyPct)와 전월 대비(momPct) 두 가지(%)이고 기여도(contributionPp · momContributionPp)는 가중치 ÷ 1000 × 등락률의 근사치(%p)라 통계청 공식 기여도와 소수점 차이가 날 수 있고, 12개 기여도 합과 총지수 등락률도 소폭 다릅니다. " +
-      "가중치는 ECOS 가 주는 2020년 기준값입니다. 기여도가 큰 품목군은 총지수 변화를 구성하는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없습니다. 한국 원계열이며 투자 판단은 제공하지 않습니다.",
+    note: "asOf는 마지막 관측 월의 첫날 표기이며 발표일·조회일이 아닙니다. 등락률은 전년 같은 달 대비(yoyPct)와 전월 대비(momPct) 두 가지(%)이고 기여도(contributionPp · momContributionPp)는 가중치 ÷ 1000 × 등락률의 근사치(%p)라 통계청 공식 기여도와 일치하지 않을 수 있고, 12개 기여도 합도 총지수 등락률과 다를 수 있습니다. " +
+      "unit은 지수(index · previousYearIndex · previousMonthIndex)의 단위입니다. 가중치(weight)는 ECOS 제공값이며 12개 합이 1000인 비중으로, 퍼센트가 아닙니다. 양의 기여도는 총지수 상승에, 음의 기여도는 하락에 보탠 정도입니다. categories는 전년 동월 대비 기여도 내림차순이며 품목군 자체의 가격 상승률 순위가 아닙니다. 전월 비교에는 momPct · momContributionPp를 함께 사용합니다. 기여도가 큰 품목군은 총지수 변화를 구성하는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없습니다. 한국 원계열이며 투자 판단은 제공하지 않습니다.",
   };
 }
 

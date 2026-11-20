@@ -47,6 +47,7 @@ export function ReportEvidenceLink({ targetId, label, children, className = "" }
     const target = document.getElementById(targetId);
     if (!target) return;
     const group = target.closest<HTMLElement>("[data-source-group]")?.dataset.sourceGroup;
+    openContainingDetails(target);
     if (group && scope) {
       event.preventDefault();
       scope.select(group);
@@ -54,7 +55,6 @@ export function ReportEvidenceLink({ targetId, label, children, className = "" }
       requestAnimationFrame(() => { target.focus({ preventScroll: true }); target.scrollIntoView({ block: "start" }); });
       return;
     }
-    openContainingDetails(target);
     target.focus({ preventScroll: true });
   }}>{children ?? label}</a>;
 }

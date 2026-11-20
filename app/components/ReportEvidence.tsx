@@ -47,9 +47,9 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
   );
 }
 
-export function EvidenceRecord({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
+export function EvidenceRecord({ entry, evidence, displayedValue, displayedLabel, hideHeading = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean }) {
   const id = useEvidenceTarget(entry.id);
-  return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} /></div>;
+  return <div className="evidence-record" data-evidence-id={entry.id} id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} displayedLabel={displayedLabel} hideHeading={hideHeading} /></div>;
 }
 
 /** 같은 리포트에 존재하는 입력 원본으로 이동하며, 원본을 재귀 렌더링하지 않습니다. */
@@ -159,7 +159,7 @@ function NewsEvidence({ entry }: { entry: Evidence }) {
   </>;
 }
 
-function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
+function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hideHeading = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean }) {
   // A single raw value adds no context when its formatted equivalent is already above.
   // Keep differing values, calculations and multi-field records visible.
   const fields = Object.entries(entry.values);
@@ -171,9 +171,9 @@ function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence;
   const isNews = /news/i.test(entry.tool);
   return (
     <div className="evidence-content">
-      <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>
+      {!hideHeading && <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>}
       {isNews ? <NewsEvidence entry={entry} /> : <>
-      <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>
+      {(!hideHeading || displayedLabel !== entry.label) && <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>}
       <div className="evidence-meta">
         <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>
         {entry.lineage ? <span>계산에 사용한 자료</span> : <SourceLink url={entry.source.pageUrl ?? entry.source.url} name={entry.source.name} />}
