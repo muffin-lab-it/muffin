@@ -285,3 +285,18 @@ it.each(["easy", "standard", "deep"] as const)("%s 작성 지시문은 새 제�
   expect(text).toContain("topicReasons 는 nextTopics 와 같은 순서·개수");
   expect(text).toContain("headline · impactTitles · topicReasons 의 금융 숫자도 증거 장부에 있는 값만");
 });
+
+
+it.each(["easy", "standard", "deep"] as const)("%s 작성에 비교 입력·답 우선·외화 공통 해석 규칙을 전달한다", depth => {
+  const text = writerInstructions(depth, "fx", "research");
+  expect(text).toContain("대상 값 두 개와 차이를 각각 numbers 카드");
+  expect(text).toContain("headline과 summary는 그 답부터");
+  for (const currency of ["달러(USD)", "엔화(JPY)", "유로(EUR)"]) expect(text).toContain(currency);
+  expect(text).toContain("외화의 기준 수량은 label에 표시");
+  expect(text).toContain("KRW per 1 외화와 KRW per 100 외화를 구분");
+  expect(text).toContain("역방향 통화쌍에 같은 방향 해석을 적용하지 않습니다");
+  expect(text).toContain("원화 비용은 줄고 오르면 늘어납니다");
+  expect(text).toContain("받는 원화 금액 관점으로 구분");
+  expect(text).toContain("여행 전체 경비의 증감을 단정하지 않습니다");
+  expect(text).toContain('label에 "전월 대비" · "전년 동월 대비"');
+});

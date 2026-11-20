@@ -153,13 +153,13 @@ describe("계산 입력과 기존 검증 정보 (정적 계약)", () => {
   it("C1의 E3/E2 입력은 실제 ID·자료명과 같은 리포트의 원본을 가리킨다", () => {
     const report = reportSchema.parse(structuredClone(sample.report));
     const $ = load(renderToStaticMarkup(<ReportView report={report} />));
-    const calculation = $(".evidence-record").filter((_, el) => $(el).find(".evidence-id").text() === "C1");
+    const calculation = $(".evidence-record").filter((_, el) => $(el).attr("data-evidence-id") === "C1");
     expect(calculation.find(".evidence-inputs a")).toHaveLength(2);
     calculation.find(".evidence-inputs a").each((_, link) => {
       const targetId = decodeURIComponent($(link).attr("href")!.slice(1));
       const target = $(".evidence-record").filter((_, el) => $(el).attr("id") === targetId);
       expect(target).toHaveLength(1);
-      expect($(link).text()).toContain(target.find(".evidence-id").text());
+      expect($(link).text()).toContain(target.attr("data-evidence-id"));
     });
     expect(calculation.text()).toContain("차이");
     expect(calculation.text()).toContain("0.88");

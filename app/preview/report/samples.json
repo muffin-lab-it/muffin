@@ -1,0 +1,818 @@
+{
+  "fx": {
+    "title": "엔화 여행 · 숫자 1개",
+    "question": "원화가 약해지면 일본 여행 경비가 꼭 늘어나나요?",
+    "area": "fx",
+    "depth": "easy",
+    "report": {
+      "version": 2,
+      "mode": "research",
+      "summary": "원화가 달러 대비 약해졌다고 해서 엔화 구매 비용도 꼭 늘어나는 것은 아니에요. 여행할 나라의 통화와 원화 사이의 환율을 확인해야 해요.",
+      "headline": "꼭 그렇지는 않아요. 엔화 환율이 내려가면 같은 엔화를 사는 원화 비용은 줄어요.",
+      "numbers": [
+        {
+          "label": "100엔당 원화",
+          "value": "836.43원",
+          "ref": "E1",
+          "change": "30일 전보다 3.20원 하락",
+          "asOf": "2026-11-19",
+          "check": "verified",
+          "changeDetail": {
+            "key": "change",
+            "value": -3.2,
+            "unit": "원",
+            "days": 30,
+            "basis": "30일 전과 비교"
+          }
+        }
+      ],
+      "why": [
+        {
+          "claim": "원화가 달러에 대해 약해져도 엔화에 대한 원화의 가치는 다른 방향으로 움직일 수 있어요.",
+          "basis": "none",
+          "refs": [],
+          "evidence": "원화가 달러에 대해 약해져도 엔화에 대한 원화의 가치는 다른 방향으로 움직일 수 있어요."
+        }
+      ],
+      "impact": [
+        "같은 엔화를 환전하는 데 필요한 원화가 30일 전보다 줄어드는 방향이에요.",
+        "여행 전체 경비는 현지 물가와 환전 수수료에 따라서도 달라져요."
+      ],
+      "impactTitles": [
+        "내 생활에서는",
+        "함께 알아둘 점"
+      ],
+      "caveats": [
+        "일별 기준환율과 실제 환전 금액은 수수료·우대율에 따라 다를 수 있습니다."
+      ],
+      "dataGaps": [],
+      "nextTopics": [
+        "환율과 환전 수수료",
+        "금융 숫자의 비교 기준"
+      ],
+      "topicReasons": [
+        "실제 비용과 기준환율의 차이를 알아봐요.",
+        "같은 조건으로 숫자를 비교하는 방법을 알아봐요."
+      ],
+      "sources": [
+        {
+          "id": "E1",
+          "name": "Frankfurter",
+          "url": "https://frankfurter.dev",
+          "asOf": "2026-11-19"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "E1",
+          "label": "100엔당 원화 환율",
+          "values": {
+            "rate": 836.43,
+            "change": -3.2,
+            "unit": "KRW per 100 JPY"
+          },
+          "source": {
+            "name": "Frankfurter",
+            "url": "https://frankfurter.dev",
+            "asOf": "2026-11-19"
+          },
+          "tool": "get_fx_krw_rate"
+        }
+      ],
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 1,
+          "verified": 1,
+          "derived": 0,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 0,
+          "none": 1,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      },
+      "charts": [],
+      "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
+    }
+  },
+  "rate": {
+    "title": "한미 금리 비교 · 숫자 3개",
+    "question": "한국과 미국 금리는 얼마나 차이 나나요?",
+    "area": "rate",
+    "depth": "easy",
+    "report": {
+      "version": 2,
+      "mode": "research",
+      "summary": "한국 기준금리는 3.00%, 미국 실효연방기금금리는 3.88%예요. 두 지표의 차이는 0.88퍼센트포인트이며, 정책금리와 실제 거래금리라는 성격 차이가 있어요.",
+      "headline": "미국 금리가 한국보다 0.88%p 높아요.",
+      "numbers": [
+        {
+          "label": "한국 기준금리",
+          "value": "3.00%",
+          "ref": "E1",
+          "change": "",
+          "asOf": "2026-11-19",
+          "check": "verified"
+        },
+        {
+          "label": "미국 실효연방기금금리",
+          "value": "3.88%",
+          "ref": "E2",
+          "change": "",
+          "asOf": "2026-11-19",
+          "check": "verified"
+        },
+        {
+          "label": "미국 − 한국 금리 차이",
+          "value": "0.88%p",
+          "ref": "C1",
+          "change": "",
+          "asOf": "2026-11-19",
+          "check": "derived"
+        }
+      ],
+      "why": [
+        {
+          "claim": "두 금리의 차이를 볼 때는 기준일뿐 아니라 정책금리와 실제 거래금리라는 지표의 성격도 함께 살펴야 해요.",
+          "basis": "data",
+          "refs": [
+            "E1",
+            "E2"
+          ],
+          "evidence": "두 금리의 차이를 볼 때는 기준일뿐 아니라 정책금리와 실제 거래금리라는 지표의 성격도 함께 살펴야 해요."
+        }
+      ],
+      "impact": [
+        "두 나라의 금리 수준을 함께 보면 차이의 크기와 방향을 이해할 수 있어요.",
+        "예금·대출에 실제 적용되는 금리는 금융회사와 상품 조건에 따라 달라져요."
+      ],
+      "impactTitles": [
+        "내 생활에서는",
+        "함께 알아둘 점"
+      ],
+      "caveats": [
+        "한국 기준금리는 정책금리이고 미국 실효연방기금금리는 실제 거래에서 형성되는 금리로, 지표의 성격이 다릅니다."
+      ],
+      "dataGaps": [],
+      "nextTopics": [
+        "정책금리와 실효금리의 차이",
+        "금리 차이와 환율의 관계"
+      ],
+      "topicReasons": [
+        "두 지표의 집계 방식이 어떻게 다른지 알아봐요.",
+        "금리 차이가 외환시장과 연결되는 방식을 알아봐요."
+      ],
+      "sources": [
+        {
+          "id": "E1",
+          "name": "한국은행 ECOS",
+          "url": "https://ecos.bok.or.kr/",
+          "asOf": "2026-11-19"
+        },
+        {
+          "id": "E2",
+          "name": "FRED",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-11-19"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "E1",
+          "label": "한국 기준금리",
+          "values": {
+            "rate": 3,
+            "unit": "%"
+          },
+          "source": {
+            "name": "한국은행 ECOS",
+            "url": "https://ecos.bok.or.kr/",
+            "asOf": "2026-11-19"
+          },
+          "tool": "get_rate_data"
+        },
+        {
+          "id": "E2",
+          "label": "미국 실효연방기금금리",
+          "values": {
+            "rate": 3.88,
+            "unit": "%"
+          },
+          "source": {
+            "name": "FRED",
+            "url": "https://fred.stlouisfed.org/series/DFF",
+            "asOf": "2026-11-19"
+          },
+          "tool": "get_rate_data"
+        },
+        {
+          "id": "C1",
+          "label": "미국 − 한국 금리 차이",
+          "values": {
+            "changePp": 0.88,
+            "to": 3.88,
+            "from": 3
+          },
+          "source": {
+            "name": "Muffin 계산",
+            "url": "",
+            "asOf": "2026-11-19"
+          },
+          "tool": "calc_metrics",
+          "lineage": {
+            "op": "pp_diff",
+            "inputs": [
+              "E1",
+              "E2"
+            ]
+          }
+        }
+      ],
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 3,
+          "verified": 2,
+          "derived": 1,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 1,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      },
+      "charts": [],
+      "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
+    }
+  },
+  "cpi": {
+    "title": "물가 · 전월/전년 비교",
+    "question": "물가가 지난달과 작년보다 얼마나 올랐나요?",
+    "area": "macro",
+    "depth": "standard",
+    "report": {
+      "version": 2,
+      "mode": "research",
+      "summary": "같은 지수 120.73이라도 비교하는 시점에 따라 변화율은 달라요. 전월 대비는 한 달 사이의 변화, 전년 동월 대비는 일 년 사이의 변화를 보여줘요.",
+      "headline": "물가는 지난해 같은 달보다 2.82%, 지난달보다 0.25% 올랐어요.",
+      "numbers": [
+        {
+          "label": "소비자물가지수 · 전월 대비",
+          "value": "120.73",
+          "ref": "E1",
+          "change": "지난달보다 0.25% 상승",
+          "asOf": "2026-11-19",
+          "check": "verified",
+          "changeDetail": {
+            "key": "momPct",
+            "value": 0.25,
+            "unit": "%",
+            "basis": "지난달과 비교"
+          }
+        },
+        {
+          "label": "소비자물가지수 · 전년 동월 대비",
+          "value": "120.73",
+          "ref": "E1",
+          "change": "지난해 같은 달보다 2.82% 상승",
+          "asOf": "2026-11-19",
+          "check": "verified",
+          "changeDetail": {
+            "key": "yoyPct",
+            "value": 2.82,
+            "unit": "%",
+            "basis": "지난해 같은 달과 비교"
+          }
+        }
+      ],
+      "why": [
+        {
+          "claim": "전월 대비와 전년 동월 대비는 비교 시점이 달라요. 지수 수준이 같아도 변화율은 다를 수 있어요.",
+          "basis": "data",
+          "refs": [
+            "E1"
+          ],
+          "evidence": "전월 대비와 전년 동월 대비는 비교 시점이 달라요. 지수 수준이 같아도 변화율은 다를 수 있어요."
+        }
+      ],
+      "impact": [
+        "물가상승률이 낮아져도 물가 수준 자체가 내려갔다는 뜻은 아니에요.",
+        "체감 물가는 자주 사는 품목의 가격 변화에 따라 다를 수 있어요."
+      ],
+      "impactTitles": [
+        "내 생활에서는",
+        "함께 알아둘 점"
+      ],
+      "caveats": [
+        "소비자물가지수는 2020년을 100으로 둔 지수이며 개인의 소비 구성에 따라 체감 물가와 다를 수 있습니다."
+      ],
+      "dataGaps": [],
+      "nextTopics": [
+        "소비자물가와 생활물가",
+        "물가상승률과 물가 수준"
+      ],
+      "topicReasons": [
+        "내 소비에 가까운 물가 지표를 알아봐요.",
+        "가격이 오르는 속도와 실제 가격을 구분해요."
+      ],
+      "sources": [
+        {
+          "id": "E1",
+          "name": "한국은행 ECOS",
+          "url": "https://ecos.bok.or.kr/",
+          "asOf": "2026-11-19"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "E1",
+          "label": "한국 소비자물가지수",
+          "values": {
+            "index": 120.73,
+            "yoyPct": 2.82,
+            "momPct": 0.25
+          },
+          "source": {
+            "name": "한국은행 ECOS",
+            "url": "https://ecos.bok.or.kr/",
+            "asOf": "2026-11-19"
+          },
+          "tool": "get_macro_indicators"
+        }
+      ],
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 2,
+          "verified": 2,
+          "derived": 0,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 1,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      },
+      "charts": [],
+      "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
+    }
+  },
+  "long": {
+    "title": "긴 제목 · 숫자 5개",
+    "question": "환율과 금리의 최근 변화가 해외 결제와 보유 자산에 미치는 영향을 함께 알고 싶어요.",
+    "area": "fx",
+    "depth": "deep",
+    "report": {
+      "version": 2,
+      "mode": "research",
+      "notice": "USD/KRW 30일 변화(+2.00%)는 직전 90일 기준 평소 폭(±1.57%)의 1.27배로, 평소보다 큰 움직임입니다.",
+      "summary": "원달러 환율은 최근 30일 동안 2.00% 올라 1,392.40원이 됐습니다. 한국 기준금리는 3.00%로 멈춰 있는데 미국 정책금리가 3.88%로 올라 금리 차이가 0.88%p로 벌어진 것이 가장 큰 배경입니다.",
+      "headline": "미국과 한국의 금리 수준뿐 아니라 환율의 최근 변화와 비교 기간을 함께 살펴보면, 같은 숫자도 내 소비와 자산에 서로 다른 영향을 줄 수 있어요.",
+      "numbers": [
+        {
+          "label": "USD/KRW",
+          "value": "1,392.40원",
+          "change": "30일 +2.00%",
+          "asOf": "2026-10-19",
+          "ref": "E1",
+          "check": "verified",
+          "match": {
+            "key": "rate",
+            "policy": "exact",
+            "change": {
+              "key": "changePct",
+              "policy": "exact"
+            }
+          },
+          "changeDetail": {
+            "key": "changePct",
+            "value": 2,
+            "unit": "%",
+            "from": "2026-09-19",
+            "to": "2026-10-19",
+            "days": 30,
+            "basis": "30일 전과 비교"
+          }
+        },
+        {
+          "label": "한국 기준금리",
+          "value": "3.00%",
+          "change": "30일 0.00%p",
+          "asOf": "2026-10-16",
+          "ref": "E2",
+          "check": "verified",
+          "match": {
+            "key": "rate",
+            "policy": "exact",
+            "change": {
+              "key": "changePp",
+              "policy": "exact"
+            }
+          },
+          "changeDetail": {
+            "key": "changePp",
+            "value": 0,
+            "unit": "%p",
+            "from": "2026-09-16",
+            "to": "2026-10-16",
+            "days": 30,
+            "basis": "30일 전과 비교"
+          }
+        },
+        {
+          "label": "미국 실효연방기금금리",
+          "value": "3.88%",
+          "change": "30일 +0.25%p",
+          "asOf": "2026-10-16",
+          "ref": "E3",
+          "check": "verified",
+          "match": {
+            "key": "rate",
+            "policy": "exact",
+            "change": {
+              "key": "changePp",
+              "policy": "exact"
+            }
+          },
+          "changeDetail": {
+            "key": "changePp",
+            "value": 0.25,
+            "unit": "%p",
+            "from": "2026-09-16",
+            "to": "2026-10-16",
+            "days": 30,
+            "basis": "30일 전과 비교"
+          }
+        },
+        {
+          "label": "한미 금리 차이",
+          "value": "0.88%p",
+          "change": "30일 +0.25%p",
+          "asOf": "2026-10-16",
+          "ref": "C1",
+          "check": "derived",
+          "match": {
+            "key": "result",
+            "policy": "exact"
+          }
+        },
+        {
+          "label": "외국인 주식 순매도 (보도)",
+          "value": "1조 2,000억 원",
+          "change": "이번 주",
+          "asOf": "2026-10-17",
+          "ref": "E4-2",
+          "check": "reported",
+          "match": {
+            "key": "title#text",
+            "policy": "exact"
+          }
+        }
+      ],
+      "why": [
+        {
+          "claim": "한국 기준금리는 그대로인데 미국 금리가 올라 두 나라의 금리 차이가 벌어졌습니다. 금리가 높은 쪽 통화가 선호되면서 원화가 약해지는 쪽으로 작용했습니다.",
+          "evidence": "한국 3.00% (30일 변동 없음) vs 미국 3.88% (+0.25%p), 차이 0.88%p",
+          "basis": "data",
+          "refs": [
+            "E2",
+            "E3",
+            "C1"
+          ]
+        },
+        {
+          "claim": "외국인이 국내 주식을 팔고 달러로 바꿔 나가는 흐름이 보도됐습니다.",
+          "evidence": "연합뉴스 10/17: 외국인 이번 주 국내 주식 1조 2,000억 원 순매도",
+          "basis": "news",
+          "refs": [
+            "E4-2"
+          ]
+        },
+        {
+          "claim": "수입 기업의 달러 결제 수요가 몰렸을 가능성이 있습니다.",
+          "evidence": "데이터로 확인되지 않음",
+          "basis": "none",
+          "refs": []
+        }
+      ],
+      "impact": [
+        "해외 직구나 여행 비용이 한 달 전보다 2% 정도 더 듭니다.",
+        "달러로 된 자산(미국 주식 · 달러 예금)의 원화 환산 가치는 그만큼 올랐습니다.",
+        "수입 물가가 오르면 몇 달 뒤 소비자물가에도 영향이 갈 수 있습니다."
+      ],
+      "impactTitles": [
+        "해외 결제와 여행",
+        "달러 자산의 원화 가치",
+        "수입 물가"
+      ],
+      "caveats": [
+        "환율은 ECB 기준 Frankfurter 데이터라 국내 은행 고시 환율과 소폭 다를 수 있습니다.",
+        "미국 금리는 실효연방기금금리(DFF) 기준이며 정책금리 목표 범위와는 다릅니다."
+      ],
+      "dataGaps": [
+        "수입 결제 수요처럼 환율에 영향을 주는 실수요 데이터는 tool 이 없어 확인하지 못했습니다."
+      ],
+      "nextTopics": [
+        "한미 금리 차이와 환율의 관계",
+        "외국인 순매도 추이",
+        "엔화 · 유로 환율 비교",
+        "수입 물가 지수"
+      ],
+      "topicReasons": [
+        "이번 환율 변화의 가장 큰 배경이라 흐름을 이어서 볼 수 있어요",
+        "외국인 자금 흐름이 환율에 주는 영향을 확인할 수 있어요",
+        "달러만의 움직임인지 다른 통화도 같은지 비교할 수 있어요",
+        "환율 상승이 생활 물가로 이어지는 경로를 볼 수 있어요"
+      ],
+      "sources": [
+        {
+          "id": "E1",
+          "name": "Frankfurter v2",
+          "url": "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW",
+          "asOf": "2026-10-19",
+          "pageUrl": "https://frankfurter.dev/"
+        },
+        {
+          "id": "E2",
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-10-16"
+        },
+        {
+          "id": "E3",
+          "name": "FRED — DFF",
+          "url": "https://fred.stlouisfed.org/series/DFF",
+          "asOf": "2026-10-16"
+        },
+        {
+          "id": "E4-1",
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/MOCK0001",
+          "asOf": "2026-10-16"
+        },
+        {
+          "id": "E4-2",
+          "name": "연합뉴스",
+          "url": "https://www.yna.co.kr/view/MOCK0002",
+          "asOf": "2026-10-17"
+        },
+        {
+          "id": "C2",
+          "name": "Frankfurter v2 일별 환율 (2026-06-22 ~ 2026-10-19)",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-06-21&to=2026-10-19",
+          "asOf": "2026-10-19",
+          "pageUrl": "https://frankfurter.dev/"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "E1",
+          "tool": "get_fx_krw_rate",
+          "label": "환율 확인 · Frankfurter v2",
+          "values": {
+            "pair": "USD/KRW",
+            "rate": 1392.4,
+            "asOf": "2026-10-19",
+            "comparisonRate": 1365.1,
+            "comparisonAsOf": "2026-09-19",
+            "change": 27.3,
+            "changePct": 2
+          },
+          "source": {
+            "name": "Frankfurter v2",
+            "url": "https://api.frankfurter.dev/v2/rates?base=USD&quote=KRW",
+            "asOf": "2026-10-19",
+            "pageUrl": "https://frankfurter.dev/"
+          }
+        },
+        {
+          "id": "E2",
+          "tool": "get_rate_data",
+          "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+          "values": {
+            "indicator": "한국은행 기준금리",
+            "rate": 3,
+            "unit": "%",
+            "asOf": "2026-10-16",
+            "comparisonRate": 3,
+            "comparisonDate": "2026-09-16",
+            "changePp": 0
+          },
+          "source": {
+            "name": "한국은행 경제통계시스템(ECOS)",
+            "url": "https://ecos.bok.or.kr",
+            "asOf": "2026-10-16"
+          }
+        },
+        {
+          "id": "E3",
+          "tool": "get_rate_data",
+          "label": "금리 확인 · FRED — DFF",
+          "values": {
+            "indicator": "미국 실효연방기금금리",
+            "rate": 3.88,
+            "unit": "%",
+            "asOf": "2026-10-16",
+            "comparisonRate": 3.63,
+            "comparisonDate": "2026-09-16",
+            "changePp": 0.25
+          },
+          "source": {
+            "name": "FRED — DFF",
+            "url": "https://fred.stlouisfed.org/series/DFF",
+            "asOf": "2026-10-16"
+          }
+        },
+        {
+          "id": "E4-1",
+          "tool": "get_korean_economic_news",
+          "label": "경제 뉴스 확인 · 연합뉴스",
+          "values": {
+            "title": "한은, 기준금리 3.00%로 동결… \"환율·가계부채 지켜볼 것\"",
+            "publishedAt": "2026-10-16"
+          },
+          "source": {
+            "name": "연합뉴스",
+            "url": "https://www.yna.co.kr/view/MOCK0001",
+            "asOf": "2026-10-16"
+          }
+        },
+        {
+          "id": "E4-2",
+          "tool": "get_korean_economic_news",
+          "label": "경제 뉴스 확인 · 연합뉴스",
+          "values": {
+            "title": "외국인, 이번 주 국내 주식 1조 2천억 원 순매도",
+            "publishedAt": "2026-10-17"
+          },
+          "source": {
+            "name": "연합뉴스",
+            "url": "https://www.yna.co.kr/view/MOCK0002",
+            "asOf": "2026-10-17"
+          }
+        },
+        {
+          "id": "C1",
+          "tool": "calc_metrics",
+          "label": "계산 · 한미 금리 차이",
+          "values": {
+            "op": "spread",
+            "result": 0.88,
+            "unit": "%p",
+            "a": 3.88,
+            "b": 3
+          },
+          "source": {
+            "name": "계산 (E3 − E2)",
+            "url": "",
+            "asOf": "2026-10-16"
+          },
+          "lineage": {
+            "op": "spread",
+            "inputs": [
+              "E3",
+              "E2"
+            ]
+          }
+        },
+        {
+          "id": "C2",
+          "tool": "calc_movement",
+          "label": "평소 움직임과 비교 · USD/KRW 30일 변화의 크기 (직전 90일 기준)",
+          "values": {
+            "movePct": 2,
+            "typicalMovePct": 1.57,
+            "zScore": 1.27,
+            "timesTypical": 1.27,
+            "level": "notable",
+            "periodDays": 30,
+            "baselineStart": "2026-06-22",
+            "baselineEnd": "2026-09-19",
+            "baselineCount": 89
+          },
+          "source": {
+            "name": "Frankfurter v2 일별 환율 (2026-06-22 ~ 2026-10-19)",
+            "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-06-21&to=2026-10-19",
+            "asOf": "2026-10-19",
+            "pageUrl": "https://frankfurter.dev/"
+          },
+          "note": "직전 90일(2026-06-22~2026-09-19) 하루 변화 89개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±1.57%. 이번 변화 +2.00% 는 평소 폭의 1.27배입니다",
+          "lineage": {
+            "op": "zscore",
+            "inputs": [
+              "E1"
+            ]
+          }
+        }
+      ],
+      "verification": {
+        "status": "partial",
+        "numbers": {
+          "total": 5,
+          "verified": 3,
+          "derived": 1,
+          "reported": 1,
+          "unverified": 0
+        },
+        "why": {
+          "data": 1,
+          "news": 1,
+          "none": 1,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 1,
+        "removed": [
+          "impact: \"달러 자산 비중을 늘리는 것이 좋습니다\" — 권유 표현"
+        ]
+      },
+      "movement": {
+        "ref": "E1",
+        "zScore": 1.27,
+        "window": 90,
+        "level": "notable"
+      },
+      "charts": [
+        {
+          "kind": "line",
+          "title": "USD/KRW 최근 30일",
+          "series": [
+            {
+              "label": "USD/KRW",
+              "ref": "E1",
+              "points": [
+                {
+                  "t": "2026-09-19",
+                  "v": 1365.1
+                },
+                {
+                  "t": "2026-09-24",
+                  "v": 1368.4
+                },
+                {
+                  "t": "2026-09-29",
+                  "v": 1371.9
+                },
+                {
+                  "t": "2026-10-03",
+                  "v": 1377.2
+                },
+                {
+                  "t": "2026-10-08",
+                  "v": 1381.6
+                },
+                {
+                  "t": "2026-10-13",
+                  "v": 1386.8
+                },
+                {
+                  "t": "2026-10-16",
+                  "v": 1389.5
+                },
+                {
+                  "t": "2026-10-19",
+                  "v": 1392.4
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "ref": "E4-1",
+              "label": "한은 기준금리 동결",
+              "at": "2026-10-16"
+            }
+          ],
+          "band": {
+            "from": "2026-09-19",
+            "to": "2026-10-19",
+            "low": 1343.67,
+            "high": 1386.53,
+            "label": "평소 폭 ±1.57% (직전 90일 기준)"
+          },
+          "unit": "KRW per 1 USD"
+        }
+      ],
+      "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
+    }
+  }
+}
