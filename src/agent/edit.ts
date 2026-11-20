@@ -117,10 +117,17 @@ export function editInput(question: string, plan: PlanOutput, evidence: Evidence
  *  - dropped: facts 에서 쓴 ref 는 뺀 것이 아니므로 지웁니다. 장부에 없는 ref 와 중복도 지웁니다
  *  - unverified: 빈 문장과 중복을 지웁니다
  */
-export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>, reversedCalcs: ReadonlySet<string> = new Set()): FactsOutput {
+/**
+ * reversedCalcs: 방향이 반대인 계산 id → 그 계산의 입력 항목 id (reversedCalcInputs).
+ * 그 계산을 인용한 사실은 빼고, 대신 입력 항목을 사실로 남깁니다. 사실이 다 빠져 목록이 비면 작성이 장부 전체를 보게 되어
+ * 뺀 계산이 다시 작성에게 가기 때문입니다 (muffin.ts · write.ts 의 writerInput, Codex 리뷰).
+ */
+export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>, reversedCalcs: ReadonlyMap<string, readonly string[]> = new Map()): FactsOutput {
   const facts: FactsOutput["facts"] = [];
   const unknown: FactsOutput["dropped"] = [];
   const seenFacts = new Set<string>();
+  /** 뺀 계산의 입력 항목 → 뺀 계산 id. 다른 사실이 이미 인용하지 않은 것만 끝에 대신 남깁니다 */
+  const replaced = new Map<string, string>();
   for (const f of out.facts) {
     const fact = f.fact.trim();
     if (!fact) continue;
@@ -128,14 +135,20 @@ export function cleanFacts(out: FactsOutput, ledgerIds: ReadonlySet<string>, rev
       if (!unknown.some((d) => d.ref === f.ref)) unknown.push({ ref: f.ref, reason: "장부에 없는 번호라 사실에서 뺌" });
       continue;
     }
-    if (reversedCalcs.has(f.ref)) {
+    const inputs = reversedCalcs.get(f.ref);
+    if (inputs) {
       if (!unknown.some((d) => d.ref === f.ref)) unknown.push({ ref: f.ref, reason: "계산의 기준 값이 b 자리에 있어(방향이 반대) 부호를 믿을 수 없어 사실에서 뺌" });
+      for (const ref of inputs) if (ledgerIds.has(ref) && !reversedCalcs.has(ref) && !replaced.has(ref)) replaced.set(ref, f.ref);
       continue;
     }
     const key = `${f.ref}\u0000${fact}`;
     if (seenFacts.has(key)) continue;
     seenFacts.add(key);
     facts.push({ ref: f.ref, fact });
+  }
+  const cited = new Set(facts.map((f) => f.ref));
+  for (const [ref, calc] of replaced) {
+    if (!cited.has(ref)) facts.push({ ref, fact: `${calc} 계산은 기준 값과 비교 값이 뒤바뀌어 뺐습니다. 이 항목의 원래 값(기간 시작 · 최신)으로만 설명합니다` });
   }
 
   const used = new Set(facts.map((f) => f.ref));
@@ -169,14 +182,18 @@ function calcKeys(note: string): { a: string; b: string } | null {
  * 방향이 반대인 계산(C 번호). 기준 값(…From · comparison · NAV)을 b 에, 최신 값을 a 에 넣으면 부호가 뒤집혀
  * "6,125원 하락" 문장이 +6125 와 맞지 않고 검증에서 빠집니다 (11/20 QA). 지시문으로 막지 못한 것을 여기서 거릅니다.
  */
-export function reversedCalcIds(evidence: readonly Pick<Evidence, "id" | "note" | "lineage">[]): Set<string> {
-  const out = new Set<string>();
+export function reversedCalcInputs(evidence: readonly Pick<Evidence, "id" | "note" | "lineage">[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
   for (const e of evidence) {
     if (!e.lineage || !e.note) continue;
     const keys = calcKeys(e.note);
-    if (keys && isBaseKey(keys.b) && !isBaseKey(keys.a)) out.add(e.id);
+    if (keys && isBaseKey(keys.b) && !isBaseKey(keys.a)) out.set(e.id, [...e.lineage.inputs]);
   }
   return out;
+}
+
+export function reversedCalcIds(evidence: readonly Pick<Evidence, "id" | "note" | "lineage">[]): Set<string> {
+  return new Set(reversedCalcInputs(evidence).keys());
 }
 
 /**
@@ -193,7 +210,7 @@ export async function runEdit(
     const result = await run(agent, input, { context: runCtx });
     if (!result.finalOutput) return null;
     const { evidence } = runCtx.context;
-    return cleanFacts(result.finalOutput, new Set(evidence.map((e) => e.id)), reversedCalcIds(evidence));
+    return cleanFacts(result.finalOutput, new Set(evidence.map((e) => e.id)), reversedCalcInputs(evidence));
   } catch {
     return null;
   }
