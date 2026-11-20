@@ -19,6 +19,7 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
+import { ensureIndex, indexCaveats, indexNote, indexRefs, withIndexNumbers } from "./index-quote";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput } from "./report";
@@ -180,6 +181,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     // 물가 원인 질문이면 품목군별 등락률 · 기여도를 채웁니다 (src/agent/supplement.ts, 11/19 페르소나 테스트: 물가 "왜" 에 원인 0개)
     await ensureCpiCategories(ctx, question, tools);
   }
+  // 지수 질문(코스피 · 코스닥 등)이면 공식 종가와, 검산되는 당일 종가(기사 보도)를 장부에 올립니다 (분류가 고르지 않아도 코드가 부름, src/agent/index-quote.ts)
+  const index = await ensureIndex(ctx, question);
   emit({ type: "stage", stage: "research", status: "done" });
 
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
@@ -208,16 +211,20 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const rescued = movement ? rescuedRefs(movement, ctx.evidence, dropped) : new Set<string>();
   // 물가 품목군 항목도 정제가 뺐더라도 원인 후보로 다시 봅니다 (src/agent/cpi.ts)
   if (plan.intent === "cause") for (const id of cpiRescuedRefs(ctx.evidence, dropped)) rescued.add(id);
+  // 지수 값을 가진 항목도 정제가 뺐더라도 [지수 값] 으로 다시 보여 주므로 "쓰지 않은 자료" 에서 뺍니다
+  if (index) for (const id of indexRefs(ctx.evidence, index)) rescued.add(id);
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
   // 방향이 반대라 정제가 거른 계산(edit.ts reversedCalcIds)은 작성에 보이지 않게 합니다. 사실 목록이 비거나 정제가 실패해 작성이 장부 전체를 볼 때도
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
   const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
-  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : ""]
+  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
-  let output = await runWriter(writer, input, writeCtx);
+  // 지수 질문이면 지수 종가 · 기간 수익률은 작성이 빠뜨려도 코드가 "오늘의 숫자" 에 넣습니다 (실측: 3번 중 1번 빠뜨림). 검증 전이라 장부와 대조됩니다
+  const indexed = (o: WriterOutput) => (index ? withIndexNumbers(o, ctx.evidence, index) : o);
+  let output = indexed(await runWriter(writer, input, writeCtx));
   addUsage(writeCtx, "write");
   emit({ type: "stage", stage: "write", status: "done" });
 
@@ -230,7 +237,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   if (!result.ok && !revisionSkipped) {
     revisions = 1;
     const reviseCtx = new RunContext(ctx);
-    output = await runWriter(writer, `${input}\n\n${draftNote(output)}\n\n${revisionNote(result.failures)}`, reviseCtx);
+    output = indexed(await runWriter(writer, `${input}\n\n${draftNote(output)}\n\n${revisionNote(result.failures)}`, reviseCtx));
     addUsage(reviseCtx, "write");
     result = verify(output, ctx.evidence);
   }
@@ -244,7 +251,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const fxNotes = fxBasisCaveats(ctx.evidence, applied.output.caveats);
   const finalOutput = {
     ...applied.output,
-    caveats: [...applied.output.caveats, ...fxNotes],
+    caveats: [...applied.output.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, applied.output.caveats) : [])],
     dataGaps: [...applied.output.dataGaps, ...gaps],
   };
 

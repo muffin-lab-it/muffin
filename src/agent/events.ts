@@ -40,6 +40,8 @@ export const toolLabels: Record<string, string> = {
   get_rate_data: "금리 확인",
   calc_metrics: "계산",
   calc_movement: "평소 움직임과 비교",
+  get_kr_stock_index: "국내 지수 확인",
+  calc_index_today: "당일 지수 검산",
 };
 
 export function labelFor(toolName: string): string {
