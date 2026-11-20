@@ -92,16 +92,22 @@ const FOREIGN_ETFS: { match: RegExp; domestic?: [name: string, index: string] }[
   { match: /\b(SCHD)\b/i, domestic: ["TIGER 미국배당다우존스", "미국 배당 다우존스"] },
   { match: /\b(TQQQ|SQQQ|SOXL|SOXX|VTI|DIA|IWM|TLT|ARKK|JEPI|JEPQ)\b/i },
 ];
-/** 국내 상장 ETF 브랜드. 질문에 같이 있으면 국내 ETF 를 묻는 것이라 평소대로 조사합니다 (예: "TIGER 미국나스닥100 이랑 QQQ 차이") */
-const DOMESTIC_ETF_BRAND = /\b(KODEX|TIGER|ACE|RISE|KBSTAR|SOL|HANARO|ARIRANG|PLUS|KOSEF|TIMEFOLIO|KIWOOM|\d{6})\b/i;
+/**
+ * 국내 상장 ETF 브랜드와 한글 · 예전 표기(src/tools/etf/names.ts 의 별칭과 같은 범위). 질문에 같이 있으면 국내 ETF 를 묻는 것이라 평소대로 조사합니다
+ * (예: "타이거 나스닥100 이랑 QQQ 차이", "QQQ랑 KODEX200 비교"). 붙여 쓴 표기도 잡도록 낱말 경계를 보지 않습니다. 잘못 걸려도 분류로 넘어갈 뿐이라 넓게 잡습니다.
+ */
+const DOMESTIC_ETF_BRAND =
+  /KODEX|코덱스|TIGER|타이거|RISE|라이즈|KBSTAR|케이비스타|ACE|에이스|KINDEX|킨덱스|PLUS|플러스|ARIRANG|아리랑|SOL|쏠|솔|KIWOOM|키움|KOSEF|코세프|HANARO|하나로|1Q|원큐|KOACT|코액트|TIME|타임|\d{6}/i;
+/** 다른 영역(환율 · 금리 · 물가 · 뉴스)을 함께 묻는 낱말. 있으면 ETF 는 배경일 수 있어 분류에 맡깁니다 (예: "QQQ 투자 중인데 오늘 원달러 환율 얼마야?") */
+const OTHER_AREA = /환율|달러|원화|엔화|유로|환전|금리|물가|뉴스|기사|보도|경제|\b(USD|EUR|JPY|CPI)\b/i;
 
 /**
- * 미국 상장 ETF 만 묻는 질문이면 모델 없이 돌려주는 고정 본문, 아니면 null.
+ * 미국 상장 ETF 만 묻는 질문이면 모델 없이 돌려주는 고정 본문, 아니면 null. 국내 ETF 나 다른 영역이 같이 있으면 null 이라 분류가 판단합니다.
  * 요약은 왜 볼 수 없는지 한 줄, 추천 질문은 같은 지수의 국내 상장 ETF 와 환율입니다. 숫자가 없어 검증은 항상 pass 입니다.
  */
 export function foreignEtfOutput(question: string): WriterOutput | null {
   const hit = FOREIGN_ETFS.find((f) => f.match.test(question));
-  if (!hit || DOMESTIC_ETF_BRAND.test(question)) return null;
+  if (!hit || DOMESTIC_ETF_BRAND.test(question) || OTHER_AREA.test(question)) return null;
   const ticker = question.match(hit.match)![0].toUpperCase();
   const topics: [string, string][] = hit.domestic
     ? [

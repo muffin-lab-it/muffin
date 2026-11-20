@@ -242,6 +242,11 @@ describe("11/20 QA: 환율 기준 · 빈 원인 안내 · 미국 상장 ETF", ()
   it("국내 상장 ETF 를 같이 묻거나 티커가 없으면 평소대로 조사한다", () => {
     expect(foreignEtfOutput("TIGER 미국나스닥100 이랑 QQQ 는 뭐가 달라?")).toBeNull();
     expect(foreignEtfOutput("KODEX 200 요즘 어때?")).toBeNull();
+    expect(foreignEtfOutput("QQQ랑 타이거 나스닥100 수익률 비교해 줘")).toBeNull();
+    expect(foreignEtfOutput("QQQ랑 KODEX200 수익률 비교해 줘")).toBeNull();
+    expect(foreignEtfOutput("QQQ 랑 1Q 미국나스닥100 비교")).toBeNull();
+    expect(foreignEtfOutput("QQQ 투자 중인데 오늘 원달러 환율 얼마야?")).toBeNull();
+    expect(foreignEtfOutput("SPY 들고 있는데 미국 금리 뉴스 뭐 있어?")).toBeNull();
     expect(foreignEtfOutput("나스닥 지수 왜 떨어졌어?")).toBeNull();
     expect(foreignEtfOutput("spying 이 뭐야?")).toBeNull();
   });
