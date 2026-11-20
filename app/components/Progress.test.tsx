@@ -16,6 +16,10 @@ describe("MF-02 진행 화면", () => {
     expect($("button").attr("disabled")).toBeDefined();
     expect($("button").text()).toBe("5초 후 다시 시도");
   });
+  it.each([[600, "10분 후 다시 시도"], [86_400, "24시간 후 다시 시도"]])("대기 %s초는 분 · 시간으로 보여 준다", (retryAfterSec, label) => {
+    const $ = load(renderToStaticMarkup(<Progress question="질문" events={[]} error={{ status: 429, message: "요청이 많아요", retryAfterSec }} onRetry={() => {}} />));
+    expect($("button").text()).toBe(label);
+  });
   it.each([403, 503])("%s는 반복 재시도 대신 홈 이동을 제공한다", status => {
     const $ = load(renderToStaticMarkup(<Progress question="질문" events={[]} error={{ status, message: "요청 불가" }} onRetry={() => {}} onEditQuestion={() => {}} />));
     expect($("button")).toHaveLength(0);

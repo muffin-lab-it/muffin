@@ -8,6 +8,7 @@ import mascot from "./home-muffin.png";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Area, Depth } from "@/src/agent/schema";
+import { formatWait } from "@/src/lib/age";
 import { Progress } from "./components/Progress";
 import { ReportView } from "./components/ReportView";
 import { buildHomeInput, toggleHomeArea } from "./components/home-form";
@@ -115,7 +116,7 @@ function HomeForm() {
           <small id="question-limit" className={styles.questionLimit}>궁금한 금융 이야기를 자유롭게 물어보세요.</small>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
           {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2><p>생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요.</p></section>}
-          {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "다시 시도"}</button>}</div>}
+          {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${formatWait(state.retrySeconds)} 후 다시 시도` : "다시 시도"}</button>}</div>}
           <fieldset className={styles.fieldset} disabled={busy} aria-describedby="area-hint"><legend>관심 영역</legend>
             <div className={styles.areas}>
               <label className={styles.option}><input type="checkbox" name="area" checked={selectedAreas.length === 0} onChange={() => { setSelectedAreas([]); setFormError(null); }} /><span>Auto 머핀 <small className={styles.badge}>추천</small></span></label>

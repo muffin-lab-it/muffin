@@ -2,6 +2,7 @@
 "use client";
 
 import { labelFor, stageLabels, stages, type MuffinEvent, type Stage } from "@/src/agent/events";
+import { formatWait } from "@/src/lib/age";
 import Link from "next/link";
 import Image from "next/image";
 import stage1 from "../stage-muffin-1.png";
@@ -153,7 +154,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
         {error && <div className={styles.error}>
           <div role="alert"><p>{error.message}</p></div>
           <div className={styles.actions}>
-            {onRetry && !noRetry && <button type="button" disabled={waitSeconds > 0} onClick={onRetry}>{waitSeconds > 0 ? `${waitSeconds}초 후 다시 시도` : error.kind === "save" ? "저장 다시 시도" : "다시 시도"}</button>}
+            {onRetry && !noRetry && <button type="button" disabled={waitSeconds > 0} onClick={onRetry}>{waitSeconds > 0 ? `${formatWait(waitSeconds)} 후 다시 시도` : error.kind === "save" ? "저장 다시 시도" : "다시 시도"}</button>}
             {onEditQuestion && error.kind !== "save" && ![403, 503].includes(error.status ?? 0) && <button type="button" className={styles.secondary} onClick={onEditQuestion}>질문 수정</button>}
             {[403, 503].includes(error.status ?? 0) && (onReturnHome ? <button type="button" onClick={onReturnHome}>홈으로 돌아가기</button> : <Link href="/">홈으로 돌아가기</Link>)}
           </div>
