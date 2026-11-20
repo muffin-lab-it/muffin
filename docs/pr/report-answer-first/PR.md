@@ -8,7 +8,7 @@ PC에서는 출처·추천·검증을 본문으로 펼쳐 표시하고, 폰(화�
 
 생활 영향·추천·차트 요약은 개별 카드에 옅은 배경과 테두리를 살리고, 바깥 섹션·안내에는 배경을 더하지 않아 3중 중첩 색칠을 피했습니다.
 
-머리말 Today's Muffin·갓 구운 오늘의 리포트를 복원하고 PC 머핀을 키웠습니다. 제목 크기를 통일하고 출처 주제 버튼·카드 여백을 줄였으며 검증의 회색 배경을 복원했습니다. 레이아웃은 칸 너비 560px 기준(제목 20px·그림 하단), 접힘은 화면 너비 600px 기준으로 분리했습니다.
+머리말 Today's Muffin·갓 구운 오늘의 리포트를 복원하고 PC 머핀을 키웠습니다. 제목 크기를 통일하고 출처 주제 버튼·카드 여백을 줄였으며 검증의 회색 배경을 복원했습니다. 레이아웃은 칸 너비 560px 기준(제목 18px·그림 하단), 접힘은 화면 너비 600px 기준으로 분리했습니다.
 
 ## 왜
 
@@ -59,3 +59,5 @@ PC에서는 출처·추천·검증을 본문으로 펼쳐 표시하고, 폰(화�
 | ![As-is](https://github.com/muffin-lab-it/muffin/blob/feat/web-report-answer-first/docs/pr/report-answer-first/asis-rate-mobile.jpg?raw=true) | ![To-be](https://github.com/muffin-lab-it/muffin/blob/feat/web-report-answer-first/docs/pr/report-answer-first/tobe-rate-mobile.jpg?raw=true) |
 
 [전체 요구사항 QA와 확인 방법](https://github.com/muffin-lab-it/muffin/blob/feat/web-report-answer-first/docs/pr/report-answer-first/README.md) · [496px 두 열](https://github.com/muffin-lab-it/muffin/blob/feat/web-report-answer-first/docs/pr/report-answer-first/tobe-narrow-columns.jpg) · [360px 외화 예시](https://github.com/muffin-lab-it/muffin/blob/feat/web-report-answer-first/docs/pr/report-answer-first/tobe-fx-mobile.jpg)
+
+요약 제목은 PC 24px / 560px 이하 18px로 축소하고 긴 문장 줄바꿈을 보강했습니다. 질문은 옅은 회색 배경으로 묶고 검증 본문·목록 배경을 투명하게 해 바깥 회색 한 겹으로 통일했습니다. 390px 긴 문장 예시에서 가로 넘침 없음 확인. 최신 캡처: `tobe-long-mobile.jpg`.

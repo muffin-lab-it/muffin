@@ -581,3 +581,13 @@
   .report :global(.responsive-details[open] > summary)::after { transform:rotate(180deg); }
   .report :global(.responsive-details.report-fold) { padding:0; }
 }
+
+/* Long answers remain readable without dominating the report. */
+.report .headlinePlaceholder { font-size:24px; line-height:1.6; letter-spacing:-.025em; font-weight:700; word-break:keep-all; overflow-wrap:anywhere; }
+.report section.questionCard { padding:18px 22px; margin-bottom:20px; background:#f6f7f9; border:0; border-radius:14px; }
+.report :global(.report-verification .verification-body), .report :global(.report-verification .verification-detail), .report :global(.report-verification .evidence-content), .report :global(.report-verification .verification-list) { background:transparent; }
+.report :global(.report-verification .verification-list) { border:0; border-radius:0; padding:0 0 0 24px; }
+@container report (max-width:560px) {
+  .report .headlinePlaceholder { font-size:18px; line-height:1.65; }
+  .report section.questionCard { padding:16px 18px; }
+}
