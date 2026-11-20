@@ -6,7 +6,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
   return { ...actual, run: vi.fn(), withTrace: (_name: unknown, fn: () => unknown) => fn() };
 });
 
-vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false) }));
+vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false), ensureIndexProxy: vi.fn(async () => null), indexEvidence: vi.fn(() => undefined), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
 
 import { run, type RunContext } from "@openai/agents";
 import { ensureOtherPairs } from "./supplement";
