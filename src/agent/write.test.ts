@@ -51,7 +51,10 @@ describe("writerInstructions", () => {
     expect(easy).toContain("[물가 원인 후보]의 숫자 설명 지시보다 이 규칙을 우선");
     expect(easy).toContain("리포트 전체에서 품목군의");
     expect(easy).toContain("기여도 숫자는 쓰지 않고");
-    expect(easy).toContain("전체 물가를 가장 많이 끌어올린 건 교통이에요");
+    expect(easy).toContain("전체 물가를 가장 많이 끌어올린 품목군은 {품목군명}입니다");
+    expect(easy).toContain("장부 항목의 category 값으로 채우며");
+    expect(easy).toContain("중괄호나 변수명 자체를 출력하지 않습니다");
+    expect(easy).not.toContain("교통");
     expect(easy).toContain("비교 기준과 refs는 유지");
     expect(easy).toContain("명시적 예외");
     expect(easy).toContain("why의 claim·evidence");
