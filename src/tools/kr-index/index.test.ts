@@ -16,6 +16,10 @@ describe("국내 지수 tool", () => {
     const result = toResult("코스피", 30, rowsOf(fixture, "코스피"));
     expect(result.data.latest).toEqual({ date: "2026-11-19", close: 5137.89, change: 70.45, changePct: 1.39 });
     expect(result.data.period).toEqual({ from: "2026-10-20", to: "2026-11-19", closeFrom: 5552.74, change: -414.85, returnPct: -7.47 });
+    // 차트용 일별 종가는 비교 시점부터 최신까지 (장부에는 올리지 않음)
+    expect(result.data.series[0]).toEqual({ date: "2026-10-20", close: 5552.74 });
+    expect(result.data.series.at(-1)).toEqual({ date: result.data.latest.date, close: result.data.latest.close });
+    expect(evidenceOf(result.data)).not.toHaveProperty("series");
     expect(result.source).toMatchObject({ url: "https://www.data.go.kr/data/15094807/openapi.do", asOf: "2026-11-19" });
     expect(result.note).toContain("직전 영업일 종가");
     expect(evidenceOf(result.data)).toMatchObject({ index: "코스피", "latest.close": 5137.89, "period.returnPct": -7.47 });

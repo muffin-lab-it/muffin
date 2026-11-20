@@ -16,6 +16,10 @@ describe("미국 지수 tool", () => {
     const result = toResult("S&P 500", 30, rowsOf(fixture));
     expect(result.data.latest).toEqual({ date: "2026-11-18", close: 7323.63, change: -16.9, changePct: -0.23 });
     expect(result.data.period).toEqual({ from: "2026-10-19", to: "2026-11-18", closeFrom: 7690.73, change: -367.1, returnPct: -4.77 });
+    // 차트용 일별 종가는 비교 시점부터 최신까지 (장부에는 올리지 않음)
+    expect(result.data.series[0]).toEqual({ date: "2026-10-19", close: 7690.73 });
+    expect(result.data.series.at(-1)).toEqual({ date: result.data.latest.date, close: result.data.latest.close });
+    expect(evidenceOf(result.data)).not.toHaveProperty("series");
     expect(result.source).toMatchObject({ url: "https://fred.stlouisfed.org/series/SP500", asOf: "2026-11-18" });
     expect(evidenceOf(result.data)).toMatchObject({ index: "S&P 500", "latest.close": 7323.63, "period.returnPct": -4.77 });
   });

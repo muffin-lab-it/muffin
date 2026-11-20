@@ -241,6 +241,7 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         ...(got.lineage ? { lineage: got.lineage } : {}),
       }));
       ctx.addEvidence(entries);
+      for (const e of entries) ctx.raw.set(e.id, got.data);
       ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started, ...(fallbackAgeMs !== undefined ? { fallbackAgeMs } : {}), ...(breaker ? { breaker } : {}) });
       // 목록이면 인용할 수 있는 번호 목록(ids: E3-1 …)만 돌려줍니다. 호출 번호(E3)는 장부에 없어서 모델에게 보여 주지 않습니다.
       return listed ? { ids: withIds.map((s) => s.id), ...got, source: withIds } : { id, ...got, source: withIds[0] };

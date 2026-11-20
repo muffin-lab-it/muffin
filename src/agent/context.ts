@@ -44,6 +44,12 @@ export class ResearchContext {
     return this.evidence.find((e) => e.id === id);
   }
 
+  /**
+   * tool 이 돌려준 전체 data (장부 번호별, 서버에만 있고 리포트에는 싣지 않습니다). 장부에는 핵심 값만 올라가므로,
+   * 차트처럼 일별 값이 필요한 코드가 여기서 읽습니다 (src/agent/chart.ts indexChart).
+   */
+  readonly raw = new Map<string, unknown>();
+
   addEvidence(entries: Evidence[]) {
     for (const e of entries) {
       this.evidence.push(e);

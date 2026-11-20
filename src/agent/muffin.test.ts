@@ -11,7 +11,7 @@ vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNews
 vi.mock("./relation", () => ({ ensureRateInflation: vi.fn(async () => false), relationNote: vi.fn(() => ""), relationRows: vi.fn(() => null), withRelationNumbers: vi.fn((o: unknown) => o) }));
 vi.mock("./etf-basket", () => ({ ensureEtfBasket: vi.fn(async () => false), basketNote: vi.fn(() => ""), basketRows: vi.fn(() => []), withBasketNumbers: vi.fn((o: unknown) => o) }));
 vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), rateYearNote: vi.fn(() => ""), yearRates: vi.fn(() => []) }));
-vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), officialIndex: vi.fn(() => undefined), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
 
 import { run, type RunContext } from "@openai/agents";
 import { indexFor } from "./index-quote";

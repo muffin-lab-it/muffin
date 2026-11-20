@@ -32,6 +32,8 @@ export type UsIndexData = {
   index: UsIndexName;
   latest: { date: string; close: number; change: number; changePct: number };
   period: { from: string; to: string; closeFrom: number; change: number; returnPct: number };
+  /** 비교 시점부터 최신까지의 일별 종가. 장부에는 올리지 않고 차트가 씁니다 */
+  series: { date: string; close: number }[];
 };
 
 const round = (x: number, d: number) => Number(x.toFixed(d));
@@ -59,6 +61,7 @@ export function toResult(index: UsIndexName, days: number, rows: ReturnType<type
       index,
       latest: { date: latest.date, close: latest.close, change: round(latest.close - prev.close, 2), changePct: round((latest.close / prev.close - 1) * 100, 2) },
       period: { from: from.date, to: latest.date, closeFrom: from.close, change: round(latest.close - from.close, 2), returnPct: round((latest.close / from.close - 1) * 100, 2) },
+      series: rows.filter((r) => r.date >= from.date),
     },
     source: { name: SOURCE_NAME, url: `https://fred.stlouisfed.org/series/${SERIES[index]}`, asOf: latest.date },
     note: "FRED 에 하루 이틀 늦게 올라오는 일별 종가입니다. 장중 · 당일 값은 들어 있지 않습니다. 지수 값의 단위는 포인트이고, 전일 대비는 직전 거래일 종가와 비교해 계산했습니다.",
