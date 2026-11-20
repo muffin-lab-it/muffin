@@ -52,6 +52,8 @@ type Scenario = {
   fxValues?: Evidence["values"];
   /** 조사가 환율 결과 다음에 더 남기는 장부 항목 (금리 · 뉴스 등) */
   extraEvidence?: Evidence[];
+  /** 정제가 남기는 계산(C1)의 note. 계산 tool 이 남기는 식 모양으로 주면 방향 검사(edit.ts reversedCalcIds)가 읽습니다 */
+  calcNote?: string;
 };
 
 /** 네 Agent 를 이름으로 구분해 흉내 냅니다. 조사는 장부에 E1 을 남기고, 정제는 장부에 C1 을 남깁니다. */
@@ -81,6 +83,7 @@ function mockRuns(s: Scenario) {
             values: { change: 27.3, from: 1365.1, to: 1392.4 },
             source: { name: "30일 변동폭", url: "", asOf: "2026-10-19" },
             lineage: { op: "diff", inputs: ["E1"] },
+            ...(s.calcNote ? { note: s.calcNote } : {}),
           },
         ]);
         ctx.addStep({ tool: "calc_metrics", status: "ok", ms: 1 });
@@ -226,6 +229,25 @@ describe("research() 다섯 단계", () => {
     expect(inputOf(3)).toContain("- E1 · 환율 확인 · Frankfurter v2");
     expect(result.facts).toBeNull();
     expect(result.report.verification.status).toBe("pass");
+  });
+
+  it("방향이 반대인 계산만 인용해 사실 목록이 비어도, 작성이 보는 장부 전체에 그 계산은 없다 (#117 Codex 리뷰)", async () => {
+    mockRuns({
+      writer: [{ ...good, numbers: [good.numbers[0]] }],
+      facts: { facts: [{ ref: "C1", fact: "30일 27.3원 상승" }], dropped: [], unverified: [] },
+      calcNote: "E1.comparison.rate 1365.1 − E1.rate 1392.4 = -27.3. 장부 값으로 계산한 결과이며 출처 링크는 없습니다",
+    });
+    const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
+
+    expect(result.facts).toEqual({ facts: [], dropped: [{ ref: "C1", reason: expect.stringContaining("방향이 반대") }], unverified: [] });
+    // 사실이 0개라 장부 전체로 넘어가지만(1단계 입력), 걸러 낸 C1 은 보이지 않는다
+    expect(inputOf(3)).not.toContain("[사실 목록]");
+    expect(inputOf(3)).toContain("- E1 · 환율 확인 · Frankfurter v2");
+    // C1 은 "근거로 쓰지 않은 자료" 에 이름 · 이유로만 남고, [증거 장부] 에도 값(-27.3)으로도 보이지 않는다
+    const [ledger, unused] = inputOf(3).split("[수집했지만 근거로 쓰지 않은 자료]");
+    expect(ledger).not.toContain("C1");
+    expect(unused).toContain("- C1 · 계산 · 30일 변동폭");
+    expect(inputOf(3)).not.toContain("-27.3");
   });
 
   it("조사 Agent 가 메모를 남기지 못해도 장부만으로 이어간다", async () => {
