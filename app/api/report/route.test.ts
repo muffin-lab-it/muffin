@@ -72,6 +72,18 @@ describe("POST /api/report", () => {
     expect(logRun).toHaveBeenLastCalledWith(expect.objectContaining({ ok: false, stage: "limited", error: "rate limit exceeded" }));
   });
 
+  it("shows an hourly retry message when the daily client limit is exceeded", async () => {
+    vi.stubEnv("RATE_LIMIT_10M", "10");
+    vi.stubEnv("RATE_LIMIT_DAY", "1");
+    vi.stubEnv("RATE_LIMIT_IP_10M", "10");
+    const headers = { "X-Forwarded-For": "203.0.113.201", "X-Muffin-Client": "6f4e1a2b-1234-4abc-8def-0123456789ab" };
+    expect((await POST(request({ question: "첫 요청" }, headers))).status).toBe(200);
+
+    const response = await POST(request({ question: "두 번째 요청" }, headers));
+    expect(response.status).toBe(429);
+    expect((await response.json()).error).toBe("요청이 많아요. 24시간 뒤 다시 시도해 주세요.");
+  });
+
   it.each([{}, { question: " \n\t " }, { question: "a".repeat(501) }])("rejects invalid input before research: %j", async (body) => {
     const response = await POST(request(body));
     expect(response.status).toBe(400);

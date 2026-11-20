@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkLimit, hashIp } from "./ratelimit";
+import { checkLimit, hashIp, pruneExpiredRateLimitKeys, retryAfterMessage } from "./ratelimit";
 
 describe("hashIp", () => {
   it("returns a stable truncated SHA-256 hash and changes with the salt", () => {
@@ -69,5 +69,17 @@ describe("checkLimit", () => {
     expect(await checkLimit(keys)).toEqual({ ok: true });
     vi.advanceTimersByTime(10 * 60 * 1000 + 1);
     expect(await checkLimit(keys)).toEqual({ ok: true });
+  });
+
+  it("prunes expired keys even when the same visitor does not return", async () => {
+    await checkLimit({ ipHash: "one-time-visitor" });
+    vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+    expect(pruneExpiredRateLimitKeys()).toBeGreaterThan(0);
+  });
+
+  it("formats long retry waits in hours", () => {
+    expect(retryAfterMessage(600)).toBe("요청이 많아요. 10분 뒤 다시 시도해 주세요.");
+    expect(retryAfterMessage(60 * 60)).toBe("요청이 많아요. 1시간 뒤 다시 시도해 주세요.");
+    expect(retryAfterMessage(24 * 60 * 60)).toBe("요청이 많아요. 24시간 뒤 다시 시도해 주세요.");
   });
 });

@@ -2,10 +2,12 @@ import { createHash } from "node:crypto";
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const PRUNE_INTERVAL_MS = 60 * 1000;
 
 // v1 limitation: this in-memory Map is local to a single server instance.
 // Limits are not shared across Vercel instances and reset when an instance restarts.
 const requests = new Map<string, number[]>();
+let lastPrunedAt = 0;
 
 const DEFAULTS = {
   client10m: 10,
@@ -36,6 +38,27 @@ function activeTimestamps(key: string, now: number, windowMs: number): number[] 
   return active;
 }
 
+/** 키별로 가장 긴 제한 창이 지나간 요청을 제거합니다. 재방문하지 않는 키도 Map에 남지 않게 합니다. */
+export function pruneExpiredRateLimitKeys(now = Date.now()): number {
+  let removed = 0;
+  for (const [key, timestamps] of requests) {
+    const windowMs = key.startsWith("client:day:") ? ONE_DAY_MS : TEN_MINUTES_MS;
+    if (!timestamps.some((timestamp) => timestamp > now - windowMs)) {
+      requests.delete(key);
+      removed += 1;
+    }
+  }
+  return removed;
+}
+
+function prunePeriodically(now: number): void {
+  // 테스트에서 과거 시각으로 되돌아가도 다음 정리가 막히지 않게 합니다.
+  if (now < lastPrunedAt || now - lastPrunedAt >= PRUNE_INTERVAL_MS) {
+    pruneExpiredRateLimitKeys(now);
+    lastPrunedAt = now;
+  }
+}
+
 type Rule = { key: string; windowMs: number; limit: number };
 
 export async function checkLimit(keys: {
@@ -43,6 +66,7 @@ export async function checkLimit(keys: {
   ipHash: string;
 }): Promise<{ ok: true } | { ok: false; retryAfterSec: number }> {
   const now = Date.now();
+  prunePeriodically(now);
   const rules: Rule[] = [
     ...(keys.clientId
       ? [
@@ -71,6 +95,14 @@ export async function checkLimit(keys: {
   }
 
   return { ok: true };
+}
+
+/** 1시간 미만은 분, 그 이상은 시간으로 사용자 재시도 안내를 만듭니다. */
+export function retryAfterMessage(retryAfterSec: number): string {
+  const wait = retryAfterSec >= 60 * 60
+    ? `${Math.ceil(retryAfterSec / (60 * 60))}시간`
+    : `${Math.ceil(retryAfterSec / 60)}분`;
+  return `요청이 많아요. ${wait} 뒤 다시 시도해 주세요.`;
 }
 
 /** Hash the first forwarded IP before using it as a rate-limit key. Never log/store the raw IP. */

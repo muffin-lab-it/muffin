@@ -9,7 +9,7 @@ import { costOf } from "@/src/lib/pricing";
 import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 import { readClientId } from "@/src/lib/client";
-import { checkLimit, hashIp } from "@/src/lib/ratelimit";
+import { checkLimit, hashIp, retryAfterMessage } from "@/src/lib/ratelimit";
 
 // tool 여러 개를 호출하므로 기본 10초보다 길게 둡니다.
 export const maxDuration = 60;
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   if (!rate.ok) {
     recordRun({ id, at, ok: false, stage: "limited", mock, ms: ms(), error: "rate limit exceeded" }, req);
     return NextResponse.json(
-      { error: `요청이 많아요. ${Math.ceil(rate.retryAfterSec / 60)}분 뒤 다시 시도해 주세요.`, id, retryAfterSec: rate.retryAfterSec },
+      { error: retryAfterMessage(rate.retryAfterSec), id, retryAfterSec: rate.retryAfterSec },
       { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
     );
   }

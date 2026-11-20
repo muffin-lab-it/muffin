@@ -11,7 +11,7 @@ import { pickVerification, recordRun } from "@/src/lib/runs";
 import { redactSecrets } from "@/src/lib/redact";
 import { fitSpeed, getReplay, playReplay, publicStep, replayedReport, REPLAY_ID, SPEED_MAX, SPEED_MIN } from "@/src/lib/replay";
 import { readClientId } from "@/src/lib/client";
-import { checkLimit, hashIp } from "@/src/lib/ratelimit";
+import { checkLimit, hashIp, retryAfterMessage } from "@/src/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   if (!rate.ok) {
     recordRun({ id, at, mock, ok: false, stage: "limited", ms: Date.now() - started, error: "rate limit exceeded" }, req);
     return Response.json(
-      { error: `요청이 많아요. ${Math.ceil(rate.retryAfterSec / 60)}분 뒤 다시 시도해 주세요.`, id, retryAfterSec: rate.retryAfterSec },
+      { error: retryAfterMessage(rate.retryAfterSec), id, retryAfterSec: rate.retryAfterSec },
       { status: 429, headers: { ...headers, "Retry-After": String(rate.retryAfterSec) } },
     );
   }
