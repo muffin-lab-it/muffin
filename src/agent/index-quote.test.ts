@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { addTodayClose, consistent, ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, parseClose, withIndexNumbers } from "./index-quote";
+import { addTodayClose, consistent, ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, parseClose, sessionDate, withIndexNumbers } from "./index-quote";
 import type { Evidence } from "./schema";
 
 const official: Evidence = {
@@ -33,9 +33,23 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(parseClose("코스닥은 전일 대비 39.13포인트(5.71%)내린 645.68에 장을 마쳤다.", "코스닥")).toEqual({ close: 645.68, change: -39.13, changePct: -5.71 });
     expect(parseClose("코스피는 전장보다 70.45포인트(1.39%) 오른 5,137.89에 마쳤다.", "코스피")).toEqual({ close: 5137.89, change: 70.45, changePct: 1.39 });
     expect(parseClose(body, "코스닥")).toBeNull();
+    // 개장 · 장중 값은 검산이 맞아도 종가가 아니다
+    expect(parseClose("코스피는 전장보다 10.00포인트(0.19%) 오른 5,147.89에 출발했다.", "코스피")).toBeNull();
+    expect(parseClose("코스피는 전장보다 10.00포인트(0.19%) 오른 5,147.89를 기록 중이다. 전날은 하락 마감했다.", "코스피")).toBeNull();
+    // 한 문장에 두 지수가 있고 끝에 마감 표현이 있으면 앞의 지수도 종가다
+    expect(parseClose("이날 코스피는 전거래일 대비 267.93포인트(5.21%)내린 4,869.96, 코스닥은 전일 대비 39.13포인트(5.71%)내린 645.68에 장을 마쳤다.", "코스피")).toEqual({ close: 4869.96, change: -267.93, changePct: -5.21 });
     expect(parseClose("다이소 김장 용품 5,000원 할인", "코스피")).toBeNull();
     expect(consistent(5137.89, { close: 4869.96, change: -267.93, changePct: -5.21 })).toBe(true);
     expect(consistent(5067.44, { close: 4869.96, change: -267.93, changePct: -5.21 })).toBe(false);
+  });
+
+  it("거래일은 발행일이 아니라 본문의 날짜에서 읽는다", () => {
+    expect(sessionDate(body, "2026-11-20T07:29:21.000Z")).toBe("2026-11-20");
+    // 다음 날 아침 · 주말에 나온 기사가 20일 마감을 다시 쓰면 20일
+    expect(sessionDate(body, "2026-11-20T23:30:00.000Z")).toBe("2026-11-20");
+    expect(sessionDate(body, "2026-11-22T01:00:00.000Z")).toBe("2026-11-20");
+    expect(sessionDate("이날 코스피는 하락 마감했다.", "2026-11-20T07:29:21.000Z")).toBeNull();
+    expect(sessionDate("3일 코스피는 하락 마감했다.", "2026-11-20T07:29:21.000Z")).toBeNull();
   });
 
   it("공식 자료보다 뒤에 나온 기사의 종가가 검산에 맞으면 계산 항목(C 번호)으로 장부에 올린다", async () => {
