@@ -21,8 +21,8 @@ export type RunLog = {
   usage?: { requests: number; inputTokens: number; outputTokens: number };
   steps?: ToolStep[];
   rewrites?: number;
-  /** 리포트 품질 신호 */
-  quality?: { numbers: number; why: number; whyUnsupported: number; dataGaps: number; sources: number };
+  /** 리포트 품질 신호. edit 는 정제 요약(src/agent/muffin.ts EditSummary): 정제 실패 · 뺀 항목 · 거른 계산 수. runs.quality(jsonb) 안에 같이 들어가 표를 바꾸지 않습니다 */
+  quality?: { numbers: number; why: number; whyUnsupported: number; dataGaps: number; sources: number; edit?: { ok: boolean; facts: number; dropped: number; unverified: number; reversed: number; fallback: boolean } };
   /** 리포트 검증 요약 (명세 4.4). /admin 의 검증 통과율 · 다시 쓰기 비율 · 깊이별 비교가 씁니다 */
   verification?: Pick<Verification, "status" | "numbers" | "why" | "advice" | "revisions">;
   /** 분류가 정한 의도 (명세 4.4). /admin 의 의도별 요청 수 */

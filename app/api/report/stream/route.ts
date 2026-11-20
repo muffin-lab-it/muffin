@@ -48,6 +48,7 @@ type Outcome = {
   model?: string;
   usage?: ResearchResult["usage"];
   intent?: Intent;
+  edit?: ResearchResult["edit"];
 };
 type Run = (onEvent: (event: MuffinEvent) => void) => Promise<Outcome>;
 type StreamContext = { id: string; started: number; at: string; mock: boolean; input: RunLog["input"]; headers: Record<string, string> };
@@ -124,7 +125,7 @@ export async function POST(req: Request) {
   }
   const run: Run = async (onEvent) => {
     const result = await (mock ? mockResearch : research)(parsed.data, { onEvent });
-    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent };
+    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent, ...(result.edit ? { edit: result.edit } : {}) };
   };
   return streamResponse(req, run, { id, started, at, mock, input, headers });
 }
@@ -184,7 +185,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
               ...(result.usage ? { usage: result.usage } : {}),
               steps: result.steps.map((step) => (step.error ? { ...step, error: clip(redactSecrets(step.error), 500) } : step)),
               rewrites: result.rewrites,
-              quality: qualityOf(result.report),
+              quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}) },
               verification: pickVerification(result.report.verification),
               ...(result.intent ? { intent: result.intent } : {}),
             },

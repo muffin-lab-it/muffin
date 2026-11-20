@@ -181,6 +181,10 @@ describe("research() 다섯 단계", () => {
     expect(agentOf(4).name).toBe("Muffin Writer");
     expect(inputOf(4)).toContain("[수정 요청]");
     expect(inputOf(4)).toContain("1,400");
+    // 이전 초안을 통째로 보여 주고(실패 목록보다 앞), 실패한 항목만 고치게 한다
+    expect(inputOf(4)).toContain(`[이전 초안]`);
+    expect(inputOf(4)).toContain(JSON.stringify(bad));
+    expect(inputOf(4).indexOf("[이전 초안]")).toBeLessThan(inputOf(4).indexOf("[수정 요청]"));
     expect(result.rewrites).toBe(1);
     expect(result.report.verification).toMatchObject({ status: "pass", revisions: 1, removed: [] });
     expect(result.report.numbers[0].check).toBe("verified");
@@ -228,6 +232,8 @@ describe("research() 다섯 단계", () => {
     expect(inputOf(3)).toContain("[조사 메모]");
     expect(inputOf(3)).toContain("- E1 · 환율 확인 · Frankfurter v2");
     expect(result.facts).toBeNull();
+    // 실행 로그용 정제 요약: 실패(ok false)와 장부 전체 폴백이 남는다
+    expect(result.edit).toEqual({ ok: false, facts: 0, dropped: 0, unverified: 0, reversed: 0, fallback: true });
     expect(result.report.verification.status).toBe("pass");
   });
 
@@ -240,6 +246,7 @@ describe("research() 다섯 단계", () => {
     const result = await research({ question: "환율 왜 올랐어?", depth: "standard" });
 
     expect(result.facts).toEqual({ facts: [], dropped: [{ ref: "C1", reason: expect.stringContaining("방향이 반대") }], unverified: [] });
+    expect(result.edit).toEqual({ ok: true, facts: 0, dropped: 1, unverified: 0, reversed: 1, fallback: true });
     // 사실이 0개라 장부 전체로 넘어가지만(1단계 입력), 걸러 낸 C1 은 보이지 않는다
     expect(inputOf(3)).not.toContain("[사실 목록]");
     expect(inputOf(3)).toContain("- E1 · 환율 확인 · Frankfurter v2");

@@ -104,6 +104,10 @@ describe("POST /api/report", () => {
     expect(await response.json()).toEqual({ report: fixture.report, steps: [], rewrites: 0, id: "json-test-id", usage: fixture.usage });
     expect(research).toHaveBeenCalledWith({ question: "환율 현황", depth: "standard" });
     expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ quality: expect.objectContaining({ whyUnsupported: fixture.report.why.filter((why) => why.basis === "none").length }) }));
+    // 정제 요약이 있으면 quality.edit 로 같이 남는다 (runs.quality jsonb, 표 변경 없음)
+    vi.mocked(research).mockResolvedValue({ ...fixture, edit: { ok: true, facts: 3, dropped: 1, unverified: 0, reversed: 1, fallback: false } });
+    await POST(request({ question: "환율 왜 올랐어?" }));
+    expect(logRun).toHaveBeenLastCalledWith(expect.objectContaining({ quality: expect.objectContaining({ edit: { ok: true, facts: 3, dropped: 1, unverified: 0, reversed: 1, fallback: false } }) }));
   });
 
   it("keeps redacted diagnostics in server logs while hiding browser errors", async () => {
