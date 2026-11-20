@@ -29,7 +29,7 @@ describe("리포트 증거 표시 계약", () => {
     const target = $(".report-section-target").filter((_, el) => $(el).attr("id") === id);
     expect(target.text()).toContain("권유 표현 제외");
     expect(target.parents("details.reference-toggle")).toHaveLength(1);
-    expect(target.parents("details").attr("open")).toBeUndefined();
+    expect(target.parents("details").attr("open")).toBeDefined() // 11/20: 주의점은 항상 펼침;
   });
 
   it("검사 미실행이면 입력 숫자 배지와 집계가 검증 완료를 암시하지 않는다", () => {
@@ -140,7 +140,7 @@ describe("읽기 중심 리포트", () => {
     const $ = render(report);
     const notes = $('[aria-label="자료 범위"]');
     expect(notes.parents(".reference-toggle")).toHaveLength(1);
-    expect($(".reference-toggle").attr("open")).toBeUndefined();
+    expect($(".reference-toggle").attr("open")).toBeDefined() // 11/20: 주의점은 항상 펼침;
     for (const text of [...report.caveats, ...report.dataGaps]) expect(notes.text()).toContain(text);
     expect($(".report-disclosure").text()).toBe(report.disclosure);
     expect($(".report-details")).toHaveLength(0);
@@ -496,7 +496,7 @@ describe("답과 숫자 우선 배치", () => {
     expect($(".source-library > details.responsive-details[open]")).toHaveLength(1);
     expect($(".source-library .evidence-record").length).toBeGreaterThan(0);
     expect($("a[href^='/?question=']").first().parents("details").attr("open")).toBeDefined();
-    expect($(".report-created-at").text()).toContain("리포트 생성일");
+    expect($(".report-created-at").text()).toContain("작성일");
     expect($(".num").first().text()).toContain(report.evidence[0].source.name);
     expect($(".num").first().text()).toContain("근거 보기");
   });
@@ -521,4 +521,27 @@ it("원인 근거는 숫자 다음에 한 번만 표시하고 안내와 검증�
     expect($(guide).nextAll().not("[class*='reportToolbar']")).toHaveLength(0);
   }
   expect($(".report > section").last().text()).toContain("주의점과 확인하지 못한 것");
+});
+
+describe("머리 줄 · 주의점 · 보관 버튼 (11/20 하니 리뷰)", () => {
+  it("배지와 작성일은 질문 카드 안 한 줄에 있고 맨 아래에는 없다", () => {
+    const report = fixture();
+    const $ = load(renderToStaticMarkup(<ReportView report={report} question="요즘 환율 왜 이래?" createdAt="2026-11-20T03:00:00Z" header={<div className="report-head"><div className="chips"><span className="depth-chip">Easy</span></div></div>} />));
+    const line = $("section[aria-label='나의 질문'] .report-meta-line");
+    expect(line).toHaveLength(1);
+    expect(line.find(".depth-chip").text()).toBe("Easy");
+    expect(line.find(".report-created-at").text()).toContain("작성일");
+    expect($(".report-bottom-controls")).toHaveLength(0);
+    expect($("p.report-created-at")).toHaveLength(0);
+  });
+  it("주의점과 확인하지 못한 것은 접히지 않고 열려 있으며 '상세 보기' 토글이 없다", () => {
+    const report = fixture();
+    report.caveats = ["환율은 일별 기준값입니다."];
+    const $ = render(report);
+    const details = $("details.reference-toggle");
+    expect(details).toHaveLength(1);
+    expect(details.attr("open")).toBeDefined();
+    expect(details.find("summary").text()).not.toContain("상세 보기");
+    expect(details.text()).toContain("환율은 일별 기준값입니다.");
+  });
 });

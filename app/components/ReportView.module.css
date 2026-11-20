@@ -256,7 +256,7 @@
 .report :global(.chart-band-key) span { color:#76549b; margin-right:6px; }
 .report :global(.chart-grid) text, .report :global(.chart-axis) text { fill:#454b57; font-size:13px; }
 .report :global(.chart-last-label) { fill:#202632; font-weight:700; font-size:14px; }
-.topicGrid { grid-template-columns:minmax(0,1fr); gap:12px; }
+.topicGrid { gap:12px; } /* PC 2열은 위 기본 규칙, 좁은 칸 · 폰은 1열 (11/20 하니 리뷰) */
 .report .topicLink { min-height:112px; }
 .report :global(.chart) figcaption { display:block; margin-bottom:12px; }
 
@@ -591,3 +591,11 @@
   .report .headlinePlaceholder { font-size:18px; line-height:1.65; }
   .report section.questionCard { padding:16px 18px; }
 }
+
+/* 11/20 하니 리뷰: 배지 · 작성일은 질문 아래 한 줄, 주의점은 항상 펼침 */
+.report :global(.report-meta-line) { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-top:12px; }
+.report :global(.report-meta-line .report-head) { margin:0; }
+.report :global(.report-meta-line .chips) { margin:0; }
+.report :global(.report-meta-line .report-created-at) { margin:0; font-size:12px; color:#8a8194; }
+.report :global(.reference-toggle) > summary { pointer-events:none; list-style:none; }
+.report :global(.reference-toggle) > summary::-webkit-details-marker { display:none; }

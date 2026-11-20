@@ -56,6 +56,10 @@ export function ReportView({
   createdAt,
 }: ReportViewProps) {
   const nextTopics = supportedReportTopics(report.nextTopics, area, question);
+  // 관심 영역 · 깊이 배지와 작성일은 질문 바로 아래 한 줄에 (11/20 하니 리뷰: 머리에 모아 두기, 보관함에서 다시 볼 때 날짜가 바로 보이게)
+  const metaLine = (header || createdAt)
+    ? <div className="report-meta-line">{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}</div>
+    : null;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
   return (
@@ -68,8 +72,10 @@ export function ReportView({
         <section className={styles.questionCard} aria-label="나의 질문">
           <h2>나의 질문</h2>
           <blockquote>{question}</blockquote>
+          {metaLine}
         </section>
       )}
+      {!question && metaLine}
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <h2>갓 구운 한입 요약</h2>
@@ -161,17 +167,16 @@ export function ReportView({
         </ReportResponsiveDetails>
       </section>}
 
-      {header && <div className="report-bottom-controls">{header}</div>}
       <ReportVerification report={report}>
         {report.notice && report.mode === "research" && <section className="verification-context"><h2>움직임 비교 · 참고 정보</h2><p className="report-notice">{report.notice}</p></section>}
 
       </ReportVerification>
 
       {(report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || !!steps?.length) && <section className="report-verification report-reference" data-user-empty={report.caveats.length === 0 && report.dataGaps.length === 0 ? "true" : undefined} aria-label="주의점과 자료 범위">
-        <details className="verification-toggle reference-toggle">
-          <summary>
+        {/* 주의점 · 확인하지 못한 것은 접지 않고 항상 보여 줍니다 (11/20 하니 리뷰). details 는 제외 항목 링크의 대상 구조를 위해 두고 open 으로 고정 */}
+        <details className="verification-toggle reference-toggle" open>
+          <summary tabIndex={-1}>
             <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">i</span> 주의점과 확인하지 못한 것</strong><span>주의점 {report.caveats.length}개 · 확인하지 못한 것 {report.dataGaps.length}개<span className="verification-only"> · 제외 {report.verification.removed.length}개</span></span></span>
-            <span className="verification-summary-action"><span className="verification-toggle-label">상세 보기</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
           </summary>
           <div className="verification-body" aria-label="자료 범위">
             {report.caveats.length > 0 && <section><h2>주의점</h2><ul>{report.caveats.map((item, i) => <li key={i}>{item}</li>)}</ul></section>}
@@ -196,7 +201,6 @@ export function ReportView({
         </details>
       </section>}
 
-      {createdAt && <p className="report-created-at">리포트 생성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></p>}
       <p className="report-disclosure">{report.disclosure}</p>
     </ReportDisplay>
     </ReportEvidenceScope>
