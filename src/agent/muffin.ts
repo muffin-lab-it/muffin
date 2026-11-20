@@ -12,7 +12,7 @@ import { RunContext, withTrace, type Agent, type AgentOutputType } from "@openai
 import { muffinTools } from "../tools";
 import { fxChart } from "./chart";
 import { ResearchContext, type ToolStep } from "./context";
-import { createEditorAgent, editInput, runEdit } from "./edit";
+import { createEditorAgent, editInput, reversedCalcIds, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
 import { modelFor, modelSettingsFor, type ModelStage } from "./models";
 import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, runPlan } from "./plan";
@@ -173,7 +173,11 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 물가 품목군 항목도 정제가 뺐더라도 원인 후보로 다시 봅니다 (src/agent/cpi.ts)
   if (plan.intent === "cause") for (const id of cpiRescuedRefs(ctx.evidence, dropped)) rescued.add(id);
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
-  const input = [writerInput(question, ctx.evidence, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : ""]
+  // 방향이 반대라 정제가 거른 계산(edit.ts reversedCalcIds)은 작성에 보이지 않게 합니다. 사실 목록이 비거나 정제가 실패해 작성이 장부 전체를 볼 때도
+  // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
+  const reversed = reversedCalcIds(ctx.evidence);
+  const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
+  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
