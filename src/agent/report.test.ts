@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import v1 from "./fixtures/report.v1.sample.json";
 import v2 from "./fixtures/report.v2.sample.json";
 import { normalizeReport } from "./normalize";
-import { DISCLOSURE, assembleReport, fallbackGaps, outOfScopeOutput, sourcesFrom, summarizeWhy } from "./report";
+import { DISCLOSURE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, sourcesFrom, summarizeWhy, whyEmptyNote } from "./report";
 import { reportSchema, writerSchema, type Evidence, type Verification, type WriterOutput } from "./schema";
 
 function evidence(id: string, url: string, asOf = "2026-10-01"): Evidence {
@@ -205,5 +205,44 @@ describe("11/10 새 칸: headline · impactTitles · topicReasons · changeDetai
     const r = normalizeReport(stored);
     expect(r.sources.filter((s) => s.pageUrl).map((s) => s.pageUrl)).toEqual(["https://frankfurter.dev/", "https://frankfurter.dev/"]);
     expect(r.headline).toBeUndefined();
+  });
+});
+
+describe("11/20 QA: 환율 기준 · 빈 원인 안내 · 미국 상장 ETF", () => {
+  it("환율 자료를 쓴 리포트에는 어떤 환율인지 주의점 한 줄을 넣고, 작성이 이미 썼거나 환율 자료가 없으면 넣지 않는다", () => {
+    const fx: Evidence = { id: "E1", tool: "get_fx_krw_rate", label: "환율", values: { rate: 1392.4 }, source: { name: "Frankfurter v2", url: "https://api.frankfurter.dev/v2/rates", asOf: "2026-11-19" } };
+    const notes = fxBasisCaveats([fx]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("Frankfurter v2");
+    expect(notes[0]).toContain("포털 · 은행 앱");
+    expect(fxBasisCaveats([fx], ["포털에 보이는 실시간 환율과 다를 수 있습니다."])).toEqual([]);
+    expect(fxBasisCaveats([evidence("E1", "https://a.example")])).toEqual([]);
+  });
+
+  it("빈 원인 안내는 원인 질문에만 나오고, 예전 기록(intent 없음)은 전처럼 나온다", () => {
+    expect(whyEmptyNote({ intent: "cause" })).toContain("원인을 뒷받침할 자료");
+    expect(whyEmptyNote({ intent: "cause", movement: { level: "normal" } as never })).toContain("평소 범위");
+    for (const intent of ["status", "compare", "decision", "out_of_scope"] as const) expect(whyEmptyNote({ intent })).toBeNull();
+    expect(whyEmptyNote({})).toContain("원인을 뒷받침할 자료");
+    expect(assembleReport(output, [], skipped, { intent: "decision" }).intent).toBe("decision");
+    expect(assembleReport(output, [], skipped)).not.toHaveProperty("intent");
+  });
+
+  it("미국 상장 ETF 만 묻는 질문은 이유와 같은 지수의 국내 상장 ETF 를 안내한다", () => {
+    const qqq = foreignEtfOutput("QQQ 요즘 수익률 어때?")!;
+    expect(writerSchema.safeParse(qqq).success).toBe(true);
+    expect(qqq.summary).toContain("QQQ 는 미국에 상장된 ETF");
+    expect(qqq.summary).toContain("TIGER 미국나스닥100");
+    expect(qqq.nextTopics[0]).toContain("TIGER 미국나스닥100");
+    expect(qqq.topicReasons).toHaveLength(qqq.nextTopics.length);
+    expect(foreignEtfOutput("spy는 얼마나 올랐어?")!.summary).toContain("TIGER 미국S&P500");
+    expect(foreignEtfOutput("SOXL 어때?")!.nextTopics[0]).toContain("KODEX 200");
+  });
+
+  it("국내 상장 ETF 를 같이 묻거나 티커가 없으면 평소대로 조사한다", () => {
+    expect(foreignEtfOutput("TIGER 미국나스닥100 이랑 QQQ 는 뭐가 달라?")).toBeNull();
+    expect(foreignEtfOutput("KODEX 200 요즘 어때?")).toBeNull();
+    expect(foreignEtfOutput("나스닥 지수 왜 떨어졌어?")).toBeNull();
+    expect(foreignEtfOutput("spying 이 뭐야?")).toBeNull();
   });
 });

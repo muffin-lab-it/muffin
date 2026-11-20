@@ -56,6 +56,7 @@ export function ReportView({
   createdAt,
 }: ReportViewProps) {
   const nextTopics = supportedReportTopics(report.nextTopics, area, question);
+  const whyNote = report.why.length === 0 ? whyEmptyNote(report) : null;
   // 관심 영역 · 깊이 배지와 작성일은 질문 바로 아래 한 줄에 (11/20 하니 리뷰: 머리에 모아 두기, 보관함에서 다시 볼 때 날짜가 바로 보이게)
   const metaLine = (header || createdAt)
     ? <div className="report-meta-line">{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}</div>
@@ -121,10 +122,11 @@ export function ReportView({
 
       <div className={styles.columns}>
         <div className={styles.story}>
-          <section>
+          {/* 원인을 묻지 않은 질문은 원인이 없어도 빈 칸 안내를 띄우지 않고 칸을 숨깁니다 (11/20 QA) */}
+          {(report.why.length > 0 || whyNote) && <section>
             <h2>숫자 너머의 이야기</h2>
             {report.why.length === 0 ? (
-              <p className="muted">{whyEmptyNote(report)}</p>
+              <p className="muted">{whyNote}</p>
             ) : (
               <ul>
                 {report.why.map((w, i) => (
@@ -137,7 +139,7 @@ export function ReportView({
               </ul>
             )}
 
-          </section>
+          </section>}
       {headline && <p className={styles.summaryBody}>{report.summary}</p>}
 
           {report.impact.length > 0 && <section>

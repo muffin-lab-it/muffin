@@ -1,7 +1,7 @@
 import { formatAge } from "../lib/age";
 import type { ToolStep } from "./context";
 import { labelFor } from "./events";
-import type { ChangeDetail, Evidence, NumberCheck, Report, ReportMode, Verification, WriterOutput } from "./schema";
+import type { ChangeDetail, Evidence, Intent, NumberCheck, Report, ReportMode, Verification, WriterOutput } from "./schema";
 import { withPageUrl } from "./sources";
 
 /** AI 생성 고지 (AI 기본법). 리포트 상단과 History 에 같이 남습니다. */
@@ -79,6 +79,58 @@ export function outOfScopeOutput(question: string): WriterOutput {
   };
 }
 
+/** 미국 상장 ETF 안내의 상단 문구. 국내 ETF tool 로는 조회할 수 없어 조사를 건너뛰었다는 뜻입니다. */
+export const FOREIGN_ETF_NOTICE = "미국에 상장된 ETF 는 머핀이 조회할 수 없어 데이터를 조사하지 않았습니다. 머핀은 국내 상장 ETF 만 봅니다.";
+
+/**
+ * 미국 상장 ETF 티커와, 같은 지수를 따라가는 국내 상장 ETF (11/20 QA: "QQQ 요즘 수익률 어때?" 가 빈 칸만 있는 리포트로 나옴).
+ * 짝이 없는 티커(domestic 없음)는 국내 ETF 기본 질문을 추천합니다.
+ */
+const FOREIGN_ETFS: { match: RegExp; domestic?: [name: string, index: string] }[] = [
+  { match: /\b(QQQ|QQQM)\b/i, domestic: ["TIGER 미국나스닥100", "나스닥100"] },
+  { match: /\b(SPY|VOO|IVV|SPLG)\b/i, domestic: ["TIGER 미국S&P500", "S&P500"] },
+  { match: /\b(SCHD)\b/i, domestic: ["TIGER 미국배당다우존스", "미국 배당 다우존스"] },
+  { match: /\b(TQQQ|SQQQ|SOXL|SOXX|VTI|DIA|IWM|TLT|ARKK|JEPI|JEPQ)\b/i },
+];
+/** 국내 상장 ETF 브랜드. 질문에 같이 있으면 국내 ETF 를 묻는 것이라 평소대로 조사합니다 (예: "TIGER 미국나스닥100 이랑 QQQ 차이") */
+const DOMESTIC_ETF_BRAND = /\b(KODEX|TIGER|ACE|RISE|KBSTAR|SOL|HANARO|ARIRANG|PLUS|KOSEF|TIMEFOLIO|KIWOOM|\d{6})\b/i;
+
+/**
+ * 미국 상장 ETF 만 묻는 질문이면 모델 없이 돌려주는 고정 본문, 아니면 null.
+ * 요약은 왜 볼 수 없는지 한 줄, 추천 질문은 같은 지수의 국내 상장 ETF 와 환율입니다. 숫자가 없어 검증은 항상 pass 입니다.
+ */
+export function foreignEtfOutput(question: string): WriterOutput | null {
+  const hit = FOREIGN_ETFS.find((f) => f.match.test(question));
+  if (!hit || DOMESTIC_ETF_BRAND.test(question)) return null;
+  const ticker = question.match(hit.match)![0].toUpperCase();
+  const topics: [string, string][] = hit.domestic
+    ? [
+        [`${hit.domestic[0]} 한 달 수익률 얼마야?`, `${ticker} 와 같은 ${hit.domestic[1]} 지수를 따라가는 국내 상장 ETF 입니다`],
+        [`${hit.domestic[0]} 요즘 어때?`, "종가 · 순자산가치 · 괴리율을 기준일과 함께 보여 줍니다"],
+      ]
+    : [
+        ["KODEX 200 요즘 어때?", "종가 · 순자산가치 · 괴리율을 기준일과 함께 보여 줍니다"],
+        ["KODEX 200 한 달 수익률 얼마야?", "30일 전 종가와 비교한 수익률을 보여 줍니다"],
+      ];
+  topics.push(["최근 한 달 원달러 환율 얼마나 움직였어?", "해외 지수를 따라가는 ETF 는 환율 영향을 함께 받습니다"]);
+  return {
+    summary:
+      `${ticker} 는 미국에 상장된 ETF 라 머핀이 볼 수 없습니다. 머핀은 국내에 상장된 ETF 만 조회합니다. ` +
+      (hit.domestic
+        ? `같은 ${hit.domestic[1]} 지수를 따라가는 국내 상장 ETF(예: ${hit.domestic[0]})는 이름으로 물어보면 확인할 수 있습니다.`
+        : `국내 상장 ETF 는 "KODEX 200" 처럼 이름으로 물어보면 확인할 수 있습니다.`),
+    headline: null,
+    numbers: [],
+    why: [],
+    impact: [],
+    impactTitles: [],
+    caveats: [],
+    dataGaps: [`${ticker} 는 미국 상장 ETF 라 시세 · 수익률을 조회할 수 없습니다.`],
+    nextTopics: topics.map(([topic]) => topic),
+    topicReasons: topics.map(([, reason]) => reason),
+  };
+}
+
 /** why.evidence 가 "데이터로 확인되지 않음" 인지. 실행 로그 · 평가 · v1 변환이 같은 기준을 씁니다. */
 export const UNSUPPORTED_EVIDENCE = /확인되지\s*않/;
 
@@ -126,12 +178,29 @@ export function fallbackGaps(steps: ToolStep[]): string[] {
   return [...oldest].map(([tool, age]) => `${labelFor(tool)}: 조회가 실패해 ${formatAge(age)} 전에 받은 응답을 썼습니다 (데이터 기준일은 출처 그대로)`);
 }
 
+/** 환율 tool 이름 (src/tools/fx). 장부에서 환율 자료를 찾을 때 씁니다 */
+const FX_TOOL = "get_fx_krw_rate";
+
+/**
+ * 환율 자료를 쓴 리포트의 "주의점" 에 코드가 넣는 한 줄 (11/20 QA: "환율이 네이버에서 검색한 것과 다름. 왜지?").
+ * tool 의 note 는 원본 보기에만 있어 잘 안 보이므로, 어떤 환율인지와 왜 다를 수 있는지를 주의점에 적습니다.
+ * 검증 뒤에 붙여 검증 대상이 아니고, 작성이 이미 같은 설명(포털 · 은행 앱)을 썼으면 넣지 않습니다.
+ */
+export function fxBasisCaveats(evidence: Evidence[], caveats: string[] = []): string[] {
+  const fx = evidence.find((e) => e.tool === FX_TOOL);
+  if (!fx || caveats.some((c) => /포털|은행 앱/.test(c))) return [];
+  return [
+    `환율은 하루 한 번 집계되는 기준 환율입니다 (출처: ${fx.source.name}). 포털 · 은행 앱의 실시간 환율이나 수수료가 붙는 실제 환전 금액과는 다를 수 있습니다.`,
+  ];
+}
+
 export function assembleReport(
   output: WriterOutput,
   evidence: Evidence[],
   verification: Verification,
   opts: {
     mode?: ReportMode;
+    intent?: Intent;
     notice?: string;
     checks?: NumberCheck[];
     /** checks 와 같은 순서의 대조 세부 (장부 키 · 규칙) */
@@ -148,6 +217,7 @@ export function assembleReport(
     version: 2,
     mode: opts.mode ?? "research",
     ...(opts.notice ? { notice: opts.notice } : {}),
+    ...(opts.intent ? { intent: opts.intent } : {}),
     summary: output.summary,
     ...(output.headline ? { headline: output.headline } : {}),
     numbers: output.numbers.map((n, i) => ({
@@ -175,8 +245,11 @@ export function assembleReport(
 /**
  * why 가 비었을 때 화면이 보여 줄 한 줄. 유의성 게이트 결과(movement.level)로 "평소 범위라 원인을 찾지 않음" 과
  * "후보를 봤지만 근거 부족" 을 구분합니다 (11/19 페르소나 테스트: 20명 중 17명이 "데이터가 없다" 는 빈 칸을 지적).
+ * 원인을 묻지 않은 질문(현황 · 비교 · 판단 요청 · 범위 밖)이면 null 이고 화면은 칸을 숨깁니다
+ * (11/20 QA: "KODEX 200 지금 사도 돼?" 에도 "원인 자료를 확보하지 못했습니다" 가 떠 실패처럼 읽힘). intent 가 없는 예전 기록은 전처럼 보여 줍니다.
  */
-export function whyEmptyNote(report: Pick<Report, "movement">): string {
+export function whyEmptyNote(report: Pick<Report, "movement" | "intent">): string | null {
+  if (report.intent && report.intent !== "cause") return null;
   const level = report.movement?.level;
   if (level === "normal") {
     return "이번 움직임은 지난 90일의 평소 범위 안이라 원인을 따로 찾지 않았습니다. 평소보다 크게 움직일 때 금리 차이 · 뉴스 · 다른 통화 같은 원인 후보를 확인합니다.";
