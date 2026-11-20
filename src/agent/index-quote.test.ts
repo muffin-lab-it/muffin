@@ -41,6 +41,8 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(parseClose("다이소 김장 용품 5,000원 할인", "코스피")).toBeNull();
     expect(consistent(5137.89, { close: 4869.96, change: -267.93, changePct: -5.21 })).toBe(true);
     expect(consistent(5067.44, { close: 4869.96, change: -267.93, changePct: -5.21 })).toBe(false);
+    // 변화폭은 맞아도 등락률이 어긋나면 받지 않는다
+    expect(consistent(5137.89, { close: 4869.96, change: -267.93, changePct: -52.1 })).toBe(false);
   });
 
   it("거래일은 발행일이 아니라 본문의 날짜에서 읽는다", () => {
@@ -72,6 +74,11 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(await addTodayClose(sameDay, "코스피", vi.fn(async () => { throw new Error("RSS 실패"); }) as never)).toBeUndefined();
     expect(sameDay.evidence).toHaveLength(1);
     expect(await addTodayClose(new ResearchContext(), "코스피", newsOf(article(body)) as never)).toBeUndefined();
+    // 다음 날 기사가 전날 마감을 다시 쓴 문장은 날짜를 정할 수 없어 건너뛴다
+    const recap = new ResearchContext();
+    recap.addEvidence([official]);
+    const next = article("21일 금융투자업계에 따르면 전날 코스피는 전장보다 267.93포인트(5.21%) 내린 4,869.96에 거래를 마쳤다.", "2026-11-21T00:10:00.000Z");
+    expect(await addTodayClose(recap, "코스피", newsOf(next) as never)).toBeUndefined();
   });
 
   it("ensureIndex 는 지수 tool 을 부르고, 지수 질문이 아니거나 조회가 실패하면 null 이다", async () => {
