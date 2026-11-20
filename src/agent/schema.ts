@@ -241,6 +241,8 @@ export const reportSchema = writerSchema.extend({
   version: z.literal(2),
   mode: z.enum(reportModes),
   notice: z.string().optional().describe("모드에 따른 상단 안내 (판단 요청 모드 등)"),
+  /** 11/20: 분류가 정한 의도. 화면이 "원인을 묻지 않은 질문" 에는 빈 원인 안내를 숨기는 데 씁니다. 예전 기록에는 없음 */
+  intent: z.enum(intents).optional().describe("분류가 정한 질문 의도"),
   /** 11/10: 작성 출력의 새 칸은 예전 기록에 없으므로 리포트에선 선택. 없으면 화면이 그 자리를 숨깁니다 */
   headline: z.string().nullable().optional().describe("핵심 한 문장. 검증(장부에 없는 숫자 · 권유 표현)을 통과한 것만 남음"),
   impactTitles: z.array(z.string()).optional().describe("impact 와 같은 순서의 제목. 개수가 같을 때만 있음"),

@@ -292,6 +292,20 @@ describe("research() 다섯 단계", () => {
     expect(result.steps).toEqual([]);
   });
 
+  it("미국 상장 ETF 만 묻는 질문은 모델을 부르지 않고 범위 밖 안내 리포트를 낸다", async () => {
+    mockRuns({ writer: [] });
+    const events: MuffinEvent[] = [];
+    const result = await research({ question: "QQQ 요즘 수익률 어때?", depth: "easy", area: "etf" }, { onEvent: (e) => events.push(e) });
+
+    expect(runMock).not.toHaveBeenCalled();
+    expect(traceOf(events)).toEqual(["plan:start", "plan", "plan:done", "verify:start", "verify", "verify:done"]);
+    expect(result.plan).toMatchObject({ intent: "out_of_scope", mode: "out_of_scope", tools: [] });
+    expect(result.report).toMatchObject({ mode: "out_of_scope", intent: "out_of_scope", numbers: [], evidence: [] });
+    expect(result.report.notice).toContain("미국에 상장된 ETF");
+    expect(result.report.summary).toContain("TIGER 미국나스닥100");
+    expect(result.steps).toEqual([]);
+  });
+
   it("판단 요청이면 작성에 모드 규칙이 붙고 리포트에 안내가 달린다", async () => {
     mockRuns({ plan: { intent: "decision", tools: ["get_etf_kr_price"], reason: "사도 돼" }, writer: [good] });
     const events: MuffinEvent[] = [];

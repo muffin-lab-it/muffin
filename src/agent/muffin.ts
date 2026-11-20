@@ -21,7 +21,7 @@ import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
-import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
+import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
@@ -128,7 +128,11 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   // 📋 분류. 실패하면 규칙 기반 기본 계획. 모드는 의도로 코드가 정합니다.
   emit({ type: "stage", stage: "plan", status: "start" });
   const planCtx = new RunContext(ctx);
-  const planned = await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(question, area, depth), planCtx, defaultPlan(question, area));
+  // 미국 상장 ETF(QQQ · SPY 등)만 묻는 질문은 국내 ETF tool 로 조회할 수 없어, 분류 모델을 부르지 않고 범위 밖으로 안내합니다.
+  const foreign = foreignEtfOutput(question);
+  const planned = foreign
+    ? { intent: "out_of_scope" as const, tools: [], reason: "미국 상장 ETF 는 조회할 수 없음" }
+    : await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(question, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx, "plan");
   const plan = { ...normalizePlan(planned, question, area), mode: modeFor(planned.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
@@ -137,12 +141,12 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   if (plan.mode === "out_of_scope") {
     // 조사 · 정제 · 작성을 건너뜁니다. 숫자가 없으니 검증은 pass 이고, 어떤 tool 도 부르지 않았습니다.
     emit({ type: "stage", stage: "verify", status: "start" });
-    const output = outOfScopeOutput(question);
+    const output = foreign ?? outOfScopeOutput(question);
     const verification = summarizeVerification({ output, checks: [], matches: [], removed: [] }, 0);
     emit({ type: "verify", verification });
     emit({ type: "stage", stage: "verify", status: "done" });
     return {
-      report: assembleReport(output, [], verification, { mode: "out_of_scope", notice: OUT_OF_SCOPE_NOTICE }),
+      report: assembleReport(output, [], verification, { mode: "out_of_scope", intent: "out_of_scope", notice: foreign ? FOREIGN_ETF_NOTICE : OUT_OF_SCOPE_NOTICE }),
       steps: [],
       rewrites: 0,
       plan,
@@ -226,11 +230,18 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   emit({ type: "stage", stage: "verify", status: "done" });
   // 조회가 실패해 저장된 응답을 쓴 tool 은 코드가 "확인하지 못한 것" 에 적습니다 (검증 뒤라 검증 대상이 아님)
   const gaps = fallbackGaps(ctx.steps);
-  const finalOutput = gaps.length ? { ...applied.output, dataGaps: [...applied.output.dataGaps, ...gaps] } : applied.output;
+  // 환율 자료를 썼으면 어떤 환율인지(포털 · 은행 앱과 다를 수 있음)를 코드가 "주의점" 에 적습니다
+  const fxNotes = fxBasisCaveats(ctx.evidence, applied.output.caveats);
+  const finalOutput = {
+    ...applied.output,
+    caveats: [...applied.output.caveats, ...fxNotes],
+    dataGaps: [...applied.output.dataGaps, ...gaps],
+  };
 
   return {
     report: assembleReport(finalOutput, ctx.evidence, verification, {
       mode: plan.mode,
+      intent: plan.intent,
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
       checks: applied.checks,
       matches: applied.matches,

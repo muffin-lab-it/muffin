@@ -99,7 +99,7 @@ flowchart LR
 
 | 필드 | 화면 | 담당 |
 | --- | --- | --- |
-| `mode` (research · decision_facts · out_of_scope), `notice`, `movement` | 상단 배너. 문구는 서버가 준 것을 그대로. `notice` 는 판단 요청 · 범위 밖, 그리고 원인 질문(research 모드)의 움직임 크기에서 옵니다 (예: "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임입니다."). `movement`(`level`: normal · notable · extreme)는 같은 내용의 값이라 배지 색 등에 쓸 수 있음 | 하니 |
+| `mode` (research · decision_facts · out_of_scope), `notice`, `movement` | 상단 배너. 문구는 서버가 준 것을 그대로. `notice` 는 판단 요청 · 범위 밖, 그리고 원인 질문(research 모드)의 움직임 크기에서 옵니다 (예: "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임입니다."). `movement`(`level`: normal · notable · extreme)는 같은 내용의 값이라 배지 색 등에 쓸 수 있음. `intent`(11/20, 선택)는 분류가 정한 의도이고, 원인 질문(`cause`)이 아니면 `whyEmptyNote` 가 null 이라 원인이 비어도 "숫자 너머의 이야기" 칸을 숨깁니다 | 하니 |
 | `disclosure` | AI 생성 고지, 리포트 하단 고정 | 하니 |
 | `summary`, `impact[]`, `caveats[]`, `dataGaps[]`, `nextTopics[]` | 각 칸 | 은선 |
 | `headline?` (11/10, 핵심 한 문장 · 검증 통과분만 · 예전 기록엔 없음), `impactTitles?[]` · `topicReasons?[]` (impact · nextTopics 와 같은 순서 · 개수, 개수가 다르면 서버가 뺌) | 한입 요약의 굵은 한 문장, 영향 카드 제목, 추천 카드 이유. 없으면 그 자리를 숨김 | 은선 |
