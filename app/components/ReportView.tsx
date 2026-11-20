@@ -165,7 +165,13 @@ export function ReportView({
                 {n.changeDetail?.from && n.changeDetail.to && <small className="metric-period">비교 기간 {formatDateKo(n.changeDetail.from)} → {formatDateKo(n.changeDetail.to)}</small>}
                 {card.subs.length > 0 && <ul className="num-subs">{card.subs.map(sub => {
                   const subCheck = report.verification.status === "skipped" ? "unverified" : sub.n.check;
-                  return <li key={sub.index}><span className="num-sub-label">{sub.n.label}</span><b className={valueTone(sub.n.value) ?? undefined}>{sub.n.value}</b><span className={`report-badge check-${subCheck}`}>{checkLabels[subCheck]}</span></li>;
+                  // 딸린 숫자의 비교 기간 · 다른 기준일은 그대로 남깁니다 (Codex 리뷰: 묶으면서 기간 · 날짜가 사라지지 않게)
+                  const subChange = sub.n.change && !/^이번\s*주$/.test(sub.n.change.trim()) ? reportChange(sub.n.change, sub.n.changeDetail) : null;
+                  const detail = [
+                    sub.n.changeDetail?.from && sub.n.changeDetail.to ? `비교 기간 ${formatDateKo(sub.n.changeDetail.from)} → ${formatDateKo(sub.n.changeDetail.to)}` : subChange?.text,
+                    sub.n.asOf && sub.n.asOf !== n.asOf ? `기준일 ${formatDateKo(sub.n.asOf)}` : null,
+                  ].filter(Boolean).join(" · ");
+                  return <li key={sub.index}><span className="num-sub-label">{sub.n.label}</span><b className={valueTone(sub.n.value) ?? undefined}>{sub.n.value}</b><span className={`report-badge check-${subCheck}`}>{checkLabels[subCheck]}</span>{detail && <small className="num-sub-detail">{detail}</small>}</li>;
                 })}</ul>}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>

@@ -655,3 +655,4 @@
 .report :global(.num-subs) :global(.tone-up) { color:#ae302d; }
 .report :global(.num-subs) :global(.tone-down) { color:#235bb0; }
 .report .metrics :global(.num):focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+.report :global(.num-sub-detail) { flex-basis:100%; font-size:13px; color:#7c7287; }

@@ -646,6 +646,20 @@ describe("11/21 QA 2묶음 A", () => {
     expect($(".num .num-subs").text()).toContain("30일 가격 수익률");
     expect($(".num .num-subs b").first().attr("class")).toContain("tone-down");
   });
+  it("묶인 딸린 숫자의 비교 기간과 다른 기준일은 그대로 남는다 (Codex 리뷰)", () => {
+    const report = fixture();
+    const ref = report.evidence[0]!.id;
+    const base = report.numbers[0]!;
+    report.numbers = [
+      { ...base, label: "KODEX 200 종가", value: "80,630원", ref, asOf: "2026-11-16", change: "" },
+      { ...base, label: "30일 가격 수익률", value: "−7.06%", ref, asOf: "2026-11-16", change: "2026-10-19~2026-11-16", changeDetail: { key: "period.returnPct", value: -7.06, unit: "%", basis: "30일 전과 비교", from: "2026-10-19", to: "2026-11-16" } },
+      { ...base, label: "비교 기준일 종가", value: "86,755원", ref, asOf: "2026-10-18", change: "" },
+    ];
+    const rows = render(report)(".num .num-subs li");
+    expect(rows).toHaveLength(2);
+    expect(rows.first().text()).toContain("비교 기간 2026. 10. 19. → 2026. 11. 16.");
+    expect(rows.last().text()).toContain("기준일 2026. 10. 18.");
+  });
   it("본값이 없는 장부의 딸린 숫자와 다른 장부의 숫자는 따로 둔다", () => {
     const report = fixture();
     const base = report.numbers[0]!;
