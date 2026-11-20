@@ -519,12 +519,29 @@
 .report .metrics .metricMeta :global(.evidence-link) { color:#674591; text-decoration:underline; text-underline-offset:3px; }
 @container report (max-width:560px) {
   .report section.hero { position:relative; display:block; padding:20px; margin-bottom:24px; border-radius:16px; }
-  .report .heroCopy h2 { display:flex; align-items:center; min-height:36px; padding-right:48px; margin-bottom:10px; }
-  .report .heroArt { position:absolute; top:16px; right:16px; width:44px; height:44px; min-height:0; margin:0; }
+  .report .heroCopy h2 { margin-bottom:10px; }
+  .report .heroArt { position:relative; width:160px; height:144px; min-height:0; margin:12px auto 0; }
   .report .headlinePlaceholder { font-size:22px; line-height:1.55; }
   .report :global(.metrics-heading) { min-height:0; padding:0; margin-bottom:14px; }
   .report .reportToolbar { position:static; justify-content:flex-start; margin-top:8px; }
   .report :global(.report-help-button) { padding:8px 0; text-decoration:underline; text-underline-offset:3px; }
   .report .metrics :global(.num), .report .metrics :global(.num[data-kind="derived"]) { padding:18px; border-radius:14px; }
   .report .metrics :global(.numbers) { gap:12px; }
+}
+
+/* Restore familiar card surfaces without a colored outer wrapper. */
+.report :global(.report-actions) button { padding:12px 18px; border:1px solid var(--brand-purple-border); border-radius:10px; color:var(--brand-purple-strong); font-weight:700; }
+.report :global(.report-actions) button:first-child { background:var(--button-gradient); border-color:var(--brand-purple-border-active); box-shadow:var(--button-shadow); color:white; }
+.report :global(.report-actions) button:first-child:hover:not(:disabled) { filter:brightness(1.04); }
+.report :global(.report-actions) button:disabled { opacity:.75; }
+.report :global(.impact-card) { padding:22px; border:1px solid #e1d6eb; border-radius:14px; background:#f7f3fb; }
+.report :global(.impact-card) h3 { font-size:18px; margin-bottom:12px; color:#49345e; }
+.report .topicLink { padding:20px; border:1px solid #e1d6eb; border-radius:14px; background:#faf7fd; }
+.report :global(.chart-summary) { padding:20px; border:1px solid #e1d6eb; border-radius:14px; background:#f7f3fb; }
+@container report (max-width:560px) {
+  .report :global(.report-actions) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .report :global(.report-actions) [role="status"] { grid-column:1/-1; }
+  .report :global(.impact-card), .report .topicLink { padding:20px; }
+  .report .topicLink { flex-wrap:wrap; }
+  .report :global(.topic-action) { width:100%; margin-top:12px; }
 }

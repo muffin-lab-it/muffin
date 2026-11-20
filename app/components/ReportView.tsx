@@ -76,7 +76,7 @@ export function ReportView({
           {!headline && <p className={styles.summaryBody}>{report.summary}</p>}
         </div>
         <div className={styles.heroArt} aria-hidden="true">
-          <Image src={resultMuffin} alt="" fill sizes="120px" />
+          <Image src={resultMuffin} alt="" fill sizes="(max-width: 560px) 160px, 120px" />
         </div>
       </section>
 
