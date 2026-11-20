@@ -166,8 +166,8 @@ describe("리포트 하단 도구 실행 내역", () => {
     const $ = render(fixture(), steps);
     const text = $(".report-tools").text();
     expect($(".report-tools").parents(".reference-toggle")).toHaveLength(1);
-    expect($('details[aria-label="리포트 상세 정보"]').attr("open")).toBeUndefined();
-    expect($(".verification-toggle").attr("open")).toBeUndefined();
+    expect($('details[aria-label="리포트 상세 정보"]').attr("open")).toBeDefined();
+    expect($(".verification-toggle").attr("open")).toBeDefined();
     expect($(".report-details")).toHaveLength(0);
     expect(text).toContain("🟡");
     expect(text).toContain("저장된 응답(3시간 전)");
@@ -222,7 +222,7 @@ describe("간결한 검사 안내", () => {
     expect($(".verification-detail").parents(".report-verification")).toHaveLength(1);
     expect($(".report-verification").first().prevAll("section").find(".numbers")).toHaveLength(1);
     expect($(".report-verification").parents("details")).toHaveLength(0);
-    expect($(".verification-toggle").attr("open")).toBeUndefined();
+    expect($(".verification-toggle").attr("open")).toBeDefined();
     expect($(".verification-detail").parents(".verification-toggle")).toHaveLength(1);
     expect($(".verification-toggle details")).toHaveLength(0);
     expect($(".verification-detail").text()).toContain("rate 값과 표기 반올림과 일치");
@@ -396,7 +396,7 @@ it("검증 제목 옆에 상태를 두고 대조 규칙과 도구 기록은 같�
   const $ = render(report, [{ tool: "get_fx_krw_rate", status: "ok", ms: 12, fallbackAgeMs: 3600000, breaker: "open" }]);
   const panel = $('details[aria-label="리포트 상세 정보"]');
   expect(panel).toHaveLength(1);
-  expect(panel.attr("open")).toBeUndefined();
+  expect(panel.attr("open")).toBeDefined();
   expect(panel.find("summary .verification-summary-copy strong .status-partial")).toHaveLength(1);
   expect(panel.find(".verification-detail").text()).toContain("rate 값과 정확히 일치");
   expect($(".reference-toggle .report-tools").text()).toContain("🟡");
@@ -493,7 +493,7 @@ describe("답과 숫자 우선 배치", () => {
     expect(text.indexOf(report.numbers[0].value)).toBeLessThan(text.indexOf(report.summary));
     expect($(".numbers").parent().find(".report-help-button").text()).toContain("리포트 읽는 법");
     expect($(".report-mode-toggle")).toHaveLength(0);
-    expect($(".source-library > details")).toHaveLength(0);
+    expect($(".source-library > details.responsive-details[open]")).toHaveLength(1);
     expect($(".source-library .evidence-record").length).toBeGreaterThan(0);
     expect($("a[href^='/?question=']").first().parents("details").attr("open")).toBeDefined();
     expect($(".report-created-at").text()).toContain("리포트 생성일");

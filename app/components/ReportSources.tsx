@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 import { evidenceCategory } from "./reportCategory";
 import { reportChange } from "./reportChange";
 import type { Report } from "@/src/agent/schema";
@@ -15,7 +16,7 @@ export function ReportSources({ report }: { report: Report }) {
   if (extraSources.length > 0) groups.push("참고 문서");
   const active = scope?.selection && groups.includes(scope.selection) ? scope.selection : groups[0];
   return <section className="source-library" aria-label="정확한 데이터로 보는 금융" id={rootId ?? undefined} tabIndex={-1}>
-    <h2>출처와 원본 데이터</h2>
+    <ReportResponsiveDetails className="report-fold" summary={<h2>출처와 원본 데이터</h2>}>
 
     {groups.length > 1 && <div className="source-chips" role="group" aria-label="자료 주제 선택">
       {groups.map(group => <button type="button" key={group} aria-pressed={active === group} onClick={() => scope?.select(group)}>{group}</button>)}
@@ -32,5 +33,6 @@ export function ReportSources({ report }: { report: Report }) {
     </div>)}
     <p className="section-guide">{groups.length > 1 ? "주제를 고른 뒤, 리포트에 쓰인 수치의 출처와 기준일을 확인해 보세요." : "리포트에 쓰인 수치의 출처와 기준일을 확인해 보세요."} 비교에 사용한 자료도 아래에서 함께 볼 수 있어요.</p>
 
+    </ReportResponsiveDetails>
   </section>;
 }

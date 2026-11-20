@@ -545,3 +545,39 @@
   .report .topicLink { flex-wrap:wrap; }
   .report :global(.topic-action) { width:100%; margin-top:12px; }
 }
+
+/* Brand and supporting content: compact surfaces, responsive disclosure. */
+.report :global(.report-brand-header) { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
+.report :global(.report-brand-header) p { margin:0 0 4px; font-size:13px; color:#705886; }
+.report :global(.report-brand-header) h1 { margin:0; font-size:26px; line-height:1.2; color:#3f2c55; }
+.report :global(.report-brand-header .report-actions) { margin:0; }
+.report section.hero { grid-template-columns:minmax(0,1fr) 200px; }
+.report .heroArt { width:200px; height:180px; }
+.report :global(.metrics-heading) h2 { font-size:19px; }
+.report :global(.source-chips) { margin:10px 0 14px; padding:0; border:0; gap:6px; }
+.report :global(.source-chips) button { padding:6px 14px; min-height:40px; }
+.report :global(.source-panel-heading) { margin-bottom:10px; }
+.report :global(.source-data-grid) { gap:12px; }
+.report :global(.source-data-item) { padding:16px; border:1px solid #e1e4e9; border-radius:12px; background:#f8f9fb; }
+.report :global(.source-number) { margin-bottom:8px; gap:4px; }
+.report :global(.evidence-record) { margin:0; padding:0; }
+.report :global(.evidence-values) { margin:8px 0 0; }
+.report :global(.evidence-values) > div { background:transparent; }
+.report :global(.report-verification:not(.report-reference)) { padding:0 18px; background:#f1f3f6; border:1px solid #e0e4e9; border-radius:14px; margin:16px 0; }
+.report :global(.responsive-details > summary) { list-style:none; cursor:default; }
+.report :global(.responsive-details > summary::-webkit-details-marker) { display:none; }
+.report :global(.responsive-details > summary) h2 { margin:0; font-size:19px; }
+.report :global(.responsive-details .verification-summary-action) { display:none; }
+@container report (max-width:560px) {
+  .report :global(.report-brand-header) { align-items:flex-start; }
+  .report :global(.report-brand-header .report-actions) { width:100%; }
+  .report .heroArt { width:160px; height:144px; }
+  .report .headlinePlaceholder { font-size:20px; }
+  .report :global(.metrics-heading) h2, .report :global(.responsive-details > summary) h2 { font-size:17px; }
+}
+@media (max-width:600px) {
+  .report :global(.responsive-details > summary) { cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .report :global(.responsive-details > summary)::after { content:"⌄"; font-size:20px; }
+  .report :global(.responsive-details[open] > summary)::after { transform:rotate(180deg); }
+  .report :global(.responsive-details.report-fold) { padding:0; }
+}

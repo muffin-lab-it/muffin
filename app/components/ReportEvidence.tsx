@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 import { useSyncExternalStore, type ReactNode } from "react";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
@@ -268,11 +269,10 @@ export function ReportVerification({ report, children }: { report: Report; child
   const labels = { skipped: "검사 미실행", partial: "일부 확인 필요", pass: "검사 통과" };
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
-      <details className="verification-toggle" aria-label="리포트 상세 정보">
-        <summary>
+      <ReportResponsiveDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
           <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 대조 · 근거 분류 · 권유 표현 검사`}</span></span>
           <span className="verification-summary-action"><span className="verification-toggle-label">리포트 상세 정보</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
-        </summary>
+        </>}>
         <div className="verification-body">
       {skipped ? (
         <p>이 리포트는 검증기를 거치지 않았습니다. 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
@@ -286,7 +286,7 @@ export function ReportVerification({ report, children }: { report: Report; child
       )}
           {children}
         </div>
-      </details>
+      </ReportResponsiveDetails>
     </section>
   );
 }

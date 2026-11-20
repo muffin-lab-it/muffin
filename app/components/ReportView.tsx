@@ -1,3 +1,4 @@
+import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 /// <reference types="next/image-types/global" />
 import { supportedReportTopics } from "@/src/lib/report-topics";
 import type { ReactNode } from "react";
@@ -62,7 +63,7 @@ export function ReportView({
     <ReportEvidenceScope>
     <ReportDisplay className={`report ${styles.report}`}>
       {report.notice && report.mode !== "research" && <p className="report-notice">{report.notice}</p>}
-      {actions && <div className="report-actions">{actions}</div>}
+      <header className="report-brand-header"><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1></div>{actions && <div className="report-actions">{actions}</div>}</header>
       {question && (
         <section className={styles.questionCard} aria-label="나의 질문">
           <h2>나의 질문</h2>
@@ -76,7 +77,7 @@ export function ReportView({
           {!headline && <p className={styles.summaryBody}>{report.summary}</p>}
         </div>
         <div className={styles.heroArt} aria-hidden="true">
-          <Image src={resultMuffin} alt="" fill sizes="(max-width: 560px) 160px, 120px" />
+          <Image src={resultMuffin} alt="" fill sizes="(max-width: 560px) 160px, 200px" />
         </div>
       </section>
 
@@ -129,7 +130,7 @@ export function ReportView({
                 ))}
               </ul>
             )}
-            <p className="section-guide">지금의 수치가 나온 배경을 읽고, 설명 옆 배지로 근거의 종류를 확인해 보세요.</p>
+
           </section>
       {headline && <p className={styles.summaryBody}>{report.summary}</p>}
 
@@ -154,10 +155,10 @@ export function ReportView({
       <ReportSources report={report} />
 
       {nextTopics.length > 0 && <section className={styles.nextTopics}>
-        <details className="report-fold" open><summary>이어서 알아볼까요?</summary>
+        <ReportResponsiveDetails className="report-fold" summary={<h2>이어서 알아볼까요?</h2>}>
         <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action"><em>머핀랩과 더 알아보기</em><span aria-hidden="true">→</span></span></Link>)}</div>
         <p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
-        </details>
+        </ReportResponsiveDetails>
       </section>}
 
       {header && <div className="report-bottom-controls">{header}</div>}
