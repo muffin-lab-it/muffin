@@ -92,6 +92,7 @@ export const toolWritingRules = `[Tool별 규칙]
 - 국가별 정책금리는 정의가 다릅니다. 제공된 definition · note 를 따르고 정의가 입력에 없으면 같다고 단정하지 않습니다. stale 경고가 있으면 asOf 이후 변경이 반영되지 않았을 수 있음을 밝힙니다.
 
 [물가 · 고용: get_macro_indicators]
+- cpi_categories의 yoyPct · momPct는 품목군 가격 등락률(%), contributionPp · momContributionPp는 총지수 등락률에 대한 근사 기여도(%p)입니다. 기여도 순위를 가격 상승률 순위로 해석하지 않고, 전년 동월 대비와 전월 대비를 섞지 않습니다. 품목군 가격이 변한 배경은 별도 근거가 있을 때만 설명합니다.
 - latest.value 는 관측값, latest.previousMonth.change · latest.previousYear.change 는 각각 전월 · 전년 동월 대비 변화입니다. CPI 값은 지수이고 변화는 %, 실업률 값은 %이고 변화는 %p입니다.
 - source.asOf 의 월 첫날은 관측 월을 나타내는 표기이며 발표일·조회일이 아닙니다. latest.month 와 비교 월을 기준으로 설명하고 최근 3개월을 달력 분기로 바꾸지 않습니다.
 - 국가별 CPI의 기준연도와 계절조정 조건이 다르므로 지수 수준을 직접 비교하지 않습니다. 장부에 없는 과거 월별 값은 조회 기간만 보고 채우지 않습니다.
@@ -117,8 +118,11 @@ export const areaWriting: Record<Area, string> = {
   macro: "[관심 영역: 물가·경제지표] impact 는 질문에 월급·대출처럼 비교 대상이나 목적이 드러나면 그것과 직접 관련된 영향을 설명합니다. 원인이나 현황만 묻는 질문처럼 목적이 드러나지 않으면 생활 물가와 실질 소득 관점에서 씁니다.",
 };
 
+const easyCpiWritingRules = '[Easy 물가 원인 표현] [물가 원인 후보]의 숫자 설명 지시보다 이 규칙을 우선합니다. 또한 공통 규칙과 깊이별 규칙의 "수치와 원본 단위를 생략하지 않는다"에 대한 명시적 예외입니다. summary, numbers의 label·value·change, why의 claim·evidence, impact, caveats, dataGaps, nextTopics 모두에 적용합니다. contributionPp · momContributionPp · contributionSumPp · momContributionSumPp의 값은 순위와 방향 판단에만 쓰고 출력하지 않습니다. %p를 퍼센트포인트나 퍼센트 포인트로 풀어 써도 금지입니다. numbers에는 총지수나 해당 비교 기준의 가격 등락률(%)을 선택하고, why의 수치 근거가 필요하면 기여도 대신 품목군의 등락률(%)을 인용합니다. 리포트 전체에서 품목군의 "기여 0.75%p" 같은 기여도 숫자는 쓰지 않고, 해당 비교 기준에서 양의 기여도가 가장 큰 품목군이면 "전체 물가를 가장 많이 끌어올린 건 교통이에요"처럼 실제 장부의 품목명과 방향에 맞춰 풀어 씁니다. 음의 기여도는 물가를 끌어내리거나 상승을 상쇄한 것으로 설명하고 비교 기준과 refs는 유지합니다. "가장 많이 오른 품목"은 가격 상승률 순위를 확인한 경우에만 씁니다. 근사치라는 한계는 "전체 물가에 미친 영향은 대략적인 값이에요"처럼 쉽게 설명합니다.';
+
 export function writerInstructions(depth: Depth, area?: Area, mode: ReportMode = "research"): string {
-  return instructionsFor(writingRules, toolWritingRules, depthInstructions(depth, mode), area ? areaWriting[area] : "");
+  return instructionsFor(writingRules, toolWritingRules, depthInstructions(depth, mode), area ? areaWriting[area] : "",
+    depth === "easy" ? easyCpiWritingRules : "");
 }
 
 /** 투자 권유 표현이 있으면 tripwire. 패턴은 guard.ts 하나만 씁니다. */
@@ -199,13 +203,24 @@ export function revisionNote(failures: string[]): string {
  * 작성 Agent 를 한 번 실행합니다. 권유 표현 가드레일에 걸리면 SDK 가 throw 하지만 출력은 들고 있으니
  * 그대로 돌려주고, 검증(verify)이 권유 표현을 실패 항목으로 잡아 수정 요청으로 이어지게 합니다.
  */
+export function writerRunInput(agent: ReturnType<typeof createWriterAgent>, input: string): string {
+  // 원인 후보는 사용자 입력 끝에 붙으므로, Easy 예외도 마지막에 재확인해 수치 지시 충돌을 막습니다.
+  return typeof agent.instructions === "string" && agent.instructions.includes("[Easy 물가 원인 표현]") && input.includes("[물가 원인 후보]")
+    ? input + "\n\n" + easyCpiWritingRules
+    : input;
+}
+
+/**
+ * 작성 Agent 를 한 번 실행합니다. 권유 표현 가드레일에 걸리면 SDK 가 throw 하지만 출력은 들고 있으니
+ * 그대로 돌려주고, 검증(verify)이 권유 표현을 실패 항목으로 잡아 수정 요청으로 이어지게 합니다.
+ */
 export async function runWriter(
   agent: ReturnType<typeof createWriterAgent>,
   input: string,
   runCtx: RunContext<ResearchContext>,
 ): Promise<WriterOutput> {
   try {
-    const result = await run(agent, input, { context: runCtx });
+    const result = await run(agent, writerRunInput(agent, input), { context: runCtx });
     if (!result.finalOutput) throw new Error("작성 Agent 가 리포트를 생성하지 못했습니다.");
     return result.finalOutput;
   } catch (err) {
