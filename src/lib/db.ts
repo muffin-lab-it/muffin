@@ -35,7 +35,7 @@ type RunRow = {
   usage: { requests: number; inputTokens: number; outputTokens: number } | null;
   steps: ToolStep[] | null;
   rewrites: number | null;
-  quality: { numbers: number; why: number; whyUnsupported: number; dataGaps: number; sources: number } | null;
+  quality: { numbers: number; why: number; whyUnsupported: number; dataGaps: number; sources: number; edit?: { ok: boolean; facts: number; dropped: number; unverified: number; reversed: number; fallback: boolean } } | null;
   verification: Pick<Verification, "status" | "numbers" | "why" | "advice" | "revisions"> | null;
   intent: Intent | null;
   error: string | null;

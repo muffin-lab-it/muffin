@@ -223,6 +223,35 @@ describe("calc_metrics tool", () => {
     expect(keyOf("0.5%", ppGap)).toBeNull(); // %p 값을 % 로 적으면 걸린다
   });
 
+  it("같은 항목에 크기가 같은 값이 이미 있으면 다시 계산하지 않는다 (앞뒤를 바꿔 부호만 반대인 C 번호가 생기던 것, 11/20 eval)", async () => {
+    const ctx = ledger();
+    const etf: Evidence = {
+      id: "E4",
+      tool: "get_etf_kr_price",
+      label: "ETF 확인 · KRX",
+      values: { "period.returnPct": -7.060111809117631, "period.indexReturnPct": -6.894664524092309, "period.trackingDiffPp": -0.1654472850253219, "latest.close": 80630, "period.closeFrom": 86755 },
+      source: { name: "KRX", url: "https://data.krx.co.kr", asOf: "2026-11-19" },
+    };
+    const fxWithChange: Evidence = { ...fx, id: "E5", values: { ...fx.values, change: 27.3, changePct: 2 } };
+    ctx.addEvidence([etf, fxWithChange]);
+    const call = (op: string, ref: string, a: string, b: string) => invoke(ctx, { op, amount: null, per: null, a: { ref, key: a }, b: { ref, key: b }, label: "x" });
+
+    // 실제 사례: a = ETF 수익률, b = 지수 수익률 → +0.165447%p (장부의 추적 차이는 −0.165…)
+    expect(JSON.stringify(await call("pp_diff", "E4", "period.returnPct", "period.indexReturnPct"))).toContain("이미 장부에 있는 값입니다: E4.period.trackingDiffPp = -0.1654472850253219");
+    // 방향이 맞아도 이미 있는 값은 그 E 번호를 쓰게 한다. tool 이 반올림해 준 값(2%)과 계산값(1.999853%)도 같은 값으로 본다
+    expect(JSON.stringify(await call("pp_diff", "E4", "period.indexReturnPct", "period.returnPct"))).toContain("이미 장부에 있는 값입니다");
+    expect(JSON.stringify(await call("pct_change", "E5", "comparison.rate", "rate"))).toContain("이미 장부에 있는 값입니다: E5.changePct = 2");
+    expect(JSON.stringify(await call("diff", "E5", "comparison.rate", "rate"))).toContain("이미 장부에 있는 값입니다: E5.change = 27.3");
+    expect(ctx.findEvidence("C1")).toBeUndefined();
+
+    // 숫자가 같아도 단위가 다르면 다른 지표다 (Codex 리뷰): 종가 − NAV 5원 vs 일간 등락률 5%. 기간(days) 같은 메타 값과도 맞추지 않는다
+    ctx.addEvidence([{ ...etf, id: "E6", values: { "latest.close": 10005, "latest.nav": 10000, "latest.changePct": 5, "period.days": 5 } }]);
+    expect(await call("diff", "E6", "latest.nav", "latest.close")).toMatchObject({ data: { value: 5 } });
+    // 장부에 없는 계산은 그대로 된다 (30일 종가 변화), 다른 항목 사이의 계산은 보지 않는다
+    expect(await call("diff", "E4", "period.closeFrom", "latest.close")).toMatchObject({ id: "C2", data: { value: -6125 } });
+    expect(await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "한미 금리차" })).toMatchObject({ id: "C3", data: { value: 0.88 } });
+  });
+
   it("장부 없이 단독으로 부르면 throw (Agent 밖에서는 ResearchContext 를 만들어 넘긴다)", async () => {
     const input = { op: "diff" as const, amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "x" };
     await expect(execute(input)).rejects.toThrow("장부(ResearchContext)");

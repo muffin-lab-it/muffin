@@ -24,7 +24,7 @@ import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, outOfScopeOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
-import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode } from "./schema";
+import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
 import { applyVerification, summarizeVerification, verify } from "./verify";
 import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
 
@@ -72,11 +72,33 @@ export type ResearchResult = {
   plan: PlanOutput & { mode: ReportMode };
   /** ✂️ 정제 결과. 실패 · 건너뜀이면 null. 평가에서 뺀 항목을 볼 때 씁니다 (리포트에는 들어가지 않음) */
   facts: FactsOutput | null;
+  /** ✂️ 정제 요약 (실행 로그용, 리포트에는 들어가지 않음). 정제가 얼마나 실패하고 빼는지 /admin · SQL 로 세려고 남깁니다 */
+  edit?: EditSummary;
   /** 조사 · 작성에 쓴 모델과 토큰 (네 단계 합계). 로그·비용 추적용 */
   model?: string;
   /** 토큰 합계와 모델별(byModel). 모델별이 있어야 단가를 적용해 리포트 한 장의 비용을 냅니다 (src/lib/pricing.ts) */
   usage?: UsageSummary;
 };
+
+/**
+ * 정제 한 번의 결과를 숫자로. ok 가 false 면 정제가 출력을 내지 못해(실패 · 예외) 작성이 장부 전체를 본 것입니다.
+ * dropped 는 정제가 뺀 항목 수(방향이 반대라 코드가 거른 계산 포함), reversed 는 그중 방향이 반대인 계산 수,
+ * fallback 은 사실이 0개라 작성이 장부 전체를 본 경우입니다 (정제는 성공).
+ */
+export type EditSummary = { ok: boolean; facts: number; dropped: number; unverified: number; reversed: number; fallback: boolean };
+
+export function summarizeEdit(facts: FactsOutput | null, reversed: number): EditSummary {
+  if (!facts) return { ok: false, facts: 0, dropped: 0, unverified: 0, reversed, fallback: true };
+  return { ok: true, facts: facts.facts.length, dropped: facts.dropped.length, unverified: facts.unverified.length, reversed, fallback: facts.facts.length === 0 };
+}
+
+/**
+ * 다시 쓰기 때 작성에게 보여 주는 이전 초안. 초안 없이 실패 목록만 주면 처음부터 새로 써서, 통과했던 항목이 두 번째 초안에서 새로 틀리고
+ * 그대로 빠질 수 있습니다. 초안을 주고 실패한 항목만 고치게 합니다. 수정 요청 문구(revisionNote)는 write.ts 가 관리합니다.
+ */
+export function draftNote(output: WriterOutput): string {
+  return `[이전 초안] 방금 쓴 리포트입니다. 아래 [수정 요청] 에 적힌 항목만 고치고, 나머지 항목은 문장 · 숫자 · ref 를 그대로 둡니다.\n${JSON.stringify(output)}`;
+}
 
 /**
  * 백엔드 팀은 이 함수만 호출합니다. 입력 모양은 고정이고, 진행 이벤트는 onEvent 로 받습니다.
@@ -194,7 +216,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
   if (!result.ok && !revisionSkipped) {
     revisions = 1;
     const reviseCtx = new RunContext(ctx);
-    output = await runWriter(writer, `${input}\n\n${revisionNote(result.failures)}`, reviseCtx);
+    output = await runWriter(writer, `${input}\n\n${draftNote(output)}\n\n${revisionNote(result.failures)}`, reviseCtx);
     addUsage(reviseCtx, "write");
     result = verify(output, ctx.evidence);
   }
@@ -220,6 +242,7 @@ async function runStages({ question, depth, area }: ResearchInput, { onEvent, de
     rewrites: revisions,
     plan,
     facts,
+    edit: summarizeEdit(facts, reversed.size),
     model: modelFor(depth),
     usage,
   };
