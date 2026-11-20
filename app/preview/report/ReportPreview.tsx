@@ -23,8 +23,8 @@ export function ReportPreview({canvas=false, initialSample}: {canvas?:boolean; i
       </div>}
     </aside>}
     <div className={styles.stage} data-width={width}>
-      <ReportView actions={<ReportActions key={example} />} report={report} question={sample.question} area={sample.area as Area} createdAt="2026-11-19T01:00:00Z" />
-      {width === "columns" && <ReportView actions={<ReportActions key={example} />} report={report} question={sample.question} area={sample.area as Area} createdAt="2026-11-19T01:00:00Z" />}
+      <ReportView actions={<ReportActions key={example} question={sample.question} createdAt="2026-11-19T01:00:00Z" />} report={report} question={sample.question} area={sample.area as Area} createdAt="2026-11-19T01:00:00Z" />
+      {width === "columns" && <ReportView actions={<ReportActions key={example} question={sample.question} createdAt="2026-11-19T01:00:00Z" />} report={report} question={sample.question} area={sample.area as Area} createdAt="2026-11-19T01:00:00Z" />}
     </div>
   </div>;
 }

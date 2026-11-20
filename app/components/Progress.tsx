@@ -14,6 +14,7 @@ const stageImages = [stage1, stage2, stage3, stage4, stage5];
 import styles from "./Progress.module.css";
 import type { ReactNode } from "react";
 import type { Depth } from "@/src/agent/schema";
+import { splitAreaPrefix } from "./home-form";
 
 const skippedStages: readonly Stage[] = ["research", "edit", "write"];
 
@@ -79,6 +80,7 @@ const depthCopy: Record<Depth, string> = {
 
 export function Progress({ question, depth, titleIcon = "🧁", events, error: connectionError, onRetry, onEditQuestion, onReturnHome }: ProgressProps) {
   const state = progressFromEvents(events);
+  const shown = splitAreaPrefix(question); // 여러 영역을 고른 질문의 "관심 영역: …" 머리말은 떼어 따로 (11/20 외부 G1)
   const error = connectionError ?? state.error;
   const current = stages.find(stage => state.status[stage] === "active");
   const scope = state.plan?.mode === "out_of_scope";
@@ -126,7 +128,8 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
       <Image className={styles.mascot} src={stageImages[imageIndex]} width={240} height={240} sizes="240px" alt="" aria-hidden="true" />
       <header className={styles.questionBox} data-section="question">
         <p className={styles.questionLabel}>나의 한입 질문</p>
-        <blockquote className={styles.question}>“{question}”</blockquote>
+        <blockquote className={styles.question}>“{shown.question}”</blockquote>
+        {shown.areas.length > 0 && <p className={styles.questionLabel}>관심 영역 · {shown.areas.join(" · ")}</p>}
       </header>
       <section className={styles.surface} aria-label="현재 진행 상태" data-section="progress">
         <div aria-live="polite" aria-atomic="true">

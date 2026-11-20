@@ -5,6 +5,7 @@ import { evidenceCategory } from "./reportCategory";
 import { reportChange } from "./reportChange";
 import type { Report } from "@/src/agent/schema";
 import { EvidenceRecord, SourceLink } from "./ReportEvidence";
+import { formatDateKo } from "./format";
 import { useEvidenceSelection, useEvidenceTarget } from "./ReportEvidenceScope";
 
 export function ReportSources({ report }: { report: Report }) {
@@ -24,7 +25,7 @@ export function ReportSources({ report }: { report: Report }) {
     {groups.length === 0 && <p className="report-muted">연결된 자료가 없습니다.</p>}
     {groups.map(group => <div className="source-panel" key={group} data-source-group={group} hidden={active !== group}>
       <div className="source-panel-heading"><h3>{group}</h3></div>
-      {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {source.asOf || "미제공"}</li>)}</ul> : <div className="source-data-grid">
+      {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {formatDateKo(source.asOf) || "미제공"}</li>)}</ul> : <div className="source-data-grid">
         {report.evidence.filter(entry => evidenceCategory(entry) === group).map(entry => <div key={entry.id} className="source-data-item">
           {report.numbers.filter(number => number.ref === entry.id).map((number, index) => <div className="source-number" key={index}><span className="source-number-label">{number.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{number.value}</strong>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</div>)}
           <EvidenceRecord entry={entry} evidence={report.evidence} displayedValue={report.numbers.find(number => number.ref === entry.id)?.value} displayedLabel={report.numbers.find(number => number.ref === entry.id)?.label} hideHeading={report.numbers.some(number => number.ref === entry.id)} />

@@ -599,3 +599,37 @@
 .report :global(.report-meta-line .report-created-at) { margin:0; font-size:12px; color:#8a8194; }
 .report :global(.reference-toggle) > summary { pointer-events:none; list-style:none; }
 .report :global(.reference-toggle) > summary::-webkit-details-marker { display:none; }
+
+/* 11/21 QA 1묶음: 요약 카드 높이는 글이 정하고 그림은 오른쪽에 겹침 (QA 5), 환율 기준 한 줄, 기사 건수, 이야기 보조 칸, 링크 한 줄, 글자 한 단계 */
+.report section.hero { position:relative; display:block; padding:22px 196px 22px 28px; min-height:0; }
+.report .heroArt { position:absolute; right:26px; bottom:-8px; width:150px; height:136px; }
+.report :global(.hero-gaps) { margin:12px 0 0; font-size:14px; }
+.report :global(.hero-gaps) a { color:#6b4a94; font-size:14px; padding:0; }
+.report :global(.metric-basis) { display:block; margin-top:8px; font-size:13px; line-height:1.6; color:#7a7186; }
+.report :global(.news-count) { margin:0; font-size:17px; font-weight:600; color:#3d344b; }
+.toolbarRow { display:flex; justify-content:flex-end; margin:-8px 0 12px; }
+.report .story > section.why { background:#faf9fc; border-top:0; border-radius:14px; padding:22px 24px; }
+.report :global(.why-list) { margin:0; padding:0; list-style:none; counter-reset:why; display:grid; gap:18px; }
+.report :global(.why-list) > li { position:relative; margin:0; padding-left:34px; counter-increment:why; }
+.report :global(.why-list) > li::before { content:counter(why); position:absolute; left:0; top:2px; width:24px; height:24px; border-radius:50%; background:#ece4f6; color:#6b4a94; font-size:13px; font-weight:700; display:grid; place-items:center; }
+.report :global(.why-note) { margin:0; font-size:14px; color:#8a8094; }
+.report :global(.reason-originals) { display:flex; flex-wrap:wrap; align-items:center; gap:4px 16px; margin-top:8px; }
+.report :global(.reason-originals .evidence-link), .report :global(.reason-originals .reason-article) { display:inline-flex; border-top:0; padding:4px 0; font-size:14px; font-weight:500; color:#1d4ed8; text-decoration:underline; text-underline-offset:3px; }
+.report :global(.reason-news) { font-size:14px; }
+.report :global(.reason-news) > summary { cursor:pointer; color:#1d4ed8; text-decoration:underline; text-underline-offset:3px; font-weight:500; }
+.report :global(.reason-news) ul { margin:6px 0 0; padding-left:18px; }
+.report :global(.evidence-meta) > span + a::before { content:"·"; margin-right:8px; color:#8a8391; }
+.report :global(.verification-toggle:not(.reference-toggle)) > summary { cursor:pointer; }
+.report :global(.report-tools ul) { padding-left:20px; }
+.report :global(.report-area-chips) { gap:6px; }
+.report { letter-spacing:-.02em; }
+.report :global(.section-guide), .report :global(.report-muted), .report :global(.evidence-note) { font-size:15px; }
+.report :global(.evidence-meta), .report :global(.evidence-values), .report :global(.basis-explanation), .report :global(.verification-summary-copy > span) { font-size:15px; }
+.report :global(.evidence-values) > div, .report :global(.evidence-meta) a, .report :global(.reference-toggle .verification-body li) { font-size:15px; }
+.report .metrics .metricMeta, .report .metrics .metricDate, .report .metrics :global(.metric-source), .report .metrics .metricMeta :global(.evidence-link), .report .metrics :global(.metric-period) { font-size:14px; }
+.report :global(.report-disclosure) { font-size:13px; }
+@container report (max-width:560px) {
+  .report section.hero { padding:18px 86px 18px 18px; }
+  .report .heroArt { right:14px; top:14px; bottom:auto; width:64px; height:58px; margin:0; }
+  .report .story > section.why { padding:18px; }
+}

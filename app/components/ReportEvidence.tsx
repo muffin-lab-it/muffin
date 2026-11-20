@@ -1,12 +1,13 @@
 "use client";
 
-import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 import { useSyncExternalStore, type ReactNode } from "react";
+import { formatDateKo, sourceLinkLabel } from "./format";
+import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
 
 /** 장부나 저장 기록에서 온 URL도 웹 주소인 경우에만 링크로 표시합니다. */
-export function SourceLink({ url, name }: { url: string; name: string }) {
+export function SourceLink({ url, name, className }: { url: string; name: string; className?: string }) {
   let safe = false;
   try {
     const parsed = new URL(url);
@@ -15,9 +16,9 @@ export function SourceLink({ url, name }: { url: string; name: string }) {
     // 주소가 없거나 잘못되었어도 출처명과 기준일은 보존합니다.
   }
   return safe ? (
-    <a href={url} target="_blank" rel="noopener noreferrer">{name}</a>
+    <a className={className} href={url} target="_blank" rel="noopener noreferrer">{name}</a>
   ) : (
-    <span>{name}</span>
+    <span className={className}>{name}</span>
   );
 }
 
@@ -150,13 +151,11 @@ function NewsEvidence({ entry }: { entry: Evidence }) {
     <div className="evidence-meta">
       <span aria-hidden="true">📰</span><span>{publisher}</span>
       <SourceLink url={url} name={relay ? "Google News 중계 링크" : "기사 보기"} />
-      <span>{date.dateTime ? <time dateTime={date.dateTime}>{date.label}</time> : date.label}{date.relative && ` · ${date.relative}`}</span>
+      <span>{date.dateTime ? <time dateTime={date.dateTime}>{formatDateKo(date.label)}</time> : date.label}{date.relative && ` · ${date.relative}`}</span>
       <span>{status}</span>
     </div>
-    <p className="report-muted">{body === "unavailable" || body === "not_requested"
-      ? "보도 제목에서 확인된 정보입니다. 본문 내용이나 원인 관계를 확인한 근거는 아닙니다."
-      : body === "available" ? "본문을 확보한 기사입니다. 이 원본 정보에는 본문 전문이 포함되어 있지 않습니다."
-        : "저장된 정보로는 본문 확보 여부를 확인할 수 없습니다."} 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>
+    {/* 기사마다 같은 안내 문단이 반복되던 것을 빼고(11/20 QA 13), 제목만 확인한 기사에만 한 줄 둡니다 */}
+    {(body === "unavailable" || body === "not_requested") && <p className="report-muted">제목만 확인한 기사라 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>}
   </>;
 }
 
@@ -177,8 +176,8 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
       {(!hideHeading || displayedLabel !== entry.label) && <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>}
       <div className="evidence-meta">
         <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>
-        {entry.lineage ? <span>계산에 사용한 자료</span> : <SourceLink url={entry.source.pageUrl ?? entry.source.url} name={entry.source.name} />}
-        <span>{entry.source.asOf ? `기준일 ${entry.source.asOf}` : "자료 날짜 미제공"}</span>
+        {entry.lineage ? <span>계산에 사용한 자료</span> : <><span>{entry.source.name}</span><SourceLink url={entry.source.pageUrl ?? entry.source.url} name={sourceLinkLabel(entry.source.pageUrl ?? entry.source.url)} /></>}
+        <span>{entry.source.asOf ? `기준일 ${formatDateKo(entry.source.asOf)}` : "자료 날짜 미제공"}</span>
         {entry.lineage ? <span className="evidence-inputs">{entry.lineage.inputs.length > 0 ? entry.lineage.inputs.map((id, index) => (
           <span key={`${id}-${index}`}>
             {index > 0 && ", "}
@@ -216,17 +215,23 @@ function LinkedCheckDetail({ number, evidence }: { number: Report["numbers"][num
 const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" } as const;
 const policyLabels = { exact: "정확히 일치", rounded: "표기 반올림과 일치", scaled: "단위를 환산해 일치", tolerance: "허용 오차 0.1% 안에서 일치" } as const;
 
+/** 장부 키(comparison.rate)를 화면 라벨("비교 값")로. 모르는 키는 그대로 둡니다 (11/20 서영 3: 영문 키가 그대로 보임) */
+function keyLabel(key: string): string {
+  const plain = key.replace(/#text$/, "");
+  return valueLabels[plain] ?? plain;
+}
+
 /** 숫자 카드 하나를 검증이 어떻게 확인했는지 한 줄 */
 export function numberCheckDetail(n: Report["numbers"][number], evidence: Evidence[]): string {
   const entry = evidence.find((e) => e.id === n.ref);
   const ref = n.ref ?? "근거 번호 없음";
-  if (n.check === "verified") return n.match ? `${ref} 의 ${n.match.key} 값과 ${policyLabels[n.match.policy]}` : `${ref} 의 장부 값과 일치`;
+  if (n.check === "verified") return n.match ? `${ref} 의 "${keyLabel(n.match.key)}" 항목과 ${policyLabels[n.match.policy]}` : `${ref} 의 장부 값과 일치`;
   if (n.check === "derived") {
     const lineage = entry?.lineage;
-    return lineage ? `${ref} 계산값 (${lineage.op} ← ${lineage.inputs.join(", ")})${n.match ? ` · ${n.match.key} 와 ${policyLabels[n.match.policy]}` : ""}` : `${ref} 계산값`;
+    return lineage ? `${ref} 계산값 (${operationLabels[lineage.op] ?? lineage.op} ← ${lineage.inputs.join(", ")})${n.match ? ` · "${keyLabel(n.match.key)}" 항목과 ${policyLabels[n.match.policy]}` : ""}` : `${ref} 계산값`;
   }
   if (n.check === "reported") {
-    const where = n.match ? `${ref} 의 ${n.match.key.replace(/#text$/, "")} 와 ${policyLabels[n.match.policy]}` : `${ref} 기사 제목에 나온 숫자`;
+    const where = n.match ? `${ref} 의 "${keyLabel(n.match.key)}" 와 ${policyLabels[n.match.policy]}` : `${ref} 기사 제목에 나온 숫자`;
     return `${where} (보도일 뿐 공식 데이터로 확인한 것이 아님)`;
   }
   return "검증기를 거치지 않았거나 대조하지 못함";
@@ -269,9 +274,10 @@ export function ReportVerification({ report, children }: { report: Report; child
   const labels = { skipped: "검사 미실행", partial: "일부 확인 필요", pass: "검사 통과" };
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
-      <ReportResponsiveDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
-          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 대조 · 근거 분류 · 권유 표현 검사`}</span></span>
-          <span className="verification-summary-action"><span className="verification-toggle-label">리포트 상세 정보</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
+      {/* 기본은 접힌 한 줄. 펼쳐야 내역이 보입니다 (11/20 서영 2-2 · 3, 외부 E1, 하니 2). 인쇄 때는 PrintOpenDetails 가 잠시 펼칩니다 */}
+      <PrintOpenDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
+          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 ${verification.numbers.total}개 중 값 대조 ${verification.numbers.verified}개 · 계산값 ${verification.numbers.derived}개 · 권유 표현 ${verification.advice}건`}</span></span>
+          <span className="verification-summary-action"><span className="verification-toggle-label">자세히 보기</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
         </>}>
         <div className="verification-body">
       {skipped ? (
@@ -286,7 +292,7 @@ export function ReportVerification({ report, children }: { report: Report; child
       )}
           {children}
         </div>
-      </ReportResponsiveDetails>
+      </PrintOpenDetails>
     </section>
   );
 }
