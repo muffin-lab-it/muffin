@@ -244,9 +244,12 @@ describe("calc_metrics tool", () => {
     expect(JSON.stringify(await call("diff", "E5", "comparison.rate", "rate"))).toContain("이미 장부에 있는 값입니다: E5.change = 27.3");
     expect(ctx.findEvidence("C1")).toBeUndefined();
 
+    // 숫자가 같아도 단위가 다르면 다른 지표다 (Codex 리뷰): 종가 − NAV 5원 vs 일간 등락률 5%. 기간(days) 같은 메타 값과도 맞추지 않는다
+    ctx.addEvidence([{ ...etf, id: "E6", values: { "latest.close": 10005, "latest.nav": 10000, "latest.changePct": 5, "period.days": 5 } }]);
+    expect(await call("diff", "E6", "latest.nav", "latest.close")).toMatchObject({ data: { value: 5 } });
     // 장부에 없는 계산은 그대로 된다 (30일 종가 변화), 다른 항목 사이의 계산은 보지 않는다
-    expect(await call("diff", "E4", "period.closeFrom", "latest.close")).toMatchObject({ id: "C1", data: { value: -6125 } });
-    expect(await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "한미 금리차" })).toMatchObject({ id: "C2", data: { value: 0.88 } });
+    expect(await call("diff", "E4", "period.closeFrom", "latest.close")).toMatchObject({ id: "C2", data: { value: -6125 } });
+    expect(await invoke(ctx, { op: "pp_diff", amount: null, per: null, a: { ref: "E2", key: "rate" }, b: { ref: "E3", key: "rate" }, label: "한미 금리차" })).toMatchObject({ id: "C3", data: { value: 0.88 } });
   });
 
   it("장부 없이 단독으로 부르면 throw (Agent 밖에서는 ResearchContext 를 만들어 넘긴다)", async () => {
