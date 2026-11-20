@@ -9,6 +9,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false) }));
 vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNewsNote: vi.fn(() => "") }));
 vi.mock("./relation", () => ({ ensureRateInflation: vi.fn(async () => false), relationNote: vi.fn(() => ""), relationRows: vi.fn(() => null), withRelationNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./etf-basket", () => ({ ensureEtfBasket: vi.fn(async () => false), basketNote: vi.fn(() => ""), basketRows: vi.fn(() => []), withBasketNumbers: vi.fn((o: unknown) => o) }));
 vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), rateYearNote: vi.fn(() => ""), yearRates: vi.fn(() => []) }));
 vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
 

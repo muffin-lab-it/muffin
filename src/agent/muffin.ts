@@ -19,6 +19,7 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
+import { basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, withIndexNumbers } from "./index-quote";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, macroNewsNote } from "./news-topics";
@@ -195,6 +196,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 물가와 금리의 관계를 묻는 질문이면 1년 전 물가 상승률 · 기준금리를 채워 두 지표를 나란히 볼 수 있게 합니다 (src/agent/relation.ts)
   await ensureRateInflation(ctx, question, muffinTools);
   await ensureRateYear(ctx, muffinTools);
+  // 종목을 정하지 않은 ETF 질문("etf 요즘 뭐가 좋아?")이면 자산군별 대표 ETF 의 수익률을 채웁니다 (src/agent/etf-basket.ts)
+  const basket = await ensureEtfBasket(ctx, question, muffinTools);
   // 주제 없는 뉴스 질문("오늘 경제 뉴스")이면 경제 흐름 주제어로 찾은 기사를 장부에 보탭니다 (src/agent/news-topics.ts)
   const macroNews = await addMacroNews(ctx, question);
   emit({ type: "stage", stage: "research", status: "done" });
@@ -229,6 +232,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   if (index) for (const id of indexRefs(ctx.evidence, index)) rescued.add(id);
   for (const e of yearRates(ctx.evidence)) rescued.add(e.id);
   for (const e of macroNews) rescued.add(e.id);
+  if (basket) for (const r of basketRows(ctx.evidence)) rescued.add(r.e.id);
   const relation = relationRows(ctx.evidence);
   if (relation) for (const e of Object.values(relation)) rescued.add(e.id);
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
@@ -236,13 +240,18 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
   const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
-  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : ""]
+  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
   // 지수 질문이면 지수 종가 · 기간 수익률은 작성이 빠뜨려도 코드가 "오늘의 숫자" 에 넣습니다 (실측: 3번 중 1번 빠뜨림). 검증 전이라 장부와 대조됩니다
   // 기사 항목을 가리키는 숫자 카드는 뺍니다 (검산되지 않은 기사 숫자가 "확인한 숫자" 자리에 오르지 않게, src/agent/news-numbers.ts)
-  const indexed = (o: WriterOutput) => dropNewsCards(relation ? withRelationNumbers(index ? withIndexNumbers(o, ctx.evidence, index) : o, ctx.evidence) : index ? withIndexNumbers(o, ctx.evidence, index) : o, ctx.evidence);
+  const indexed = (o: WriterOutput) => {
+    let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
+    if (relation) out = withRelationNumbers(out, ctx.evidence);
+    if (basket) out = withBasketNumbers(out, ctx.evidence);
+    return dropNewsCards(out, ctx.evidence);
+  };
   let output = indexed(await runWriter(writer, input, writeCtx));
   addUsage(writeCtx, "write");
   emit({ type: "stage", stage: "write", status: "done" });
