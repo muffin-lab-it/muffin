@@ -106,7 +106,7 @@ export function cpiCauseNote(evidence: Evidence[], shown: Set<string> | null, qu
       "- 이 질문은 등락률이 왜 바뀌었는지(둔화 · 가속)를 묻습니다. 위 기여도는 지금 등락률을 구성하는 품목군이지, 등락률 변화의 원인이 아닙니다 (기여도가 가장 커도 그 기여가 줄었을 수 있음).",
       `- why 에는 위 품목군을 "지금 ${move}을 구성하는 요인" 으로만 쓰고(basis data, refs), 둔화 · 가속의 원인이라고 쓰지 않습니다. 둔화 · 가속 원인은 품목군별 기여도 변화 자료가 없어 확인할 수 없다고 dataGaps 에 적습니다.`,
       "- 뉴스 장부가 둔화 · 가속 배경을 말할 때만 news 근거로 덧붙이고, 제목에 없는 원인은 추정하지 않습니다.",
-      "- caveats 에 \"품목군 기여도는 가중치 × 등락률의 근사치로 통계청 공식 기여도와 소수점 차이가 날 수 있음\" 을 한 줄 적습니다.",
+      "- caveats 에 \"품목군 기여도는 가중치 × 등락률의 근사치로 통계청 공식 기여도와 일치하지 않을 수 있음\" 을 한 줄 적습니다.",
     );
     const unseenRate = shown ? [total, ...categories].filter((e): e is Evidence => !!e && !shown.has(e.id)) : [];
     if (unseenRate.length) lines.push("", "[덧붙인 장부 항목] 정제가 사실 목록에 넣지 않은 품목군 항목입니다. 원인 후보의 숫자는 이 값을 씁니다.", ...unseenRate.map(ledgerLine));
@@ -118,7 +118,7 @@ export function cpiCauseNote(evidence: Evidence[], shown: Set<string> | null, qu
     `- 두 기준(전년 같은 달 · 전월)을 섞지 않고, 문장에 어느 기준인지 적습니다. 장부의 다른 기준 값(${basis === "yoy" ? "momPct · momContributionPp" : "yoyPct · contributionPp"})은 이 질문의 원인으로 쓰지 않습니다.`,
     `- 총지수와 반대로 움직인 품목군은 ${move} 원인이 아니라 "상쇄한 요인" 으로만 적습니다. 등락률이 커도 기여도가 작은 품목군은 원인으로 올리지 않습니다 (가중치가 작음).`,
     "- 품목군 가격이 왜 올랐는지(기후 · 환율 · 정책 등)는 이 자료로 알 수 없습니다. 뉴스 장부가 같은 품목을 말할 때만 news 근거로 덧붙이고, 제목에 없는 원인은 추정하지 않습니다.",
-    "- caveats 에 \"품목군 기여도는 가중치 × 등락률의 근사치로 통계청 공식 기여도와 소수점 차이가 날 수 있음\" 을 한 줄 적습니다.",
+    "- caveats 에 \"품목군 기여도는 가중치 × 등락률의 근사치로 통계청 공식 기여도와 일치하지 않을 수 있음\" 을 한 줄 적습니다.",
     "- 품목군 자료가 있으면 why 를 비우지 않습니다.",
   );
   const unseen = shown ? [total, ...categories].filter((e): e is Evidence => !!e && !shown.has(e.id)) : [];

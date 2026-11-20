@@ -1,13 +1,14 @@
+import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 /// <reference types="next/image-types/global" />
+import { supportedReportTopics } from "@/src/lib/report-topics";
 import type { ReactNode } from "react";
-import { evidenceCategory } from "./reportCategory";
 import { reportChange } from "./reportChange";
 import Image from "next/image";
 import resultMuffin from "../result-muffin.png";
 import { labelFor } from "@/src/agent/events";
 import { whyEmptyNote } from "@/src/agent/report";
 import { formatAge } from "@/src/lib/age";
-import { ReportDisplay, ReportModeToggle } from "./ReportDisplay";
+import { ReportDisplay } from "./ReportDisplay";
 import { ReportHelp } from "./ReportHelp";
 import { ReportSources } from "./ReportSources";
 import Link from "next/link";
@@ -15,7 +16,7 @@ import styles from "./ReportView.module.css";
 import type { ToolStep } from "@/src/agent/context";
 import type { Area, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
-import { ReportEvidenceScope, ReasonEvidenceLink, ReportSectionTarget } from "./ReportEvidenceScope";
+import { ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification } from "./ReportEvidence";
 
 export const areaLabels: Record<Area, string> = {
@@ -33,6 +34,8 @@ export const areaLabels: Record<Area, string> = {
 type ReportViewProps = {
   report: Report;
   header?: ReactNode;
+  actions?: ReactNode;
+  createdAt?: string;
   impactTitles?: string[];
   topicReasons?: string[];
   headline?: string;
@@ -48,19 +51,19 @@ export function ReportView({
   question,
   headline = report.headline ?? undefined,
   impactTitles = report.impactTitles ?? [],
-  topicReasons = report.topicReasons ?? [],
   header,
+  actions,
+  createdAt,
 }: ReportViewProps) {
+  const nextTopics = supportedReportTopics(report.nextTopics, area, question);
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
-  const category = (ref: string | null) => { const entry = report.evidence.find(e => e.id === ref); return entry ? evidenceCategory(entry) : "자료"; };
-  const groups = [...new Set(report.numbers.map(n => category(n.ref)))];
   return (
+    <div className={styles.reportContainer}>
     <ReportEvidenceScope>
     <ReportDisplay className={`report ${styles.report}`}>
-      <div className="report-top-controls"><ReportModeToggle /></div>
-      {header ?? <div className={styles.reportToolbar}><ReportHelp /></div>}
       {report.notice && report.mode !== "research" && <p className="report-notice">{report.notice}</p>}
+      <header className="report-brand-header"><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1></div>{actions && <div className="report-actions">{actions}</div>}</header>
       {question && (
         <section className={styles.questionCard} aria-label="나의 질문">
           <h2>나의 질문</h2>
@@ -71,34 +74,32 @@ export function ReportView({
         <div className={styles.heroCopy}>
           <h2>갓 구운 한입 요약</h2>
           {headline && <h3 className={styles.headlinePlaceholder}>{headline}</h3>}
-          <p className={styles.summaryBody}>{report.summary}</p>
+          {!headline && <p className={styles.summaryBody}>{report.summary}</p>}
         </div>
         <div className={styles.heroArt} aria-hidden="true">
-          <Image src={resultMuffin} alt="" fill sizes="(max-width: 600px) 120px, 176px" />
+          <Image src={resultMuffin} alt="" fill sizes="(max-width: 560px) 160px, 200px" />
         </div>
       </section>
 
-      <ReportVerification report={report}>
-        {report.notice && report.mode === "research" && <section className="verification-context"><h2>움직임 비교 · 참고 정보</h2><p className="report-notice">{report.notice}</p></section>}
-
-      </ReportVerification>
-
       <section className={styles.metrics}>
-        <div className="metrics-heading"><h2>오늘의 숫자</h2>{groups.map(group => <span className="category-chip mini" data-category={group} key={group}>{group}</span>)}<div className="numbers-help"><ReportHelp numbers /></div></div><div className="metrics-guide"><p className="section-guide">질문과 관련된 수치를 변화량·기준일과 함께 비교해 보세요.</p></div>
-        <div className="numbers">
+        <div className="metrics-heading"><h2>오늘의 숫자</h2></div>
+        <div className="numbers" data-count={report.numbers.length}>
           {report.numbers.map((n, i) => {
             const change = n.change && !/^이번\s*주$/.test(n.change.trim())
               ? reportChange(n.change, n.changeDetail)
               : null;
+            const source = report.evidence.find(entry => entry.id === n.ref)?.source;
             const check = report.verification.status === "skipped" ? "unverified" : n.check;
             return (
-              <div className="num" key={i}>
-                <div className="metric-label"><span className="category-chip" data-category={category(n.ref)}>{category(n.ref)}</span><small>{n.label}</small></div>
+              <div className="num" data-kind={check} key={i}>
+                <div className="metric-label"><small>{n.label}</small></div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`}><b>{n.value}</b></EvidenceReference>
-                {change && <i className={change.direction}>{change.text}</i>}
+                {change && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
                 {n.changeDetail?.from && n.changeDetail.to && <small className="metric-period">비교 기간 {n.changeDetail.from} → {n.changeDetail.to}</small>}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${n.asOf}` : "자료 날짜 미제공"}</span>
+                  {source && <span className="metric-source">{source.name}</span>}
+                  {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`}><span>근거 보기</span></EvidenceReference>}
                   <span className={`report-badge check-${check}`}>{{ verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" }[check]}</span>
                 </div>
               </div>
@@ -107,12 +108,15 @@ export function ReportView({
         </div>
 
         {report.numbers.length === 0 && <p className="report-muted">표시할 숫자를 확보하지 못했습니다.</p>}
+        <p className="section-guide">질문과 관련된 수치를 변화량·기준일과 함께 비교해 보세요.</p>
+        <div className={styles.reportToolbar}><ReportHelp /></div>
       </section>
+
 
       <div className={styles.columns}>
         <div className={styles.story}>
           <section>
-            <h2>숫자 너머의 이야기</h2><p className="section-guide">지금의 수치가 나온 배경을 읽고, 설명 옆 배지로 근거의 종류를 확인해 보세요.</p>
+            <h2>숫자 너머의 이야기</h2>
             {report.why.length === 0 ? (
               <p className="muted">{whyEmptyNote(report)}</p>
             ) : (
@@ -120,25 +124,29 @@ export function ReportView({
                 {report.why.map((w, i) => (
                   <li key={i}>
                     <span className="basis-explanation"><strong className={`report-badge basis-${w.basis}`}>{tags[w.basis]}</strong> {basisLabels[w.basis]}</span>{" "}
-                    {w.refs.some(ref => report.evidence.some(entry => entry.id === ref)) ? <ReasonEvidenceLink index={i}>{w.claim}</ReasonEvidenceLink> : <span>{w.claim}</span>}
+                    <ReasonEvidenceTarget index={i}><h3>{w.claim}</h3>{w.evidence && w.evidence !== w.claim && <p>{w.evidence}</p>}</ReasonEvidenceTarget>
                     <div className="reason-originals">{w.refs.map((ref, index) => <EvidenceReference key={`${ref}-${index}`} evidenceId={ref} evidence={report.evidence} label={`원본 보기 · ${ref}`}><span>▸ 원본 보기 · {ref}</span></EvidenceReference>)}</div>
                   </li>
                 ))}
               </ul>
             )}
+
           </section>
+      {headline && <p className={styles.summaryBody}>{report.summary}</p>}
 
           {report.impact.length > 0 && <section>
-            <h2>내 생활에 미치는 영향</h2><p className="section-guide">내 소비와 자산에 해당하는 카드를 골라, 어떤 영향을 받을 수 있는지 살펴보세요.</p>
+            <h2>내 생활에 미치는 영향</h2>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
+            <p className="section-guide">내 소비와 자산에 해당하는 카드를 골라, 어떤 영향을 받을 수 있는지 살펴보세요.</p>
           </section>}
 
           {report.charts && report.charts.length > 0 && (
             <section>
-              <h2>숫자의 변화 추이</h2><p className="section-guide">날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요.</p>
+              <h2>숫자의 변화 추이</h2>
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
               ))}
+              <p className="section-guide">날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요.</p>
             </section>
           )}
         </div>
@@ -146,10 +154,18 @@ export function ReportView({
 
       <ReportSources report={report} />
 
-      {report.nextTopics.length > 0 && <section className={styles.nextTopics}>
-        <h2>이어서 알아볼까요?</h2><p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
-        <div className={styles.topicGrid}>{report.nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic)}${area ? `&area=${area}` : ""}`} className={styles.topicLink}><span><strong>{topic}</strong>{topicReasons[i] && <small>{topicReasons[i]}</small>}</span><span className="topic-action"><em>머핀랩과 더 알아보기</em><span aria-hidden="true">→</span></span></Link>)}</div>
+      {nextTopics.length > 0 && <section className={styles.nextTopics}>
+        <ReportResponsiveDetails className="report-fold" summary={<h2>이어서 알아볼까요?</h2>}>
+        <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action"><em>머핀랩과 더 알아보기</em><span aria-hidden="true">→</span></span></Link>)}</div>
+        <p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
+        </ReportResponsiveDetails>
       </section>}
+
+      {header && <div className="report-bottom-controls">{header}</div>}
+      <ReportVerification report={report}>
+        {report.notice && report.mode === "research" && <section className="verification-context"><h2>움직임 비교 · 참고 정보</h2><p className="report-notice">{report.notice}</p></section>}
+
+      </ReportVerification>
 
       {(report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || !!steps?.length) && <section className="report-verification report-reference" data-user-empty={report.caveats.length === 0 && report.dataGaps.length === 0 ? "true" : undefined} aria-label="주의점과 자료 범위">
         <details className="verification-toggle reference-toggle">
@@ -180,8 +196,10 @@ export function ReportView({
         </details>
       </section>}
 
+      {createdAt && <p className="report-created-at">리포트 생성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></p>}
       <p className="report-disclosure">{report.disclosure}</p>
     </ReportDisplay>
     </ReportEvidenceScope>
+    </div>
   );
 }

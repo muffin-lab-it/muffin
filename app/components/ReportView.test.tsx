@@ -1,3 +1,4 @@
+import { supportedReportTopics } from "@/src/lib/report-topics";
 import { load } from "cheerio";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -165,8 +166,8 @@ describe("리포트 하단 도구 실행 내역", () => {
     const $ = render(fixture(), steps);
     const text = $(".report-tools").text();
     expect($(".report-tools").parents(".reference-toggle")).toHaveLength(1);
-    expect($('details[aria-label="리포트 상세 정보"]').attr("open")).toBeUndefined();
-    expect($(".verification-toggle").attr("open")).toBeUndefined();
+    expect($('details[aria-label="리포트 상세 정보"]').attr("open")).toBeDefined();
+    expect($(".verification-toggle").attr("open")).toBeDefined();
     expect($(".report-details")).toHaveLength(0);
     expect(text).toContain("🟡");
     expect(text).toContain("저장된 응답(3시간 전)");
@@ -213,15 +214,15 @@ describe("최근 흐름 차트", () => {
 });
 
 describe("간결한 검사 안내", () => {
-  it("검증 패널은 숫자 카드 앞에 있고 대조 내역과 도구는 하나의 토글 안에 표시한다", () => {
+  it("검증 패널은 숫자 카드 뒤에 있고 대조 내역과 도구는 하나의 토글 안에 표시한다", () => {
     const report = fixture();
     report.numbers[0].match = { key: "rate", policy: "rounded" };
     const $ = render(report);
     expect($(".report-details")).toHaveLength(0);
     expect($(".verification-detail").parents(".report-verification")).toHaveLength(1);
-    expect($(".report-verification").first().next().find(".numbers")).toHaveLength(1);
+    expect($(".report-verification").first().prevAll("section").find(".numbers")).toHaveLength(1);
     expect($(".report-verification").parents("details")).toHaveLength(0);
-    expect($(".verification-toggle").attr("open")).toBeUndefined();
+    expect($(".verification-toggle").attr("open")).toBeDefined();
     expect($(".verification-detail").parents(".verification-toggle")).toHaveLength(1);
     expect($(".verification-toggle details")).toHaveLength(0);
     expect($(".verification-detail").text()).toContain("rate 값과 표기 반올림과 일치");
@@ -254,10 +255,10 @@ describe("읽는 목적에 맞는 근거 탐색", () => {
     const report = fixture();
     const $ = render(report);
     expect($(".num .metric-value-link b")).toHaveLength(report.numbers.length);
-    expect($(".reason-link")).toHaveLength(report.why.filter(reason => reason.refs.some(ref => report.evidence.some(entry => entry.id === ref))).length);
-    expect($(".reason-link").first().text()).toBe(report.why[0].claim);
+    expect($(".reason-evidence")).toHaveLength(report.why.length);
+    expect($(".reason-evidence h3").first().text()).toBe(report.why[0].claim);
     expect($(".num").text()).not.toContain("이 숫자의 출처 보기");
-    expect($(".report-help-dialog").text()).toContain("숫자나 설명을 누르면");
+    expect($(".report-help-dialog").text()).toContain("숫자나 원본 보기 링크를 누르면");
     expect($(".source-chips button").length).toBeGreaterThan(0);
   });
 
@@ -265,8 +266,8 @@ describe("읽는 목적에 맞는 근거 탐색", () => {
     const $ = load(renderToStaticMarkup(<ReportView report={fixture()} area="fx" />));
     const href = $("a[href^='/?question=']").first().attr("href")!;
     const params = new URL(href, "https://example.test").searchParams;
-    expect(params.get("question")).toBe(fixture().nextTopics[0]);
-    expect(params.get("area")).toBe("fx");
+    expect(params.get("question")).toBe(supportedReportTopics(fixture().nextTopics, "fx")[0].question);
+    expect(params.get("area")).toBe(supportedReportTopics(fixture().nextTopics, "fx")[0].area);
   });
 });
 
@@ -288,8 +289,8 @@ it("자료와 해설은 같은 주제에 한 번만 표시하고 기본 선택�
   expect($(".source-panel:not([hidden])")).toHaveLength(1);
   expect($(".source-panel").map((_, el) => $(el).attr("data-source-group")).get()).toContain("금리");
   expect($(".evidence-record")).toHaveLength(report.evidence.length);
-  expect($(".reason-evidence")).toHaveLength(report.why.filter(reason => reason.refs.some(ref => report.evidence.some(entry => entry.id === ref))).length);
-  expect($(".reason-evidence").first().parents("[data-source-group]").attr("data-source-group")).toBe("금리");
+  expect($(".reason-evidence")).toHaveLength(report.why.length);
+  expect($(".source-library .reason-evidence")).toHaveLength(0);
 });
 
 it("원본 데이터에 없는 출처도 별도 참고 문서로 보존한다", () => {
@@ -310,7 +311,7 @@ it("자료 영역의 계산 입력 링크는 존재하는 원본으로 연결하
     const target = decodeURIComponent($(link).attr("href")!.slice(1));
     const record = $(link).closest(".report").find(".source-library .evidence-record").filter((_, el) => $(el).attr("id") === target);
     expect(record).toHaveLength(1);
-    expect($(link).text().split(" · ")[0]).toBe(record.find(".evidence-id").text());
+    expect($(link).text().split(" · ")[0]).toBe(record.attr("data-evidence-id"));
   });
   expect($(".source-library a[target='_blank']").length).toBeGreaterThan(0);
 });
@@ -358,14 +359,14 @@ describe("새 리포트 필드와 이전 기록 호환", () => {
       expect($(".impact-card").eq(i).find("h3").text()).toContain(`영향 제목 ${i}`);
       expect($(".impact-card").eq(i).find("p").text()).toBe(text);
     });
-    report.nextTopics.forEach((_, i) => expect($('a[href^="/?question="]').eq(i).find("small").text()).toBe(`연결 이유 ${i}`));
+    supportedReportTopics(report.nextTopics).forEach((topic, i) => expect($('a[href^="/?question="]').eq(i).find("small").text()).toBe(topic.reason));
   });
   it("새 필드가 없거나 빈 문자열이면 빈 제목과 이유를 만들지 않는다", () => {
     const report = fixture();
     delete report.headline; delete report.impactTitles; delete report.topicReasons;
     report.numbers.forEach(number => { delete number.changeDetail; });
     const $ = render(report);
-    expect($(".impact-card h3, a[href^='/?question='] small, .metric-period")).toHaveLength(0);
+    expect($(".impact-card h3, .metric-period")).toHaveLength(0);
     expect($(".impact-card p")).toHaveLength(report.impact.length);
     report.impactTitles = report.impact.map(() => "");
     expect(render(report)(".impact-card h3")).toHaveLength(0);
@@ -395,7 +396,7 @@ it("검증 제목 옆에 상태를 두고 대조 규칙과 도구 기록은 같�
   const $ = render(report, [{ tool: "get_fx_krw_rate", status: "ok", ms: 12, fallbackAgeMs: 3600000, breaker: "open" }]);
   const panel = $('details[aria-label="리포트 상세 정보"]');
   expect(panel).toHaveLength(1);
-  expect(panel.attr("open")).toBeUndefined();
+  expect(panel.attr("open")).toBeDefined();
   expect(panel.find("summary .verification-summary-copy strong .status-partial")).toHaveLength(1);
   expect(panel.find(".verification-detail").text()).toContain("rate 값과 정확히 일치");
   expect($(".reference-toggle .report-tools").text()).toContain("🟡");
@@ -421,16 +422,14 @@ it("검증의 근거 번호와 원인별 원본 보기 링크가 실제 원본�
 it("원본 자료마다 실제 근거 번호를 표시한다", () => {
   const report = fixture();
   const $ = render(report);
-  expect($(".evidence-record .evidence-id").map((_, el) => $(el).text()).get()).toEqual(report.evidence.map(entry => entry.id));
+  expect($(".evidence-record").map((_, el) => $(el).attr("data-evidence-id")).get()).toEqual(report.evidence.map(entry => entry.id));
 });
 
-it("기본은 검증 ON이며 검증 토글과 필수 고지·원본 탐색을 제공한다", () => {
+it("검증은 항상 ON이며 토글 없이 필수 고지·원본 탐색을 제공한다", () => {
   const report = fixture();
   const $ = render(report);
   expect($(".report").attr("data-verification")).toBe("on");
-  expect($(".report-mode-toggle")).toHaveLength(1);
-  expect($(".report-mode-toggle").attr("aria-pressed")).toBe("true");
-  expect($(".report-mode-toggle").text()).toContain("검증·근거 보기");
+  expect($(".report-mode-toggle")).toHaveLength(0);
   expect($(".report-disclosure").text()).toContain("생성형 AI");
   expect($(".reference-toggle").text()).toContain(report.caveats[0]);
   expect($(".num .metric-value-link").length).toBeGreaterThan(0);
@@ -481,4 +480,45 @@ describe("원인 칸 · 영향 칸 · 비교 기간 (11/19 페르소나 테스�
     expect($.text()).not.toContain("시작일 미제공");
     expect($(".metric-period").filter((_, el) => $(el).text().includes("2026-11-18"))).toHaveLength(0);
   });
+});
+
+
+describe("답과 숫자 우선 배치", () => {
+  it("질문·답·숫자 순서를 유지하고 출처와 추천을 기본 표시한다", () => {
+    const report = fixture();
+    const $ = load(renderToStaticMarkup(<ReportView report={report} question="비교 질문" createdAt="2026-11-19T01:00:00Z" />));
+    const text = $(".report").text();
+    expect(text.indexOf("비교 질문")).toBeLessThan(text.indexOf(report.headline!));
+    expect(text.indexOf(report.headline!)).toBeLessThan(text.indexOf(report.numbers[0].value));
+    expect(text.indexOf(report.numbers[0].value)).toBeLessThan(text.indexOf(report.summary));
+    expect($(".numbers").parent().find(".report-help-button").text()).toContain("리포트 읽는 법");
+    expect($(".report-mode-toggle")).toHaveLength(0);
+    expect($(".source-library > details.responsive-details[open]")).toHaveLength(1);
+    expect($(".source-library .evidence-record").length).toBeGreaterThan(0);
+    expect($("a[href^='/?question=']").first().parents("details").attr("open")).toBeDefined();
+    expect($(".report-created-at").text()).toContain("리포트 생성일");
+    expect($(".num").first().text()).toContain(report.evidence[0].source.name);
+    expect($(".num").first().text()).toContain("근거 보기");
+  });
+  it("한 문장 답이 없는 과거 리포트는 요약을 한 번만 보존한다", () => {
+    const report = fixture();
+    delete report.headline;
+    const $ = render(report);
+    expect($(".report").text().split(report.summary)).toHaveLength(2);
+    expect($(".report > section").first().text()).toContain(report.summary);
+  });
+});
+
+it("원인 근거는 숫자 다음에 한 번만 표시하고 안내와 검증은 뒤에 둔다", () => {
+  const report = fixture();
+  const $ = render(report);
+  const text = $(".report").text();
+  expect(text.indexOf(report.numbers[0].value)).toBeLessThan(text.indexOf(report.why[0].claim));
+  expect(text.indexOf(report.why[0].claim)).toBeLessThan(text.indexOf("내 생활에 미치는 영향"));
+  expect($(".reason-evidence").first().text()).toContain(report.why[0].evidence);
+  expect(text.split(report.why[0].claim)).toHaveLength(2);
+  for (const guide of $(".section-guide").toArray()) {
+    expect($(guide).nextAll().not("[class*='reportToolbar']")).toHaveLength(0);
+  }
+  expect($(".report > section").last().text()).toContain("주의점과 확인하지 못한 것");
 });

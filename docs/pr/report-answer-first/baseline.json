@@ -1,0 +1,14 @@
+{
+  "baselineCommit": "fa57b15ef57355aad20d8d19130d9cf4f8ec0d13",
+  "capturedOn": "2026-11-20",
+  "description": "수정 시작 전 main. 중간에 거절된 시안은 As-is로 사용하지 않음.",
+  "sha256": {
+    "app/components/ReportView.tsx": "ef1c8aa5171828a0f6c324ebae6e164261df8ecf0ed2e23bbc2bad3ddfe1cfb9",
+    "app/components/ReportView.module.css": "d27c14d2a16c1d90bede18ce934a865f083fa04c8f4a05d9f857bdaaada86795",
+    "app/components/ReportSources.tsx": "2c1b293e8337db4cc1164c12d32646a1726ae09cf7912f0dd971e1b42877a02e",
+    "app/components/ReportEvidenceScope.tsx": "41e48d79db985a9a211ad1d849929e2680b8d94a59736a95cbd2e3493311db8b",
+    "app/preview/report/PreviewReport.tsx": "3be80dc1389daafa9d0d91c53f248361d331d91286538b9b4655eae4a958bc72",
+    "app/preview/report/preview.module.css": "0b8a4caa8d2d0821951764812f2859d96c696eee44af753a810891d13700078c",
+    "src/agent/fixtures/report.v2.sample.json": "c9871c3f8d7bb4400da2c99d9160da2ff81a5386c6c129925bacc07afe89faa6"
+  }
+}

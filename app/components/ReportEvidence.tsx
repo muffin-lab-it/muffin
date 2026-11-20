@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 import { useSyncExternalStore, type ReactNode } from "react";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
@@ -47,9 +48,9 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
   );
 }
 
-export function EvidenceRecord({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
+export function EvidenceRecord({ entry, evidence, displayedValue, displayedLabel, hideHeading = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean }) {
   const id = useEvidenceTarget(entry.id);
-  return <div className="evidence-record" id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} /></div>;
+  return <div className="evidence-record" data-evidence-id={entry.id} id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} displayedLabel={displayedLabel} hideHeading={hideHeading} /></div>;
 }
 
 /** 같은 리포트에 존재하는 입력 원본으로 이동하며, 원본을 재귀 렌더링하지 않습니다. */
@@ -159,7 +160,7 @@ function NewsEvidence({ entry }: { entry: Evidence }) {
   </>;
 }
 
-function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string }) {
+function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hideHeading = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean }) {
   // A single raw value adds no context when its formatted equivalent is already above.
   // Keep differing values, calculations and multi-field records visible.
   const fields = Object.entries(entry.values);
@@ -171,9 +172,9 @@ function EvidenceContent({ entry, evidence, displayedValue }: { entry: Evidence;
   const isNews = /news/i.test(entry.tool);
   return (
     <div className="evidence-content">
-      <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>
+      {!hideHeading && <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>}
       {isNews ? <NewsEvidence entry={entry} /> : <>
-      <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>
+      {(!hideHeading || displayedLabel !== entry.label) && <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>}
       <div className="evidence-meta">
         <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>
         {entry.lineage ? <span>계산에 사용한 자료</span> : <SourceLink url={entry.source.pageUrl ?? entry.source.url} name={entry.source.name} />}
@@ -268,11 +269,10 @@ export function ReportVerification({ report, children }: { report: Report; child
   const labels = { skipped: "검사 미실행", partial: "일부 확인 필요", pass: "검사 통과" };
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
-      <details className="verification-toggle" aria-label="리포트 상세 정보">
-        <summary>
+      <ReportResponsiveDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
           <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 대조 · 근거 분류 · 권유 표현 검사`}</span></span>
           <span className="verification-summary-action"><span className="verification-toggle-label">리포트 상세 정보</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
-        </summary>
+        </>}>
         <div className="verification-body">
       {skipped ? (
         <p>이 리포트는 검증기를 거치지 않았습니다. 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
@@ -286,7 +286,7 @@ export function ReportVerification({ report, children }: { report: Report; child
       )}
           {children}
         </div>
-      </details>
+      </ReportResponsiveDetails>
     </section>
   );
 }

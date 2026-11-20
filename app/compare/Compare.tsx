@@ -157,7 +157,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
             </header>
             {c.error && <div className="error" role="alert">{c.error}</div>}
             {!c.result && !c.error && <Progress question={session.question} depth={c.depth} events={c.events} />}
-            {c.result && <ReportView report={c.result.report} steps={c.result.steps} area={session.area} />}
+            {c.result && <ReportView report={c.result.report} steps={c.result.steps} area={session.area} question={session.question} />}
           </section>
         ))}
       </div>

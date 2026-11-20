@@ -35,6 +35,21 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
+  it.each(["research", "decision_facts"] as const)("%s에서 Easy만 물가 기여도 숫자 대신 의미를 설명한다", (mode) => {
+    // 관심 영역과 관계없이 품목군 근거를 사용하면 적용하며, 후보 입력의 숫자 지시보다 우선합니다.
+    const easy = writerInstructions("easy", undefined, mode);
+    expect(easy).toContain("[물가 원인 후보]의 숫자 설명 지시보다 이 규칙을 우선");
+    expect(easy).toContain("리포트 전체에서 품목군의");
+    expect(easy).toContain("기여도 숫자는 쓰지 않고");
+    expect(easy).toContain("전체 물가를 가장 많이 끌어올린 건 교통이에요");
+    expect(easy).toContain("비교 기준과 refs는 유지");
+    for (const depth of ["standard", "deep"] as const) {
+      const text = writerInstructions(depth, "macro", mode);
+      expect(text).not.toContain("[Easy 물가 원인 표현]");
+      expect(text).toContain("기여도 순위를 가격 상승률 순위로 해석하지 않고");
+    }
+  });
+
   it.each(["easy", "standard", "deep"] as const)("%s 에서 본문 확보 상태와 원인 근거 부족을 구분한다", (depth) => {
     for (const mode of ["research", "decision_facts"] as const) {
       const text = writerInstructions(depth, "news", mode);
@@ -252,4 +267,19 @@ it.each(["easy", "standard", "deep"] as const)("%s 작성 지시문은 새 제�
   expect(text).toContain("impactTitles 는 impact 와 같은 순서·개수");
   expect(text).toContain("topicReasons 는 nextTopics 와 같은 순서·개수");
   expect(text).toContain("headline · impactTitles · topicReasons 의 금융 숫자도 증거 장부에 있는 값만");
+});
+
+
+it.each(["easy", "standard", "deep"] as const)("%s 작성에 비교 입력·답 우선·외화 공통 해석 규칙을 전달한다", depth => {
+  const text = writerInstructions(depth, "fx", "research");
+  expect(text).toContain("대상 값 두 개와 차이를 각각 numbers 카드");
+  expect(text).toContain("headline과 summary는 그 답부터");
+  for (const currency of ["달러(USD)", "엔화(JPY)", "유로(EUR)"]) expect(text).toContain(currency);
+  expect(text).toContain("외화의 기준 수량은 label에 표시");
+  expect(text).toContain("KRW per 1 외화와 KRW per 100 외화를 구분");
+  expect(text).toContain("역방향 통화쌍에 같은 방향 해석을 적용하지 않습니다");
+  expect(text).toContain("원화 비용은 줄고 오르면 늘어납니다");
+  expect(text).toContain("받는 원화 금액 관점으로 구분");
+  expect(text).toContain("여행 전체 경비의 증감을 단정하지 않습니다");
+  expect(text).toContain('label에 "전월 대비" · "전년 동월 대비"');
 });

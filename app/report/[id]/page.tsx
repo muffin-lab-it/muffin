@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportActions } from "@/app/components/ReportActions";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -48,15 +49,12 @@ export default function ReportPage() {
   const { input } = record;
   return (
     <>
-      <div className="report-head">
-        <h1>Today&apos;s Muffin</h1>
+      <ReportView actions={<ReportActions key={record.id} report={record.report} input={input} steps={record.steps} savedId={record.id} />} report={record.report} steps={record.steps} area={input.area} question={input.question} createdAt={record.createdAt} header={<div className="report-head">
         <div className="chips">
           {input.area && <span className="category-chip" data-category={input.area === "news" ? "뉴스" : areaLabels[input.area]}>{areaLabels[input.area]}</span>}
           <span className="depth-chip" data-depth={input.depth}>{depthLabels[input.depth]}</span>
-          <span className="chip-static muted">{new Date(record.createdAt).toLocaleString("ko-KR")}</span>
         </div>
-      </div>
-      <ReportView report={record.report} steps={record.steps} area={input.area} question={input.question} />
+      </div>} />
     </>
   );
 }
