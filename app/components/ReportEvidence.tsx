@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore, type ReactNode } from "react";
 import { formatDateKo, sourceLinkLabel } from "./format";
+import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
 
@@ -273,12 +274,11 @@ export function ReportVerification({ report, children }: { report: Report; child
   const labels = { skipped: "검사 미실행", partial: "일부 확인 필요", pass: "검사 통과" };
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
-      {/* 기본은 접힌 한 줄. 펼쳐야 내역이 보입니다 (11/20 서영 2-2 · 3, 외부 E1, 하니 2) */}
-      <details className="verification-toggle" aria-label="리포트 상세 정보">
-        <summary>
+      {/* 기본은 접힌 한 줄. 펼쳐야 내역이 보입니다 (11/20 서영 2-2 · 3, 외부 E1, 하니 2). 인쇄 때는 PrintOpenDetails 가 잠시 펼칩니다 */}
+      <PrintOpenDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
           <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 ${verification.numbers.total}개 중 값 대조 ${verification.numbers.verified}개 · 계산값 ${verification.numbers.derived}개 · 권유 표현 ${verification.advice}건`}</span></span>
           <span className="verification-summary-action"><span className="verification-toggle-label">자세히 보기</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
-        </summary>
+        </>}>
         <div className="verification-body">
       {skipped ? (
         <p>이 리포트는 검증기를 거치지 않았습니다. 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
@@ -292,7 +292,7 @@ export function ReportVerification({ report, children }: { report: Report; child
       )}
           {children}
         </div>
-      </details>
+      </PrintOpenDetails>
     </section>
   );
 }

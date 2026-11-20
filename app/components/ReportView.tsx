@@ -1,4 +1,4 @@
-import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
+import { PrintOpenDetails, ReportResponsiveDetails } from "./ReportResponsiveDetails";
 /// <reference types="next/image-types/global" />
 import { supportedReportTopics } from "@/src/lib/report-topics";
 import type { ReactNode } from "react";
@@ -60,7 +60,7 @@ function ReasonLinks({ refs, evidence }: { refs: string[]; evidence: Evidence[] 
   };
   return <div className="reason-originals">
     {news.length === 1 && article(news[0])}
-    {news.length >= 2 && <details className="reason-news"><summary>기사 {news.length}건 보기</summary><ul>{news.map(item => <li key={item.ref}>{article(item)}</li>)}</ul></details>}
+    {news.length >= 2 && <PrintOpenDetails className="reason-news" summary={`기사 ${news.length}건 보기`}><ul>{news.map(item => <li key={item.ref}>{article(item)}</li>)}</ul></PrintOpenDetails>}
     {data.map(item => <EvidenceReference key={item.ref} evidenceId={item.ref} evidence={evidence} label={`출처로 이동 · ${item.ref}`}><span>출처로 이동 ↓ · {item.ref}</span></EvidenceReference>)}
   </div>;
 }
