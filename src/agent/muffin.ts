@@ -23,6 +23,7 @@ import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, withIndexNum
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, macroNewsNote } from "./news-topics";
 import { ensureRateYear, rateYearNote, yearRates } from "./rate-trend";
+import { ensureRateInflation, relationNote, relationRows, withRelationNumbers } from "./relation";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput } from "./report";
@@ -191,6 +192,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 지수 질문(코스피 · 코스닥 등)이면 공식 종가와, 검산되는 당일 종가(기사 보도)를 장부에 올립니다 (분류가 고르지 않아도 코드가 부름, src/agent/index-quote.ts)
   const index = await ensureIndex(ctx, question);
   // 정책금리의 짧은 기간 변화가 0 이면 1년 전과도 비교할 수 있게 365일로 한 번 더 받습니다 (src/agent/rate-trend.ts)
+  // 물가와 금리의 관계를 묻는 질문이면 1년 전 물가 상승률 · 기준금리를 채워 두 지표를 나란히 볼 수 있게 합니다 (src/agent/relation.ts)
+  await ensureRateInflation(ctx, question, muffinTools);
   await ensureRateYear(ctx, muffinTools);
   // 주제 없는 뉴스 질문("오늘 경제 뉴스")이면 경제 흐름 주제어로 찾은 기사를 장부에 보탭니다 (src/agent/news-topics.ts)
   const macroNews = await addMacroNews(ctx, question);
@@ -226,18 +229,20 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   if (index) for (const id of indexRefs(ctx.evidence, index)) rescued.add(id);
   for (const e of yearRates(ctx.evidence)) rescued.add(e.id);
   for (const e of macroNews) rescued.add(e.id);
+  const relation = relationRows(ctx.evidence);
+  if (relation) for (const e of Object.values(relation)) rescued.add(e.id);
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
   // 방향이 반대라 정제가 거른 계산(edit.ts reversedCalcIds)은 작성에 보이지 않게 합니다. 사실 목록이 비거나 정제가 실패해 작성이 장부 전체를 볼 때도
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
   const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
-  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews)]
+  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
   // 지수 질문이면 지수 종가 · 기간 수익률은 작성이 빠뜨려도 코드가 "오늘의 숫자" 에 넣습니다 (실측: 3번 중 1번 빠뜨림). 검증 전이라 장부와 대조됩니다
   // 기사 항목을 가리키는 숫자 카드는 뺍니다 (검산되지 않은 기사 숫자가 "확인한 숫자" 자리에 오르지 않게, src/agent/news-numbers.ts)
-  const indexed = (o: WriterOutput) => dropNewsCards(index ? withIndexNumbers(o, ctx.evidence, index) : o, ctx.evidence);
+  const indexed = (o: WriterOutput) => dropNewsCards(relation ? withRelationNumbers(index ? withIndexNumbers(o, ctx.evidence, index) : o, ctx.evidence) : index ? withIndexNumbers(o, ctx.evidence, index) : o, ctx.evidence);
   let output = indexed(await runWriter(writer, input, writeCtx));
   addUsage(writeCtx, "write");
   emit({ type: "stage", stage: "write", status: "done" });
