@@ -20,6 +20,7 @@ import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, withIndexNumbers } from "./index-quote";
+import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { ensureRateYear, rateYearNote, yearRates } from "./rate-trend";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
@@ -226,12 +227,13 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
   const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
-  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence)]
+  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence)]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
   // 지수 질문이면 지수 종가 · 기간 수익률은 작성이 빠뜨려도 코드가 "오늘의 숫자" 에 넣습니다 (실측: 3번 중 1번 빠뜨림). 검증 전이라 장부와 대조됩니다
-  const indexed = (o: WriterOutput) => (index ? withIndexNumbers(o, ctx.evidence, index) : o);
+  // 기사 항목을 가리키는 숫자 카드는 뺍니다 (검산되지 않은 기사 숫자가 "확인한 숫자" 자리에 오르지 않게, src/agent/news-numbers.ts)
+  const indexed = (o: WriterOutput) => dropNewsCards(index ? withIndexNumbers(o, ctx.evidence, index) : o, ctx.evidence);
   let output = indexed(await runWriter(writer, input, writeCtx));
   addUsage(writeCtx, "write");
   emit({ type: "stage", stage: "write", status: "done" });
