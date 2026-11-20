@@ -12,7 +12,7 @@ import { run, type RunContext } from "@openai/agents";
 import { ensureOtherPairs } from "./supplement";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
-import { research, hintAreaFor, modelFor } from "./muffin";
+import { plainQuestion, research, hintAreaFor, modelFor } from "./muffin";
 import { DECISION_NOTICE } from "./report";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
 
@@ -315,6 +315,22 @@ describe("research() 다섯 단계", () => {
     expect(agentOf(3).instructions).toContain("[모드: 판단 요청]");
     expect(result.report.mode).toBe("decision_facts");
     expect(result.report.notice).toContain("판단");
+  });
+
+  it("영역을 여러 개 골라 질문 앞에 머리말이 붙어도 유의성 게이트가 돌고, 분류만 머리말을 본다 (11/20 베타)", async () => {
+    const fetchMock = stubDailyRates();
+    mockRuns({ fxValues: fullFx, writer: [good] });
+    const asked = "관심 영역: 환율, ETF, 경제뉴스, 금리, 물가\n\n환율 변동이 왜이렇게 심해?";
+    const result = await research({ question: asked, depth: "easy" });
+
+    expect(plainQuestion(asked)).toBe("환율 변동이 왜이렇게 심해?");
+    expect(plainQuestion("환율 왜 올랐어?")).toBe("환율 왜 올랐어?");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.report.movement).toBeDefined();
+    expect(result.report.notice).toContain("평소");
+    expect(inputOf(0)).toContain("관심 영역: 환율, ETF");
+    expect(inputOf(1)).not.toContain("관심 영역: 환율, ETF");
+    expect(inputOf(3)).not.toContain("관심 영역: 환율, ETF");
   });
 
   it("원인 질문이면 정제와 동시에 움직임 크기를 재서 장부(C 번호) · 작성 입력 · 리포트 안내에 붙인다 (유의성 게이트)", async () => {
