@@ -8,9 +8,10 @@ vi.mock("@openai/agents", async (importOriginal) => {
 
 vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false) }));
 vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), rateYearNote: vi.fn(() => ""), yearRates: vi.fn(() => []) }));
-vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
 
 import { run, type RunContext } from "@openai/agents";
+import { indexFor } from "./index-quote";
 import { ensureOtherPairs } from "./supplement";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
@@ -306,6 +307,16 @@ describe("research() 다섯 단계", () => {
     expect(result.report.notice).toContain("미국에 상장된 ETF");
     expect(result.report.summary).toContain("TIGER 미국나스닥100");
     expect(result.steps).toEqual([]);
+  });
+
+  it("분류가 범위 밖이라 해도 지수 질문이면 현황 질문으로 조사한다 (지수 tool 은 분류가 모름)", async () => {
+    vi.mocked(indexFor).mockReturnValue("나스닥 종합");
+    mockRuns({ plan: { intent: "out_of_scope", tools: [], reason: "해외 지수는 범위 밖" }, writer: [good] });
+    const result = await research({ question: "나스닥 요즘 어때?", depth: "easy" });
+    vi.mocked(indexFor).mockReturnValue(null);
+
+    expect(result.plan).toMatchObject({ intent: "status", mode: "research", tools: ["get_korean_economic_news"] });
+    expect(result.report.mode).toBe("research");
   });
 
   it("판단 요청이면 작성에 모드 규칙이 붙고 리포트에 안내가 달린다", async () => {

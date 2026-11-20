@@ -19,7 +19,7 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
-import { ensureIndex, indexCaveats, indexNote, indexRefs, withIndexNumbers } from "./index-quote";
+import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, withIndexNumbers } from "./index-quote";
 import { ensureRateYear, rateYearNote, yearRates } from "./rate-trend";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
@@ -146,7 +146,11 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     ? { intent: "out_of_scope" as const, tools: [], reason: "미국 상장 ETF 는 조회할 수 없음" }
     : await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(asked, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx, "plan");
-  const plan = { ...normalizePlan(planned, question, area), mode: modeFor(planned.intent) };
+  // 분류가 범위 밖이라 해도 지수 tool 로 답할 수 있는 지수 질문("나스닥 요즘 어때?")이면 현황 질문으로 조사합니다 (지수 tool 은 레지스트리에 없어 분류가 모름)
+  const rescuedPlan = planned.intent === "out_of_scope" && !foreign && indexFor(question)
+    ? { intent: "status" as const, tools: [areaTools.news], reason: "지수 tool 로 답할 수 있는 지수 질문" }
+    : planned;
+  const plan = { ...normalizePlan(rescuedPlan, question, area), mode: modeFor(rescuedPlan.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
   emit({ type: "stage", stage: "plan", status: "done" });
 

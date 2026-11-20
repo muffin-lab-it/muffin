@@ -26,6 +26,13 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(indexFor("라이즈 코스피 요즘 어때?")).toBeNull();
     expect(indexFor("에이스 코스피 수익률 알려줘")).toBeNull();
     expect(indexFor("환율 왜 올랐어?")).toBeNull();
+    // 미국 지수
+    expect(indexFor("나스닥 요즘 어때?")).toBe("나스닥 종합");
+    expect(indexFor("나스닥100 지수 얼마야?")).toBe("나스닥 100");
+    expect(indexFor("S&P500 한 달 동안 얼마나 빠졌어?")).toBe("S&P 500");
+    expect(indexFor("다우 지수 알려줘")).toBe("다우존스");
+    expect(indexFor("TIGER 미국배당다우존스 어때?")).toBeNull();
+    expect(indexFor("다우니 섬유유연제 가격")).toBeNull();
   });
 
   it("기사 본문의 마감 문장을 읽고, 공식 전일 종가로 검산한다", () => {
@@ -113,6 +120,20 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     const written = { ...empty, numbers: [{ label: "코스피 종가", value: "5,137.89포인트", change: "2026-10-20~2026-11-19 기간 -7.47%", asOf: "2026-11-19", ref: "E2" }] };
     expect(withIndexNumbers(written, [official], "코스피").numbers).toEqual([{ ...written.numbers[0], label: "코스피 종가 (공식 자료)" }]);
     expect(withIndexNumbers(empty, [], "코스피")).toBe(empty);
+  });
+
+  it("미국 지수는 미국 지수 tool 을 부르고, 기사 검산은 하지 않는다. 같은 값은 표기가 달라도 다시 넣지 않는다", async () => {
+    const nasdaq: Evidence = { ...official, id: "E2", tool: "get_us_stock_index", values: { ...official.values, index: "나스닥 종합", "latest.close": 23879.2, "latest.changePct": -2.25, "period.returnPct": -9.63 }, source: { name: "FRED", url: "https://fred.stlouisfed.org/series/NASDAQCOM", asOf: "2026-11-19" } };
+    const ctx = new ResearchContext();
+    const invoke = vi.fn(async (...args: [unknown, string]) => { ctx.addEvidence([nasdaq]); return args.length ? "ok" : ""; });
+    const news = newsOf(article(body));
+    expect(await ensureIndex(ctx, "나스닥 요즘 어때?", { name: "get_us_stock_index", invoke }, news as never)).toBe("나스닥 종합");
+    expect(invoke.mock.calls[0]![1]).toBe('{"index":"나스닥 종합","days":30}');
+    expect(news).not.toHaveBeenCalled();
+    expect(indexNote(ctx.evidence, "나스닥 종합")).toContain("하루 이틀 늦게 올라오는 자료라 2026-11-19 종가가 최신");
+    expect(indexCaveats(ctx.evidence, "나스닥 종합")[0]).toContain("하루 이틀 늦게");
+    const written = { ...empty, numbers: [{ label: "나스닥 종합 종가", value: "23,879.2포인트", change: "전일 대비 -2.25%", asOf: "2026-11-19", ref: "E2" }] };
+    expect(withIndexNumbers(written, ctx.evidence, "나스닥 종합").numbers.map((n) => n.label)).toEqual(["나스닥 종합 기간 변화 (공식 자료)", "나스닥 종합 종가 (공식 자료)"]);
   });
 
   it("기준일이 다른 이유를 주의점에 한 줄 넣고, 작성이 이미 썼으면 넣지 않는다", () => {
