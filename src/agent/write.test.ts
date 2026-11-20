@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Evidence, FactsOutput, ResearchNotes, WriterOutput } from "./schema";
-import { adviceGuardrail, revisionNote, toolWritingRules, writerInput, writerInstructions, writingRules } from "./write";
+import { createWriterAgent, writerRunInput, adviceGuardrail, revisionNote, toolWritingRules, writerInput, writerInstructions, writingRules } from "./write";
 import { depthInstructions } from "./depth";
 
 const evidence: Evidence[] = [
@@ -35,20 +35,37 @@ const evidence: Evidence[] = [
 const notes: ResearchNotes = { notes: [{ ref: "E1", summary: "달러가 30일 2% 올랐습니다." }], gaps: ["금리 tool 실패"] };
 
 describe("writerInstructions", () => {
+  it("Easy 물가 후보 뒤에 표현 규칙을 재확인하고 다른 깊이와 일반 입력은 보존한다", () => {
+    const input = "[물가 원인 후보] 기여도 숫자를 장부 그대로 적습니다";
+    const easy = createWriterAgent("easy", "macro");
+    expect(writerRunInput(easy, input).indexOf("[Easy 물가 원인 표현]")).toBeGreaterThan(input.length);
+    expect(writerRunInput(easy, "환율 입력")).toBe("환율 입력");
+    for (const depth of ["standard", "deep"] as const) {
+      expect(writerRunInput(createWriterAgent(depth, "macro"), input)).toBe(input);
+    }
+  });
+
   it.each(["research", "decision_facts"] as const)("%s에서 Easy만 물가 기여도 숫자 대신 의미를 설명한다", (mode) => {
     // 관심 영역과 관계없이 품목군 근거를 사용하면 적용하며, 후보 입력의 숫자 지시보다 우선합니다.
     const easy = writerInstructions("easy", undefined, mode);
     expect(easy).toContain("[물가 원인 후보]의 숫자 설명 지시보다 이 규칙을 우선");
     expect(easy).toContain("리포트 전체에서 품목군의");
     expect(easy).toContain("기여도 숫자는 쓰지 않고");
-    expect(easy).toContain("전체 물가를 가장 많이 끌어올린 건 교통이에요");
+    expect(easy).toContain("전체 물가를 가장 많이 끌어올린 품목군은 {품목군명}입니다");
+    expect(easy).toContain("장부 항목의 category 값으로 채우며");
+    expect(easy).toContain("중괄호나 변수명 자체를 출력하지 않습니다");
+    expect(easy).not.toContain("교통");
     expect(easy).toContain("비교 기준과 refs는 유지");
+    expect(easy).toContain("명시적 예외");
+    expect(easy).toContain("why의 claim·evidence");
+    expect(easy).toContain("기여도 대신 품목군의 등락률(%)");
     for (const depth of ["standard", "deep"] as const) {
       const text = writerInstructions(depth, "macro", mode);
       expect(text).not.toContain("[Easy 물가 원인 표현]");
       expect(text).toContain("기여도 순위를 가격 상승률 순위로 해석하지 않고");
     }
   });
+
 
   it.each(["easy", "standard", "deep"] as const)("%s 에서 본문 확보 상태와 원인 근거 부족을 구분한다", (depth) => {
     for (const mode of ["research", "decision_facts"] as const) {
