@@ -70,7 +70,8 @@ export type IndexProxy = { index: string; query: string };
 const INDEX_PROXIES: { match: RegExp; proxy: IndexProxy }[] = [
   { match: /코스피\s*200|KOSPI\s*200/i, proxy: { index: "코스피 200", query: "KODEX 200" } },
   { match: /코스닥\s*150|KOSDAQ\s*150/i, proxy: { index: "코스닥 150", query: "KODEX 코스닥150" } },
-  { match: /코스피|KOSPI/i, proxy: { index: "코스피", query: "KODEX 코스피" } },
+  // 뒤에 다른 숫자가 붙은 세부 지수(코스피100 · 코스피 50)는 종합지수가 아니라 보강하지 않습니다 (Codex 리뷰)
+  { match: /(코스피|KOSPI)(?!\s*\d)/i, proxy: { index: "코스피", query: "KODEX 코스피" } },
 ];
 /** ETF 를 묻는 질문의 낱말. 있으면 지수가 아니라 그 ETF 가 주제라 조사에 맡깁니다 */
 const ETF_SUBJECT = /ETF|이티에프|KODEX|코덱스|TIGER|타이거|RISE|ACE|PLUS|SOL|KIWOOM|HANARO|\d{6}/i;

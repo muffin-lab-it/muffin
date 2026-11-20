@@ -105,6 +105,8 @@ describe("ensureIndexProxy: 지수 질문의 지수 값을 코드가 채운다 (
     expect(indexProxyFor("코스닥 150 지수 알려줘")).toEqual({ index: "코스닥 150", query: "KODEX 코스닥150" });
     expect(indexProxyFor("KODEX 200이 코스피 200을 잘 따라가?")).toBeNull();
     expect(indexProxyFor("환율 왜 올랐어?")).toBeNull();
+    expect(indexProxyFor("코스피100 지수 어때?")).toBeNull();
+    expect(indexProxyFor("코스피 50 얼마야?")).toBeNull();
   });
 
   it("장부에 지수 값이 없으면 ETF tool 을 부르고, 결과가 장부에 오르면 작성에 지수 값을 알려 준다", async () => {
