@@ -23,6 +23,8 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(indexFor("코스닥 150 지수 알려줘")).toBe("코스닥 150");
     expect(indexFor("코스피100 지수 어때?")).toBeNull();
     expect(indexFor("KODEX 200이 코스피 200을 잘 따라가?")).toBeNull();
+    expect(indexFor("라이즈 코스피 요즘 어때?")).toBeNull();
+    expect(indexFor("에이스 코스피 수익률 알려줘")).toBeNull();
     expect(indexFor("환율 왜 올랐어?")).toBeNull();
   });
 

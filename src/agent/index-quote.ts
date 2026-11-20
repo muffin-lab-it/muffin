@@ -25,7 +25,9 @@ const INDEX_WORDS: [RegExp, KrIndexName][] = [
   [/(코스닥|KOSDAQ)(?!\s*\d)/i, "코스닥"],
 ];
 /** ETF 를 묻는 질문의 낱말. 있으면 지수가 아니라 그 ETF 가 주제라 조사에 맡깁니다 */
-const ETF_SUBJECT = /ETF|이티에프|KODEX|코덱스|TIGER|타이거|RISE|ACE|PLUS|SOL|KIWOOM|HANARO|\d{6}/i;
+// 한글 · 예전 브랜드 표기도 봅니다 ("라이즈 코스피", src/tools/etf/names.ts 의 별칭과 같은 범위, #123 Codex 리뷰). 잘못 걸리면 조사에 맡길 뿐이라 넓게 잡습니다
+const ETF_SUBJECT =
+  /ETF|이티에프|KODEX|코덱스|TIGER|타이거|RISE|라이즈|KBSTAR|케이비스타|ACE|에이스|KINDEX|킨덱스|PLUS|플러스|ARIRANG|아리랑|SOL|쏠|KIWOOM|키움|KOSEF|코세프|HANARO|하나로|1Q|원큐|KOACT|코액트|TIMEFOLIO|타임폴리오|마이티|파워|\d{6}/i;
 
 /** 질문이 물은 국내 지수. 지수 질문이 아니거나 ETF 를 묻는 질문이면 null. 여러 지수를 말하면 먼저 나온 것 */
 export function indexFor(question: string): KrIndexName | null {
