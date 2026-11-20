@@ -68,6 +68,7 @@ describe("홈에서 지원 범위와 서버 오류를 구분", () => {
     vi.spyOn(homeReport, "createHomeReport").mockReturnValue(request);
     const $ = load(renderToStaticMarkup(<Home />));
     expect($("[role=alert] h2").text()).toBe("이 질문은 아직 답하기 어려워요.");
-    expect($("[role=alert] button")).toHaveLength(0);
+    // 11/21 외부 F1: 다시 시도 버튼은 없고 "지우고 다시 쓰기" 만
+    expect($("[role=alert] button").map((_, el) => $(el).text()).get()).toEqual(["지우고 다시 쓰기"]);
   });
 });

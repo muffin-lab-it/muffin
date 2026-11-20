@@ -8,6 +8,7 @@ import { normalizeReport } from "@/src/agent/normalize";
 import type { ToolStep } from "@/src/agent/context";
 import { reportSchema, type Report } from "@/src/agent/schema";
 import { ReportView } from "./ReportView";
+import { formatDateKo } from "./format";
 import { SourceLink, EvidenceRecord } from "./ReportEvidence";
 
 function fixture(): Report {
@@ -165,15 +166,15 @@ describe("리포트 하단 도구 실행 내역", () => {
     ];
     const $ = render(fixture(), steps);
     const text = $(".report-tools").text();
+    // 11/21: 도구 표 대신 저장본 · 호출 생략 · 실패만 주의점 옆 메모로 (QA 7 · 하니 5). 정상 완료한 도구와 ms 는 적지 않는다
     expect($(".report-tools").parents(".reference-toggle")).toHaveLength(1);
-    expect($('details[aria-label="리포트 상세 정보"]').attr("open")).toBeDefined();
-    expect($(".verification-toggle").attr("open")).toBeDefined();
+    expect($(".tool-table")).toHaveLength(0);
     expect($(".report-details")).toHaveLength(0);
-    expect(text).toContain("🟡");
-    expect(text).toContain("저장된 응답(3시간 전)");
-    expect(text).toContain("820ms");
-    expect(text).toContain("회로 열림");
+    expect(text).toContain("자료 확인 메모");
+    expect(text).toContain("잠시 호출을 쉬고 있어");
     expect(text).toContain("timeout");
+    expect(text).not.toContain("820");
+    expect(text).not.toContain("ms");
   });
 });
 
@@ -222,10 +223,11 @@ describe("간결한 검사 안내", () => {
     expect($(".verification-detail").parents(".report-verification")).toHaveLength(1);
     expect($(".report-verification").first().prevAll("section").find(".numbers")).toHaveLength(1);
     expect($(".report-verification").parents("details")).toHaveLength(0);
-    expect($(".verification-toggle").attr("open")).toBeDefined();
+    expect($(".verification-toggle").attr("open")).toBeUndefined(); // 11/21: 기본은 접힘 (서영 2-2 · 외부 E1)
+    expect($(".verification-toggle > summary").first().text()).toContain("자세히 보기");
     expect($(".verification-detail").parents(".verification-toggle")).toHaveLength(1);
     expect($(".verification-toggle details")).toHaveLength(0);
-    expect($(".verification-detail").text()).toContain("rate 값과 표기 반올림과 일치");
+    expect($(".verification-detail").text()).toContain('"값" 항목과 표기 반올림과 일치');
     expect($(".verification-detail").text()).toContain("다시 쓰기");
     expect($(".num .report-badge")).toHaveLength(report.numbers.length);
   });
@@ -247,7 +249,7 @@ describe("읽는 목적에 맞는 근거 탐색", () => {
     report.numbers[0].asOf = "2000-01-01";
     const $ = render(report);
     expect($(".report-reading-notice").text()).not.toContain("일부 확인 필요");
-    expect($(".num").first().text()).toContain("기준일 2000-01-01");
+    expect($(".num").first().text()).toContain("기준일 2000. 1. 1.");
     expect($(".num").first().text()).not.toContain("최신");
   });
 
@@ -258,7 +260,7 @@ describe("읽는 목적에 맞는 근거 탐색", () => {
     expect($(".reason-evidence")).toHaveLength(report.why.length);
     expect($(".reason-evidence h3").first().text()).toBe(report.why[0].claim);
     expect($(".num").text()).not.toContain("이 숫자의 출처 보기");
-    expect($(".report-help-dialog").text()).toContain("숫자나 원본 보기 링크를 누르면");
+    expect($(".report-help-dialog").text()).toContain("숫자나 '출처로 이동' 링크를 누르면");
     expect($(".source-chips button").length).toBeGreaterThan(0);
   });
 
@@ -276,7 +278,7 @@ it("중복 카드 안내 없이 출처·날짜·식별자를 한 영역에 모�
   expect($(".evidence-record .report-hint, .evidence-source")).toHaveLength(0);
   const meta = $(".evidence-meta").first().text();
   expect(meta).toContain(fixture().evidence[0].source.name);
-  expect(meta).toContain("기준일 " + fixture().evidence[0].source.asOf);
+  expect(meta).toContain("기준일 " + formatDateKo(fixture().evidence[0].source.asOf)); // 11/21 외부 F13: 점 표기
   expect(meta).not.toContain(fixture().evidence[0].id);
   expect($(".report-hint, .report-reading-notice")).toHaveLength(0);
 });
@@ -396,12 +398,11 @@ it("검증 제목 옆에 상태를 두고 대조 규칙과 도구 기록은 같�
   const $ = render(report, [{ tool: "get_fx_krw_rate", status: "ok", ms: 12, fallbackAgeMs: 3600000, breaker: "open" }]);
   const panel = $('details[aria-label="리포트 상세 정보"]');
   expect(panel).toHaveLength(1);
-  expect(panel.attr("open")).toBeDefined();
+  expect(panel.attr("open")).toBeUndefined();
   expect(panel.find("summary .verification-summary-copy strong .status-partial")).toHaveLength(1);
-  expect(panel.find(".verification-detail").text()).toContain("rate 값과 정확히 일치");
-  expect($(".reference-toggle .report-tools").text()).toContain("🟡");
-  expect($(".reference-toggle .report-tools").text()).toContain("저장된 응답(1시간 전)");
-  expect($(".reference-toggle .report-tools").text()).toContain("회로 열림(호출 생략)");
+  expect(panel.find(".verification-detail").text()).toContain('"값" 항목과 정확히 일치');
+  expect($(".reference-toggle .report-tools").text()).toContain("잠시 호출을 쉬고 있어");
+  expect($(".reference-toggle .report-tools").text()).not.toContain("🟡");
   expect($(".report-disclosure").text()).toBe(report.disclosure);
 });
 
@@ -414,9 +415,9 @@ it("검증의 근거 번호와 원인별 원본 보기 링크가 실제 원본�
     const target = decodeURIComponent($(el).attr("href")!.slice(1));
     expect($(".evidence-record").filter((_, record) => $(record).attr("id") === target)).toHaveLength(1);
   });
-  expect($(".reason-originals").text()).toContain("원본 보기 · E2");
-  expect($(".reason-originals").text()).toContain("원본 보기 · E3");
-  expect($(".reason-originals").text()).toContain("원본 보기 · C1");
+  expect($(".reason-originals").text()).toContain("출처로 이동 ↓ · E2");
+  expect($(".reason-originals").text()).toContain("출처로 이동 ↓ · E3");
+  expect($(".reason-originals").text()).toContain("출처로 이동 ↓ · C1");
 });
 
 it("원본 자료마다 실제 근거 번호를 표시한다", () => {
@@ -435,13 +436,13 @@ it("검증은 항상 ON이며 토글 없이 필수 고지·원본 탐색을 제�
   expect($(".num .metric-value-link").length).toBeGreaterThan(0);
 });
 
-it("도구 기록은 표에서 도구·상태·시간·비고를 구분한다", () => {
+it("도구 기록은 표가 아니라 실패 · 저장본만 메모로 남긴다 (11/21 QA 7)", () => {
   const $ = render(fixture(), [{ tool: "get_fx_krw_rate", status: "ok", ms: 912 }, { tool: "get_rate_data", status: "error", ms: 20, error: "조회 실패" }]);
-  expect($(".tool-table thead th").map((_, el) => $(el).text()).get()).toEqual(["도구", "상태", "소요 시간", "비고"]);
-  expect($(".tool-table tbody tr")).toHaveLength(2);
-  expect($(".tool-table tbody tr").first().find(".tool-duration").text()).toBe("912ms");
-  expect($(".tool-table tbody tr").last().text()).toContain("❌ 실패");
-  expect($(".tool-table tbody tr").last().text()).toContain("조회 실패");
+  expect($(".tool-table")).toHaveLength(0);
+  const notes = $(".report-tools li").map((_, el) => $(el).text()).get();
+  expect(notes).toHaveLength(1);
+  expect(notes[0]).toContain("확인하지 못했어요");
+  expect(notes[0]).toContain("조회 실패");
 });
 
 describe("원인 칸 · 영향 칸 · 비교 기간 (11/19 페르소나 테스트 반영)", () => {
@@ -520,7 +521,9 @@ it("원인 근거는 숫자 다음에 한 번만 표시하고 안내와 검증�
   for (const guide of $(".section-guide").toArray()) {
     expect($(guide).nextAll().not("[class*='reportToolbar']")).toHaveLength(0);
   }
-  expect($(".report > section").last().text()).toContain("주의점과 확인하지 못한 것");
+  // 11/21 외부 E2: 추천은 맨 끝, 주의점은 그 앞
+  expect($(".report > section").last().text()).toMatch(/이어서 알아볼까요\?|주의점과 확인하지 못한 것/);
+  if (text.includes("이어서 알아볼까요?")) expect(text.indexOf("주의점과 확인하지 못한 것")).toBeLessThan(text.indexOf("이어서 알아볼까요?"));
 });
 
 describe("머리 줄 · 주의점 · 보관 버튼 (11/20 하니 리뷰)", () => {
@@ -543,5 +546,84 @@ describe("머리 줄 · 주의점 · 보관 버튼 (11/20 하니 리뷰)", () =>
     expect(details.attr("open")).toBeDefined();
     expect(details.find("summary").text()).not.toContain("상세 보기");
     expect(details.text()).toContain("환율은 일별 기준값입니다.");
+  });
+});
+
+describe("11/21 QA 1묶음", () => {
+  const article = (id: string, url: string): Report["evidence"][number] => ({ id, tool: "get_economic_news", label: "기사", values: { title: id, publisher: "연합뉴스", publishedAt: "2026-11-20", body: "available" }, source: { name: "연합뉴스", url, asOf: "2026-11-20" } });
+  it("여러 영역 머리말은 질문에서 떼고 배지로 보여 준다 (외부 G1)", () => {
+    const $ = load(renderToStaticMarkup(<ReportView report={fixture()} question={"관심 영역: 환율, ETF\n\n요즘 환율 왜 올라?"} />));
+    expect($("section[aria-label='나의 질문'] blockquote").text()).toBe("요즘 환율 왜 올라?");
+    expect($(".report-area-chips .category-chip").map((_, el) => $(el).text()).get()).toEqual(["환율", "ETF"]);
+  });
+  it("검증이 한 일은 접힌 한 줄로 시작하고 영문 키 대신 한글 라벨을 쓴다 (서영 2-2 · 3)", () => {
+    const report = fixture();
+    report.numbers[0].match = { key: "comparison.rate", policy: "exact" };
+    const $ = render(report);
+    const panel = $('details[aria-label="리포트 상세 정보"]');
+    expect(panel.attr("open")).toBeUndefined();
+    expect(panel.find("summary").text()).toContain("자세히 보기");
+    expect(panel.find("summary").text()).toMatch(/숫자 \d+개 중 값 대조 \d+개/);
+    expect(panel.find(".verification-detail").text()).toContain('"비교 값" 항목과 정확히 일치');
+    expect(panel.find(".verification-detail").text()).not.toContain("comparison.rate");
+  });
+  it("기사 근거는 기사로 바로 가는 링크, 데이터 근거는 출처로 이동 (QA 3)", () => {
+    const report = fixture();
+    report.evidence.push(article("E9-1", "https://www.yna.co.kr/view/1"));
+    report.why[0].refs = [report.evidence[0]!.id, "E9-1"];
+    const $ = render(report);
+    const links = $(".reason-originals").first();
+    expect(links.find("a.reason-article").attr("href")).toBe("https://www.yna.co.kr/view/1");
+    expect(links.find("a.reason-article").attr("target")).toBe("_blank");
+    expect(links.find("a.reason-article").text()).toBe("연합뉴스 기사 보기 ↗");
+    expect(links.text()).toContain(`출처로 이동 ↓ · ${report.evidence[0]!.id}`);
+    expect(links.text()).not.toContain("원본 보기");
+  });
+  it("기사가 둘 이상이면 한 줄로 접는다 (QA 3)", () => {
+    const report = fixture();
+    const ids = ["E9-1", "E9-2", "E9-3"];
+    for (const id of ids) report.evidence.push(article(id, `https://www.yna.co.kr/view/${id}`));
+    report.why[0].refs = ids;
+    const $ = render(report);
+    expect($(".reason-originals").first().find("details.reason-news summary").text()).toBe("기사 3건 보기");
+    expect($(".reason-originals").first().find("a.reason-article")).toHaveLength(3);
+  });
+  it("숫자가 없으면 숫자 칸을 숨기고, 기사만 있으면 기사 건수를 보여 준다 (QA 11 · 12)", () => {
+    const report = fixture();
+    report.numbers = []; report.evidence = []; report.sources = [];
+    const empty = render(report);
+    expect(empty.text()).not.toContain("표시할 숫자를 확보하지 못했습니다");
+    expect(empty.text()).not.toContain("오늘의 숫자");
+    expect(empty.text()).not.toContain("연결된 자료가 없습니다");
+    expect(empty(".report-help-button")).toHaveLength(1);
+    const news = fixture();
+    news.numbers = [];
+    news.evidence = [article("E1-1", "https://www.yna.co.kr/view/1")];
+    const $ = render(news);
+    expect($(".news-count").text()).toBe("기사 1건 · 2026. 11. 20. · 연합뉴스");
+    expect($.text()).toContain("확인한 기사");
+  });
+  it("환율 카드 아래 고시 기준 한 줄, 변화율 본값은 색, 날짜는 점 표기 (서영 1-1 · 외부 F10 · F13)", () => {
+    const report = fixture();
+    const $ = render(report);
+    expect($(".num").first().find(".metric-basis").text()).toContain("유럽중앙은행 고시 기준");
+    expect($(".num").first().text()).toMatch(/기준일 \d{4}\. \d{1,2}\. \d{1,2}\./);
+    report.numbers[0].value = "+2.82%";
+    expect(render(report)(".num").first().find("b").attr("class")).toContain("tone-up");
+  });
+  it("자료 부족은 요약 아래 한 줄로 알리고 아래 목록으로 이어진다 (하니 5)", () => {
+    const report = fixture();
+    report.dataGaps = ["기준금리 변경일을 확인하지 못함"];
+    const $ = render(report);
+    expect($(".hero-gaps").text()).toContain("확인하지 못한 자료 1개");
+    expect($(".hero-gaps a").attr("href")).toMatch(/section-gaps$/);
+    expect($(".report-section-target").filter((_, el) => $(el).text().includes("확인하지 못한 것"))).toHaveLength(1);
+  });
+  it("기사 출처 카드에는 반복 안내 문단이 없고 상태 배지만 있다 (QA 13)", () => {
+    const report = fixture();
+    report.evidence.push(article("E9-1", "https://www.yna.co.kr/view/1"));
+    const text = render(report).text();
+    expect(text).not.toContain("본문을 확보한 기사입니다");
+    expect(text).toContain("본문 확보");
   });
 });

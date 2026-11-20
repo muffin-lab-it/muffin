@@ -35,10 +35,10 @@ describe("뉴스 원본 정보 (정적 렌더링)", () => {
     expect($(".evidence-id").text()).toBe("E4-1");
     expect($(".evidence-title").text()).toBe("테스트용 물가 보도");
     expect($(".evidence-meta").text()).toContain("테스트 언론사");
-    expect($("time").text()).toBe("2026-11-10");
+    expect($("time").text()).toBe("2026. 11. 10.");
     expect($("time").attr("datetime")).toBe("2026-11-10T00:00:00Z");
     expect($.text()).toContain("제목만 확인");
-    expect($.text()).toContain("본문 내용이나 원인 관계를 확인한 근거는 아닙니다");
+    expect($.text()).toContain("제목만 확인한 기사라 본문 내용은 반영되지 않았어요");
     expect($.text()).toContain("공식 데이터로 독립 검증된 사실과 구분");
     expect($(".evidence-note")).toHaveLength(0); // 뉴스 note 는 모델용 지시문이라 사용자에게 보이지 않는다 (11/19)
   });
@@ -54,7 +54,7 @@ describe("뉴스 원본 정보 (정적 렌더링)", () => {
     const $ = renderEntry(entry);
     expect($.text()).toContain("본문 확보");
     expect($.text()).not.toContain("제목만 확인");
-    expect($.text()).toContain("본문 전문이 포함되어 있지 않습니다");
+    expect($.text()).not.toContain("본문 전문이 포함되어 있지 않습니다"); // 11/21 QA 13: 기사마다 반복되던 안내 문단 제거
     expect($.text()).not.toContain("unavailable");
   });
 
@@ -94,7 +94,7 @@ describe("뉴스 원본 정보 (정적 렌더링)", () => {
     const $ = renderEntry(entry);
     expect($(".evidence-title").text()).toBe(entry.label);
     expect($(".evidence-meta").text()).toContain(entry.source.name);
-    expect($("time").text()).toBe("2026-11-10");
+    expect($("time").text()).toBe("2026. 11. 10.");
     expect($.text()).toContain("본문 확보 여부 미확인");
     entry.source.asOf = "";
     expect(renderEntry(entry).text()).toContain("발행일 미제공");
