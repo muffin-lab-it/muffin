@@ -25,6 +25,6 @@ describe("일부만 범위 밖인 질문의 구제 (11/21)", () => {
   it("작성과 리포트에 범위를 한 줄로 알린다", () => {
     const rescue = rescueScope("물가와 금리 조사하고 선물 시장 조사하기")!;
     expect(scopeNote(rescue)).toContain("[질문의 범위]");
-    expect(scopeGap(rescue)).toBe("질문의 일부는 머핀이 다루는 범위 밖이라, 금리 · 물가 · 고용 지표 자료로 답할 수 있는 부분만 조사했습니다.");
+    expect(scopeGap(rescue)).toBe("질문의 일부는 머핀이 다루는 범위 밖이라, 금리 · 물가 · 고용 지표 자료로 답할 수 있는 부분만 조사했어요.");
   });
 });

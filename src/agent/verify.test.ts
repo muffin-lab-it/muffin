@@ -535,7 +535,7 @@ describe("verify · applyVerification · summarizeVerification", () => {
     expect(applied.matches[0]).toEqual({ key: "rate", policy: "exact", change: { key: "change", policy: "exact" } });
     expect(applied.output.why[1]).toMatchObject({ basis: "none", refs: [], evidence: "데이터로 확인되지 않음" });
     expect(applied.output.impact).toEqual(["수입 물가가 오를 수 있습니다."]);
-    expect(applied.output.dataGaps).toEqual(["금리 데이터 없음", "검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았습니다)"]);
+    expect(applied.output.dataGaps).toEqual(["금리 데이터 없음", "검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았어요)"]);
     expect(applied.removed).toHaveLength(4);
     expect(applied.removed).toContain("생활 영향 카드 2번을 뺌: 투자 권유 표현");
     expect(applied.removed).toContain("원인 2번의 근거 표시를 고침: basis 가 data 인데 숫자 데이터가 있는 증거(refs)가 없음");

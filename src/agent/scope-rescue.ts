@@ -38,5 +38,5 @@ export function scopeNote(rescue: ScopeRescue): string {
   ].join("\n");
 }
 export function scopeGap(rescue: ScopeRescue): string {
-  return `질문의 일부는 머핀이 다루는 범위 밖이라, ${rescue.areas.join(" · ")} 자료로 답할 수 있는 부분만 조사했습니다.`;
+  return `질문의 일부는 머핀이 다루는 범위 밖이라, ${rescue.areas.join(" · ")} 자료로 답할 수 있는 부분만 조사했어요.`;
 }

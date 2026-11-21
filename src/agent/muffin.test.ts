@@ -224,7 +224,7 @@ describe("research() 다섯 단계", () => {
     expect(result.report.numbers).toEqual([]);
     expect(result.report.verification.status).toBe("partial");
     expect(result.report.verification.removed[0]).toContain("1,400");
-    expect(result.report.dataGaps).toContain("검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았습니다)");
+    expect(result.report.dataGaps).toContain("검증을 통과하지 못해 뺀 숫자 1개 (출처 값과 맞지 않았어요)");
     // 수정 요청은 tool 을 다시 부르지 않으므로 증거 번호와 실행 기록이 그대로다
     expect(result.report.evidence.map((e) => e.id)).toEqual(["E1", "C1"]);
     expect(result.steps).toHaveLength(2);
@@ -379,7 +379,7 @@ describe("research() 다섯 단계", () => {
     // 따로 받은 일별 환율 주소가 출처로 남는다
     expect(result.report.sources.map((s) => s.id)).toEqual(["E1", "C2"]);
     expect(result.report.movement).toMatchObject({ ref: "E1", window: 90, level: "notable" });
-    expect(result.report.notice).toMatch(/^USD\/KRW 30일 변화\(\+2\.00%\)는 직전 90일 기준 평소 폭\(±\d\.\d{2}%\)의 \d\.\d{2}배로, 평소보다 큰 움직임입니다\.$/);
+    expect(result.report.notice).toMatch(/^USD\/KRW 30일 변화\(\+2\.00%\)는 직전 90일 기준 평소 폭\(±\d\.\d{2}%\)의 \d\.\d{2}배로, 평소보다 큰 움직임이에요\.$/);
     expect(result.report.verification.status).toBe("pass");
   });
 
