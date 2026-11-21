@@ -29,6 +29,7 @@ describe("물가와 금리의 관계 질문 (11/21)", () => {
     expect(isRateInflationQuestion("요즘 물가 상승률 얼마야?")).toBe(false);
     expect(isRateInflationQuestion("금리와 환율의 관계는?")).toBe(false);
     expect(isRateInflationQuestion("미국 금리와 물가의 관계는?")).toBe(false);
+    expect(isRateInflationQuestion("한국 물가와 일본 금리 관계 알려줘")).toBe(false);
     expect(isRateInflationQuestion("2020년 한국 물가와 금리 관계 분석해줘")).toBe(false);
   });
 

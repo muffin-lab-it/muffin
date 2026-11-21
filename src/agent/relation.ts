@@ -11,11 +11,14 @@ import { areaTools } from "./plan";
 import type { Evidence, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
 
+/** 다른 나라를 말한 질문. 이 보강은 한국 물가 · 한국은행 기준금리만 비교하므로, 다른 나라나 나라 사이 비교는 조사 결과를 그대로 둡니다 (#128 Codex 리뷰) */
+const OTHER_COUNTRY = /미국|연준|\bFed\b|일본|중국|영국|유럽|유로존|독일|캐나다|호주|스위스|브라질|해외|글로벌|세계|각국|주요국/i;
+
 /** 한국 물가와 금리의 관계를 묻는 질문인지 */
 export function isRateInflationQuestion(question: string): boolean {
   // 과거 연도 · 기간을 정한 질문은 대상이 아닙니다. 이 보강은 "최근 1년" 만 비교하므로, 2020년 물가에 지금 금리를 나란히 놓게 됩니다 (#128 Codex 리뷰)
   if (/(19|20)\d{2}\s*년|\d+\s*년\s*(전|간|동안)|작년|지난해|재작년/.test(question)) return false;
-  return /상관|관계|연관|영향|같이\s*움직|따라\s*움직/.test(question) && /물가|인플레|\bcpi\b|소비자물가/i.test(question) && /금리/.test(question) && !/미국|연준|\bFed\b/i.test(question);
+  return /상관|관계|연관|영향|같이\s*움직|따라\s*움직/.test(question) && /물가|인플레|\bcpi\b|소비자물가/i.test(question) && /금리/.test(question) && !OTHER_COUNTRY.test(question);
 }
 
 const yoy = (e: Evidence) => e.values["latest.previousYear.change"];
