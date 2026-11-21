@@ -16,6 +16,13 @@ export function buildHomeInput(question: string, depth: Depth, selected: readonl
   return { question: text, depth, ...(unique.length === 1 ? { area: unique[0] } : {}) };
 }
 
+/** 질문 최대 길이. 서버도 같은 값으로 막습니다 */
+export const QUESTION_MAX = 500;
+/** 질문에 쓸 수 있는 글자 수. 영역을 둘 이상 고르면 머리말이 함께 가므로 그만큼 줄어듭니다 (11/21 QA-09: 제출한 뒤에야 줄이라고 나옴) */
+export function questionAllowance(selected: readonly Area[]): number {
+  return QUESTION_MAX - buildHomeInput("", "easy", selected).question.length;
+}
+
 /** 질문 앞에 붙은 "관심 영역: 환율, ETF" 머리말을 떼어 냅니다 (11/20 외부 G1 · 하니 2). 화면 표시용이고 API · 저장 형식은 그대로입니다. */
 export function splitAreaPrefix(question: string): { areas: string[]; question: string } {
   const match = /^관심 영역: ([^\r\n]+)\r?\n\r?\n/.exec(question);

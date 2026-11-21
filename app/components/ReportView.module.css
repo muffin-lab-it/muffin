@@ -676,3 +676,9 @@
 
 /* 11/21 사용자 확인: 영향 카드도 상자. 개수에 맞춰 2~3열 */
 .report :global(.impact-grid) { grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:14px; }
+
+/* 11/21 QA 최종리포트: 이어서 질문하기 · 고른 영역과 다른 주제 안내 */
+.report :global(.report-continue) { margin:14px 0 0; font-size:15px; }
+.report :global(.report-continue) a { color:#6b4a94; font-weight:600; text-decoration:none; }
+.report :global(.report-continue) a:hover { text-decoration:underline; }
+.report :global(.report-area-note) { font-size:13px; color:#7a7186; }

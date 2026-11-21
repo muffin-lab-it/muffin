@@ -12,7 +12,7 @@ import type { Area, Depth } from "@/src/agent/schema";
 import { formatWait } from "@/src/lib/age";
 import { Progress } from "./components/Progress";
 import { ReportView } from "./components/ReportView";
-import { buildHomeInput, toggleHomeArea } from "./components/home-form";
+import { buildHomeInput, QUESTION_MAX, questionAllowance, toggleHomeArea } from "./components/home-form";
 import { createHomeReport, showsHomeProgress } from "./components/home-report";
 
 const areaOptions: { value: Area; label: string }[] = [
@@ -58,6 +58,8 @@ function HomeForm() {
   const busy = checking;
   const unsupported = state.phase === "unsupported";
   const canRetry = state.phase === "error" && ![400, 403, 413, 503].includes(state.error?.status ?? 0);
+  const allowance = questionAllowance(selectedAreas);
+  const over = Math.max(0, question.length - allowance);
   useEffect(() => {
     if (!coolingDown) return;
     const timer = window.setInterval(request.tick, 250);
@@ -93,7 +95,7 @@ function HomeForm() {
     e.preventDefault();
     setFormError(null);
     const input = buildHomeInput(question, depth, selectedAreas);
-    if (input.question.length > 500) {
+    if (input.question.length > QUESTION_MAX) {
       setFormError("선택한 관심 영역을 함께 보내려면 질문을 조금 줄여주세요.");
       questionField.current?.focus();
       return;
@@ -130,7 +132,7 @@ function HomeForm() {
           <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
             <textarea ref={questionField} id="question" required readOnly={busy} maxLength={500} aria-describedby="question-limit" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault(); }} value={question} onChange={(e) => { setQuestion(e.target.value); setFormError(null); if (state.phase === "unsupported" || state.phase === "error") request.edit(); }} placeholder="예: 요즘 환율 왜 올라?" />
           </div>
-          <small id="question-limit" className={styles.questionLimit}>궁금한 금융 이야기를 자유롭게 물어보세요.</small>
+          <small id="question-limit" className={styles.questionLimit}><span>궁금한 금융 이야기를 자유롭게 물어보세요.</span><span className={styles.questionCount} data-over={over > 0 ? "true" : undefined}>{over > 0 ? `${over}자 줄여 주세요 · ` : ""}{question.length} / {allowance}자</span></small>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
           {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2><p>생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요.</p><button type="button" className={styles.clearQuestion} onClick={clearQuestion}>지우고 다시 쓰기</button></section>}
           {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${formatWait(state.retrySeconds)} 후 다시 시도` : "다시 시도"}</button>}</div>}

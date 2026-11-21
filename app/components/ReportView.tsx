@@ -1,6 +1,6 @@
 import { PrintOpenDetails, ReportResponsiveDetails } from "./ReportResponsiveDetails";
 /// <reference types="next/image-types/global" />
-import { supportedReportTopics } from "@/src/lib/report-topics";
+import { fallbackReportTopics, supportedReportTopics } from "@/src/lib/report-topics";
 import type { ReactNode } from "react";
 import { reportChange } from "./reportChange";
 import Image from "next/image";
@@ -18,7 +18,9 @@ import type { Area, Evidence, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
-import { formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, publisherOf, valueTone } from "./format";
+import { etfBasisNote, formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, publisherOf, valueTone } from "./format";
+import { usedEvidenceIds } from "./ReportSources";
+import { evidenceCategory } from "./reportCategory";
 import { splitAreaPrefix } from "./home-form";
 
 export const areaLabels: Record<Area, string> = {
@@ -28,6 +30,16 @@ export const areaLabels: Record<Area, string> = {
   rate: "금리",
   macro: "물가",
 };
+/** 영역 → 출처 묶음 이름 (reportCategory 와 같은 말) */
+const areaCategory: Record<Area, string> = { fx: "환율", etf: "ETF", news: "뉴스", rate: "금리", macro: "물가" };
+/** 고른 영역과 실제로 쓴 자료의 주제가 다르면 그 주제들을 돌려줍니다 (11/21 QA-08: ETF 를 골랐는데 물가 리포트가 ETF 배지로 나옴) */
+export function topicMismatch(report: Report, area?: Area): string[] | null {
+  if (!area) return null;
+  const used = usedEvidenceIds(report);
+  const categories = [...new Set(report.evidence.filter(entry => used.has(entry.id)).map(evidenceCategory))].filter(name => name !== "계산" && name !== "기타 자료");
+  if (categories.length === 0 || categories.includes(areaCategory[area])) return null;
+  return categories;
+}
 
 /**
  * 리포트 한 장. 홈과 리포트 상세가 같이 씁니다.
@@ -96,7 +108,10 @@ export function ReportView({
   actions,
   createdAt,
 }: ReportViewProps) {
-  const nextTopics = supportedReportTopics(report.nextTopics, area, question);
+  // 추천이 비면 영역에 맞는 기본 질문 둘을 두어 후속 탐색이 끊기지 않게 (11/21 QA-06)
+  const supported = supportedReportTopics(report.nextTopics, area, question);
+  const nextTopics = supported.length > 0 ? supported : fallbackReportTopics(area, question);
+  const mismatch = topicMismatch(report, area);
   const whyNote = report.why.length === 0 ? whyEmptyNote(report) : null;
   // 영역을 여러 개 고르면 화면이 질문 앞에 붙인 "관심 영역: …" 머리말은 떼서 배지로 보여 줍니다 (11/20 외부 G1 · 하니 2)
   const shown = splitAreaPrefix(question ?? "");
@@ -104,7 +119,7 @@ export function ReportView({
   const areaChips = shown.areas.length > 0 ? <div className="chips report-area-chips">{shown.areas.map(name => <span key={name} className="category-chip" data-category={name === "경제뉴스" ? "뉴스" : name}>{name}</span>)}</div> : null;
   // 관심 영역 · 깊이 배지와 작성일은 질문 바로 아래 한 줄에 (11/20 하니 리뷰: 머리에 모아 두기, 보관함에서 다시 볼 때 날짜가 바로 보이게)
   const metaLine = (header || createdAt || areaChips)
-    ? <div className="report-meta-line">{areaChips}{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}</div>
+    ? <div className="report-meta-line">{areaChips}{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}{mismatch && <span className="report-area-note">질문에 맞춰 {mismatch.join(" · ")}를 중심으로 설명했어요</span>}</div>
     : null;
   const newsEntries = report.evidence.filter(isNewsEvidence);
   const cards = groupNumbers(report.numbers);
@@ -152,7 +167,7 @@ export function ReportView({
               : null;
             const entry = report.evidence.find(item => item.id === n.ref);
             const source = entry?.source;
-            const basis = entry ? fxBasisNote(entry.tool, entry.source.name) : null;
+            const basis = entry ? fxBasisNote(entry.tool, entry.source.name) ?? etfBasisNote(entry) : null;
             const check = report.verification.status === "skipped" ? "unverified" : n.check;
             const tone = valueTone(n.value);
             const valueKey = n.match?.key.replace(/#text$/, "");
@@ -275,6 +290,8 @@ export function ReportView({
         <p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
         </ReportResponsiveDetails>
       </section>}
+      {/* 추천이 있든 없든 이어서 물어볼 길을 항상 둡니다 (11/21 QA 최종리포트 마무리 문구 제안, Codex 리뷰: 추천이 비면 링크도 사라지던 것) */}
+      <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>
 
       <p className="report-disclosure">{report.disclosure}</p>
     </ReportDisplay>

@@ -33,3 +33,12 @@ describe("날짜 · 색 · 기준 설명 · 링크 라벨 (11/21 QA 1묶음)", (
     expect(newsCountLine([news("E1-1", "2026-11-20", "연합뉴스")])).toBe("기사 1건 · 2026. 11. 20. · 연합뉴스");
   });
 });
+
+describe("ETF 카드 한 줄 (11/21 QA-02)", () => {
+  it("기초지수가 있으면 무엇을 따라가는지, 아니면 없음", async () => {
+    const { etfBasisNote } = await import("./format");
+    expect(etfBasisNote({ tool: "get_etf_kr_price", values: { name: "KODEX 200", baseIndex: "코스피 200" } })).toBe("코스피 200 지수를 따라가는 국내 상장 ETF");
+    expect(etfBasisNote({ tool: "get_etf_kr_price", values: { name: "KODEX 200" } })).toBeNull();
+    expect(etfBasisNote({ tool: "get_fx_krw_rate", values: { baseIndex: "x" } })).toBeNull();
+  });
+});

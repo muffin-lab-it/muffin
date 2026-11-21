@@ -226,3 +226,11 @@ describe("원본 값 표 (11/19 페르소나 테스트 반영)", () => {
     expect(renderEntry(rate())(".evidence-note").text()).toBe("기준금리는 정책금리로, 시장금리와 다를 수 있습니다.");
   });
 });
+
+describe("기사 날짜는 한국 시간 (11/21 QA-10)", () => {
+  it("UTC 밤에 나온 기사는 한국 날짜로 보여 준다", () => {
+    expect(newsDate("2026-11-19T21:00:00Z", Date.parse("2026-11-20T03:00:00Z"))).toEqual({ label: "2026-11-20", dateTime: "2026-11-19T21:00:00Z", relative: "오늘" });
+    expect(newsDate("2026-11-19T21:00:00Z", Date.parse("2026-11-21T03:00:00Z")).relative).toBe("1일 전");
+    expect(newsDate("2026-11-19T06:00:00Z", Date.parse("2026-11-20T03:00:00Z")).label).toBe("2026-11-19");
+  });
+});
