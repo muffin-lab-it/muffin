@@ -7,9 +7,14 @@ vi.mock("@openai/agents", async (importOriginal) => {
 });
 
 vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false) }));
-vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNewsNote: vi.fn(() => "") }));
+vi.mock("./relation", () => ({ ensureRateInflation: vi.fn(async () => false), relationNote: vi.fn(() => ""), relationRows: vi.fn(() => null), withRelationNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./etf-basket", () => ({ ensureEtfBasket: vi.fn(async () => false), basketNote: vi.fn(() => ""), basketRows: vi.fn(() => []), withBasketNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), rateYearNote: vi.fn(() => ""), yearRates: vi.fn(() => []) }));
+vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), officialIndex: vi.fn(() => undefined), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
 
 import { run, type RunContext } from "@openai/agents";
+import { indexFor } from "./index-quote";
 import { ensureOtherPairs } from "./supplement";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
@@ -305,6 +310,25 @@ describe("research() 다섯 단계", () => {
     expect(result.report.notice).toContain("미국에 상장된 ETF");
     expect(result.report.summary).toContain("TIGER 미국나스닥100");
     expect(result.steps).toEqual([]);
+  });
+
+  it("분류가 범위 밖이라 해도 지수 질문이면 현황 질문으로 조사한다 (지수 tool 은 분류가 모름)", async () => {
+    vi.mocked(indexFor).mockReturnValue("나스닥 종합");
+    mockRuns({ plan: { intent: "out_of_scope", tools: [], reason: "해외 지수는 범위 밖" }, writer: [good] });
+    const result = await research({ question: "나스닥 요즘 어때?", depth: "easy" });
+    vi.mocked(indexFor).mockReturnValue(null);
+
+    expect(result.plan).toMatchObject({ intent: "status", mode: "research", tools: ["get_korean_economic_news"] });
+    expect(result.report.mode).toBe("research");
+  });
+
+  it("일부만 범위 밖인 질문은 답할 수 있는 부분을 조사하고, 범위를 한 줄로 알린다 (11/21)", async () => {
+    mockRuns({ plan: { intent: "out_of_scope", tools: [], reason: "선물 시장은 범위 밖" }, writer: [good] });
+    const result = await research({ question: "환율이랑 금리 조사하고 선물 시장도 조사해줘", depth: "easy" });
+
+    expect(result.plan).toMatchObject({ intent: "status", mode: "research", tools: ["get_fx_krw_rate", "get_rate_data"] });
+    expect(inputOf(3)).toContain("[질문의 범위]");
+    expect(result.report.dataGaps.some((g) => g.includes("범위 밖이라"))).toBe(true);
   });
 
   it("판단 요청이면 작성에 모드 규칙이 붙고 리포트에 안내가 달린다", async () => {

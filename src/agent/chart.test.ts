@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayScale, fxChart } from "./chart";
+import { indexChart, displayScale, fxChart } from "./chart";
 import type { Movement } from "./movement";
 import { reportSchema, type Evidence } from "./schema";
 import sample from "./fixtures/report.v2.sample.json";
@@ -65,5 +65,21 @@ describe("환율 차트", () => {
 
   it("일별 환율이 없으면 차트를 만들지 않는다", () => {
     expect(fxChart({ ...movement, series: [] }, "C2", [])).toBeNull();
+  });
+});
+
+describe("indexChart: 지수 질문의 비교 기간 선 (11/21)", () => {
+  const official = { id: "E2", tool: "get_kr_stock_index", label: "국내 지수 확인", values: { index: "코스피", "latest.close": 5137.89 }, source: { name: "금융위원회 지수시세정보", url: "https://www.data.go.kr/data/15094807/openapi.do", asOf: "2026-11-19" } };
+
+  it("tool 의 일별 종가로 선을 만들고 출처는 공식 지수 항목이다", () => {
+    const chart = indexChart(official, { series: [{ date: "2026-10-20", close: 5552.74 }, { date: "2026-10-21", close: 5500.1 }, { date: "2026-11-19", close: 5137.89 }] });
+    expect(chart).toMatchObject({ kind: "line", title: "코스피 2026-10-20 ~ 2026-11-19", unit: "지수(포인트)" });
+    expect(chart!.series).toEqual([{ label: "코스피", ref: "E2", points: [{ t: "2026-10-20", v: 5552.74 }, { t: "2026-10-21", v: 5500.1 }, { t: "2026-11-19", v: 5137.89 }] }]);
+    expect(chart!.band).toBeUndefined();
+  });
+
+  it("일별 값이 없거나 하나뿐이면 차트를 만들지 않는다", () => {
+    expect(indexChart(official, undefined)).toBeNull();
+    expect(indexChart(official, { series: [{ date: "2026-11-19", close: 5137.89 }] })).toBeNull();
   });
 });

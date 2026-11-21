@@ -58,3 +58,20 @@ export function fxChart(m: Movement, id: string, evidence: Evidence[]): Chart | 
   };
 }
 
+
+
+/**
+ * 지수 차트 (11/21). 지수 tool 이 받은 일별 종가로 비교 시점부터 최신까지의 선을 만듭니다. 출처는 공식 지수 항목의 E 번호입니다.
+ * series 는 장부에 없어 tool 의 전체 data(ResearchContext.raw)에서 읽습니다. 값이 둘 미만이면 null
+ */
+export function indexChart(official: Evidence, raw: unknown): Chart | null {
+  const series = (raw as { series?: { date: string; close: number }[] } | undefined)?.series;
+  if (!Array.isArray(series) || series.length < 2) return null;
+  const index = String(official.values.index);
+  return {
+    kind: "line",
+    title: `${index} ${series[0]!.date} ~ ${series.at(-1)!.date}`,
+    unit: "지수(포인트)",
+    series: [{ label: index, ref: official.id, points: series.map((r) => ({ t: r.date, v: r.close })) }],
+  };
+}

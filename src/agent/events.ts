@@ -41,6 +41,7 @@ export const toolLabels: Record<string, string> = {
   calc_metrics: "계산",
   calc_movement: "평소 움직임과 비교",
   get_kr_stock_index: "국내 지수 확인",
+  get_us_stock_index: "미국 지수 확인",
   calc_index_today: "당일 지수 검산",
 };
 

@@ -34,6 +34,8 @@ export type KrIndexData = {
   index: KrIndexName;
   latest: { date: string; close: number; change: number; changePct: number };
   period: { from: string; to: string; closeFrom: number; change: number; returnPct: number };
+  /** 비교 시점부터 최신까지의 일별 종가. 장부에는 올리지 않고 차트가 씁니다 */
+  series: { date: string; close: number }[];
 };
 
 const iso = (basDt: string) => `${basDt.slice(0, 4)}-${basDt.slice(4, 6)}-${basDt.slice(6, 8)}`;
@@ -72,6 +74,7 @@ export function toResult(index: KrIndexName, days: number, rows: ReturnType<type
         change: round(latest.close - from.close, 2),
         returnPct: round((latest.close / from.close - 1) * 100, 2),
       },
+      series: rows.filter((r) => r.date >= from.date).map((r) => ({ date: r.date, close: r.close })),
     },
     source: { name: SOURCE_NAME, url: SOURCE_URL, asOf: latest.date },
     note: "다음 영업일에 공개되는 자료라 최신 값은 직전 영업일 종가입니다. 장중 · 당일 값은 들어 있지 않습니다. 지수 값의 단위는 포인트입니다.",
