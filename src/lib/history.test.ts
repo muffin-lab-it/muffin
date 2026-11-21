@@ -199,11 +199,12 @@ describe("용량이 빠듯할 때 2 (Codex 재리뷰)", () => {
   });
 
   it("자리가 날 때까지 덜어 내면 큰 새 기록도 들어간다", async () => {
-    const store = fakeStorage(3000);
+    const store = fakeStorage(20000);
     vi.stubGlobal("window", { localStorage: store });
-    for (let i = 0; i < 8; i++) await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(60) }, [], `s-${i}`);
+    for (let i = 0; i < 8; i++) await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(600) }, [], `s-${i}`);
     expect(await listReports()).toHaveLength(8);
-    const big = await saveReport({ question: "big", depth: "easy" }, { ...report, summary: "y".repeat(2200) }, [], "big");
+    // 기록 8개(약 1만 자)가 있을 때는 안 들어가고, 거의 다 덜어 내야 들어가는 크기
+    const big = await saveReport({ question: "big", depth: "easy" }, { ...report, summary: "y".repeat(18000) }, [], "big");
     expect(await getReport(big.id)).not.toBeNull();
     expect((await listReports())[0]?.id).toBe("big");
   });
