@@ -29,6 +29,14 @@ export function fxBasisNote(tool: string, sourceName: string): string | null {
   return "일별 기준 환율 · 은행 환율과 다를 수 있어요";
 }
 
+/** ETF 카드 아래 한 줄: 무엇을 따라가는 상품인지 (11/21 QA-02: 상품명만 있고 설명이 없어 숫자 카드만 읽는 사람은 모름) */
+export function etfBasisNote(entry: Pick<Evidence, "tool" | "values">): string | null {
+  if (!/etf/i.test(entry.tool)) return null;
+  const base = entry.values.baseIndex;
+  if (typeof base !== "string" || !base.trim()) return null;
+  return `${base.trim()} 지수를 따라가는 국내 상장 ETF`;
+}
+
 /** 출처 링크 라벨. API 응답 주소는 눌러도 JSON 이라 그렇다고 말해 줍니다 (11/20 서영 2-1). */
 export function sourceLinkLabel(url: string): string {
   try {

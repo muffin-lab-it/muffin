@@ -148,13 +148,17 @@ export function newsDate(value: unknown, now: number | null = null) {
     return { label: "발행일 확인 불가", dateTime: undefined, relative: null };
   }
   // 날짜만 있는 기록에는 발행 시각을 가정하지 않고, 브라우저의 달력 날짜끼리 비교합니다.
+  // 시각이 있는 기록은 한국 시간 날짜로 봅니다 (11/21 QA-10: UTC 날짜라 원문 게시일보다 하루 앞서 보였음)
+  const dateOnly = value.length === 10;
+  const seoulDay = (ms: number) => new Date(ms).toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const shownDate = dateOnly ? date : seoulDay(timestamp);
   const current = now === null ? null : new Date(now);
-  const elapsed = current === null ? null : value.length === 10
+  const elapsed = current === null ? null : dateOnly
     ? Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()) - midnight
-    : current.getTime() - timestamp;
+    : Date.parse(`${seoulDay(current.getTime())}T00:00:00Z`) - Date.parse(`${shownDate}T00:00:00Z`);
   const days = elapsed === null ? null : Math.floor(elapsed / 86_400_000);
   const relative = elapsed === null || days === null ? null : elapsed < 0 ? "미래 발행일" : days === 0 ? "오늘" : `${days}일 전`;
-  return { label: date, dateTime: value, relative };
+  return { label: shownDate, dateTime: value, relative };
 }
 
 function NewsEvidence({ entry }: { entry: Evidence }) {

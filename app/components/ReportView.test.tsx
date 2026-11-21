@@ -718,3 +718,35 @@ describe("11/21 QA 2묶음 A", () => {
     expect(formatEvidenceValue("changePp", -0.2169840746809312)).toBe("-0.217");
   });
 });
+
+describe("11/21 QA 최종리포트 화면 항목", () => {
+  it("추천이 비어도 영역에 맞는 기본 질문과 이어서 질문하기가 있다 (QA-06)", () => {
+    const report = fixture();
+    report.nextTopics = []; report.topicReasons = [];
+    const $ = load(renderToStaticMarkup(<ReportView report={report} area="macro" />));
+    expect($(".topicLink, [class*='topicLink']").length).toBeGreaterThan(0);
+    expect($.text()).toContain("이어서 알아볼까요?");
+    expect($(".report-continue a").attr("href")).toBe("/?area=macro");
+  });
+  it("고른 영역과 쓴 자료의 주제가 다르면 안내 한 줄, 같으면 없음 (QA-08)", () => {
+    const report = fixture();
+    const macro = render(report);
+    expect(macro(".report-area-note")).toHaveLength(0);
+    const fx = report.evidence.find(entry => /fx/i.test(entry.tool));
+    expect(fx).toBeDefined();
+    const mismatched = fixture();
+    mismatched.evidence = [{ ...fx!, id: "E1", tool: "get_macro_indicators", label: "물가 확인" }];
+    mismatched.numbers = [{ ...mismatched.numbers[0]!, ref: "E1" }];
+    mismatched.why = [];
+    const $ = load(renderToStaticMarkup(<ReportView report={mismatched} area="etf" question="한국 물가상승률이 내려갔다는 게 무슨 뜻이야?" createdAt="2026-11-21T01:00:00Z" />));
+    expect($(".report-area-note").text()).toBe("질문에 맞춰 물가를 중심으로 설명했어요");
+  });
+  it("ETF 카드 아래에 기초지수 한 줄 (QA-02)", () => {
+    const report = fixture();
+    const base = report.evidence[0]!;
+    report.evidence = [{ ...base, id: "E1", tool: "get_etf_kr_price", label: "국내 ETF 시세 확인", values: { name: "KODEX 200", baseIndex: "코스피 200", "latest.close": 80630 } }];
+    report.numbers = [{ ...report.numbers[0]!, label: "KODEX 200 종가", value: "80,630원", ref: "E1" }];
+    report.why = [];
+    expect(render(report)(".num .metric-basis").text()).toBe("코스피 200 지수를 따라가는 국내 상장 ETF");
+  });
+});

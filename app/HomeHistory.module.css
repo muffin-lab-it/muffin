@@ -149,3 +149,8 @@
 /* 11/21: 진행 화면은 홈 폭(1280)으로, 위 여백만 */
 .progressPage{padding-top:36px}
 @media(max-width:600px){.progressPage{padding-top:20px}}
+
+/* 11/21 QA-09: 글자 수와 허용 길이를 입력 중에 보여 줌 (영역을 여러 개 고르면 허용 길이가 줄어듦) */
+.questionLimit{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.questionCount{font-variant-numeric:tabular-nums;color:#9a93a6;white-space:nowrap}
+.questionCount[data-over="true"]{color:#c83532;font-weight:600}

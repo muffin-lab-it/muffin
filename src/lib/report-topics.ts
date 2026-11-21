@@ -13,6 +13,13 @@ export const reportTopics = [
   { area: "news", question: "최근 한국 기준금리 관련 경제뉴스는 무엇인가요?", reason: "금리 관련 보도와 자료의 기준일을 함께 확인해요.", match: /뉴스|보도|기사/ },
 ] satisfies { area: Area; question: string; reason: string; match: RegExp }[];
 
+/** 추천이 비었을 때 영역에 맞는 기본 후속 질문 둘 (11/21 QA-06: 후속 탐색이 없는 리포트가 있었음). 영역이 없으면 환율 · 금리 */
+export function fallbackReportTopics(area?: Area, currentQuestion?: string) {
+  const byArea = area ? reportTopics.filter(item => item.area === area) : [];
+  const pool = byArea.length > 0 ? byArea : reportTopics.filter(item => item.area === "fx" || item.area === "rate");
+  return pool.filter(item => item.question !== currentQuestion).slice(0, 2);
+}
+
 export function supportedReportTopics(topics: string[], area?: Area, currentQuestion?: string) {
   const selected = topics.map(topic => reportTopics.find(item => item.question === topic) ?? [...reportTopics].reverse().find(item => item.match.test(topic))).filter(item => item !== undefined);
   const candidates = [...selected, ...reportTopics.filter(item => item.area === area)];

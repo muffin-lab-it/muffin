@@ -13,3 +13,14 @@ describe("관심 영역 머리말 분리 (11/21 외부 G1 · 하니 2)", () => {
     expect(homeAreaLabel({ area: "rate", question: "질문" })).toBe("금리");
   });
 });
+
+describe("질문 글자 수 (11/21 QA-09)", () => {
+  it("영역을 둘 이상 고르면 머리말 길이만큼 허용 길이가 줄어든다", async () => {
+    const { questionAllowance, buildHomeInput } = await import("./home-form");
+    expect(questionAllowance([])).toBe(500);
+    expect(questionAllowance(["fx"])).toBe(500);
+    const prefix = buildHomeInput("", "easy", ["fx", "etf"]).question.length;
+    expect(prefix).toBeGreaterThan(0);
+    expect(questionAllowance(["fx", "etf"])).toBe(500 - prefix);
+  });
+});
