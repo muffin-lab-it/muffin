@@ -39,8 +39,14 @@ const ETF_SUBJECT =
   /ETF|이티에프|KODEX|코덱스|TIGER|타이거|RISE|라이즈|KBSTAR|케이비스타|ACE|에이스|KINDEX|킨덱스|PLUS|플러스|ARIRANG|아리랑|SOL|쏠|KIWOOM|키움|KOSEF|코세프|HANARO|하나로|1Q|원큐|KOACT|코액트|TIMEFOLIO|타임폴리오|마이티|파워|\d{6}/i;
 
 /** 질문이 물은 국내 지수. 지수 질문이 아니거나 ETF 를 묻는 질문이면 null. 여러 지수를 말하면 먼저 나온 것 */
+/**
+ * 지수 이름이 있어도 현물 지수 값으로 답할 수 없는 질문: 선물 · 옵션 같은 파생상품, 뜻 · 구성 · 산출 방식을 묻는 개념 질문.
+ * "나스닥 선물 시세 알려줘" 에 현물 지수를 대신 보여 주면 묻지 않은 것을 답하게 됩니다 (#128 Codex 리뷰)
+ */
+const NOT_SPOT_INDEX = /선물|옵션|파생|ETN|레버리지|인버스|VIX|변동성\s*지수|뭐야|뭔가요|무슨\s*뜻|뜻이|뜻인|구성\s*종목|산출|계산/i;
+
 export function indexFor(question: string): IndexName | null {
-  if (ETF_SUBJECT.test(question)) return null;
+  if (ETF_SUBJECT.test(question) || NOT_SPOT_INDEX.test(question)) return null;
   const hits = INDEX_WORDS.map(([re, name]) => ({ name, at: question.search(re) })).filter((h) => h.at >= 0);
   // "코스피 200" 은 "코스피" 패턴에 걸리지 않으므로(뒤에 숫자) 위치만 비교하면 됩니다
   return hits.sort((a, b) => a.at - b.at)[0]?.name ?? null;

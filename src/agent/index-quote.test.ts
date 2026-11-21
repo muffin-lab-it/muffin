@@ -33,6 +33,10 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(indexFor("다우 지수 알려줘")).toBe("다우존스");
     expect(indexFor("TIGER 미국배당다우존스 어때?")).toBeNull();
     expect(indexFor("다우니 섬유유연제 가격")).toBeNull();
+    // 선물 같은 파생상품과 개념 질문은 현물 지수 값으로 답할 수 없다
+    expect(indexFor("나스닥 선물 시세 알려줘")).toBeNull();
+    expect(indexFor("코스피 200 선물 현황 알려줘")).toBeNull();
+    expect(indexFor("코스피가 뭐야?")).toBeNull();
   });
 
   it("기사 본문의 마감 문장을 읽고, 공식 전일 종가로 검산한다", () => {
