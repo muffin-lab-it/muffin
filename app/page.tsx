@@ -86,7 +86,8 @@ function HomeForm() {
     if (typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("field-sizing", "content")) return;
     field.style.height = "auto";
     field.style.height = `${field.scrollHeight}px`;
-  }, [question]);
+    // 분류 중엔 진행 화면이 폼을 대신하므로, 범위 밖 · 오류로 폼이 다시 그려질 때도 높이를 다시 맞춥니다 (Codex 리뷰)
+  }, [question, state.phase]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
