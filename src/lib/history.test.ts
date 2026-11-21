@@ -149,3 +149,35 @@ describe("기록별 키 저장 (11/21 20명 시나리오 1번: 여러 탭이 서
     expect(await listReports()).toHaveLength(1);
   });
 });
+
+describe("용량이 빠듯할 때 (Codex 리뷰)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("옮기기는 목록 키를 먼저 비워 중복을 남기지 않고, 공간이 모자라면 오래된 기록만 못 옮긴다", async () => {
+    const legacy = Array.from({ length: 6 }, (_, i) => ({ id: `L${i}`, createdAt: `2026-11-2${i}T00:00:00.000Z`, input: { question: `q${i}`, depth: "easy" as const }, report: { ...report, summary: "x".repeat(300) }, steps: [] }));
+    const raw = JSON.stringify(legacy);
+    const store = fakeStorage(raw.length + 800); // 목록 한 벌 + 조금
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    const list = await listReports();
+    expect(store.raw.has("muffin.history.v1")).toBe(false);
+    expect(list[0]?.id).toBe("L5");
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.length).toBeLessThanOrEqual(6);
+    // 두 번째 읽기에서 같은 결과, 다시 옮기려 들지 않는다
+    expect((await listReports()).map(r => r.id)).toEqual(list.map(r => r.id));
+    // 새 기록 저장도 막히지 않는다 (오래된 기록을 덜어 내서라도)
+    const saved = await saveReport({ question: "new", depth: "easy" }, { ...report, summary: "y".repeat(300) }, [], "new-1");
+    expect(await getReport(saved.id)).not.toBeNull();
+  });
+
+  it("새 기록이 끝내 들어가지 못하면 기존 기록을 되돌려 놓는다", async () => {
+    const store = fakeStorage(2500);
+    vi.stubGlobal("window", { localStorage: store });
+    for (let i = 0; i < 3; i++) await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(200) }, [], `k-${i}`);
+    expect(await listReports()).toHaveLength(3);
+    await saveReport({ question: "huge", depth: "easy" }, { ...report, summary: "z".repeat(5000) }, [], "huge");
+    expect(await getReport("huge")).toBeNull();
+    expect((await listReports()).map(r => r.id).sort()).toEqual(["k-0", "k-1", "k-2"]);
+  });
+});
