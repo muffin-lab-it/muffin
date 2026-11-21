@@ -13,12 +13,22 @@ const report = normalizeReport({
   nextTopics: [],
 });
 
-function fakeStorage() {
+function fakeStorage(limitBytes = Infinity) {
   const m = new Map<string, string>();
+  let writes = 0;
   return {
     getItem: (k: string) => m.get(k) ?? null,
-    setItem: (k: string, v: string) => void m.set(k, v),
-    removeItem: (k: string) => void m.delete(k),
+    setItem: (k: string, v: string) => {
+      writes++;
+      const total = [...m.entries()].filter(([key]) => key !== k).reduce((sum, [, value]) => sum + value.length, 0) + v.length;
+      if (total > limitBytes) throw new Error("QuotaExceededError");
+      m.set(k, v);
+    },
+    removeItem: (k: string) => { writes++; m.delete(k); },
+    key: (i: number) => [...m.keys()][i] ?? null,
+    get length() { return m.size; },
+    get writes() { return writes; },
+    raw: m,
   };
 }
 
@@ -87,5 +97,176 @@ describe("history (localStorage)", () => {
     await expect(saveReport({ question: "x", depth: "easy" }, report, [])).resolves.toMatchObject({ input: { question: "x" } });
     expect(await listReports()).toEqual([]);
     expect(await getReport("x")).toBeNull();
+  });
+});
+
+describe("기록별 키 저장 (11/21 20명 시나리오 1번: 여러 탭이 서로 덮어쓰던 것)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("기록마다 자기 키에 저장해 다른 탭이 목록을 덮어써도 사라지지 않는다", async () => {
+    const store = fakeStorage();
+    vi.stubGlobal("window", { localStorage: store });
+    const a = await saveReport({ question: "a", depth: "easy" }, report, [], "tab-a");
+    expect(store.raw.has("muffin.history.v1:tab-a")).toBe(true);
+    // 다른 탭이 예전 방식으로 목록 전체를 덮어쓴 상황
+    store.raw.set("muffin.history.v1", JSON.stringify([{ id: "tab-b", createdAt: "2026-11-21T00:00:00.000Z", input: { question: "b", depth: "easy" }, report, steps: [] }]));
+    const list = await listReports();
+    expect(list.map(r => r.id).sort()).toEqual(["tab-a", "tab-b"]);
+    expect(await getReport(a.id)).toMatchObject({ input: { question: "a" } });
+  });
+
+  it("예전 목록 키의 기록은 읽을 때 기록별 키로 옮기고 목록 키는 지운다", async () => {
+    const store = fakeStorage();
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", JSON.stringify([
+      { id: "old-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report, steps: [] },
+      { id: "old-2", createdAt: "2026-11-21T00:00:00.000Z", input: { question: "new", depth: "easy" }, report, steps: [] },
+    ]));
+    expect((await listReports()).map(r => r.id)).toEqual(["old-2", "old-1"]);
+    expect(store.raw.has("muffin.history.v1")).toBe(false);
+    expect(store.raw.has("muffin.history.v1:old-1")).toBe(true);
+    await deleteReport("old-1");
+    expect((await listReports()).map(r => r.id)).toEqual(["old-2"]);
+  });
+
+  it("용량 한도에 걸리면 오래된 기록부터 덜어 내고 새 기록을 저장한다", async () => {
+    const store = fakeStorage(7000);
+    vi.stubGlobal("window", { localStorage: store });
+    const ids: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const record = await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(400) }, [], `r-${i}`);
+      ids.push(record.id);
+      await new Promise(resolve => setTimeout(resolve, 2));
+    }
+    const list = await listReports();
+    expect(list[0]?.id).toBe("r-11");
+    expect(list.length).toBeLessThan(12);
+    expect(list.map(r => r.id)).not.toContain("r-0");
+  });
+
+  it("같은 id 는 기록별 키에서도 한 번만 저장한다", async () => {
+    vi.stubGlobal("window", { localStorage: fakeStorage() });
+    const first = await saveReport({ question: "a", depth: "easy" }, report, [], "same");
+    const second = await saveReport({ question: "b", depth: "easy" }, report, [], "same");
+    expect(second).toEqual(first);
+    expect(await listReports()).toHaveLength(1);
+  });
+});
+
+describe("용량이 빠듯할 때 (Codex 리뷰)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("옮기기는 목록 키를 먼저 비워 중복을 남기지 않고, 공간이 모자라면 오래된 기록만 못 옮긴다", async () => {
+    const legacy = Array.from({ length: 6 }, (_, i) => ({ id: `L${i}`, createdAt: `2026-11-2${i}T00:00:00.000Z`, input: { question: `q${i}`, depth: "easy" as const }, report: { ...report, summary: "x".repeat(300) }, steps: [] }));
+    const raw = JSON.stringify(legacy);
+    const store = fakeStorage(raw.length + 800); // 목록 한 벌 + 조금
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    const list = await listReports();
+    expect(store.raw.has("muffin.history.v1")).toBe(false);
+    expect(list[0]?.id).toBe("L5");
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.length).toBeLessThanOrEqual(6);
+    // 두 번째 읽기에서 같은 결과, 다시 옮기려 들지 않는다
+    expect((await listReports()).map(r => r.id)).toEqual(list.map(r => r.id));
+    // 새 기록 저장도 막히지 않는다 (오래된 기록을 덜어 내서라도)
+    const saved = await saveReport({ question: "new", depth: "easy" }, { ...report, summary: "y".repeat(300) }, [], "new-1");
+    expect(await getReport(saved.id)).not.toBeNull();
+  });
+
+  it("새 기록이 끝내 들어가지 못하면 기존 기록을 되돌려 놓는다", async () => {
+    const store = fakeStorage(2500);
+    vi.stubGlobal("window", { localStorage: store });
+    for (let i = 0; i < 3; i++) await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(200) }, [], `k-${i}`);
+    expect(await listReports()).toHaveLength(3);
+    await saveReport({ question: "huge", depth: "easy" }, { ...report, summary: "z".repeat(5000) }, [], "huge");
+    expect(await getReport("huge")).toBeNull();
+    expect((await listReports()).map(r => r.id).sort()).toEqual(["k-0", "k-1", "k-2"]);
+  });
+});
+
+describe("용량이 빠듯할 때 2 (Codex 재리뷰)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("옮기다 하나도 못 쓰면 예전 목록을 그대로 되돌려 기록이 사라지지 않는다", async () => {
+    // v1 모양 기록은 읽을 때 검증 · 고지가 붙어 커지므로, 목록이 딱 맞게 찬 저장소에서는 기록별 키로 못 옮깁니다
+    const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+    const raw = JSON.stringify([{ id: "v1-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report: v1, steps: [] }]);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    expect((await listReports()).map(r => r.id)).toEqual(["v1-1"]);
+    expect(store.raw.get("muffin.history.v1")).toBe(raw);
+    expect(store.raw.has("muffin.history.v1:v1-1")).toBe(false);
+    expect(await getReport("v1-1")).not.toBeNull();
+  });
+
+  it("자리가 날 때까지 덜어 내면 큰 새 기록도 들어간다", async () => {
+    const store = fakeStorage(20000);
+    vi.stubGlobal("window", { localStorage: store });
+    for (let i = 0; i < 8; i++) await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(600) }, [], `s-${i}`);
+    expect(await listReports()).toHaveLength(8);
+    // 기록 8개(약 1만 자)가 있을 때는 안 들어가고, 거의 다 덜어 내야 들어가는 크기
+    const big = await saveReport({ question: "big", depth: "easy" }, { ...report, summary: "y".repeat(18000) }, [], "big");
+    expect(await getReport(big.id)).not.toBeNull();
+    expect((await listReports())[0]?.id).toBe("big");
+  });
+});
+
+describe("예전 목록에만 남은 기록 (Codex 재리뷰 2)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("옮기지 못한 기록만 있을 때 새 기록이 안 들어가도 덜어 내기가 멈춘다", async () => {
+    const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+    const raw = JSON.stringify([{ id: "v1-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report: v1, steps: [] }]);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    expect((await listReports()).map(r => r.id)).toEqual(["v1-1"]);
+    const saved = await saveReport({ question: "big", depth: "easy" }, { ...report, summary: "z".repeat(raw.length) }, [], "big");
+    expect(saved.id).toBe("big");
+    expect(await getReport("big")).toBeNull();
+    expect(Array.isArray(await listReports())).toBe(true);
+  });
+
+  it("옮기지 못한 기록도 삭제하면 목록에서 빠진다", async () => {
+    const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+    const raw = JSON.stringify([{ id: "v1-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report: v1, steps: [] }]);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    await deleteReport("v1-1");
+    expect(await listReports()).toEqual([]);
+    expect(store.raw.has("muffin.history.v1")).toBe(false);
+  });
+});
+
+describe("옮기기 되돌리기 · 되풀이 방지 (Codex 재리뷰 3)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+  const legacy = (n: number) => JSON.stringify(Array.from({ length: n }, (_, i) => ({ id: `v1-${i}`, createdAt: `2026-11-1${i}T00:00:00.000Z`, input: { question: `q${i}`, depth: "easy" }, report: v1, steps: [] })));
+
+  it("일부만 옮기고 나머지를 되돌릴 자리가 없으면 통째로 원래 목록으로 되돌려 기록 수가 줄지 않는다", async () => {
+    const raw = legacy(6);
+    const store = fakeStorage(Math.floor(raw.length * 1.3));
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    expect(await listReports()).toHaveLength(6);
+    expect(await listReports()).toHaveLength(6);
+    const perKey = [...store.raw.keys()].filter(k => k.startsWith("muffin.history.v1:")).length;
+    const inList = store.raw.has("muffin.history.v1") ? (JSON.parse(store.raw.get("muffin.history.v1")!) as unknown[]).length : 0;
+    expect(perKey + inList).toBe(6);
+  });
+
+  it("옮기기에 실패한 탭은 다시 읽을 때 저장소를 건드리지 않는다", async () => {
+    const raw = legacy(1);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    await listReports();
+    const after = store.writes;
+    await listReports();
+    await getReport("v1-0");
+    expect(store.writes).toBe(after);
   });
 });
