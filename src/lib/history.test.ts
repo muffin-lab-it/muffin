@@ -15,16 +15,19 @@ const report = normalizeReport({
 
 function fakeStorage(limitBytes = Infinity) {
   const m = new Map<string, string>();
+  let writes = 0;
   return {
     getItem: (k: string) => m.get(k) ?? null,
     setItem: (k: string, v: string) => {
+      writes++;
       const total = [...m.entries()].filter(([key]) => key !== k).reduce((sum, [, value]) => sum + value.length, 0) + v.length;
       if (total > limitBytes) throw new Error("QuotaExceededError");
       m.set(k, v);
     },
-    removeItem: (k: string) => void m.delete(k),
+    removeItem: (k: string) => { writes++; m.delete(k); },
     key: (i: number) => [...m.keys()][i] ?? null,
     get length() { return m.size; },
+    get writes() { return writes; },
     raw: m,
   };
 }
@@ -235,5 +238,35 @@ describe("예전 목록에만 남은 기록 (Codex 재리뷰 2)", () => {
     await deleteReport("v1-1");
     expect(await listReports()).toEqual([]);
     expect(store.raw.has("muffin.history.v1")).toBe(false);
+  });
+});
+
+describe("옮기기 되돌리기 · 되풀이 방지 (Codex 재리뷰 3)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+  const legacy = (n: number) => JSON.stringify(Array.from({ length: n }, (_, i) => ({ id: `v1-${i}`, createdAt: `2026-11-1${i}T00:00:00.000Z`, input: { question: `q${i}`, depth: "easy" }, report: v1, steps: [] })));
+
+  it("일부만 옮기고 나머지를 되돌릴 자리가 없으면 통째로 원래 목록으로 되돌려 기록 수가 줄지 않는다", async () => {
+    const raw = legacy(6);
+    const store = fakeStorage(Math.floor(raw.length * 1.3));
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    expect(await listReports()).toHaveLength(6);
+    expect(await listReports()).toHaveLength(6);
+    const perKey = [...store.raw.keys()].filter(k => k.startsWith("muffin.history.v1:")).length;
+    const inList = store.raw.has("muffin.history.v1") ? (JSON.parse(store.raw.get("muffin.history.v1")!) as unknown[]).length : 0;
+    expect(perKey + inList).toBe(6);
+  });
+
+  it("옮기기에 실패한 탭은 다시 읽을 때 저장소를 건드리지 않는다", async () => {
+    const raw = legacy(1);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    await listReports();
+    const after = store.writes;
+    await listReports();
+    await getReport("v1-0");
+    expect(store.writes).toBe(after);
   });
 });

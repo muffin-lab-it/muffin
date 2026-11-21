@@ -73,9 +73,12 @@ function parseRecord(raw: string | null): ReportRecord | null {
   }
 }
 
+/** 옮기기는 탭(저장소)마다 한 번만 시도합니다. 실패를 매번 되풀이하면 저장소 변경 이벤트로 다른 탭과 서로 새로고침을 주고받습니다 (Codex 리뷰) */
+const migrationAttempted = new WeakSet<object>();
+
 /**
- * 예전 목록 키의 기록을 기록별 키로 옮깁니다. 목록 키를 먼저 지워 공간을 비운 뒤 최신순으로 쓰므로 중복이 남지 않고,
- * 용량이 모자라면 오래된 기록부터 옮기지 못합니다 (Codex 리뷰: 목록을 남긴 채 복사하면 공간을 두 배로 쓰다 막혀 저장 자체가 안 됨).
+ * 예전 목록 키의 기록을 기록별 키로 옮깁니다. 목록 키를 먼저 지워 공간을 비운 뒤 최신순으로 쓰므로 중복이 남지 않습니다.
+ * 용량이 모자라면 못 옮긴 기록을 목록에 되돌리고, 그것도 안 되면 이번에 옮긴 것까지 지우고 원래 목록을 통째로 되돌립니다 (기록이 사라지지 않게).
  */
 function migrateLegacy(store: Storage): ReportRecord[] {
   let raw: string | null = null;
@@ -87,29 +90,32 @@ function migrateLegacy(store: Storage): ReportRecord[] {
   const pairs = parsed.map(original => ({ original, record: normalizeRecord(original) }))
     .filter((pair): pair is { original: unknown; record: ReportRecord } => !!pair.record)
     .sort((a, b) => (a.record.createdAt < b.record.createdAt ? 1 : a.record.createdAt > b.record.createdAt ? -1 : 0));
-  try { store.removeItem(HISTORY_KEY); } catch { return pairs.map(pair => pair.record); }
-  const kept: ReportRecord[] = [];
+  const records = pairs.map(pair => pair.record);
+  if (migrationAttempted.has(store)) return records; // 이미 시도한 탭에서는 읽기만 합니다
+  migrationAttempted.add(store);
+  try { store.removeItem(HISTORY_KEY); } catch { return records; }
   let next = 0;
   for (; next < pairs.length; next++) {
     const record = pairs[next].record;
     try {
       if (store.getItem(HISTORY_RECORD_PREFIX + record.id) === null) store.setItem(HISTORY_RECORD_PREFIX + record.id, JSON.stringify(record));
-      kept.push(record);
     } catch {
       break; // 용량이 차면 남은(더 오래된) 기록은 이번에 옮기지 못합니다
     }
   }
-  if (next < pairs.length) {
-    // 못 옮긴 기록은 원래 모양 그대로 목록 키에 되돌려 두고 다음 읽기에서 다시 시도합니다 (Codex 리뷰: 옮기다 막혀도 기록이 사라지지 않게)
-    const left = pairs.slice(next);
-    try {
-      store.setItem(HISTORY_KEY, JSON.stringify(left.map(pair => pair.original)));
-      kept.push(...left.map(pair => pair.record));
-    } catch {
-      // 되돌리지 못한 기록은 남지 않습니다
+  if (next === pairs.length) return records;
+  // 못 옮긴 기록은 원래 모양 그대로 목록 키에 되돌려 둡니다
+  try {
+    store.setItem(HISTORY_KEY, JSON.stringify(pairs.slice(next).map(pair => pair.original)));
+    return records;
+  } catch {
+    // 되돌릴 자리도 없으면 이번에 옮긴 기록을 지우고 원래 목록을 통째로 되돌립니다 (원래 있던 만큼이라 들어갑니다)
+    for (const pair of pairs.slice(0, next)) {
+      try { store.removeItem(HISTORY_RECORD_PREFIX + pair.record.id); } catch { /* 계속 진행 */ }
     }
+    try { store.setItem(HISTORY_KEY, raw); } catch { /* 되돌리지 못한 기록은 남지 않습니다 */ }
+    return records;
   }
-  return kept;
 }
 
 function readAll(): ReportRecord[] {
