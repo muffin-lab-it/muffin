@@ -727,6 +727,15 @@ describe("11/21 QA 최종리포트 화면 항목", () => {
     expect($(".topicLink, [class*='topicLink']").length).toBeGreaterThan(0);
     expect($.text()).toContain("이어서 알아볼까요?");
     expect($(".report-continue a").attr("href")).toBe("/?area=macro");
+    // ETF 기본 질문을 보고 있어 영역 추천이 비어도 공통 질문과 링크는 남는다 (Codex 리뷰)
+    const etf = fixture();
+    etf.nextTopics = []; etf.topicReasons = [];
+    const only = load(renderToStaticMarkup(<ReportView report={etf} area="etf" question="최근 30일 KODEX 200의 가격과 기초지수 수익률은 얼마나 차이 나나요?" />));
+    expect(only.text()).toContain("이어서 알아볼까요?");
+    expect(only(".report-continue a").attr("href")).toBe("/?area=etf");
+    const bare = fixture();
+    bare.nextTopics = []; bare.topicReasons = [];
+    expect(load(renderToStaticMarkup(<ReportView report={bare} />))(".report-continue a").attr("href")).toBe("/");
   });
   it("고른 영역과 쓴 자료의 주제가 다르면 안내 한 줄, 같으면 없음 (QA-08)", () => {
     const report = fixture();

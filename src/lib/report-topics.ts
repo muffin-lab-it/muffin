@@ -15,9 +15,11 @@ export const reportTopics = [
 
 /** 추천이 비었을 때 영역에 맞는 기본 후속 질문 둘 (11/21 QA-06: 후속 탐색이 없는 리포트가 있었음). 영역이 없으면 환율 · 금리 */
 export function fallbackReportTopics(area?: Area, currentQuestion?: string) {
-  const byArea = area ? reportTopics.filter(item => item.area === area) : [];
-  const pool = byArea.length > 0 ? byArea : reportTopics.filter(item => item.area === "fx" || item.area === "rate");
-  return pool.filter(item => item.question !== currentQuestion).slice(0, 2);
+  const notCurrent = (item: { question: string }) => item.question !== currentQuestion;
+  // 영역의 기본 질문이 지금 보는 질문 하나뿐이면(ETF · 뉴스) 공통 질문으로 채웁니다 (Codex 리뷰)
+  const byArea = area ? reportTopics.filter(item => item.area === area).filter(notCurrent) : [];
+  const pool = byArea.length > 0 ? byArea : reportTopics.filter(item => item.area === "fx" || item.area === "rate").filter(notCurrent);
+  return pool.slice(0, 2);
 }
 
 export function supportedReportTopics(topics: string[], area?: Area, currentQuestion?: string) {

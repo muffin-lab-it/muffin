@@ -289,9 +289,9 @@ export function ReportView({
         <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action"><em>머핀랩과 더 알아보기</em><span aria-hidden="true">→</span></span></Link>)}</div>
         <p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
         </ReportResponsiveDetails>
-        {/* 추천과 별개로 이어서 물어볼 길을 항상 둡니다 (11/21 QA 최종리포트 마무리 문구 제안) */}
-        <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>
       </section>}
+      {/* 추천이 있든 없든 이어서 물어볼 길을 항상 둡니다 (11/21 QA 최종리포트 마무리 문구 제안, Codex 리뷰: 추천이 비면 링크도 사라지던 것) */}
+      <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>
 
       <p className="report-disclosure">{report.disclosure}</p>
     </ReportDisplay>
