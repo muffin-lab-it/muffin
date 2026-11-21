@@ -29,6 +29,7 @@ describe("물가와 금리의 관계 질문 (11/21)", () => {
     expect(isRateInflationQuestion("요즘 물가 상승률 얼마야?")).toBe(false);
     expect(isRateInflationQuestion("금리와 환율의 관계는?")).toBe(false);
     expect(isRateInflationQuestion("미국 금리와 물가의 관계는?")).toBe(false);
+    expect(isRateInflationQuestion("2020년 한국 물가와 금리 관계 분석해줘")).toBe(false);
   });
 
   it("모자란 자료만 채운다: 12개월 전 CPI 와 기준금리 365일", async () => {
@@ -62,6 +63,8 @@ describe("물가와 금리의 관계 질문 (11/21)", () => {
   it("세 항목이 다 있을 때만 두 지표를 나란히 적는다", () => {
     expect(cpiPair([before, now])).toEqual({ now, before });
     expect(relationRows([now, before])).toBeNull();
+    // 과거 물가(2020-10)에 지금 금리를 나란히 놓지 않는다
+    expect(relationRows([cpi("E1", "202010", 0.1), cpi("E4", "201910", 0.0), year])).toBeNull();
     expect(relationNote([now, year])).toBe("");
     const note = relationNote([now, before, year, bok("E2", 30, 3)]);
     expect(note).toContain("[두 지표 나란히]");

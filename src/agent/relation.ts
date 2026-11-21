@@ -13,6 +13,8 @@ import type { InvokableTool } from "./supplement";
 
 /** 한국 물가와 금리의 관계를 묻는 질문인지 */
 export function isRateInflationQuestion(question: string): boolean {
+  // 과거 연도 · 기간을 정한 질문은 대상이 아닙니다. 이 보강은 "최근 1년" 만 비교하므로, 2020년 물가에 지금 금리를 나란히 놓게 됩니다 (#128 Codex 리뷰)
+  if (/(19|20)\d{2}\s*년|\d+\s*년\s*(전|간|동안)|작년|지난해|재작년/.test(question)) return false;
   return /상관|관계|연관|영향|같이\s*움직|따라\s*움직/.test(question) && /물가|인플레|\bcpi\b|소비자물가/i.test(question) && /금리/.test(question) && !/미국|연준|\bFed\b/i.test(question);
 }
 
@@ -53,7 +55,11 @@ export async function ensureRateInflation(ctx: ResearchContext, question: string
 export function relationRows(evidence: Evidence[]): { now: Evidence; before: Evidence; bok: Evidence } | null {
   const { now, before } = cpiPair(evidence);
   const bok = evidence.find(isBokYear);
-  return now && before && bok ? { now, before, bok } : null;
+  if (!now || !before || !bok) return null;
+  // 두 지표의 시점이 맞을 때만 나란히 놓습니다: 최신 물가 관측 월이 금리 기준일에서 넉 달 안이어야 합니다 (물가는 한두 달 늦게 발표됨)
+  const cpiMonth = Number(String(now.values["latest.month"]).slice(0, 4)) * 12 + Number(String(now.values["latest.month"]).slice(4, 6));
+  const rateMonth = Number(String(bok.values.asOf).slice(0, 4)) * 12 + Number(String(bok.values.asOf).slice(5, 7));
+  return Math.abs(rateMonth - cpiMonth) <= 4 ? { now, before, bok } : null;
 }
 
 const month = (m: unknown) => `${String(m).slice(0, 4)}-${String(m).slice(4, 6)}`;
