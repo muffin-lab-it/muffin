@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}) },
       verification: pickVerification(result.report.verification),
       intent: result.plan.intent,
+      ...(mock ? {} : { report: result.report, facts: result.facts }),
     }, req);
     const cost = costOf(result.usage);
     return NextResponse.json({ report: result.report, steps, rewrites: result.rewrites, id, ...(result.usage ? { usage: result.usage } : {}), ...(cost ? { cost } : {}) });

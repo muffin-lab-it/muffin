@@ -11,6 +11,14 @@ describe("run log", () => {
     expect(line).toMatchObject({ type: "muffin.run", id: "a", ok: true, ms: 1234 });
   });
 
+  it("리포트 본문과 정제 결과는 콘솔 줄에 싣지 않는다 (표에만 저장)", () => {
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logRun({ id: "c", at: "x", ok: true, stage: "ok", mock: false, ms: 1, report: { version: 2, summary: "긴 본문" } as never, facts: null });
+    const line = JSON.parse(spy.mock.calls[0][0] as string);
+    expect(line).not.toHaveProperty("report");
+    expect(line).not.toHaveProperty("facts");
+  });
+
   it("실패는 console.error 로 남긴다", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     logRun({ id: "b", at: "x", ok: false, stage: "agent", mock: false, ms: 5, error: "boom" });

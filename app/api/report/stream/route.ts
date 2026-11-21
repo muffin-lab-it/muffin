@@ -49,6 +49,7 @@ type Outcome = {
   usage?: ResearchResult["usage"];
   intent?: Intent;
   edit?: ResearchResult["edit"];
+  facts?: ResearchResult["facts"];
 };
 type Run = (onEvent: (event: MuffinEvent) => void) => Promise<Outcome>;
 type StreamContext = { id: string; started: number; at: string; mock: boolean; input: RunLog["input"]; headers: Record<string, string> };
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
   }
   const run: Run = async (onEvent) => {
     const result = await (mock ? mockResearch : research)(parsed.data, { onEvent });
-    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent, ...(result.edit ? { edit: result.edit } : {}) };
+    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent, ...(result.edit ? { edit: result.edit } : {}), facts: result.facts };
   };
   return streamResponse(req, run, { id, started, at, mock, input, headers });
 }
@@ -140,7 +141,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
       const send = (event: MuffinEvent) => {
         if (!closed) controller.enqueue(encoder.encode(redactSecrets(JSON.stringify(event)) + "\n"));
       };
-      type Completion = Pick<RunLog, "ok" | "stage"> & Partial<Pick<RunLog, "error" | "model" | "usage" | "steps" | "rewrites" | "quality" | "verification" | "intent">>;
+      type Completion = Pick<RunLog, "ok" | "stage"> & Partial<Pick<RunLog, "error" | "model" | "usage" | "steps" | "rewrites" | "quality" | "verification" | "intent" | "report" | "facts">>;
       const finish = (completion: Completion, terminal?: MuffinEvent, cancelled = false) => {
         if (closed) return;
         try {
@@ -188,6 +189,8 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
               quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}) },
               verification: pickVerification(result.report.verification),
               ...(result.intent ? { intent: result.intent } : {}),
+              // 녹화 재생 · 모킹은 실제 실행이 아니라 본문을 남기지 않습니다
+              ...(mock ? {} : { report: result.report, facts: result.facts ?? null }),
             },
             { type: "report", report: result.report, steps, rewrites: result.rewrites, id, ...(result.usage ? { usage: result.usage } : {}), ...(cost ? { cost } : {}) },
           );

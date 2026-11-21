@@ -3,7 +3,7 @@
  * 2단계에서 백엔드 팀이 같은 RunLog 를 데이터베이스에 저장합니다. 필드를 바꿀 때는 그쪽과 맞춥니다.
  */
 import type { ToolStep } from "../agent/context";
-import type { Intent, Verification } from "../agent/schema";
+import type { FactsOutput, Intent, Report, Verification } from "../agent/schema";
 
 export type RunStage = "input" | "config" | "limited" | "agent" | "ok";
 
@@ -28,6 +28,12 @@ export type RunLog = {
   /** 분류가 정한 의도 (명세 4.4). /admin 의 의도별 요청 수 */
   intent?: Intent;
   error?: string;
+  /**
+   * 리포트 본문과 정제 결과 (11/21). runs 표에만 저장하고 콘솔 로그에는 싣지 않습니다 (한 줄이 수십 KB 가 됨).
+   * 베타 테스터가 받은 리포트를 나중에 그대로 다시 보려고 남깁니다.
+   */
+  report?: Report;
+  facts?: FactsOutput | null;
 };
 
 export function newRunId(): string {
@@ -40,7 +46,11 @@ export function clip(s: string, max = 200): string {
 }
 
 export function logRun(entry: Omit<RunLog, "type">): void {
-  const line: RunLog = { type: "muffin.run", ...entry };
+  // 본문 · 정제 결과는 표에만 (콘솔 한 줄을 가볍게)
+  const { report: _report, facts: _facts, ...rest } = entry;
+  void _report;
+  void _facts;
+  const line: RunLog = { type: "muffin.run", ...rest };
   if (line.ok) console.log(JSON.stringify(line));
   else console.error(JSON.stringify(line));
 }

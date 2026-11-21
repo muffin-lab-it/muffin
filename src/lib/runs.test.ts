@@ -60,6 +60,27 @@ describe("runs 저장 (리더 임시 구현)", () => {
     expect(bare).toMatchObject({ client_id: null, input: null, model: null, usage: null, steps: null, rewrites: null, quality: null, verification: null, intent: null, error: "invalid body" });
   });
 
+  it("리포트 본문 · 정제 결과가 있으면 같이 넣고, 없는 실행은 그 칸을 보내지 않는다 (11/21)", async () => {
+    const report = { version: 2, summary: "요약" } as never;
+    const facts = { facts: [{ ref: "E1", fact: "사실" }], dropped: [], unverified: [] };
+    await saveRun({ ...entry, report, facts });
+    const [row] = db.upsert.mock.calls[0] as [Record<string, unknown>];
+    expect(row).toMatchObject({ id: "run-1", report, facts });
+    await saveRun({ ...entry, report });
+    expect((db.upsert.mock.calls[1] as [Record<string, unknown>])[0]).toMatchObject({ report, facts: null });
+    await saveRun(entry);
+    expect((db.upsert.mock.calls[2] as [Record<string, unknown>])[0]).not.toHaveProperty("report");
+  });
+
+  it("표에 본문 칸이 아직 없으면(마이그레이션 전) 본문 없이 한 번 더 넣어 로그는 남긴다", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    db.upsert.mockResolvedValueOnce({ error: { message: "Could not find the 'report' column of 'runs' in the schema cache" } });
+    await expect(saveRun({ ...entry, report: { version: 2 } as never })).resolves.toBe(true);
+    expect(db.upsert).toHaveBeenCalledTimes(2);
+    expect((db.upsert.mock.calls[1] as [Record<string, unknown>])[0]).not.toHaveProperty("report");
+    expect(warn.mock.calls[0]![0]).toContain("본문 없이 저장");
+  });
+
   it("환경 변수가 없으면 아무것도 안 하고, 표 오류 · 지연은 false 로 끝나며 throw 하지 않는다", async () => {
     db.enabled = false;
     await expect(saveRun(entry)).resolves.toBe(false);
