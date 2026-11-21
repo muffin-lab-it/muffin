@@ -11,6 +11,7 @@
 import { RunContext, withTrace, type Agent, type AgentOutputType } from "@openai/agents";
 import { muffinTools } from "../tools";
 import { fxChart, indexChart } from "./chart";
+import { withEnsuredFacts } from "./extra-facts";
 import { ResearchContext, type ToolStep } from "./context";
 import { createEditorAgent, editInput, reversedCalcIds, runEdit } from "./edit";
 import type { MuffinEvent } from "./events";
@@ -196,7 +197,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 정책금리의 짧은 기간 변화가 0 이면 1년 전과도 비교할 수 있게 365일로 한 번 더 받습니다 (src/agent/rate-trend.ts)
   // 물가와 금리의 관계를 묻는 질문이면 1년 전 물가 상승률 · 기준금리를 채워 두 지표를 나란히 볼 수 있게 합니다 (src/agent/relation.ts)
   await ensureRateInflation(ctx, question, muffinTools);
-  await ensureRateYear(ctx, muffinTools);
+  await ensureRateYear(ctx, muffinTools, question);
   // 종목을 정하지 않은 ETF 질문("etf 요즘 뭐가 좋아?")이면 자산군별 대표 ETF 의 수익률을 채웁니다 (src/agent/etf-basket.ts)
   const basket = await ensureEtfBasket(ctx, question, muffinTools);
   // 주제 없는 뉴스 질문("오늘 경제 뉴스")이면 경제 흐름 주제어로 찾은 기사를 장부에 보탭니다 (src/agent/news-topics.ts)
@@ -232,18 +233,23 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 물가 품목군 항목도 정제가 뺐더라도 원인 후보로 다시 봅니다 (src/agent/cpi.ts)
   if (plan.intent === "cause") for (const id of cpiRescuedRefs(ctx.evidence, dropped)) rescued.add(id);
   // 지수 값을 가진 항목도 정제가 뺐더라도 [지수 값] 으로 다시 보여 주므로 "쓰지 않은 자료" 에서 뺍니다
-  if (index) for (const id of indexRefs(ctx.evidence, index)) rescued.add(id);
-  for (const e of yearRates(ctx.evidence)) rescued.add(e.id);
-  for (const e of macroNews) rescued.add(e.id);
-  if (basket) for (const r of basketRows(ctx.evidence)) rescued.add(r.e.id);
+  // 코드가 조사 뒤에 채운 항목들. 정제가 뺐더라도 "쓰지 않은 자료" 로 알리지 않고, 작성의 사실 목록에 넣어 인용할 수 있게 합니다 (src/agent/extra-facts.ts)
   const relation = relationRows(ctx.evidence);
-  if (relation) for (const e of Object.values(relation)) rescued.add(e.id);
+  const ensured = new Set<string>([
+    ...(index ? indexRefs(ctx.evidence, index) : []),
+    ...yearRates(ctx.evidence).map((e) => e.id),
+    ...macroNews.map((e) => e.id),
+    ...(basket ? basketRows(ctx.evidence).map((r) => r.e.id) : []),
+    ...(relation ? Object.values(relation).map((e) => e.id) : []),
+  ]);
+  for (const id of ensured) rescued.add(id);
+  const writerFacts = withEnsuredFacts(facts, ctx.evidence, ensured);
   // 정제가 뺀 자료는 작성이 못 보므로(writerInput), 이름 · 기준일 · 이유만 따로 알려 "자료 없음" 으로 적지 않게 합니다 (dropped.ts)
   // 방향이 반대라 정제가 거른 계산(edit.ts reversedCalcIds)은 작성에 보이지 않게 합니다. 사실 목록이 비거나 정제가 실패해 작성이 장부 전체를 볼 때도
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
   const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
-  const input = [writerInput(question, writerLedger, notes, facts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : ""]
+  const input = [writerInput(question, writerLedger, notes, writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);

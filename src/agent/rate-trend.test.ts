@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { ensureRateYear, flatPolicyRates, rateYearNote, yearRates } from "./rate-trend";
+import { ensureRateYear, flatPolicyRates, isTrendQuestion, rateYearNote, yearRates } from "./rate-trend";
 import type { Evidence } from "./schema";
 
 const rate = (id: string, indicator: string, days: number, comparisonRate: number, current = 3): Evidence => ({
@@ -32,6 +32,19 @@ describe("정책금리의 긴 기간 비교 (11/21)", () => {
     expect(await ensureRateYear(ctx, [{ name: "get_fx_krw_rate", invoke }])).toEqual([]);
     expect(await ensureRateYear(new ResearchContext(), [{ name: "get_rate_data", invoke }])).toEqual([]);
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("추세를 묻는 질문이면 짧은 기간에 변화가 있었어도 365일로 받는다 (11/21 실측: 90일 +0.25%p 만으로 답함)", async () => {
+    expect(isTrendQuestion("금리 내려가는 추세야?")).toBe(true);
+    expect(isTrendQuestion("한국 기준금리 지금 몇 %야?")).toBe(false);
+    const moved = rate("E1", "한국은행 기준금리", 90, 2.75);
+    expect(flatPolicyRates([moved])).toEqual([]);
+    expect(flatPolicyRates([moved], true)).toEqual(["한국은행 기준금리"]);
+    const ctx = new ResearchContext();
+    ctx.addEvidence([moved]);
+    const invoke = vi.fn(async (...args: [unknown, string]) => (args.length ? "ok" : ""));
+    expect(await ensureRateYear(ctx, [{ name: "get_rate_data", invoke }], "금리 내려가는 추세야?")).toEqual(["한국은행 기준금리"]);
+    expect(await ensureRateYear(ctx, [{ name: "get_rate_data", invoke }], "한국 기준금리 지금 몇 %야?")).toEqual([]);
   });
 
   it("조회가 실패해도 throw 하지 않는다", async () => {

@@ -16,7 +16,8 @@ export const GAPS_MAX = 2;
 /** 한 줄이 다루는 한계의 종류. 같은 종류가 이미 나왔으면 되풀이로 봅니다 */
 const TOPICS: [string, RegExp][] = [
   ["인과", /인과\s*관계|상관\s*관계|상관계수|원인(을|은|이|으로)?\s*(단정|확정|특정|확인|판단|설명)/],
-  ["본문", /본문/],
+  // 기사의 한계는 한 줄이면 됩니다: 제목만 확인 · 본문 미확보 · 기사 수치 미검증 · 중계 링크 (11/21 실측: 주의점 세 줄이 모두 이 종류)
+  ["기사 한계", /본문|제목만|기사\s*(제목|속)?의?\s*수치|Google News|중계 링크|별도\s*(로)?\s*검증/],
   ["실시간", /실시간|장중|호가/],
   ["늦은 공개", /다음 영업일|하루 늦|하루 이틀|T\+1|직전 영업일/],
   ["계절성", /계절성|계절조정/],
@@ -42,6 +43,7 @@ export function overlap(a: string, b: string): number {
   return both / Math.min(x.size, y.size);
 }
 const SAME = 0.6;
+const INTERNAL = /증거 장부|조사 메모|사실 목록|장부에\s|\bref\b|숫자 카드|데이터 도구|\btool\b/i;
 const CODE_LINE = /^검증을 통과하지 못해 뺀 숫자/;
 
 /** 되풀이를 뺀 주의점 · 확인하지 못한 것. 바뀐 것이 없으면 받은 그대로 돌려줍니다 */
@@ -51,6 +53,8 @@ export function trimRepeats(output: WriterOutput): WriterOutput {
   const pick = (lines: string[], max: number) => {
     const out: string[] = [];
     for (const line of lines) {
+      // 내부 용어가 든 줄은 사용자에게 뜻이 통하지 않아 뺍니다 ("조사 메모의 … 증거 장부에 해당 항목이 없어 인용하지 못했습니다", 11/21 실측)
+      if (INTERNAL.test(line)) continue;
       // 검증이 넣은 줄("검증을 통과하지 못해 뺀 숫자 N개")은 사용자에게 꼭 보여야 하므로 세지 않고 그대로 둡니다
       if (CODE_LINE.test(line)) {
         out.push(line);

@@ -18,17 +18,22 @@ export const LONG_DAYS = 365;
 const isRate = (e: Evidence) => e.tool === areaTools.rate && typeof e.values.indicator === "string" && e.values.indicator in POLICY_SERIES;
 const daysOf = (e: Evidence) => Number(e.values.requestedDays);
 
-/** 변화가 0 인 짧은 기간 정책금리 중, 365일 결과가 아직 없는 지표 */
-export function flatPolicyRates(evidence: Evidence[]): string[] {
+/** 추세 · 흐름을 묻는 질문인지. 이런 질문은 짧은 기간에 변화가 있었어도 1년 전과 비교해야 답이 됩니다 ("금리 내려가는 추세야?") */
+export function isTrendQuestion(question: string): boolean {
+  return /추세|흐름|추이|계속|내려가|올라가|내리고|오르고|인하|인상/.test(question);
+}
+
+/** 짧은 기간 정책금리 중 365일 결과가 아직 없는 지표. 기본은 변화가 0 인 것만, any 면 전부 */
+export function flatPolicyRates(evidence: Evidence[], any = false): string[] {
   const long = new Set(evidence.filter((e) => isRate(e) && daysOf(e) === LONG_DAYS).map((e) => String(e.values.indicator)));
-  const flat = evidence.filter((e) => isRate(e) && daysOf(e) < LONG_DAYS && e.values.changePp === 0).map((e) => String(e.values.indicator));
+  const flat = evidence.filter((e) => isRate(e) && daysOf(e) < LONG_DAYS && (any || e.values.changePp === 0)).map((e) => String(e.values.indicator));
   return [...new Set(flat)].filter((indicator) => !long.has(indicator));
 }
 
-/** 변화가 0 인 정책금리를 365일로 한 번 더 받습니다. 금리 tool 이 없거나 대상이 없으면 부르지 않고, 실패해도 리포트는 이어집니다 (error step 만 남음) */
-export async function ensureRateYear(ctx: ResearchContext, tools: readonly InvokableTool[]): Promise<string[]> {
+/** 변화가 0 인 정책금리(추세를 묻는 질문이면 전부)를 365일로 한 번 더 받습니다. 금리 tool 이 없거나 대상이 없으면 부르지 않고, 실패해도 리포트는 이어집니다 (error step 만 남음) */
+export async function ensureRateYear(ctx: ResearchContext, tools: readonly InvokableTool[], question = ""): Promise<string[]> {
   const rate = tools.find((t) => t.name === areaTools.rate);
-  const targets = rate ? flatPolicyRates(ctx.evidence) : [];
+  const targets = rate ? flatPolicyRates(ctx.evidence, isTrendQuestion(question)) : [];
   if (!rate || targets.length === 0) return [];
   const rc = new RunContext(ctx);
   await Promise.all(targets.map((indicator) => rate.invoke(rc, JSON.stringify({ series: POLICY_SERIES[indicator], days: LONG_DAYS })).catch(() => undefined)));
