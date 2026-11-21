@@ -6,8 +6,8 @@
  */
 import type { WriterOutput } from "./schema";
 
-// 기준일이 다르면 다른 카드입니다: 1년 전 값과 지금 값이 우연히 같아도(둘 다 2.50%) 두 시점 비교가 사라지면 안 됩니다 (#128 Codex 리뷰)
-const key = (n: WriterOutput["numbers"][number]) => `${n.label.replace(/\s|\([^)]*\)/g, "")}|${n.value.replace(/\s/g, "")}|${n.asOf}`;
+// 괄호 안의 구분(한국 · 미국, 공식 자료 · 기사 보도)도 이름의 일부라 지우지 않습니다. 기준일이 다르면 다른 카드입니다: 1년 전 값과 지금 값이 우연히 같아도(둘 다 2.50%) 두 시점 비교가 사라지면 안 됩니다 (#128 Codex 리뷰)
+const key = (n: WriterOutput["numbers"][number]) => `${n.label.replace(/\s/g, "")}|${n.value.replace(/\s/g, "")}|${n.asOf}`;
 /** 변화 칸이 "변화 없음" 인지: 비었거나, 변동 없음이거나, 숫자가 전부 0 */
 export function isFlat(change: string): boolean {
   if (!change.trim() || /변동\s*없|변화\s*없|그대로|동일/.test(change)) return true;

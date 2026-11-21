@@ -26,6 +26,11 @@ describe("같은 값의 숫자 카드 정리 (11/21)", () => {
     expect(mergeSameCards(kept)).toBe(kept);
   });
 
+  it("괄호 안의 대상이 다르면 값과 기준일이 같아도 둘 다 둔다 (한국 · 미국)", () => {
+    const kept = output([card("소비자물가 상승률 (한국)", "2.50%", "", "E1"), card("소비자물가 상승률 (미국)", "2.50%", "", "E2")]);
+    expect(mergeSameCards(kept)).toBe(kept);
+  });
+
   it("값이 다르거나 이름이 다르면 그대로 두고, 바뀐 것이 없으면 받은 그대로 돌려준다", () => {
     const kept = output([card("코스피 종가 (기사 보도)", "4,869.96", "전일 대비 -5.21%", "C1"), card("코스피 종가 (공식 자료)", "5,137.89", "", "E2"), card("물가 상승률 (2026-10)", "2.82%", ""), card("물가 상승률 (1년 전)", "2.38%", "")]);
     expect(mergeSameCards(kept)).toBe(kept);

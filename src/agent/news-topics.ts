@@ -32,6 +32,8 @@ const TOPIC_WORDS = /환율|달러|엔화|유로|금리|물가|인플레|CPI|코
 export function isGeneralNewsQuestion(question: string): boolean {
   // 경제가 아닌 분야의 뉴스를 묻는 질문에는 경제 기사를 보태지 않습니다 (#128 Codex 리뷰)
   if (/스포츠|연예|날씨|정치|사회면|게임|축구|야구|영화|드라마/.test(question)) return false;
+  // 과거 기간을 정한 질문("2020년 경제 뉴스")에는 보태지 않습니다. 지금 피드의 기사만 받을 수 있어, 보태면 요청한 때가 아닌 오늘 소식으로 답하게 됩니다 (#128 Codex 리뷰)
+  if (/(19|20)\d{2}\s*년|작년|지난해|재작년|지난달|\d+\s*(년|개월|달)\s*전/.test(question)) return false;
   return NEWS_WORDS.test(question) && !TOPIC_WORDS.test(question);
 }
 
