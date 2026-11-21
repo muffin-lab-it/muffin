@@ -52,6 +52,21 @@ describe("MF-02 진행 화면", () => {
     expect($("[role=status]").text()).toContain("준비");
     expect($("button")).toHaveLength(0);
   });
+  it("분류 중(pending)이면 이벤트가 없어도 첫 단계를 진행 중으로 보여 준다 (11/21 QA 8)", () => {
+    const $ = load(renderToStaticMarkup(<Progress question="질문" events={[]} pending onRetry={vi.fn()} onEditQuestion={vi.fn()} />));
+    expect($("[aria-current=step]").text()).toContain("질문 살펴보기");
+    expect($("li[data-state=waiting]")).toHaveLength(4);
+    expect($("[role=status]").text()).toContain("살펴보고");
+    // 이벤트가 오면 pending 은 더 이상 단계를 밀지 않는다
+    const after = load(renderToStaticMarkup(<Progress question="질문" events={[{ type: "stage", stage: "plan", status: "done" }, { type: "stage", stage: "research", status: "start" }]} pending onRetry={vi.fn()} onEditQuestion={vi.fn()} />));
+    expect(after("[aria-current=step]").text()).toContain("자료 찾기");
+  });
+  it("질문 · 단계가 앞, 그림 · 머핀 이야기가 뒤에 오고 % 숫자는 보조 기술에만 남는다 (11/21 하니 1)", () => {
+    const $ = render([{ type: "stage", stage: "plan", status: "done" }, { type: "stage", stage: "research", status: "start" }]);
+    expect($("[data-section]").map((_, el) => $(el).attr("data-section")).get()).toEqual(["question", "progress", "story"]);
+    expect($("[data-section=story]").prev("img").length + $("[data-section=story]").parent().find("img").length).toBeGreaterThan(0);
+    expect($("[role=progressbar]").attr("aria-valuenow")).toBe("20");
+  });
   it("실제 단계의 시작과 완료를 반영한다", () => {
     const $ = render([
       { type: "stage", stage: "plan", status: "start" },

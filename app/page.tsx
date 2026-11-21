@@ -104,7 +104,7 @@ function HomeForm() {
   if (showsHomeProgress(state) && state.input) {
     return (
       <>
-        <Progress question={state.input.question} depth={state.input.depth} events={state.events}
+        <Progress question={state.input.question} depth={state.input.depth} events={state.events} pending={state.phase === "checking"}
           error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
           onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
           onEditQuestion={editQuestion} onReturnHome={editQuestion} />

@@ -656,3 +656,33 @@
 .report :global(.num-subs) :global(.tone-down) { color:#235bb0; }
 .report .metrics :global(.num):focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 .report :global(.num-sub-detail) { flex-basis:100%; font-size:13px; color:#7c7287; }
+
+/* 11/21 QA 2묶음 B: 상자는 요약 하나만(흰 배경 + 연보라 테두리), 숫자 · 영향 · 추천 · 검증은 구분선과 여백으로 (하니 3 · 외부 F11) */
+.report section.hero { background:#fff; border:1px solid #e2d8f0; border-radius:16px; }
+.report .metrics :global(.numbers) { gap:0; }
+.report .metrics :global(.num), .report .metrics :global(.num[data-kind="derived"]) { background:transparent; border:0; border-left:1px solid var(--line); border-radius:0; padding:4px 24px 10px; box-shadow:none; }
+.report .metrics :global(.numbers) > :global(.num):first-child { border-left:0; padding-left:0; }
+.report .metrics .metricMeta { border-top:0; padding-top:6px; }
+.report :global(.impact-grid) { grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px 28px; }
+.report :global(.impact-card) { padding:0; border:0; background:transparent; border-radius:0; }
+.report :global(.impact-card) h3 { display:block; font-size:16px; }
+.report :global(.impact-card) h3 > span { display:block; font-size:24px; margin:0 0 8px; }
+.report :global(.report-verification:not(.report-reference)) { padding:0; margin:0; background:transparent; border:0; border-top:1px solid var(--line); border-radius:0; box-shadow:none; }
+.report :global(.verification-toggle > summary) { padding:18px 0; background:transparent; }
+.report :global(.verification-toggle > summary:hover) { background:transparent; }
+.report :global(.verification-icon) { background:#f1edf6; }
+.report .topicLink { padding:14px 4px; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; min-height:0; }
+.report .topicLink:hover { background:#fcf9ff; border-color:#c9b8df; }
+.report :global(.source-data-item) { padding:14px 0 0; border:0; border-top:1px solid var(--line); border-radius:0; background:transparent; }
+.report :global(.chart-summary) { border:0; background:#faf9fc; }
+@container report (max-width:900px) {
+  .report .metrics :global(.numbers) { gap:0; }
+  .report .metrics :global(.num), .report .metrics :global(.num[data-kind="derived"]) { border-left:0; border-top:1px solid var(--line); padding:14px 0 10px; }
+  .report .metrics :global(.numbers) > :global(.num):first-child { border-top:0; padding-top:0; }
+  .report :global(.impact-grid) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container report (max-width:560px) {
+  .report :global(.impact-grid) { grid-template-columns:minmax(0,1fr); gap:20px; }
+  .report section.hero { border-radius:14px; }
+  .report .metrics :global(.num), .report .metrics :global(.num[data-kind="derived"]) { padding:14px 0 10px; border-radius:0; }
+}

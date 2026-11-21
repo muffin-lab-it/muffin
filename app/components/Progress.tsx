@@ -33,6 +33,8 @@ export type ProgressProps = {
   onEditQuestion?: () => void;
   /** 홈 자체에서 표시할 때 같은 URL 이동 대신 입력 화면으로 돌아갑니다. */
   onReturnHome?: () => void;
+  /** 요청은 보냈지만 서버 이벤트가 아직 없는 분류 중 (11/21 QA 8). 첫 단계를 진행 중으로 보여 줍니다 */
+  pending?: boolean;
 };
 
 /** 실제 이벤트로 화면 상태를 만듭니다. 시간만으로 단계를 진행시키지 않습니다. */
@@ -78,11 +80,12 @@ const depthCopy: Record<Depth, string> = {
   deep: "근거와 배경을 더 자세히 살펴 정리해 드릴게요.",
 };
 
-export function Progress({ question, depth, titleIcon = "🧁", events, error: connectionError, onRetry, onEditQuestion, onReturnHome }: ProgressProps) {
+export function Progress({ question, depth, titleIcon = "🧁", events, error: connectionError, onRetry, onEditQuestion, onReturnHome, pending = false }: ProgressProps) {
   const state = progressFromEvents(events);
   const shown = splitAreaPrefix(question); // 여러 영역을 고른 질문의 "관심 영역: …" 머리말은 떼어 따로 (11/20 외부 G1)
   const error = connectionError ?? state.error;
-  const current = stages.find(stage => state.status[stage] === "active");
+  // 분류 중(요청은 갔고 이벤트는 아직)이면 첫 단계를 진행 중으로. 시간만으로 단계를 밀지는 않습니다
+  const current = stages.find(stage => state.status[stage] === "active") ?? (pending && !error && !state.complete && events.length === 0 ? "plan" : undefined);
   const scope = state.plan?.mode === "out_of_scope";
   const failed = state.steps.some(step => step.status === "error");
   const timeout = !!error && /시간.*초과/.test(error.message);
@@ -102,7 +105,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
     : "Muffin이 리포트를 만들고 있어요";
   const description = error ? error.kind === "save" ? "완성된 내용은 아래에 남아 있어요. 저장만 다시 시도해 주세요." : noRetry ? "입력한 질문은 그대로 남아 있어요. 아래 안내를 확인해 주세요." : "입력한 질문은 그대로예요. 다시 시도할 수 있어요."
     : scope ? "지금은 환율·ETF·경제뉴스·금리·물가를 다뤄요."
-    : failed ? "일부 자료를 찾지 못했어요. 확인한 내용과 한계를 함께 알려드릴게요."
+    : failed ? (current === "write" || current === "verify" ? "일부 자료를 찾지 못했지만, 확인한 자료로 작성하고 있어요." : "일부 자료를 찾지 못했어요. 확인한 내용과 한계를 함께 알려드릴게요.")
     : state.complete ? "저장이 끝나면 리포트를 보여드릴게요."
     : "궁금한 내용에 맞춰 자료를 찾고, 이해하기 쉽게 정리해 드릴게요.";
   const announcement = error ? error.kind === "save" ? "생성 완료 · 저장 실패" : "요청을 진행하지 못했어요" : state.complete ? "리포트를 저장하고 있어요" : current ? activeLabels[current] : "조사를 준비하고 있어요";
@@ -125,7 +128,9 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
   return (
     <section className={styles.root} aria-label="리포트 생성 진행">
       <div className={styles.titleRow}><span className={styles.titleIcon} aria-hidden="true">{titleIcon}</span><h1 className={styles.title} data-tone={timeout || (!error && !state.complete && scope) ? "attention" : undefined} aria-live="polite">{title}</h1></div>
-      <Image className={styles.mascot} src={stageImages[imageIndex]} width={240} height={240} sizes="240px" alt="" aria-hidden="true" />
+      {/* PC 는 왼쪽에 질문 · 단계, 오른쪽에 그림 · 머핀 이야기 (11/21 하니 1 · 서영 4 · 외부 F15). 휴대폰은 세로 */}
+      <div className={styles.layout}>
+      <div className={styles.main}>
       <header className={styles.questionBox} data-section="question">
         <p className={styles.questionLabel}>나의 한입 질문</p>
         <blockquote className={styles.question}>“{shown.question}”</blockquote>
@@ -145,7 +150,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
 
         <ol className={styles.stages} aria-label="리포트가 만들어지는 과정">
           {stages.map((stage) => {
-            const status = state.status[stage];
+            const status = state.status[stage] === "waiting" && stage === current ? "active" : state.status[stage];
             const interrupted = !!error && status === "active";
             return <li key={stage} className={styles.stage} data-state={interrupted ? "interrupted" : status} aria-current={!error && status === "active" ? "step" : undefined}>
               <span className={styles.marker} aria-hidden="true">{interrupted ? "!" : status === "done" ? "✓" : status === "skipped" ? "—" : ""}</span>
@@ -164,6 +169,9 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
           {error.id && <details className={styles.request}><summary>오류 정보</summary>요청 ID: {error.id}</details>}
         </div>}
       </section>
+      </div>
+      <div className={styles.side}>
+      <Image className={styles.mascot} src={stageImages[imageIndex]} width={200} height={200} sizes="(max-width: 720px) 160px, 200px" alt="" aria-hidden="true" />
       <aside className={styles.tip} aria-label="머핀 이야기" data-section="story">
         <div className={styles.storyHeading}><span aria-hidden="true">🧁</span><h2>머핀 이야기</h2></div>
         <p className={styles.story} aria-live="polite">{story}</p>
@@ -177,6 +185,8 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
           {verification && <div className={styles.note}><p>{verification.status === "skipped" ? "검증이 실행되지 않았어요." : `숫자 ${verification.numbers.total}개 중 ${verification.numbers.verified}개 값 대조 · ${verification.numbers.derived}개 계산값 · ${verification.numbers.reported ?? 0}개 기사 보도 · 권유 표현 ${verification.advice}건`}</p><p className={styles.hint}>값 대조는 원본 값과의 일치 검사이며, 답변 전체의 정확성을 보장하지 않아요.</p></div>}
         </div>}
       </aside>
+      </div>
+      </div>
     </section>
   );
 }

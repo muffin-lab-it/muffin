@@ -155,17 +155,17 @@ describe("홈 스트림 연결", () => {
 
 
 describe("홈에서 분류 후 진행 화면으로 전환", () => {
-  it("분류 중에는 폼을 유지하고 실제 자료 찾기 시작에 진행 화면을 표시한다", async () => {
+  it("굽기를 누르면 분류 중에도 바로 진행 화면을 보여 준다 (11/21 QA 8)", async () => {
     const { deps, request } = setup();
     const response = deferred<ReportResponse>();
     let emit!: (event: MuffinEvent) => void;
     deps.streamReport.mockImplementation((_, callback) => { emit = callback; return response.promise; });
     const pending = request.start(input);
     expect(request.getSnapshot().phase).toBe("checking");
-    expect(showsHomeProgress(request.getSnapshot())).toBe(false);
+    expect(showsHomeProgress(request.getSnapshot())).toBe(true);
     emit({ type: "stage", stage: "plan", status: "start" });
     emit({ type: "plan", mode: "research", intent: "cause", tools: ["get_macro_indicators"] });
-    expect(showsHomeProgress(request.getSnapshot())).toBe(false);
+    expect(showsHomeProgress(request.getSnapshot())).toBe(true);
     emit({ type: "stage", stage: "research", status: "start" });
     expect(request.getSnapshot().phase).toBe("research");
     expect(showsHomeProgress(request.getSnapshot())).toBe(true);
@@ -258,7 +258,7 @@ describe("답변 미완료의 홈 복귀", () => {
 
 
 describe("진행 화면 진입 조건", () => {
-  it("지원 분류 전 또는 자료 찾기 시작 전에는 제작 중 화면을 보여주지 않는다", async () => {
+  it("분류 중에는 checking 단계를 유지한 채 진행 화면을 보여 주고, 자료 찾기 시작에 research 로 바뀐다 (11/21 QA 8)", async () => {
     const { deps, request } = setup();
     const response = deferred<ReportResponse>();
     let emit!: (event: MuffinEvent) => void;
@@ -267,11 +267,12 @@ describe("진행 화면 진입 조건", () => {
     emit({ type: "stage", stage: "plan", status: "start" });
     emit({ type: "stage", stage: "verify", status: "start" });
     expect(request.getSnapshot().phase).toBe("checking");
-    expect(showsHomeProgress(request.getSnapshot())).toBe(false);
+    expect(showsHomeProgress(request.getSnapshot())).toBe(true);
     emit({ type: "plan", mode: "research", intent: "cause", tools: ["get_macro_indicators"] });
     emit({ type: "stage", stage: "plan", status: "done" });
-    expect(showsHomeProgress(request.getSnapshot())).toBe(false);
+    expect(request.getSnapshot().phase).toBe("checking");
     emit({ type: "stage", stage: "research", status: "start" });
+    expect(request.getSnapshot().phase).toBe("research");
     expect(showsHomeProgress(request.getSnapshot())).toBe(true);
     response.resolve(result); await pending;
   });
