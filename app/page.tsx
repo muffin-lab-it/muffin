@@ -4,6 +4,7 @@
 
 import styles from "./HomeHistory.module.css";
 import Image from "next/image";
+import Link from "next/link";
 import mascot from "./home-muffin.png";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -22,10 +23,11 @@ const areaOptions: { value: Area; label: string }[] = [
   { value: "macro", label: "물가" },
 ];
 
-const depthOptions: { value: Depth; label: string; hint: string }[] = [
-  { value: "easy", label: "Easy", hint: "핵심만 쉽게 설명" },
-  { value: "standard", label: "Standard", hint: "배경까지 차근차근 설명" },
-  { value: "deep", label: "Deep Dive", hint: "근거와 맥락까지 깊게 분석" },
+// 깊이마다 무엇이 달라지는지 구체적으로 (11/20 QA 9: 한 줄 설명으로는 뭘 골라야 할지 몰랐음). 시간은 운영 기록의 대략값
+const depthOptions: { value: Depth; label: string; hint: string; time: string }[] = [
+  { value: "easy", label: "Easy", hint: "숫자 1~2개 · 짧은 요약", time: "20초 안팎" },
+  { value: "standard", label: "Standard", hint: "숫자 3~4개 · 배경과 생활 영향", time: "30초 안팎" },
+  { value: "deep", label: "Deep Dive", hint: "기간 비교 · 반대 근거까지", time: "45초 안팎" },
 ];
 
 /**
@@ -72,6 +74,20 @@ function HomeForm() {
     restoreFocus.current = true;
     request.edit();
   }
+  /** 반려된 질문을 지우고 새로 쓸 수 있게 (11/20 외부 F1: 반려되면 직접 다 지워야 했음) */
+  function clearQuestion() {
+    setQuestion("");
+    editQuestion();
+  }
+  // 자동 높이(field-sizing)가 없는 브라우저(아이폰 사파리 등)는 내용 높이로 맞춥니다 (11/20 외부 F2: 긴 질문이 한 줄에 잘림)
+  useEffect(() => {
+    const field = questionField.current;
+    if (!field) return;
+    if (typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("field-sizing", "content")) return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+    // 분류 중엔 진행 화면이 폼을 대신하므로, 범위 밖 · 오류로 폼이 다시 그려질 때도 높이를 다시 맞춥니다 (Codex 리뷰)
+  }, [question, state.phase]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +105,7 @@ function HomeForm() {
   if (showsHomeProgress(state) && state.input) {
     return (
       <>
-        <Progress question={state.input.question} depth={state.input.depth} events={state.events}
+        <Progress question={state.input.question} depth={state.input.depth} events={state.events} pending={state.phase === "checking"}
           error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
           onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
           onEditQuestion={editQuestion} onReturnHome={editQuestion} />
@@ -103,7 +119,7 @@ function HomeForm() {
       <section className={styles.hero} aria-labelledby="home-title">
         <div><p className={styles.eyebrow}>작은 질문에서 시작하는 경제 연구소</p>
           <h1 id="home-title">궁금한 금융 이야기,<br />지금 <em>Muffin</em>에게 물어보세요.</h1>
-          <p className={styles.description}>환율, ETF, 경제뉴스부터 금리와 물가까지.<br />복잡한 금융을 내 눈높이에 맞춰 풀어드려요.</p>
+          <p className={styles.description}>환율, ETF, 경제뉴스부터 금리와 물가까지.<br />모든 숫자에 출처와 기준일을 붙이고, 출처에 없는 숫자는 검증이 걸러내요.</p>
         </div>
         <Image src={mascot} alt="돋보기와 노트북으로 금융을 연구하는 머핀" className={styles.mascot} sizes="(max-width: 600px) 260px, 380px" preload />
       </section>
@@ -111,11 +127,11 @@ function HomeForm() {
         <div className={styles.formContent}>
           <label htmlFor="question" className={styles.srOnly}>궁금한 금융 질문</label>
           <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
-            <textarea ref={questionField} id="question" required readOnly={busy} maxLength={500} aria-describedby="question-limit" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault(); }} value={question} onChange={(e) => { setQuestion(e.target.value); setFormError(null); if (state.phase === "unsupported" || state.phase === "error") request.edit(); }} placeholder="예: 금리가 내려가면 내 생활은 어떻게 달라질까?" />
+            <textarea ref={questionField} id="question" required readOnly={busy} maxLength={500} aria-describedby="question-limit" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault(); }} value={question} onChange={(e) => { setQuestion(e.target.value); setFormError(null); if (state.phase === "unsupported" || state.phase === "error") request.edit(); }} placeholder="예: 요즘 환율 왜 올라?" />
           </div>
           <small id="question-limit" className={styles.questionLimit}>궁금한 금융 이야기를 자유롭게 물어보세요.</small>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
-          {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2><p>생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요.</p></section>}
+          {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2><p>생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요.</p><button type="button" className={styles.clearQuestion} onClick={clearQuestion}>지우고 다시 쓰기</button></section>}
           {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${formatWait(state.retrySeconds)} 후 다시 시도` : "다시 시도"}</button>}</div>}
           <fieldset className={styles.fieldset} disabled={busy} aria-describedby="area-hint"><legend>관심 영역</legend>
             <div className={styles.areas}>
@@ -125,8 +141,8 @@ function HomeForm() {
             <p id="area-hint" className={styles.hint}>{selectedAreas.length === 0 ? "AI가 질문에 맞는 최적의 주제를 선택해요." : "선택한 관심 영역을 중심으로 리포트를 만들어요."}</p>
           </fieldset>
           <fieldset className={styles.fieldset} disabled={busy}><legend className={styles.srOnly}>설명 방식</legend><div className={styles.depths}>
-            {depthOptions.map(o => <label className={styles.option} key={o.value}><input type="radio" name="depth" value={o.value} checked={depth === o.value} onChange={() => setDepth(o.value)} /><span><b>{o.label}</b><small>{o.hint}</small></span></label>)}
-          </div></fieldset>
+            {depthOptions.map(o => <label className={styles.option} key={o.value}><input type="radio" name="depth" value={o.value} checked={depth === o.value} onChange={() => setDepth(o.value)} /><span><b>{o.label}</b><small>{o.hint}</small><small className={styles.depthTime}>{o.time}</small></span></label>)}
+          </div><p className={styles.depthHelp}><Link href="/compare">같은 질문을 깊이별로 비교해 보기 →</Link></p></fieldset>
           {formError && <p className={styles.formError} role="alert">{formError}</p>}
           <button className={styles.submit} data-checking={checking ? "true" : undefined} type="submit" disabled={busy || coolingDown || question.trim().length === 0}>{!checking && <Image src="/icon.svg" width={28} height={28} alt="" />}{checking ? "질문 살펴보는 중…" : coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "Muffin 리포트 굽기"}<span aria-hidden="true">›</span></button>
           <p className={styles.aiDisclosure}>Muffin은 생성형 AI로 여러 자료를 바탕으로 리포트를 작성해요. 투자 권유가 아닌 참고용 정보이며, 내용에 오류가 있을 수 있어요. 출처와 기준일을 함께 확인해 주세요.</p>

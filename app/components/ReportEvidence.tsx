@@ -1,12 +1,13 @@
 "use client";
 
-import { ReportResponsiveDetails } from "./ReportResponsiveDetails";
 import { useSyncExternalStore, type ReactNode } from "react";
+import { formatDateKo, sourceLinkLabel } from "./format";
+import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Evidence, Report } from "@/src/agent/schema";
-import { ReportEvidenceLink, ReportSectionLink, useEvidenceTarget } from "./ReportEvidenceScope";
+import { ReportEvidenceLink, ReportSectionLink, useEvidenceSelection, useEvidenceTarget } from "./ReportEvidenceScope";
 
 /** 장부나 저장 기록에서 온 URL도 웹 주소인 경우에만 링크로 표시합니다. */
-export function SourceLink({ url, name }: { url: string; name: string }) {
+export function SourceLink({ url, name, className }: { url: string; name: string; className?: string }) {
   let safe = false;
   try {
     const parsed = new URL(url);
@@ -15,20 +16,25 @@ export function SourceLink({ url, name }: { url: string; name: string }) {
     // 주소가 없거나 잘못되었어도 출처명과 기준일은 보존합니다.
   }
   return safe ? (
-    <a href={url} target="_blank" rel="noopener noreferrer">{name}</a>
+    <a className={className} href={url} target="_blank" rel="noopener noreferrer">{name}</a>
   ) : (
-    <span>{name}</span>
+    <span className={className}>{name}</span>
   );
 }
 
-export function EvidenceReference({ evidenceId, evidence, label = "자료 출처 자세히 보기", children }: {
+export function EvidenceReference({ evidenceId, evidence, label = "자료 출처 자세히 보기", children, valueKey, origin }: {
   children?: ReactNode;
   label?: string;
   evidenceId: string | null;
   evidence: Evidence[];
+  /** 장부에서 색칠하고 내려갈 값 키 (숫자 카드가 대조한 키) */
+  valueKey?: string;
+  /** 돌아올 자리 이름 (EvidenceOrigin 의 name) */
+  origin?: string;
 }) {
   const entry = evidence.find((item) => item.id === evidenceId);
   const targetId = useEvidenceTarget(evidenceId ?? "missing");
+  const originId = useEvidenceTarget(origin ?? "none");
   if (!entry) {
     return (
       <>
@@ -39,7 +45,7 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
       </>
     );
   }
-  if (targetId) return <ReportEvidenceLink targetId={targetId} label={label} className={children ? "metric-value-link" : ""}>{children}</ReportEvidenceLink>;
+  if (targetId) return <ReportEvidenceLink targetId={targetId} label={label} className={children ? "metric-value-link" : ""} valueKey={valueKey} originId={origin ? originId ?? undefined : undefined}>{children}</ReportEvidenceLink>;
   return (
     <details className="evidence-detail">
       <summary>출처와 자료 날짜 보기</summary>
@@ -48,9 +54,15 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
   );
 }
 
-export function EvidenceRecord({ entry, evidence, displayedValue, displayedLabel, hideHeading = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean }) {
+export function EvidenceRecord({ entry, evidence, displayedValue, displayedLabel, hideHeading = false, usedKeys }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean; usedKeys?: string[] }) {
   const id = useEvidenceTarget(entry.id);
-  return <div className="evidence-record" data-evidence-id={entry.id} id={id ?? undefined} tabIndex={-1}><EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} displayedLabel={displayedLabel} hideHeading={hideHeading} /></div>;
+  const scope = useEvidenceSelection();
+  // 근거 보기로 내려왔을 때만 돌아가기 버튼 (11/21 QA 2 · 외부 F8)
+  const arrived = !!scope?.origin && scope.target === entry.id;
+  return <div className="evidence-record" data-evidence-id={entry.id} id={id ?? undefined} tabIndex={-1}>
+    {arrived && <button type="button" className="evidence-return" onClick={() => scope?.returnToOrigin()}>↩ 읽던 곳으로 돌아가기</button>}
+    <EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} displayedLabel={displayedLabel} hideHeading={hideHeading} usedKeys={usedKeys} />
+  </div>;
 }
 
 /** 같은 리포트에 존재하는 입력 원본으로 이동하며, 원본을 재귀 렌더링하지 않습니다. */
@@ -84,9 +96,21 @@ const valueLabels: Record<string, string> = {
   contributionPp: "총지수 등락 기여도 (%p, 근사)", contributionSumPp: "12개 품목군 기여도 합 (%p)", month: "기준 월", previousYearMonth: "비교 월",
   previousMonth: "전월", previousMonthIndex: "전월 지수", momPct: "전월 대비 (%)", momContributionPp: "총지수 전월 대비 기여도 (%p, 근사)", momContributionSumPp: "12개 품목군 전월 기여도 합 (%p)",
 };
+/** 거래대금 · 순자산처럼 큰 원화 금액은 조 · 억 단위로 (11/21 QA 4: "1,532,179,713,324" 가 단위 없이 그대로 보였음) */
+function formatCompactWon(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "−" : "";
+  if (abs >= 1e12) {
+    const jo = Math.floor(abs / 1e12);
+    const eok = Math.round((abs - jo * 1e12) / 1e8);
+    return `${sign}${jo.toLocaleString("ko-KR")}조${eok > 0 ? ` ${eok.toLocaleString("ko-KR")}억` : ""} 원`;
+  }
+  return `${sign}${Math.round(abs / 1e8).toLocaleString("ko-KR")}억 원`;
+}
 /** 원본 값 표시. 소수가 긴 값(-0.2169840746809312)은 소수 넷째 자리까지, 큰 정수는 천 단위 쉼표. 연도 · 월 · 코드처럼 보이는 정수는 그대로 둡니다. */
 export function formatEvidenceValue(key: string, value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+  if (/tradeValue|netAssets|marketCap/i.test(key) && Math.abs(value) >= 1e8) return formatCompactWon(value);
   if (Number.isInteger(value)) return Math.abs(value) >= 1000 && !/year|month|date|code|id$/i.test(key) ? value.toLocaleString("ko-KR") : String(value);
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 4 });
 }
@@ -150,17 +174,37 @@ function NewsEvidence({ entry }: { entry: Evidence }) {
     <div className="evidence-meta">
       <span aria-hidden="true">📰</span><span>{publisher}</span>
       <SourceLink url={url} name={relay ? "Google News 중계 링크" : "기사 보기"} />
-      <span>{date.dateTime ? <time dateTime={date.dateTime}>{date.label}</time> : date.label}{date.relative && ` · ${date.relative}`}</span>
+      <span>{date.dateTime ? <time dateTime={date.dateTime}>{formatDateKo(date.label)}</time> : date.label}{date.relative && ` · ${date.relative}`}</span>
       <span>{status}</span>
     </div>
-    <p className="report-muted">{body === "unavailable" || body === "not_requested"
-      ? "보도 제목에서 확인된 정보입니다. 본문 내용이나 원인 관계를 확인한 근거는 아닙니다."
-      : body === "available" ? "본문을 확보한 기사입니다. 이 원본 정보에는 본문 전문이 포함되어 있지 않습니다."
-        : "저장된 정보로는 본문 확보 여부를 확인할 수 없습니다."} 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>
+    {/* 기사마다 같은 안내 문단이 반복되던 것을 빼고(11/20 QA 13), 제목만 확인한 기사에만 한 줄 둡니다 */}
+    {(body === "unavailable" || body === "not_requested") && <p className="report-muted">제목만 확인한 기사라 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>}
   </>;
 }
 
-function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hideHeading = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean }) {
+// 카드에서 먼저 보여 줄 값의 우선순위. 숫자 카드가 대조한 키(usedKeys)가 가장 앞 (11/21 QA 4 · 하니 4: 10~25줄 표가 다 펼쳐져 있었음)
+const PRIMARY_KEYS = ["rate", "value", "index", "latest.close", "latest.value", "result", "scaled", "changePct", "change", "changePp", "changeBp", "yoyPct", "momPct", "period.returnPct", "latest.changePct", "comparisonRate", "comparisonDate", "comparisonAsOf", "amount", "from", "to", "unit", "date", "asOf", "latest.date", "month"];
+const MAX_PRIMARY = 4;
+/** 이보다 줄이 많으면 쓴 값 몇 줄만 두고 나머지는 "원본 값 전체 보기" 로 접습니다 */
+const MAX_PLAIN_ROWS = 6;
+export function primaryKeys(values: Evidence["values"], usedKeys: string[] = []): string[] {
+  const keys = Object.keys(values);
+  const chosen: string[] = [];
+  for (const key of [...usedKeys, ...PRIMARY_KEYS]) {
+    if (chosen.length >= MAX_PRIMARY) break;
+    if (keys.includes(key) && !chosen.includes(key)) chosen.push(key);
+  }
+  if (chosen.length === 0) chosen.push(...keys.slice(0, MAX_PRIMARY));
+  return chosen;
+}
+/** 계산 장부는 note 첫 문장이 계산식입니다 ("E3.rate 3.88 − E2.rate 3.00 = 0.88%p"). 식으로 보여 줍니다 (11/21 QA 4) */
+export function formulaOf(entry: Pick<Evidence, "lineage" | "note">): string | null {
+  if (!entry.lineage || !entry.note) return null;
+  const first = entry.note.split(/\.\s+/)[0]?.trim();
+  return first && first.includes("=") ? first : null;
+}
+
+function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hideHeading = false, usedKeys = [] }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean; usedKeys?: string[] }) {
   // A single raw value adds no context when its formatted equivalent is already above.
   // Keep differing values, calculations and multi-field records visible.
   const fields = Object.entries(entry.values);
@@ -170,6 +214,13 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
     && /^[+-]?\d+(?:\.\d+)?(?:%p|%|원)?$/.test(formatted)
     && Number.parseFloat(formatted) === fields[0][1];
   const isNews = /news/i.test(entry.tool);
+  const formula = formulaOf(entry);
+  const noteRest = formula && entry.note ? entry.note.slice(formula.length).replace(/^\.\s*/, "") : entry.note;
+  const row = ([key, value]: [string, string | number]) => (
+    <div key={key} data-key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : formatEvidenceValue(key, value)}</dd></div>
+  );
+  const primary = primaryKeys(entry.values, usedKeys);
+  const folded = fields.length > MAX_PLAIN_ROWS;
   return (
     <div className="evidence-content">
       {!hideHeading && <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>}
@@ -177,8 +228,8 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
       {(!hideHeading || displayedLabel !== entry.label) && <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>}
       <div className="evidence-meta">
         <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>
-        {entry.lineage ? <span>계산에 사용한 자료</span> : <SourceLink url={entry.source.pageUrl ?? entry.source.url} name={entry.source.name} />}
-        <span>{entry.source.asOf ? `기준일 ${entry.source.asOf}` : "자료 날짜 미제공"}</span>
+        {entry.lineage ? <span>계산에 사용한 자료</span> : <><span>{entry.source.name}</span><SourceLink url={entry.source.pageUrl ?? entry.source.url} name={sourceLinkLabel(entry.source.pageUrl ?? entry.source.url)} /></>}
+        <span>{entry.source.asOf ? `기준일 ${formatDateKo(entry.source.asOf)}` : "자료 날짜 미제공"}</span>
         {entry.lineage ? <span className="evidence-inputs">{entry.lineage.inputs.length > 0 ? entry.lineage.inputs.map((id, index) => (
           <span key={`${id}-${index}`}>
             {index > 0 && ", "}
@@ -186,16 +237,18 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
           </span>
         )) : "입력 자료 미제공"}</span> : null}
       </div>
-      {duplicate ? null : Object.keys(entry.values).length > 0 ? (
-        <dl className="evidence-values">
-          {Object.entries(entry.values).map(([key, value]) => (
-            <div key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : formatEvidenceValue(key, value)}</dd></div>
-          ))}
-        </dl>
+      {formula && <p className="evidence-formula"><span>계산식</span> {formula}</p>}
+      {duplicate ? null : fields.length > 0 ? (
+        folded ? <>
+          <dl className="evidence-values">{primary.map(key => row([key, entry.values[key]]))}</dl>
+          <PrintOpenDetails className="evidence-more" summary={`원본 값 전체 보기 (${fields.length}개)`}>
+            <dl className="evidence-values evidence-values-all">{fields.map(row)}</dl>
+          </PrintOpenDetails>
+        </> : <dl className="evidence-values">{fields.map(row)}</dl>
       ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
       </>}
       {/* 뉴스 tool 의 note 는 모델에게 주는 지시문(본문 상태 · 추정 금지)이라 사용자에게는 위의 본문 상태 줄로 대신합니다 (11/19 페르소나 테스트 14/20 지적) */}
-      {entry.note && !isNews && <p className="evidence-note">{entry.note}</p>}
+      {noteRest && !isNews && <p className="evidence-note">{noteRest}</p>}
     </div>
   );
 }
@@ -216,17 +269,23 @@ function LinkedCheckDetail({ number, evidence }: { number: Report["numbers"][num
 const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "미검증" } as const;
 const policyLabels = { exact: "정확히 일치", rounded: "표기 반올림과 일치", scaled: "단위를 환산해 일치", tolerance: "허용 오차 0.1% 안에서 일치" } as const;
 
+/** 장부 키(comparison.rate)를 화면 라벨("비교 값")로. 모르는 키는 그대로 둡니다 (11/20 서영 3: 영문 키가 그대로 보임) */
+function keyLabel(key: string): string {
+  const plain = key.replace(/#text$/, "");
+  return valueLabels[plain] ?? plain;
+}
+
 /** 숫자 카드 하나를 검증이 어떻게 확인했는지 한 줄 */
 export function numberCheckDetail(n: Report["numbers"][number], evidence: Evidence[]): string {
   const entry = evidence.find((e) => e.id === n.ref);
   const ref = n.ref ?? "근거 번호 없음";
-  if (n.check === "verified") return n.match ? `${ref} 의 ${n.match.key} 값과 ${policyLabels[n.match.policy]}` : `${ref} 의 장부 값과 일치`;
+  if (n.check === "verified") return n.match ? `${ref} 의 "${keyLabel(n.match.key)}" 항목과 ${policyLabels[n.match.policy]}` : `${ref} 의 장부 값과 일치`;
   if (n.check === "derived") {
     const lineage = entry?.lineage;
-    return lineage ? `${ref} 계산값 (${lineage.op} ← ${lineage.inputs.join(", ")})${n.match ? ` · ${n.match.key} 와 ${policyLabels[n.match.policy]}` : ""}` : `${ref} 계산값`;
+    return lineage ? `${ref} 계산값 (${operationLabels[lineage.op] ?? lineage.op} ← ${lineage.inputs.join(", ")})${n.match ? ` · "${keyLabel(n.match.key)}" 항목과 ${policyLabels[n.match.policy]}` : ""}` : `${ref} 계산값`;
   }
   if (n.check === "reported") {
-    const where = n.match ? `${ref} 의 ${n.match.key.replace(/#text$/, "")} 와 ${policyLabels[n.match.policy]}` : `${ref} 기사 제목에 나온 숫자`;
+    const where = n.match ? `${ref} 의 "${keyLabel(n.match.key)}" 와 ${policyLabels[n.match.policy]}` : `${ref} 기사 제목에 나온 숫자`;
     return `${where} (보도일 뿐 공식 데이터로 확인한 것이 아님)`;
   }
   return "검증기를 거치지 않았거나 대조하지 못함";
@@ -269,9 +328,10 @@ export function ReportVerification({ report, children }: { report: Report; child
   const labels = { skipped: "검사 미실행", partial: "일부 확인 필요", pass: "검사 통과" };
   return (
     <section className="report-verification" aria-label="리포트 검증 상태">
-      <ReportResponsiveDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
-          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 대조 · 근거 분류 · 권유 표현 검사`}</span></span>
-          <span className="verification-summary-action"><span className="verification-toggle-label">리포트 상세 정보</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
+      {/* 기본은 접힌 한 줄. 펼쳐야 내역이 보입니다 (11/20 서영 2-2 · 3, 외부 E1, 하니 2). 인쇄 때는 PrintOpenDetails 가 잠시 펼칩니다 */}
+      <PrintOpenDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
+          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 ${verification.numbers.total}개 중 값 대조 ${verification.numbers.verified}개 · 계산값 ${verification.numbers.derived}개 · 권유 표현 ${verification.advice}건`}</span></span>
+          <span className="verification-summary-action"><span className="verification-toggle-label">자세히 보기</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
         </>}>
         <div className="verification-body">
       {skipped ? (
@@ -286,7 +346,7 @@ export function ReportVerification({ report, children }: { report: Report; child
       )}
           {children}
         </div>
-      </ReportResponsiveDetails>
+      </PrintOpenDetails>
     </section>
   );
 }

@@ -18,6 +18,8 @@
   --accent-soft: var(--brand-purple-soft);
   --up: #c2403a;
   --down: #2f6fd1;
+  /* 다크 모드 CSS 가 없으므로 안드로이드 크롬 · 삼성 브라우저의 강제 색 반전을 막습니다 (11/20 외부 F4 · F5 · F6) */
+  color-scheme: only light;
 }
 
 @font-face {
@@ -34,7 +36,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: "Muffin Pretendard", "Pretendard Variable", Pretendard, "Malgun Gothic", Arial, sans-serif;
-  letter-spacing: -.035em;
+  letter-spacing: -.02em; /* 11/20 외부 F7: 자간이 너무 좁음 */
   line-height: 1.6;
 }
 
