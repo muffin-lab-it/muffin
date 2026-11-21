@@ -18,6 +18,11 @@ export const LONG_DAYS = 365;
 const isRate = (e: Evidence) => e.tool === areaTools.rate && typeof e.values.indicator === "string" && e.values.indicator in POLICY_SERIES;
 const daysOf = (e: Evidence) => Number(e.values.requestedDays);
 
+/** 금리가 주제인 질문인지 */
+export function isRateQuestion(question: string): boolean {
+  return /금리|기준금리|연준|금통위/.test(question) && !/환율|달러|엔화|유로/.test(question);
+}
+
 /** 추세 · 흐름을 묻는 질문인지. 이런 질문은 짧은 기간에 변화가 있었어도 1년 전과 비교해야 답이 됩니다 ("금리 내려가는 추세야?") */
 export function isTrendQuestion(question: string): boolean {
   return /추세|흐름|추이|계속|내려가|올라가|내리고|오르고|인하|인상/.test(question);
@@ -33,6 +38,8 @@ export function flatPolicyRates(evidence: Evidence[], any = false): string[] {
 /** 변화가 0 인 정책금리(추세를 묻는 질문이면 전부)를 365일로 한 번 더 받습니다. 금리 tool 이 없거나 대상이 없으면 부르지 않고, 실패해도 리포트는 이어집니다 (error step 만 남음) */
 export async function ensureRateYear(ctx: ResearchContext, tools: readonly InvokableTool[], question = ""): Promise<string[]> {
   const rate = tools.find((t) => t.name === areaTools.rate);
+  // 금리를 묻는 질문일 때만 합니다. 환율 원인 질문이 보조로 받은 금리까지 1년 비교를 붙이면 질문과 무관한 조회 · 안내가 늘어납니다 (11/21 재실행에서 확인)
+  if (!isRateQuestion(question)) return [];
   const targets = rate ? flatPolicyRates(ctx.evidence, isTrendQuestion(question)) : [];
   if (!rate || targets.length === 0) return [];
   const rc = new RunContext(ctx);

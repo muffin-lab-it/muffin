@@ -27,10 +27,12 @@ describe("정책금리의 긴 기간 비교 (11/21)", () => {
     const ctx = new ResearchContext();
     ctx.addEvidence([bok30]);
     const invoke = vi.fn(async (...args: [unknown, string]) => (args.length ? "ok" : ""));
-    expect(await ensureRateYear(ctx, [{ name: "get_rate_data", invoke }])).toEqual(["한국은행 기준금리"]);
+    expect(await ensureRateYear(ctx, [{ name: "get_rate_data", invoke }], "한국 기준금리 지금 몇 %야?")).toEqual(["한국은행 기준금리"]);
+    // 금리가 주제가 아닌 질문(환율 원인 질문이 보조로 받은 금리)은 대상이 아니다
+    expect(await ensureRateYear(ctx, [{ name: "get_rate_data", invoke }], "환율 변동이 왜이렇게 심해?")).toEqual([]);
     expect(invoke.mock.calls[0]![1]).toBe('{"series":"BOK","days":365}');
-    expect(await ensureRateYear(ctx, [{ name: "get_fx_krw_rate", invoke }])).toEqual([]);
-    expect(await ensureRateYear(new ResearchContext(), [{ name: "get_rate_data", invoke }])).toEqual([]);
+    expect(await ensureRateYear(ctx, [{ name: "get_fx_krw_rate", invoke }], "기준금리 얼마야?")).toEqual([]);
+    expect(await ensureRateYear(new ResearchContext(), [{ name: "get_rate_data", invoke }], "기준금리 얼마야?")).toEqual([]);
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
@@ -51,7 +53,7 @@ describe("정책금리의 긴 기간 비교 (11/21)", () => {
     const ctx = new ResearchContext();
     ctx.addEvidence([bok30]);
     const failing = vi.fn(async () => { throw new Error("ECOS 실패"); });
-    await expect(ensureRateYear(ctx, [{ name: "get_rate_data", invoke: failing }])).resolves.toEqual(["한국은행 기준금리"]);
+    await expect(ensureRateYear(ctx, [{ name: "get_rate_data", invoke: failing }], "기준금리 얼마야?")).resolves.toEqual(["한국은행 기준금리"]);
   });
 
   it("작성에는 1년 전 값과 변화를 직접 적어 알리고, 365일 결과만 있으면(조사가 직접 받은 것) 붙이지 않는다", () => {
