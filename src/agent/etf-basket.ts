@@ -28,19 +28,31 @@ const SPECIFIC =
 /** 개념을 묻는 질문 ("etf가 뭐야?"). 수익률 비교로 답할 질문이 아닙니다 */
 const CONCEPT = /뭐야|뭔가요|무엇|무슨\s*뜻|뜻이|차이가|어떻게\s*(사|거래|계산)/;
 
-/** 종목을 정하지 않고 ETF 를 묻는 질문인지 ("etf 요즘 뭐가 좋아?", "요즘 ETF 어때?") */
+/** 기간을 정한 질문 ("최근 1년 ETF 어때?"). 대표 목록은 30일로만 비교하므로, 기간을 정한 질문은 조사에 맡깁니다 (#128 Codex 리뷰) */
+const PERIOD = /\d+\s*(년|개월|달|주|일)|올해|작년|지난해|연초|분기|반기/;
+export const BASKET_DAYS = 30;
+
+/** 종목 · 기간을 정하지 않고 ETF 를 묻는 질문인지 ("etf 요즘 뭐가 좋아?", "요즘 ETF 어때?") */
 export function isGeneralEtfQuestion(question: string): boolean {
-  return ETF_WORD.test(question) && !SPECIFIC.test(question) && !CONCEPT.test(question);
+  return ETF_WORD.test(question) && !SPECIFIC.test(question) && !CONCEPT.test(question) && !PERIOD.test(question);
 }
 
-const isEtf = (e: Evidence) => e.tool === areaTools.etf && typeof e.values["period.returnPct"] === "number";
+const spanDays = (e: Evidence) => (Date.parse(String(e.values["period.to"])) - Date.parse(String(e.values["period.from"]))) / 86_400_000;
+/** 비교 기간이 30일 안팎인 ETF 결과만 씁니다. 조사가 다른 기간으로 받은 결과를 섞으면 서로 다른 기간의 수익률을 나란히 놓게 됩니다 */
+const isEtf = (e: Evidence) => e.tool === areaTools.etf && typeof e.values["period.returnPct"] === "number" && Math.abs(spanDays(e) - BASKET_DAYS) <= 5;
 
 /** 장부에서 고정 목록에 든 ETF 결과를 목록 순서대로 */
 export function basketRows(evidence: Evidence[]): { item: (typeof ETF_BASKET)[number]; e: Evidence }[] {
-  return ETF_BASKET.flatMap((item) => {
+  const rows = ETF_BASKET.flatMap((item) => {
     const e = evidence.find((x) => isEtf(x) && x.values.name === item.name);
     return e ? [{ item, e }] : [];
   });
+  // 가장 많은 항목이 쓰는 비교 기간으로 맞춥니다 (휴장일 차이로 시작일이 다른 항목은 나란히 놓지 않음)
+  const span = (e: Evidence) => `${e.values["period.from"]}~${e.values["period.to"]}`;
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(span(r.e), (counts.get(span(r.e)) ?? 0) + 1);
+  const main = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return rows.filter((r) => span(r.e) === main);
 }
 
 /** 종목 없는 ETF 질문이면 고정 목록 중 장부에 없는 것을 조회합니다. 대상이 아니면 부르지 않고, 일부가 실패해도 이어 갑니다 (error step 만 남음) */
@@ -49,7 +61,7 @@ export async function ensureEtfBasket(ctx: ResearchContext, question: string, to
   if (!etf || !isGeneralEtfQuestion(question)) return false;
   const have = new Set(basketRows(ctx.evidence).map((r) => r.item.code));
   const rc = new RunContext(ctx);
-  await Promise.all(ETF_BASKET.filter((b) => !have.has(b.code)).map((b) => etf.invoke(rc, JSON.stringify({ query: b.code, days: 30 })).catch(() => undefined)));
+  await Promise.all(ETF_BASKET.filter((b) => !have.has(b.code)).map((b) => etf.invoke(rc, JSON.stringify({ query: b.code, days: BASKET_DAYS })).catch(() => undefined)));
   return true;
 }
 

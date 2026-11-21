@@ -23,6 +23,7 @@ describe("종목을 정하지 않은 ETF 질문 (11/21)", () => {
     expect(isGeneralEtfQuestion("나스닥 ETF 뭐가 좋아?")).toBe(false);
     expect(isGeneralEtfQuestion("배당 ETF 추천해줘")).toBe(false);
     expect(isGeneralEtfQuestion("etf가 뭐야?")).toBe(false);
+    expect(isGeneralEtfQuestion("최근 1년 ETF 어때?")).toBe(false);
     expect(isGeneralEtfQuestion("환율 왜 올랐어?")).toBe(false);
   });
 
@@ -52,6 +53,13 @@ describe("종목을 정하지 않은 ETF 질문 (11/21)", () => {
     expect(note).toContain("가장 높은 것은 ACE 국고채10년(+2.29%), 가장 낮은 것은 KODEX 코스닥150(-13.69%)");
     expect(note).toContain("좋다 · 낫다 · 유망하다고 쓰지 않고");
     expect(basketNote([kodex])).toBe("");
+  });
+
+  it("비교 기간이 다른 결과는 나란히 놓지 않는다 (조사가 1년으로 받은 KODEX 200)", () => {
+    const yearly = { ...kodex, values: { ...kodex.values, "period.from": "2025-11-19", "period.returnPct": 31.2 } };
+    expect(basketRows([yearly, kosdaq, bond]).map((r) => r.item.name)).toEqual(["KODEX 코스닥150", "ACE 국고채10년"]);
+    const shifted = { ...bond, values: { ...bond.values, "period.from": "2026-10-21" } };
+    expect(basketRows([kodex, kosdaq, shifted]).map((r) => r.item.name)).toEqual(["KODEX 200", "KODEX 코스닥150"]);
   });
 
   it("수익률 카드를 목록 순서대로 넣고, 작성이 같은 ETF 로 쓴 카드는 뺀다", () => {

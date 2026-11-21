@@ -1,12 +1,13 @@
 /**
  * 같은 값의 숫자 카드가 두 장 나오는 것 정리 (리더, 11/21).
  *
- * 11/21 재실행: "한국은행 기준금리 3%" 가 1년 비교(+0.50%p)와 30일 비교(0%p)로 두 장 나왔습니다. 이름과 값이 같은 카드는 하나만 남깁니다.
+ * 11/21 재실행: "한국은행 기준금리 3%" 가 1년 비교(+0.50%p)와 30일 비교(0%p)로 두 장 나왔습니다. 이름 · 값 · 기준일이 같은 카드는 하나만 남깁니다.
  * 변화가 있는 쪽을 남기고(변화가 없다는 사실은 문장에 있습니다), 둘 다 같으면 먼저 나온 것을 남깁니다.
  */
 import type { WriterOutput } from "./schema";
 
-const key = (n: WriterOutput["numbers"][number]) => `${n.label.replace(/\s|\([^)]*\)/g, "")}|${n.value.replace(/\s/g, "")}`;
+// 기준일이 다르면 다른 카드입니다: 1년 전 값과 지금 값이 우연히 같아도(둘 다 2.50%) 두 시점 비교가 사라지면 안 됩니다 (#128 Codex 리뷰)
+const key = (n: WriterOutput["numbers"][number]) => `${n.label.replace(/\s|\([^)]*\)/g, "")}|${n.value.replace(/\s/g, "")}|${n.asOf}`;
 /** 변화 칸이 "변화 없음" 인지: 비었거나, 변동 없음이거나, 숫자가 전부 0 */
 export function isFlat(change: string): boolean {
   if (!change.trim() || /변동\s*없|변화\s*없|그대로|동일/.test(change)) return true;
