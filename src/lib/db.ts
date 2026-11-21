@@ -6,7 +6,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ToolStep } from "../agent/context";
-import type { Area, Depth, Intent, Report, Verification } from "../agent/schema";
+import type { Area, Depth, FactsOutput, Intent, Report, Verification } from "../agent/schema";
 import type { ToolResult } from "../tools/types";
 
 /** reports 한 줄. id 는 리포트 생성 요청 id 를 그대로 씁니다. */
@@ -39,6 +39,10 @@ type RunRow = {
   verification: Pick<Verification, "status" | "numbers" | "why" | "advice" | "revisions"> | null;
   intent: Intent | null;
   error: string | null;
+  /** 리포트 본문 (11/21, 마이그레이션 20261121090000). 성공한 실행만. /admin 목록은 읽지 않습니다 (RUN_COLUMNS) */
+  report: Report | null;
+  /** 정제 결과: 고른 사실 · 뺀 자료와 이유 · 확인하지 못한 것 */
+  facts: FactsOutput | null;
 };
 
 /** evals 한 줄. 평가(scripts/promptfoo/run.ts) 한 번의 요약입니다. 주간 Action 과 로컬 실행이 넣고 /admin 이 읽습니다. */

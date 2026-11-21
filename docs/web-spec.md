@@ -186,7 +186,9 @@ create table public.runs (             -- src/lib/log.ts 의 RunLog 와 같은 �
   quality jsonb,
   verification jsonb,                  -- { status, numbers, why, advice, revisions }
   intent text,
-  error text
+  error text,
+  report jsonb,                        -- 11/21 추가: Report v2 본문 (성공한 실행만, 모킹 · 녹화 재생 제외)
+  facts jsonb                          -- 11/21 추가: 정제 결과 { facts, dropped, unverified }
 );
 create index runs_at on public.runs (at desc);
 create index runs_client_at on public.runs (client_id, at desc);

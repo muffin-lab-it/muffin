@@ -60,8 +60,16 @@ export async function saveRun(entry: RunEntry, { clientId, timeoutMs = SAVE_TIME
     intent: entry.intent ?? null,
     error: entry.error ?? null,
   };
+  // 리포트 본문 · 정제 결과 칸은 11/21 마이그레이션(20261121090000)으로 생깁니다. 칸이 아직 없으면 저장이 통째로 실패하므로, 그때는 두 칸을 빼고 한 번 더 넣습니다
+  const body = entry.report ? { report: entry.report, facts: entry.facts ?? null } : null;
   try {
-    const res = await withTimeout(getDb().from("runs").upsert(row, { onConflict: "id" }), timeoutMs);
+    const res = await withTimeout(getDb().from("runs").upsert(body ? { ...row, ...body } : row, { onConflict: "id" }), timeoutMs);
+    if (res.error && body) {
+      const retry = await withTimeout(getDb().from("runs").upsert(row, { onConflict: "id" }), timeoutMs);
+      if (retry.error) throw new Error(retry.error.message);
+      console.warn(`runs 본문 저장 실패, 본문 없이 저장 (${entry.id}): ${res.error.message}`);
+      return true;
+    }
     if (res.error) throw new Error(res.error.message);
     return true;
   } catch (err) {
