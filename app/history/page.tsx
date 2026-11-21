@@ -5,7 +5,7 @@ import styles from "../HomeHistory.module.css";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { homeAreaLabel } from "../components/home-form";
-import { deleteReport, listReports, type ReportRecord } from "@/src/lib/history";
+import { deleteReport, HISTORY_KEY, listReports, type ReportRecord } from "@/src/lib/history";
 
 const depthLabels = { easy: "Easy", standard: "Standard", deep: "Deep Dive" } as const;
 
@@ -27,6 +27,12 @@ export default function HistoryPage() {
     );
     return () => { alive = false; };
   }, [reload]);
+  // 다른 탭이 저장하거나 지우면 목록을 다시 읽습니다 (11/21)
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => { if (event.key === null || event.key.startsWith(HISTORY_KEY)) setReload(value => value + 1); };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   async function remove(record: ReportRecord) {
     if (deleting) return;
