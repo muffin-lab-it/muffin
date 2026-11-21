@@ -322,6 +322,15 @@ describe("research() 다섯 단계", () => {
     expect(result.report.mode).toBe("research");
   });
 
+  it("일부만 범위 밖인 질문은 답할 수 있는 부분을 조사하고, 범위를 한 줄로 알린다 (11/21)", async () => {
+    mockRuns({ plan: { intent: "out_of_scope", tools: [], reason: "선물 시장은 범위 밖" }, writer: [good] });
+    const result = await research({ question: "환율이랑 금리 조사하고 선물 시장도 조사해줘", depth: "easy" });
+
+    expect(result.plan).toMatchObject({ intent: "status", mode: "research", tools: ["get_fx_krw_rate", "get_rate_data"] });
+    expect(inputOf(3)).toContain("[질문의 범위]");
+    expect(result.report.dataGaps.some((g) => g.includes("범위 밖이라"))).toBe(true);
+  });
+
   it("판단 요청이면 작성에 모드 규칙이 붙고 리포트에 안내가 달린다", async () => {
     mockRuns({ plan: { intent: "decision", tools: ["get_etf_kr_price"], reason: "사도 돼" }, writer: [good] });
     const events: MuffinEvent[] = [];

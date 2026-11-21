@@ -45,6 +45,14 @@ describe("주제 없는 뉴스 질문의 기사 고르기 (11/21)", () => {
     expect(none.steps).toEqual([]);
   });
 
+  it("주제어가 있어도 사진 · 행사 · 지역 특산물 기사는 고르지 않는다 (11/21 실측: 창원산 파프리카)", async () => {
+    const news = vi.fn(async (input: { query: string }) => ({
+      data: { articles: input.query === "수출" ? [article("창원산 파프리카 3t 일본으로…올해 첫 수출", "https://y/p"), article("[포토] 수출 1조 달러 달성 계기 오찬 간담회", "https://y/q"), article("11월 1~20일 수출 8.2% 증가", "https://y/r")] : [] } as never,
+    }));
+    const entries = await addMacroNews(new ResearchContext(), "오늘 경제 뉴스 알려줘", news as never);
+    expect(entries.map((e) => e.values.title)).toEqual(["11월 1~20일 수출 8.2% 증가"]);
+  });
+
   it("작성에는 보탠 기사의 번호와 제목을 직접 알리고, 없으면 붙이지 않는다", async () => {
     const entries = await addMacroNews(new ResearchContext(), "오늘 경제 뉴스 알려줘", newsFor as never);
     const note = macroNewsNote(entries);

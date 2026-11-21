@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WriterOutput } from "./schema";
-import { overlap, trimRepeats } from "./trim";
+import { overlap, trimGapInputs, trimRepeats } from "./trim";
 
 const output = (caveats: string[], dataGaps: string[]): WriterOutput => ({ summary: "", numbers: [], why: [], impact: [], caveats, dataGaps, nextTopics: [] });
 
@@ -41,5 +41,26 @@ describe("주의점 · 확인하지 못한 것의 되풀이 줄이기 (11/21)", 
   it("서로 다른 한계는 그대로 두고, 바뀐 것이 없으면 받은 그대로 돌려준다", () => {
     const kept = output(["환율은 일별 기준환율이며 실시간 호가가 아닙니다.", "뉴스 본문은 확보되지 않았습니다."], ["일중 변동 폭은 확인하지 않았습니다."]);
     expect(trimRepeats(kept)).toBe(kept);
+  });
+});
+
+describe("작성에 넘기기 전에 확인하지 못한 것 줄이기 (11/21)", () => {
+  it("같은 말과 작업 과정 줄을 빼고 세 줄까지만 넘긴다 (11/21 실측 입력)", () => {
+    const out = trimGapInputs([
+      "조회한 30일 구간 기준환율 변화는 0.59% 상승이지만, 일중 고저폭이나 변동성 지표는 확보하지 않아 ‘얼마나 심한지’는 정량적으로 판단할 수 없습니다.",
+      "뉴스 본문 목표 5건 중 2건만 확보됐습니다. 나머지 3건은 원문 링크 확인에 실패했습니다.",
+      "기준금리 두 지표는 조회 구간에서 변하지 않았습니다. 금리 수치만으로 환율 변동의 원인을 단정할 수 없으며, 뉴스는 2026-11-20의 보도 내용에 한정됩니다.",
+      "일중 고저폭이나 변동성 지표가 없어 ‘왜 이렇게 심한지’를 정량적으로 판단할 수는 없다.",
+      "뉴스 본문은 5건 중 2건만 확보돼 원인 해석의 근거가 제한적이다.",
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toContain("일중 고저폭");
+    expect(out[1]).toContain("금리 수치만으로");
+  });
+
+  it("조사 실패처럼 코드가 넣은 줄은 그대로 넘기고, 많으면 앞의 세 줄만", () => {
+    expect(trimGapInputs(["조사 Agent 가 조사 메모를 남기지 못했습니다."])).toEqual(["조사 Agent 가 조사 메모를 남기지 못했습니다."]);
+    expect(trimGapInputs(["가 자료 없음", "나 지표 못 받음", "다 기간 미지원", "라 통화 미지원"])).toEqual(["가 자료 없음", "나 지표 못 받음", "다 기간 미지원"]);
+    expect(trimGapInputs([])).toEqual([]);
   });
 });

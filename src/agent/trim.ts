@@ -73,3 +73,26 @@ export function trimRepeats(output: WriterOutput): WriterOutput {
   const dataGaps = pick(output.dataGaps, GAPS_MAX);
   return caveats.length === output.caveats.length && dataGaps.length === output.dataGaps.length ? output : { ...output, caveats, dataGaps };
 }
+
+export const GAP_INPUTS_MAX = 3;
+/** 작업 과정을 적은 줄: 본문을 몇 건 받았는지, 링크 확인 실패, tool 의 상태 값. 사용자에게는 의미가 없습니다 */
+const PROCESS = /\d+\s*건\s*중\s*\d+\s*건|본문\s*(확보\s*)?목표|원문\s*링크|링크\s*확인|resultStatus|bodyStatus|missingCount|\bpartial\b|수량\s*충족/;
+
+/**
+ * 작성에 넘기기 전에 "확인하지 못한 것" 줄을 줄입니다. 조사와 정제가 각각 쓴 줄이 합쳐져 작성 입력의 "[확인하지 못한 것] dataGaps 에 옮깁니다" 로
+ * 들어가는데(11/21 실측: 다섯 줄 중 두 쌍이 같은 말), 작성은 시킨 대로 옮기고 요약에도 "확인되지 않았습니다" 를 되풀이합니다.
+ * 작업 과정 줄을 빼고, 같은 한계 · 글자가 겹치는 줄은 하나만, 앞에서부터 GAP_INPUTS_MAX 줄까지 남깁니다.
+ */
+export function trimGapInputs(lines: string[]): string[] {
+  const seenTopics = new Set<string>();
+  const out: string[] = [];
+  for (const line of lines) {
+    if (PROCESS.test(line)) continue;
+    const topics = topicsOf(line);
+    if ((topics.length > 0 && topics.every((t) => seenTopics.has(t))) || out.some((k) => overlap(k, line) >= SAME)) continue;
+    if (out.length >= GAP_INPUTS_MAX) break;
+    out.push(line);
+    for (const t of topics) seenTopics.add(t);
+  }
+  return out;
+}

@@ -15,6 +15,13 @@ import type { Evidence } from "./schema";
 /** 경제 흐름 주제어. 연합뉴스 · 한국경제 피드에서 제목에 이 낱말이 든 기사를 찾습니다 */
 export const MACRO_TOPICS = ["코스피", "증시", "환율", "금리", "물가", "수출"] as const;
 const PER_TOPIC = 2;
+/** 주제어마다 넉넉히 받아 아래 조건으로 거른 뒤 PER_TOPIC 건을 씁니다 */
+const FETCH_PER_TOPIC = 6;
+/**
+ * 제목에 주제어가 있어도 경제 흐름 기사가 아닌 것 (11/21 재실행: "수출" 로 "창원산 파프리카 3t 일본으로…올해 첫 수출" 이 뽑힘).
+ * 사진 · 행사 · 협약 · 지역 특산물 · 개별 상품 소식입니다.
+ */
+const NOT_MACRO = /\[포토\]|\[인사\]|\[부고\]|첫 수출|수출길|특산|농산물|[가-힣]{2,4}산\s|\d+\s*(t|톤)\b|축제|박람회|간담회|협약|MOU|개최|수상|출시|할인|품절|당선|취임/;
 const MAX_ARTICLES = 6;
 
 const NEWS_WORDS = /뉴스|기사|소식|이슈|헤드라인/;
@@ -35,13 +42,13 @@ type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; li
 export async function addMacroNews(ctx: ResearchContext, question: string, news: NewsFetch = fetchNews as NewsFetch): Promise<Evidence[]> {
   if (!isGeneralNewsQuestion(question)) return [];
   const started = Date.now();
-  const results = await Promise.all(MACRO_TOPICS.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: PER_TOPIC, content: "list" }).catch(() => null)));
+  const results = await Promise.all(MACRO_TOPICS.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: FETCH_PER_TOPIC, content: "list" }).catch(() => null)));
   const seen = new Set(ctx.evidence.map((e) => e.source.url));
   const picked: NewsData["articles"] = [];
   // 주제마다 한 건씩 번갈아 골라 한 주제로 쏠리지 않게 합니다
   for (let k = 0; k < PER_TOPIC && picked.length < MAX_ARTICLES; k += 1) {
     for (const r of results) {
-      const article = r?.data.articles[k];
+      const article = r?.data.articles.filter((x) => !NOT_MACRO.test(x.title))[k];
       if (!article || seen.has(article.url) || picked.length >= MAX_ARTICLES) continue;
       seen.add(article.url);
       picked.push(article);

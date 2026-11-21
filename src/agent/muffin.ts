@@ -10,6 +10,7 @@
  */
 import { RunContext, withTrace, type Agent, type AgentOutputType } from "@openai/agents";
 import { muffinTools } from "../tools";
+import { mergeSameCards } from "./cards";
 import { fxChart, indexChart } from "./chart";
 import { withEnsuredFacts } from "./extra-facts";
 import { ResearchContext, type ToolStep } from "./context";
@@ -32,7 +33,8 @@ import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleRepor
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
-import { trimRepeats } from "./trim";
+import { rescueScope, scopeGap, scopeNote } from "./scope-rescue";
+import { trimGapInputs, trimRepeats } from "./trim";
 import { applyVerification, summarizeVerification, verify } from "./verify";
 import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
 
@@ -153,9 +155,13 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     : await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(asked, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx, "plan");
   // 분류가 범위 밖이라 해도 지수 tool 로 답할 수 있는 지수 질문("나스닥 요즘 어때?")이면 현황 질문으로 조사합니다 (지수 tool 은 레지스트리에 없어 분류가 모름)
+  // 일부만 범위 밖인 질문("물가와 금리 … 선물 시장 조사하기")도 답할 수 있는 부분은 조사합니다 (src/agent/scope-rescue.ts)
+  const scope = planned.intent === "out_of_scope" && !foreign && !indexFor(question) ? rescueScope(question) : null;
   const rescuedPlan = planned.intent === "out_of_scope" && !foreign && indexFor(question)
     ? { intent: "status" as const, tools: [areaTools.news], reason: "지수 tool 로 답할 수 있는 지수 질문" }
-    : planned;
+    : scope
+      ? { intent: "status" as const, tools: scope.tools, reason: "범위 밖 대상이 섞였지만 답할 수 있는 부분이 있는 질문" }
+      : planned;
   const plan = { ...normalizePlan(rescuedPlan, question, area), mode: modeFor(rescuedPlan.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
   emit({ type: "stage", stage: "plan", status: "done" });
@@ -249,7 +255,10 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
   const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
-  const input = [writerInput(question, writerLedger, notes, writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : ""]
+  // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
+  const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
+  const writerNotes = { ...notes, gaps: gapInputs };
+  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -259,7 +268,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
     if (relation) out = withRelationNumbers(out, ctx.evidence);
     if (basket) out = withBasketNumbers(out, ctx.evidence);
-    return dropNewsCards(out, ctx.evidence);
+    return mergeSameCards(dropNewsCards(out, ctx.evidence));
   };
   let output = indexed(await runWriter(writer, input, writeCtx));
   addUsage(writeCtx, "write");
@@ -291,7 +300,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const finalOutput = {
     ...trimmed,
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
-    dataGaps: [...trimmed.dataGaps, ...gaps],
+    dataGaps: [...trimmed.dataGaps, ...(scope ? [scopeGap(scope)] : []), ...gaps],
   };
 
   return {
