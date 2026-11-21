@@ -136,6 +136,12 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     expect(withIndexNumbers(written, ctx.evidence, "나스닥 종합").numbers.map((n) => n.label)).toEqual(["나스닥 종합 기간 변화 (공식 자료)", "나스닥 종합 종가 (공식 자료)"]);
   });
 
+  it("부호가 반대인 숫자는 같은 값으로 보지 않는다 (전일 +2.00% 와 기간 -2.00%)", () => {
+    const flip = { ...official, values: { ...official.values, "latest.changePct": 2, "period.returnPct": -2 } };
+    const written = { ...empty, numbers: [{ label: "코스피 종가", value: "5,137.89", change: "전일 대비 +2.00%", asOf: "2026-11-19", ref: "E2" }] };
+    expect(withIndexNumbers(written, [flip], "코스피").numbers.map((n) => n.value)).toEqual(["-2.00%", "5,137.89"]);
+  });
+
   it("기준일이 다른 이유를 주의점에 한 줄 넣고, 작성이 이미 썼으면 넣지 않는다", () => {
     expect(indexCaveats([official], "코스피")[0]).toContain("2026-11-19 종가가 최신");
     expect(indexCaveats([official], "코스피", ["공식 자료는 다음 영업일에 공개됩니다."])).toEqual([]);

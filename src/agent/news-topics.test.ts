@@ -16,6 +16,7 @@ describe("주제 없는 뉴스 질문의 기사 고르기 (11/21)", () => {
     expect(isGeneralNewsQuestion("환율 관련 뉴스 알려줘")).toBe(false);
     expect(isGeneralNewsQuestion("오늘 달러 환율 얼마야?")).toBe(false);
     expect(isGeneralNewsQuestion("요즘 코스피 어때?")).toBe(false);
+    expect(isGeneralNewsQuestion("오늘 스포츠 뉴스 알려줘")).toBe(false);
   });
 
   it("주제어별 기사를 번갈아 골라 장부에 올린다. 같은 주소는 한 번만, 최대 6건", async () => {

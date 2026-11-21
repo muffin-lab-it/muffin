@@ -207,9 +207,12 @@ export function indexNote(evidence: Evidence[], index: IndexName): string {
 export function withIndexNumbers(output: WriterOutput, evidence: Evidence[], index: IndexName): WriterOutput {
   const o = officialIndex(evidence, index);
   if (!o) return output;
-  // 글자가 아니라 값으로 비교합니다 ("23,879.20" 과 "23,879.2포인트" 는 같은 값). 변화 칸에 적혀 있어도 있는 것으로 봅니다
-  const written = output.numbers.flatMap((n) => (`${n.value} ${n.change}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((x) => Number(x.replace(/,/g, ""))));
-  const has = (value: number) => written.some((w) => Math.abs(w - Math.abs(value)) < 0.005);
+  // 글자가 아니라 값으로 비교합니다 ("23,879.20" 과 "23,879.2포인트" 는 같은 값). 변화 칸에 적혀 있어도 있는 것으로 봅니다.
+  // 부호가 적힌 숫자는 부호까지 같아야 같은 값입니다: 전일 대비 "+2.00%" 를 썼다고 기간 변화 -2.00% 가 이미 있는 것은 아닙니다 (#128 Codex 리뷰)
+  const written = output.numbers.flatMap((n) =>
+    [...`${n.value} ${n.change}`.replace(/\d{4}-\d{2}-\d{2}/g, " ").matchAll(/([-+−])?\s*(\d[\d,]*(?:\.\d+)?)/g)].map((m) => ({ sign: m[1] ? (m[1] === "+" ? 1 : -1) : 0, value: Number(m[2]!.replace(/,/g, "")) })),
+  );
+  const has = (value: number) => written.some((w) => Math.abs(w.value - Math.abs(value)) < 0.005 && (w.sign === 0 || w.sign === Math.sign(value)));
   const add: WriterOutput["numbers"] = [];
   const t = todayIndex(evidence, index);
   if (t && !has(t.values.close as number)) {

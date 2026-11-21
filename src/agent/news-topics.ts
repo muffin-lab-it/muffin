@@ -30,6 +30,8 @@ const TOPIC_WORDS = /환율|달러|엔화|유로|금리|물가|인플레|CPI|코
 
 /** 주제 없이 경제 뉴스를 묻는 질문인지 ("오늘 경제 뉴스 알려줘", "이번 주 경제 이슈 뭐 있어?") */
 export function isGeneralNewsQuestion(question: string): boolean {
+  // 경제가 아닌 분야의 뉴스를 묻는 질문에는 경제 기사를 보태지 않습니다 (#128 Codex 리뷰)
+  if (/스포츠|연예|날씨|정치|사회면|게임|축구|야구|영화|드라마/.test(question)) return false;
   return NEWS_WORDS.test(question) && !TOPIC_WORDS.test(question);
 }
 
