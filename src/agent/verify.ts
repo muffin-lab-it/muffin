@@ -690,7 +690,7 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
   };
 
   const dataGaps = keepIndices(output.dataGaps, "dataGaps").map((i) => output.dataGaps[i]!);
-  if (droppedNumbers > 0) dataGaps.push(`검증을 통과하지 못해 뺀 숫자 ${droppedNumbers}개 (출처 값과 맞지 않았습니다)`);
+  if (droppedNumbers > 0) dataGaps.push(`검증을 통과하지 못해 뺀 숫자 ${droppedNumbers}개 (출처 값과 맞지 않았어요)`);
   const impactKeep = keepIndices(output.impact, "impact");
   const caveatsKeep = keepIndices(output.caveats, "caveats");
   const topicsKeep = keepIndices(output.nextTopics, "nextTopics");

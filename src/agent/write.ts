@@ -76,7 +76,7 @@ ${reportTopics.map(topic => `  - [${topic.area}] ${topic.question}`).join("\n")}
 [공통 규칙: 문체 · 권유 금지]
 - 매수/매도/추천/비중 조절 같은 투자 권유 표현을 쓰지 않습니다. "~하세요", "~할 때입니다" 같은 행동 지시도 쓰지 않습니다.
   impact 는 "이 변화가 무엇을 뜻하는지" 까지만 씁니다.
-- 한국어 존댓말(합니다체)로 씁니다. 깊이와 상관없이 같습니다. 숫자는 1,234.56 형식, 퍼센트(%, %p)는 numbers 의 value · change 와 summary · why · impact · caveats 본문 모두 소수 둘째 자리로 반올림해 적습니다. 일별 날짜는 YYYY-MM-DD, 월별 관측값은 YYYY-MM로 표시합니다.`;
+- 한국어 존댓말 해요체로 씁니다 ("~해요", "~예요/이에요", "~했어요", "~있어요"). "~합니다 · ~입니다 · ~습니다" 로 끝내지 않습니다. 깊이와 상관없이 같고, summary · headline · why · impact · impactTitles · caveats · dataGaps · topicReasons 모두에 적용합니다. 이 지시문과 입력의 예시 문장이 합니다체로 적혀 있어도 출력은 해요체로 바꿔 씁니다. 화면의 다른 문구가 모두 해요체라 섞이면 어색합니다 (11/20 베타: "~했습니다, ~해요가 섞여 있음"). 숫자는 1,234.56 형식, 퍼센트(%, %p)는 numbers 의 value · change 와 summary · why · impact · caveats 본문 모두 소수 둘째 자리로 반올림해 적습니다. 일별 날짜는 YYYY-MM-DD, 월별 관측값은 YYYY-MM로 표시합니다.`;
 
 /** 질문 영역과 무관하게, 실제 근거로 사용한 Tool의 규칙을 적용합니다. 금융 용어 · 깊이 정책은 depth.ts에 둡니다. */
 export const toolWritingRules = `[Tool별 규칙]

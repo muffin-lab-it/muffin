@@ -246,9 +246,9 @@ export function indexCaveats(evidence: Evidence[], index: IndexName, caveats: st
   const date = o.values["latest.date"];
   return [
     t
-      ? `${index} 공식 자료는 다음 영업일에 공개돼 ${date} 종가가 최신입니다. ${t.values.date} 종가는 ${t.source.name} 기사에 실린 값이고, 공식 전일 종가에 기사의 변화폭을 더해 맞는지 확인했습니다.`
+      ? `${index} 공식 자료는 다음 영업일에 공개돼 ${date} 종가가 최신이에요. ${t.values.date} 종가는 ${t.source.name} 기사에 실린 값이고, 공식 전일 종가에 기사의 변화폭을 더해 맞는지 확인했어요.`
       : isUs(index)
-        ? `${index} 지수 값은 하루 이틀 늦게 올라오는 자료라 ${date} 종가가 최신입니다. 그 뒤의 움직임은 숫자로 확인한 값이 아닙니다.`
-        : `${index} 공식 자료는 다음 영업일에 공개돼 ${date} 종가가 최신입니다. 그 뒤의 움직임은 기사 내용이며, 숫자로 확인한 값이 아닙니다.`,
+        ? `${index} 지수 값은 하루 이틀 늦게 올라오는 자료라 ${date} 종가가 최신이에요. 그 뒤의 움직임은 숫자로 확인한 값이 아니에요.`
+        : `${index} 공식 자료는 다음 영업일에 공개돼 ${date} 종가가 최신이에요. 그 뒤의 움직임은 기사 내용이며, 숫자로 확인한 값이 아니에요.`,
   ];
 }

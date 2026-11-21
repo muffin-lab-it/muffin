@@ -387,8 +387,8 @@ export function movementSummary(m: Movement): NonNullable<Report["movement"]> {
 
 /** 리포트 상단 안내(notice). 코드가 계산한 값만 씁니다. */
 export function movementNotice(m: Movement): string {
-  const line = `${m.pair} ${m.period.days}일 변화(${signedPct(m.movePct)})는 직전 ${BASELINE_DAYS}일 기준 평소 폭(±${m.typicalPct.toFixed(2)}%)의 ${times(m.zScore)}배로, ${LEVEL_TEXT[m.level]}입니다.`;
-  return m.level === "normal" ? `${line} 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있습니다.` : line;
+  const line = `${m.pair} ${m.period.days}일 변화(${signedPct(m.movePct)})는 직전 ${BASELINE_DAYS}일 기준 평소 폭(±${m.typicalPct.toFixed(2)}%)의 ${times(m.zScore)}배로, ${LEVEL_TEXT[m.level]}이에요.`;
+  return m.level === "normal" ? `${line} 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있어요.` : line;
 }
 
 /** 실제 방향. X/KRW 는 오르면 원화 약세, 내리면 원화 강세입니다. */
@@ -473,7 +473,7 @@ export function movementNote(m: Movement, calcId: string, evidence: Evidence[], 
     lines.push(
       "- 이 정도 움직임은 뚜렷한 원인 없이도 생깁니다. why 에는 장부 근거가 있는 요인만 쓰고, 그 요인이 이번 변화를 일으켰다고 단정하지 않습니다. 근거가 없으면 why 를 비웁니다.",
       // 11/21: "평소 범위 안에서 움직였고, 원인은 자료만으로 확인되지 않습니다" 처럼 끝이 실패로 읽히던 것. 원인을 못 찾은 것이 아니라 찾을 만큼의 움직임이 아닌 것입니다
-      "- 원인을 묻는 질문에는 이렇게 답합니다: \"평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생깁니다.\" headline 은 방향 · 크기 뒤에 이 뜻으로 끝내고, summary 에도 이 문장을 한 번 씁니다.",
+      "- 원인을 묻는 질문에는 이렇게 답합니다: \"평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생겨요.\" headline 은 방향 · 크기 뒤에 이 뜻으로 끝내고, summary 에도 이 문장을 한 번 씁니다.",
       "- headline · summary · dataGaps 에 \"원인은 확인되지 않았다 · 단정하기 어렵다 · 특정하기 어렵다\" 는 문장을 쓰지 않습니다. 원인을 못 찾은 것이 아니라, 원인을 따로 찾을 만큼의 움직임이 아닌 것입니다.",
       "- 본문을 확보한 기사(body 가 available)가 최근 움직임의 배경을 설명하면, why 에 basis \"news\" 로 \"○○ 보도에 따르면\" 이라고 밝혀 씁니다. 그 배경이 이번 기간 변화 전체의 원인이라고 단정하지 않습니다.",
     );

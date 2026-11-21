@@ -452,7 +452,7 @@ describe("원인 칸 · 영향 칸 · 비교 기간 (11/19 페르소나 테스�
     report.why = [];
     report.movement = { ref: report.evidence[0]!.id, zScore: 0.2, window: 90, level: "normal" };
     const text = render(report).text();
-    expect(text).toContain("평소 범위 안이라 원인을 따로 찾지 않았습니다");
+    expect(text).toContain("평소 범위 안이라 원인을 따로 찾지 않았어요");
     expect(text).not.toContain("데이터가 아직 없습니다");
   });
   it("원인이 없고 움직임이 크면 후보를 봤지만 근거가 부족했다고 설명한다", () => {
@@ -465,7 +465,7 @@ describe("원인 칸 · 영향 칸 · 비교 기간 (11/19 페르소나 테스�
     const report = fixture();
     report.why = [];
     delete report.movement;
-    expect(render(report).text()).toContain("원인을 뒷받침할 자료를 확보하지 못했습니다");
+    expect(render(report).text()).toContain("원인을 뒷받침할 자료를 확보하지 못했어요");
   });
   it("영향 카드가 없으면 영향 칸 제목을 그리지 않는다", () => {
     const report = fixture();

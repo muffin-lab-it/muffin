@@ -268,9 +268,9 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
   it("리포트 movement 칸과 안내 문구", () => {
     expect(movementSummary(normal)).toEqual({ ref: "E1", zScore: -0.63, window: 90, level: "normal" });
     expect(movementNotice(normal)).toBe(
-      "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임입니다. 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있습니다.",
+      "USD/KRW 30일 변화(-1.06%)는 직전 90일 기준 평소 폭(±1.69%)의 0.63배로, 평소 범위 안의 움직임이에요. 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있어요.",
     );
-    expect(movementNotice(notable)).toBe("USD/KRW 30일 변화(+2.71%)는 직전 90일 기준 평소 폭(±1.69%)의 1.60배로, 평소보다 큰 움직임입니다.");
+    expect(movementNotice(notable)).toBe("USD/KRW 30일 변화(+2.71%)는 직전 90일 기준 평소 폭(±1.69%)의 1.60배로, 평소보다 큰 움직임이에요.");
   });
 
   it("평소 범위면 실제 방향과 크기를 알리고 원인을 단정하지 않게 한다 (원인 후보 목록 없음)", () => {
