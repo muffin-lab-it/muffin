@@ -209,3 +209,31 @@ describe("용량이 빠듯할 때 2 (Codex 재리뷰)", () => {
     expect((await listReports())[0]?.id).toBe("big");
   });
 });
+
+describe("예전 목록에만 남은 기록 (Codex 재리뷰 2)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("옮기지 못한 기록만 있을 때 새 기록이 안 들어가도 덜어 내기가 멈춘다", async () => {
+    const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+    const raw = JSON.stringify([{ id: "v1-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report: v1, steps: [] }]);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    expect((await listReports()).map(r => r.id)).toEqual(["v1-1"]);
+    const saved = await saveReport({ question: "big", depth: "easy" }, { ...report, summary: "z".repeat(raw.length) }, [], "big");
+    expect(saved.id).toBe("big");
+    expect(await getReport("big")).toBeNull();
+    expect(Array.isArray(await listReports())).toBe(true);
+  });
+
+  it("옮기지 못한 기록도 삭제하면 목록에서 빠진다", async () => {
+    const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+    const raw = JSON.stringify([{ id: "v1-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report: v1, steps: [] }]);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    await deleteReport("v1-1");
+    expect(await listReports()).toEqual([]);
+    expect(store.raw.has("muffin.history.v1")).toBe(false);
+  });
+});

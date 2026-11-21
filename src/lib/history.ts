@@ -129,6 +129,19 @@ function readAll(): ReportRecord[] {
 
 function removeRecord(store: Storage, id: string) {
   try { store.removeItem(HISTORY_RECORD_PREFIX + id); } catch { /* 지우지 못해도 화면은 계속 동작합니다 */ }
+  // 옮기지 못해 예전 목록에 남아 있는 기록이면 목록에서도 뺍니다 (Codex 리뷰: 목록에만 있는 기록은 자리를 못 비워 덜어 내기가 멈추지 않았음)
+  try {
+    const raw = store.getItem(HISTORY_KEY);
+    if (!raw) return;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+    const rest = parsed.filter((item: { id?: string } | null) => item?.id !== id);
+    if (rest.length === parsed.length) return;
+    if (rest.length === 0) store.removeItem(HISTORY_KEY);
+    else store.setItem(HISTORY_KEY, JSON.stringify(rest));
+  } catch {
+    // 목록 키를 못 고쳐도 다음 단계가 멈추지 않게 둡니다
+  }
 }
 
 /**
@@ -152,6 +165,8 @@ function writeRecord(record: ReportRecord): boolean {
         removeRecord(store, old.id);
         evicted.push(old);
       }
+      // 아무것도 비우지 못했으면 멈춥니다 (무한 반복 방지)
+      if (readAll().filter(item => item.id !== record.id).length >= others.length) break;
     }
   }
   for (const old of evicted) {
@@ -210,15 +225,5 @@ export async function deleteReport(id: string): Promise<void> {
   const store = storage();
   if (!store) return;
   readAll(); // 예전 목록이 남아 있으면 먼저 기록별 키로 옮깁니다
-  removeRecord(store, id);
-  // 옮기기에 실패해 목록 키가 남아 있으면 목록에서도 뺍니다
-  try {
-    const raw = store.getItem(HISTORY_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) store.setItem(HISTORY_KEY, JSON.stringify(parsed.filter((record: ReportRecord) => record?.id !== id)));
-    }
-  } catch {
-    // 목록 키를 못 고쳐도 기록별 키는 지워졌습니다
-  }
+  removeRecord(store, id); // 기록별 키와, 옮기지 못해 목록에 남은 기록 모두
 }
