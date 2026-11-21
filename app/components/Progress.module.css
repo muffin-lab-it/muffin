@@ -100,3 +100,43 @@
   .stage:not(:last-child)::after { width:1px; height:calc(50% + 11px); left:8.5px; top:calc(50% + 11px); }
   .stage[data-state="skipped"] .state,.stage[data-state="interrupted"] .state { margin-left:auto; }
 }
+
+/* 11/21 사용자 확인: 진행 화면이 작아 보임 → 폭 · 그림 · 글자를 한 단계 키움 */
+.root { max-width:1120px; }
+.layout { grid-template-columns:minmax(0,1fr) 380px; gap:56px; }
+.title { font-size:clamp(26px,3vw,34px); }
+.titleRow { margin-bottom:28px; }
+.questionBox { padding:20px 24px; margin-bottom:22px; }
+.questionLabel { font-size:13px; }
+.question { font-size:20px; }
+.depthBadge { font-size:15px; padding:6px 12px; }
+.description { font-size:15px; }
+.timing { font-size:14px; }
+.stages { margin:28px 0 12px; }
+.marker { width:32px; height:32px; font-size:15px; }
+.label { font-size:15px; }
+.stage:not(:last-child)::after { width:calc(100% - 32px); left:calc(50% + 16px); top:15px; }
+.mascot { width:260px; height:260px; }
+.tip { padding:20px 22px; }
+.storyHeading span { font-size:20px; }
+.storyHeading h2 { font-size:15px; }
+.story { font-size:15px; }
+.hint, .details, .note { font-size:14px; }
+.error [role="alert"] { font-size:15px; }
+@media(max-width:720px) {
+  /* 위 PC 규칙이 뒤에 와서 휴대폰 규칙을 덮지 않게 여기서 다시 적습니다 */
+  .layout { grid-template-columns:minmax(0,1fr); gap:20px; }
+  .side { gap:10px; }
+  .mascot { width:180px; height:180px; }
+  .tip { padding:16px 0 0; border:0; border-top:1px solid var(--line); border-radius:0; background:transparent; }
+  .stages { flex-direction:column; gap:22px; margin:24px 0 32px; }
+  .stage { flex:none; flex-direction:row; align-items:center; text-align:left; gap:12px; }
+  .marker { width:20px; height:20px; font-size:12px; }
+  .stage[data-state="active"] .marker { border-width:1.5px; }
+  .label { font-size:15px; }
+  .stage:not(:last-child)::after { width:1px; height:calc(50% + 11px); left:9.5px; top:calc(50% + 12px); }
+  .stage[data-state="skipped"] .state,.stage[data-state="interrupted"] .state { margin-left:auto; }
+  .question { font-size:18px; }
+  .title { font-size:25px; }
+  .titleRow { margin-bottom:18px; }
+}
