@@ -1,8 +1,11 @@
+"use client";
 /**
  * 리포트 차트 (리더). 데이터는 src/agent/chart.ts 가 만든 Report.charts 한 항목이고, 여기서는 그리기만 합니다 (숫자를 새로 계산하지 않음).
  * 선(일별 값) · 평소 폭 띠(유의성 게이트의 ±폭, 이번 기간 구간) · 뉴스 점(기간 안의 기사)을 inline SVG 로 그립니다.
  * 접근성: figure + 설명 문장(figcaption)과 role="img" 요약. 색은 globals.css 의 변수.
+ * 11/21 사용자 요청: 선 위에 마우스를 올리거나 손가락으로 짚으면 가장 가까운 날의 날짜 · 값을 보여 줍니다 (값은 장부 그대로).
  */
+import { useState } from "react";
 import type { Chart, Evidence } from "@/src/agent/schema";
 
 
@@ -22,7 +25,17 @@ export function fxUnitLabel(unit: string | undefined): string | null {
   return `${Number(m[1]).toLocaleString("ko-KR")}${CURRENCY_KO[m[2]!] ?? m[2]}당 원화 금액`;
 }
 
+/** 화면 x(뷰박스 단위)에 가장 가까운 점의 번호 */
+export function nearestIndex(xs: number[], x: number): number {
+  let best = 0;
+  for (let index = 1; index < xs.length; index++) if (Math.abs(xs[index]! - x) < Math.abs(xs[best]! - x)) best = index;
+  return best;
+}
+const TIP_W = 170;
+const TIP_H = 28;
+
 export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
+  const [hover, setHover] = useState<number | null>(null);
   const series = chart.series[0];
   if (!series || series.points.length < 2) return null;
   const points = series.points;
@@ -50,6 +63,17 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const fxLabel = fxUnitLabel(chart.unit);
   const subject = fxLabel || /\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : "지표";
   const unitLabel = fxLabel ? `${fxLabel}(원)` : chart.unit || "지표 값";
+  const pointXs = points.map((p) => sx(p.t));
+  const locate = (clientX: number, svg: SVGSVGElement | null) => {
+    if (!svg) return;
+    const box = svg.getBoundingClientRect();
+    if (!box.width) return;
+    setHover(nearestIndex(pointXs, ((clientX - box.left) / box.width) * W));
+  };
+  const hovered = hover === null ? null : points[hover] ?? null;
+  const tipText = hovered ? `${longDate(hovered.t)} · ${fmtValue(hovered.v)}` : null;
+  const tipX = hovered ? sx(hovered.t) : 0;
+  const tipLeft = tipX + 12 + TIP_W > W - PAD.right ? tipX - 12 - TIP_W : tipX + 12;
   const summary = `${chart.title}: ${fmtDate(from.t)} ${fmtValue(from.v)} 에서 ${fmtDate(last.t)} ${fmtValue(last.v)}${change ? ` (${Number(change) >= 0 ? "+" : ""}${change}%)` : ""}${band ? `. ${band.label}: ${fmtValue(band.low)}~${fmtValue(band.high)}` : ""}${events.length ? `. 뉴스 ${events.length}건 표시` : ""}`;
 
   return (
@@ -58,7 +82,7 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
         <b>{subject} 변화를 확인해 보세요</b>
 
       </figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="chart-svg">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="chart-svg" onMouseLeave={() => setHover(null)}>
         <g className="chart-axis-guide"><text x={PAD.left} y={22}>{unitLabel}</text><text x={W - PAD.right} y={H - 10} textAnchor="end">날짜</text></g>
         {band && (
           <g className="chart-band">
@@ -75,6 +99,21 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
         <path d={path} className="chart-line" />
         <circle cx={sx(last.t)} cy={sy(last.v)} r={4} className="chart-last" />
         <text x={Math.min(sx(last.t) + 6, W - PAD.right - 40)} y={sy(last.v) - 8} className="chart-last-label">{fmtValue(last.v)}</text>
+        {/* 마우스 · 손가락 위치를 받는 투명 판. 뉴스 점은 이 위에 그려 제목 풍선이 살아 있습니다 */}
+        <rect className="chart-hover-target" x={PAD.left} y={PAD.top} width={W - PAD.left - PAD.right} height={H - PAD.top - PAD.bottom} fill="transparent"
+          onMouseMove={(event) => locate(event.clientX, event.currentTarget.ownerSVGElement)}
+          onTouchStart={(event) => locate(event.touches[0]?.clientX ?? 0, event.currentTarget.ownerSVGElement)}
+          onTouchMove={(event) => locate(event.touches[0]?.clientX ?? 0, event.currentTarget.ownerSVGElement)} />
+        {hovered && (
+          <g className="chart-hover" aria-hidden="true" pointerEvents="none">
+            <line x1={tipX} x2={tipX} y1={PAD.top} y2={H - PAD.bottom} />
+            <circle cx={tipX} cy={sy(hovered.v)} r={5} />
+            <g transform={`translate(${tipLeft}, ${PAD.top + 4})`}>
+              <rect width={TIP_W} height={TIP_H} rx={6} />
+              <text x={TIP_W / 2} y={19} textAnchor="middle">{tipText}</text>
+            </g>
+          </g>
+        )}
         {events.map((e) => (
           <g key={`${e.ref}-${e.at}`} className="chart-event">
             <line x1={sx(e.at)} x2={sx(e.at)} y1={PAD.top} y2={H - PAD.bottom} />
@@ -92,6 +131,7 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
           <text x={W - PAD.right} y={H - 28} textAnchor="end">{fmtDate(last.t)}</text>
         </g>
       </svg>
+      <p className="chart-hover-text" aria-live="polite">{tipText ?? "선 위에 마우스를 올리거나 손가락으로 짚으면 그날 값이 보여요."}</p>
       <div className="chart-summary">
         <p><strong>{subject}이 {fmtValue(from.v)}에서 {fmtValue(last.v)}로{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {longDate(from.t)}부터 {longDate(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{longDate(first.t)}부터 {longDate(last.t)}까지 {Math.round(day(last.t) - day(first.t))}일간의 {subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : `${unitLabel} 기준으로 표시했어요.`}</span></p>
         {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}

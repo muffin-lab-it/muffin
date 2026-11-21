@@ -145,3 +145,7 @@
 .clearQuestion{margin-top:14px;border:1px solid var(--brand-purple-border);border-radius:10px;background:#fff;color:var(--brand-purple-strong);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
 .clearQuestion:hover{background:var(--brand-purple-tint)}
 @media(max-width:600px){.depths .option>span{min-height:0;padding:12px 6px}}
+
+/* 11/21: 진행 화면은 홈 폭(1280)으로, 위 여백만 */
+.progressPage{padding-top:36px}
+@media(max-width:600px){.progressPage{padding-top:20px}}

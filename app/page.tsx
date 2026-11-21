@@ -103,14 +103,15 @@ function HomeForm() {
 
 
   if (showsHomeProgress(state) && state.input) {
+    // 홈과 같은 넓은 틀(muffin-home)을 써서 진행 화면이 820px 본문 폭에 갇히지 않게 (11/21 사용자: 진행 화면이 작아 보임)
     return (
-      <>
+      <div className={`${styles.progressPage} muffin-home`}>
         <Progress question={state.input.question} depth={state.input.depth} events={state.events} pending={state.phase === "checking"}
           error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
           onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
           onEditQuestion={editQuestion} onReturnHome={editQuestion} />
         {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} question={state.input.question} />}
-      </>
+      </div>
     );
   }
 
