@@ -84,16 +84,29 @@ function migrateLegacy(store: Storage): ReportRecord[] {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return []; }
   if (!Array.isArray(parsed)) return [];
-  const records = parsed.map(normalizeRecord).filter((record): record is ReportRecord => !!record)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-  try { store.removeItem(HISTORY_KEY); } catch { return records; }
+  const pairs = parsed.map(original => ({ original, record: normalizeRecord(original) }))
+    .filter((pair): pair is { original: unknown; record: ReportRecord } => !!pair.record)
+    .sort((a, b) => (a.record.createdAt < b.record.createdAt ? 1 : a.record.createdAt > b.record.createdAt ? -1 : 0));
+  try { store.removeItem(HISTORY_KEY); } catch { return pairs.map(pair => pair.record); }
   const kept: ReportRecord[] = [];
-  for (const record of records) {
+  let next = 0;
+  for (; next < pairs.length; next++) {
+    const record = pairs[next].record;
     try {
       if (store.getItem(HISTORY_RECORD_PREFIX + record.id) === null) store.setItem(HISTORY_RECORD_PREFIX + record.id, JSON.stringify(record));
       kept.push(record);
     } catch {
-      break; // 용량이 차면 남은(더 오래된) 기록은 옮기지 못합니다
+      break; // 용량이 차면 남은(더 오래된) 기록은 이번에 옮기지 못합니다
+    }
+  }
+  if (next < pairs.length) {
+    // 못 옮긴 기록은 원래 모양 그대로 목록 키에 되돌려 두고 다음 읽기에서 다시 시도합니다 (Codex 리뷰: 옮기다 막혀도 기록이 사라지지 않게)
+    const left = pairs.slice(next);
+    try {
+      store.setItem(HISTORY_KEY, JSON.stringify(left.map(pair => pair.original)));
+      kept.push(...left.map(pair => pair.record));
+    } catch {
+      // 되돌리지 못한 기록은 남지 않습니다
     }
   }
   return kept;
@@ -127,14 +140,14 @@ function writeRecord(record: ReportRecord): boolean {
   if (!store) return false;
   const raw = JSON.stringify(record);
   const evicted: ReportRecord[] = [];
-  for (let attempt = 0; attempt < 6; attempt++) {
+  // 저장될 때까지 오래된 기록을 1/4 씩 덜어 냅니다. 매번 최소 하나는 빠지므로 끝납니다 (Codex 리뷰: 횟수 제한 때문에 자리가 났는데도 포기하지 않게)
+  for (;;) {
     try {
       store.setItem(HISTORY_RECORD_PREFIX + record.id, raw);
       return true;
     } catch {
       const others = readAll().filter(item => item.id !== record.id);
       if (others.length === 0) break;
-      // 오래된 쪽 1/4 을 비우고 다시 시도
       for (const old of others.slice(-Math.max(1, Math.ceil(others.length / 4)))) {
         removeRecord(store, old.id);
         evicted.push(old);

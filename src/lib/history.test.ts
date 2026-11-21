@@ -181,3 +181,30 @@ describe("용량이 빠듯할 때 (Codex 리뷰)", () => {
     expect((await listReports()).map(r => r.id).sort()).toEqual(["k-0", "k-1", "k-2"]);
   });
 });
+
+describe("용량이 빠듯할 때 2 (Codex 재리뷰)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("옮기다 하나도 못 쓰면 예전 목록을 그대로 되돌려 기록이 사라지지 않는다", async () => {
+    // v1 모양 기록은 읽을 때 검증 · 고지가 붙어 커지므로, 목록이 딱 맞게 찬 저장소에서는 기록별 키로 못 옮깁니다
+    const v1 = { summary: "v1", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], sources: [], nextTopics: [] };
+    const raw = JSON.stringify([{ id: "v1-1", createdAt: "2026-11-20T00:00:00.000Z", input: { question: "old", depth: "easy" }, report: v1, steps: [] }]);
+    const store = fakeStorage(raw.length);
+    vi.stubGlobal("window", { localStorage: store });
+    store.raw.set("muffin.history.v1", raw);
+    expect((await listReports()).map(r => r.id)).toEqual(["v1-1"]);
+    expect(store.raw.get("muffin.history.v1")).toBe(raw);
+    expect(store.raw.has("muffin.history.v1:v1-1")).toBe(false);
+    expect(await getReport("v1-1")).not.toBeNull();
+  });
+
+  it("자리가 날 때까지 덜어 내면 큰 새 기록도 들어간다", async () => {
+    const store = fakeStorage(3000);
+    vi.stubGlobal("window", { localStorage: store });
+    for (let i = 0; i < 8; i++) await saveReport({ question: `q${i}`, depth: "easy" }, { ...report, summary: "x".repeat(60) }, [], `s-${i}`);
+    expect(await listReports()).toHaveLength(8);
+    const big = await saveReport({ question: "big", depth: "easy" }, { ...report, summary: "y".repeat(2200) }, [], "big");
+    expect(await getReport(big.id)).not.toBeNull();
+    expect((await listReports())[0]?.id).toBe("big");
+  });
+});
