@@ -64,11 +64,13 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const subject = fxLabel || /\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : "지표";
   const unitLabel = fxLabel ? `${fxLabel}(원)` : chart.unit || "지표 값";
   const pointXs = points.map((p) => sx(p.t));
-  const locate = (clientX: number, svg: SVGSVGElement | null) => {
+  // 화면 좌표 → 뷰박스 좌표. SVG 가 넓은 칸 가운데 놓이면 가로 여백이 생기므로 너비 비율이 아니라 변환 행렬로 바꿉니다 (Codex 리뷰)
+  const locate = (clientX: number, clientY: number, svg: SVGSVGElement | null) => {
     if (!svg) return;
-    const box = svg.getBoundingClientRect();
-    if (!box.width) return;
-    setHover(nearestIndex(pointXs, ((clientX - box.left) / box.width) * W));
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
+    setHover(nearestIndex(pointXs, point.x));
   };
   const hovered = hover === null ? null : points[hover] ?? null;
   const tipText = hovered ? `${longDate(hovered.t)} · ${fmtValue(hovered.v)}` : null;
@@ -101,9 +103,9 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
         <text x={Math.min(sx(last.t) + 6, W - PAD.right - 40)} y={sy(last.v) - 8} className="chart-last-label">{fmtValue(last.v)}</text>
         {/* 마우스 · 손가락 위치를 받는 투명 판. 뉴스 점은 이 위에 그려 제목 풍선이 살아 있습니다 */}
         <rect className="chart-hover-target" x={PAD.left} y={PAD.top} width={W - PAD.left - PAD.right} height={H - PAD.top - PAD.bottom} fill="transparent"
-          onMouseMove={(event) => locate(event.clientX, event.currentTarget.ownerSVGElement)}
-          onTouchStart={(event) => locate(event.touches[0]?.clientX ?? 0, event.currentTarget.ownerSVGElement)}
-          onTouchMove={(event) => locate(event.touches[0]?.clientX ?? 0, event.currentTarget.ownerSVGElement)} />
+          onMouseMove={(event) => locate(event.clientX, event.clientY, event.currentTarget.ownerSVGElement)}
+          onTouchStart={(event) => { const touch = event.touches[0]; if (touch) locate(touch.clientX, touch.clientY, event.currentTarget.ownerSVGElement); }}
+          onTouchMove={(event) => { const touch = event.touches[0]; if (touch) locate(touch.clientX, touch.clientY, event.currentTarget.ownerSVGElement); }} />
         {hovered && (
           <g className="chart-hover" aria-hidden="true" pointerEvents="none">
             <line x1={tipX} x2={tipX} y1={PAD.top} y2={H - PAD.bottom} />
