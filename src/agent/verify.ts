@@ -373,10 +373,27 @@ export function roleConflict(key: string, asOf: string, evidence: Evidence): str
  * 장부가 "한국 − 미국 = -0.88" 이어도 "미국 금리가 한국보다 0.88%p 높아요" 가 자연스러운 문장이라, 본문 대조에서는 반대 부호도 받습니다 (11/22).
  * 같은 자료의 시간 변화(입력 항목이 하나: 30일 전 → 오늘)는 방향이 뜻이므로 부호를 그대로 봅니다. 숫자 카드도 같은 규칙입니다.
  */
-function spreadMirrors(evidence: Evidence): Candidate[] {
+/** 장부 항목이 가리키는 대상 (지표 · 통화쌍 · 지수 · 상품 이름과 나라). 같은 대상의 두 시점인지 가려내는 데 씁니다 */
+function subjectOf(e: Evidence | undefined): string | null {
+  if (!e) return null;
+  const v = e.values;
+  const name = v.indicator ?? v.pair ?? v.index ?? v.name ?? v.category;
+  return name === undefined ? null : `${e.tool}|${String(name)}|${String(v.country ?? "")}`;
+}
+
+/** 계산 결과의 차이 키. 입력 값(from · to)은 반대 부호가 뜻이 없어 넣지 않습니다 (#138 Codex 리뷰: "기준금리는 -3.00%" 가 통과) */
+const SPREAD_RESULT_KEY = /^(change|changePp|changeBp)$/;
+
+function spreadMirrors(evidence: Evidence, byId: Map<string, Evidence>): Candidate[] {
   const op = evidence.lineage?.op;
-  if ((op !== "diff" && op !== "pp_diff") || (evidence.lineage?.inputs.length ?? 0) < 2) return [];
-  return numericCandidates(evidence).filter((c) => !c.key.endsWith("#text") && c.value !== 0).map((c) => ({ ...c, value: -c.value }));
+  const inputs = evidence.lineage?.inputs ?? [];
+  if ((op !== "diff" && op !== "pp_diff") || inputs.length !== 2) return [];
+  // 서로 다른 대상일 때만입니다. 같은 지표의 두 시점(올해 · 1년 전 물가 상승률)을 따로 받은 항목의 차이는 시간 변화라 부호가 뜻입니다 (#138 Codex 리뷰)
+  const [a, b] = inputs.map((id) => subjectOf(byId.get(id)));
+  if (!a || !b || a === b) return [];
+  return numericCandidates(evidence)
+    .filter((c) => SPREAD_RESULT_KEY.test(c.key) && c.value !== 0)
+    .map((c) => ({ ...c, value: -c.value }));
 }
 
 /**
@@ -393,7 +410,7 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
 
     // 두 자료 사이의 차이는 카드에서도 부호 없이 "미국이 한국보다 0.88%p 높은 폭" 으로 쓸 수 있습니다. 막으면 다시 쓰기에서 부호를 맞추려다
     // "한국 금리가 미국보다 높다" 처럼 방향을 거꾸로 쓰는 일이 생겼습니다 (11/22). 같은 자료의 시간 변화는 그대로 부호를 봅니다
-    const candidates = [...numericCandidates(e), ...spreadMirrors(e)];
+    const candidates = [...numericCandidates(e), ...spreadMirrors(e, byId)];
     // label 에 숫자를 적었으면("USD/KRW 1,500원") 그것도 장부와 맞아야 합니다. 이름 속 정수("KODEX 200")는 보지 않습니다.
     const labelBad = extractNumbers(n.label).filter(isStrictNumber).find((c) => !matchValue(c, candidates));
     if (labelBad) return { index, label, status: "unverified", reason: `label 의 숫자 ${labelBad.text}${labelBad.unit} 가 ${n.ref} 의 값과 다름` };
@@ -463,7 +480,8 @@ export type TextFinding = { field: TextField; index: number; text: string; unmat
  */
 
 export function verifyText(output: WriterOutput, evidence: Evidence[]): TextFinding[] {
-  const all = [...evidence.flatMap(numericCandidates), ...evidence.flatMap(spreadMirrors)];
+  const byId = new Map(evidence.map((e) => [e.id, e]));
+  const all = [...evidence.flatMap(numericCandidates), ...evidence.flatMap((e) => spreadMirrors(e, byId))];
   const check = (field: TextField, index: number, text: string): TextFinding | null => {
     const unmatched = extractNumbers(text)
       .filter(isStrictNumber)

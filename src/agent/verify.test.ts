@@ -814,7 +814,7 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
     const src = { name: "x", url: "", asOf: "2026-11-20" };
     const kr = { id: "E1", tool: "get_rate_data", label: "금리", values: { indicator: "한국은행 기준금리", rate: 3, unit: "%" }, source: src };
     const us = { id: "E2", tool: "get_rate_data", label: "금리", values: { indicator: "미국 실효 연방기금금리", rate: 3.88, unit: "%" }, source: src };
-    const spread = { id: "C1", tool: "calc_metrics", label: "계산", values: { op: "pp_diff", value: -0.88, unit: "%p" }, source: src, lineage: { op: "pp_diff", inputs: ["E2", "E1"] } };
+    const spread = { id: "C1", tool: "calc_metrics", label: "계산", values: { changePp: -0.88, from: 3.88, to: 3, unit: "%" }, source: src, lineage: { op: "pp_diff", inputs: ["E2", "E1"] } };
     const base = { summary: "미국 금리가 한국보다 0.88%p 높아요.", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
     expect(verifyText(base, [kr, us, spread])).toEqual([]);
     const fx = { id: "E3", tool: "get_fx_krw_rate", label: "환율", values: { rate: 1467.73, change: -17.98 }, source: src };
@@ -824,5 +824,14 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
     const card = (label: string, value: string, ref: string) => ({ ...base, numbers: [{ label, value, change: "", asOf: "2026-11-20", ref }] });
     expect(verify(card("미국 금리가 한국보다 높은 폭", "0.88%p", "C1"), [kr, us, spread]).ok).toBe(true);
     expect(verify(card("유로 환율 변화", "+17.98원", "C2"), [fx, time]).ok).toBe(false);
+    // 입력 값(from · to)의 반대 부호는 받지 않는다
+    expect(verifyText({ ...base, summary: "한국 기준금리는 -3.00%예요." }, [kr, us, spread])).toHaveLength(1);
+    expect(verify(card("한국 기준금리", "-3.00%", "C1"), [kr, us, spread]).ok).toBe(false);
+    // 같은 지표의 두 시점을 따로 받은 항목의 차이는 시간 변화라 부호를 본다
+    const cpiNow = { id: "E4", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.previousYear.change": 2.38 }, source: src };
+    const cpiBefore = { id: "E5", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.previousYear.change": 2.82 }, source: src };
+    const fell = { id: "C3", tool: "calc_metrics", label: "계산", values: { changePp: -0.44, from: 2.82, to: 2.38, unit: "%" }, source: src, lineage: { op: "pp_diff", inputs: ["E5", "E4"] } };
+    expect(verifyText({ ...base, summary: "물가 상승률은 0.44%p 올랐어요." }, [cpiNow, cpiBefore, fell])).toHaveLength(1);
+    expect(verifyText({ ...base, summary: "물가 상승률은 0.44%p 낮아졌어요." }, [cpiNow, cpiBefore, fell])).toEqual([]);
   });
 });
