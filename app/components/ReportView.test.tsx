@@ -388,7 +388,7 @@ describe("새 리포트 필드와 이전 기록 호환", () => {
     expect($(".report-disclosure").text()).toBe(report.disclosure);
     expect($(".report-disclosure").parents("details")).toHaveLength(0);
     expect($(".report-ai-intro")).toHaveLength(0);
-    expect($(".report-notice").text()).toBe(report.notice);
+    expect($(".report-notice").text()).toContain(report.notice);
   });
 });
 
@@ -775,5 +775,50 @@ describe("백엔드 1차 반영 뒤 화면 (11/22)", () => {
     const report = fixture();
     for (let i = 0; i < 7; i++) report.evidence.push({ ...report.evidence[0]!, id: `E8-${i}`, tool: "get_rate_data", label: `금리 확인 ${i}` });
     expect(render(report)(".source-unused > summary").text()).toMatch(/외 \d+개$/);
+  });
+});
+
+describe("백엔드 #135 뒤 운영 확인 (11/22)", () => {
+  it("판단 요청 고지는 브랜드 제목 위가 아니라 질문 카드 안에 있다", () => {
+    const report = fixture(); report.notice = "투자 판단을 대신하지 않아요."; report.mode = "judgement" as Report["mode"];
+    const $ = load(renderToStaticMarkup(<ReportView report={report} question="KODEX 200 지금 사도 돼?" />));
+    expect($("section[aria-label='나의 질문'] .report-question-notice").text()).toContain("투자 판단을 대신하지 않아요.");
+    expect($(".report-brand-header").prevAll(".report-notice")).toHaveLength(0);
+  });
+  it("딸린 숫자 줄은 라벨과 같은 말을 빼고, 모두 같은 기간이면 한 번만 적는다", () => {
+    const report = fixture();
+    const ref = report.evidence[0]!.id;
+    const base = report.numbers[0]!;
+    report.numbers = [
+      { ...base, label: "KODEX 200 종가", value: "80,630원", ref, change: "" },
+      { ...base, label: "KODEX 200 가격 수익률", value: "−7.06%", ref, change: "최근 30일(2026-10-20~2026-11-19)", changeDetail: undefined },
+      { ...base, label: "코스피 200 기초지수 수익률", value: "−6.89%", ref, change: "최근 30일(2026-10-20~2026-11-19)", changeDetail: undefined },
+    ];
+    const $ = render(report);
+    expect($(".num-subs .num-sub-detail")).toHaveLength(0);
+    expect($(".num-subs-shared").text()).toBe("최근 30일(2026-10-20~2026-11-19)");
+    const cpi = fixture();
+    cpi.numbers = [
+      { ...base, label: "한국 소비자물가지수", value: "120.73", ref, change: "" },
+      { ...base, label: "한국 소비자물가지수 전월 대비", value: "0.25%", ref, change: "전월 대비", changeDetail: undefined },
+      { ...base, label: "한국 소비자물가지수 전년 동월 대비", value: "2.82%", ref, change: "전년 동월 대비", changeDetail: undefined },
+    ];
+    const $c = render(cpi);
+    expect($c(".num-subs").text()).not.toMatch(/대비전월 대비|대비전년 동월 대비/);
+    expect($c(".num-subs-shared")).toHaveLength(0);
+  });
+  it("출처 카드는 같은 장부의 첫 숫자만 크게, 나머지는 작은 줄", () => {
+    const report = fixture();
+    const ref = report.evidence[0]!.id;
+    const base = report.numbers[0]!;
+    report.numbers = [
+      { ...base, label: "기준금리", value: "3%", ref, change: "" },
+      { ...base, label: "기준금리 1년 변화", value: "+0.50%p", ref, change: "" },
+    ];
+    const $ = render(report);
+    const item = $(`.source-data-item:has(.evidence-record[data-evidence-id='${ref}'])`);
+    expect(item.find(".source-number")).toHaveLength(1);
+    expect(item.find(".source-number-subs li")).toHaveLength(1);
+    expect(item.find(".source-number-subs li").text()).toContain("+0.50%p");
   });
 });

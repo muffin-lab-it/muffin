@@ -71,10 +71,16 @@ export function ReportSources({ report }: { report: Report }) {
     {groups.map(group => <div className="source-panel" key={group} data-source-group={group} hidden={active !== group}>
       <div className="source-panel-heading"><h3>{group}</h3></div>
       {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {formatDateKo(source.asOf) || "미제공"}</li>)}</ul> : <div className="source-data-grid">
-        {shown.filter(entry => evidenceCategory(entry) === group).map(entry => <div key={entry.id} className="source-data-item">
-          {report.numbers.filter(number => number.ref === entry.id).map((number, index) => <div className="source-number" key={index}><span className="source-number-label">{number.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{number.value}</strong>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</div>)}
-          <EvidenceRecord entry={entry} evidence={report.evidence} usedKeys={keys.get(entry.id) ?? []} displayedValue={report.numbers.find(number => number.ref === entry.id)?.value} displayedLabel={report.numbers.find(number => number.ref === entry.id)?.label} hideHeading={report.numbers.some(number => number.ref === entry.id)} />
-        </div>)}
+        {shown.filter(entry => evidenceCategory(entry) === group).map(entry => {
+          // 같은 장부를 가리키는 숫자가 여럿이면 첫 숫자만 크게, 나머지는 작은 줄로 (11/22 운영 확인: 숫자 넷이 큰 글씨로 세로로 쌓였음)
+          const nums = report.numbers.filter(number => number.ref === entry.id);
+          const [first, ...rest] = nums;
+          return <div key={entry.id} className="source-data-item">
+          {first && <div className="source-number"><span className="source-number-label">{first.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{first.value}</strong>{first.change && <small>{reportChange(first.change, first.changeDetail).text}</small>}</div>}
+          {rest.length > 0 && <ul className="source-number-subs">{rest.map((number, index) => <li key={index}><span>{number.label}</span><b>{number.value}</b>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</li>)}</ul>}
+          <EvidenceRecord entry={entry} evidence={report.evidence} usedKeys={keys.get(entry.id) ?? []} displayedValue={first?.value} displayedLabel={first?.label} hideHeading={!!first} />
+        </div>;
+        })}
       </div>}
     </div>)}
     {/* 조회는 했지만 리포트에 쓰지 않은 자료는 뒤로 접어 둡니다 (11/21 QA 4) */}
