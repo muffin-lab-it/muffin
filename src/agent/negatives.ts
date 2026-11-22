@@ -8,7 +8,7 @@
  */
 import type { Intent, WriterOutput } from "./schema";
 
-const NEGATIVE = /(확인되지\s*않|확인할\s*수\s*없|확인하지\s*못|단정할\s*수\s*없|판단할\s*수\s*없|알\s*수\s*없|알기\s*어려|특정하기\s*어려|확인하기\s*어려|단정하기\s*어려|판단하기\s*어려|말하기\s*어려)/;
+const NEGATIVE = /(확인되지\s*않|확인할\s*수\s*(?:는|도)?\s*없|확인하지\s*못|단정할\s*수\s*(?:는|도)?\s*없|판단할\s*수\s*(?:는|도)?\s*없|알\s*수\s*(?:는|도)?\s*없|알기\s*어려|특정하기\s*어려|확인하기\s*어려|단정하기\s*어려|판단하기\s*어려|말하기\s*어려)/;
 /** 마지막 글자의 받침이 ㅆ 인지 (과거형 "했 · 았 · 었 · 였") */
 const endsPast = (text: string) => {
   const code = text.charCodeAt(text.length - 1) - 0xac00;
@@ -55,7 +55,7 @@ export function dropInternalPhrases(text: string): string {
  * 판단 요청 리포트의 요약 · 한 줄이 "매수 여부는 대신 결정할 수 없지만, …" 으로 시작하면 그 앞 구절을 뗍니다.
  * 화면 맨 위에 "투자 판단을 대신하지 않아요" 안내가 이미 있어 같은 말이 두 번 나옵니다 (11/22 QA). 그 말뿐인 첫 문장은 통째로 뺍니다.
  */
-const DISCLAIMER = /(?:대신\s*(?:결정|판단)(?:해\s*드릴|할|하지)?\s*(?:수\s*없|않)|대신할\s*수\s*없|대신하지\s*않|판단은\s*(?:본인|사용자|직접)|결정은\s*(?:본인|사용자|직접))/;
+const DISCLAIMER = /(?:대신\s*(?:결정|판단)(?:해\s*드릴|할|하지)?\s*(?:수\s*(?:는|도)?\s*없|않)|대신할\s*수\s*(?:는|도)?\s*없|대신하지\s*않|판단은\s*(?:본인|사용자|직접)|결정은\s*(?:본인|사용자|직접))/;
 export function dropDecisionDisclaimer(text: string): string {
   const lead = /^([^.!?]{0,60}?)(?:지만|으나|는데)\s*,?\s*/.exec(text);
   if (lead && DISCLAIMER.test(lead[1]!)) return text.slice(lead[0].length);

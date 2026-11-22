@@ -193,7 +193,7 @@ export function withFxRateNumbers(output: WriterOutput, evidence: Evidence[]): W
   return { ...output, numbers: [...cards, ...output.numbers.filter((n) => !(n.ref && same.has(n.ref)))] };
 }
 
-const NEGATIVE_HEADLINE = /확인되지\s*않|확인할\s*수\s*없|단정할\s*수|판단할\s*수\s*없|알기\s*어려|단정하기\s*어려/;
+const NEGATIVE_HEADLINE = /확인되지\s*않|확인할\s*수\s*(?:는|도)?\s*없|단정할\s*수|판단할\s*수\s*(?:는|도)?\s*없|알기\s*어려|단정하기\s*어려/;
 
 /**
  * 관계 질문의 한 줄 요약이 없거나 "…인과관계는 단정할 수 없어요" 로 끝나면, 코드가 장부 값으로 만든 한 줄로 바꿉니다

@@ -25,6 +25,8 @@ describe("묻지 않은 부정 문장 정리 (11/22)", () => {
     expect(dropUnaskedCause(s, "cause")).toBe(s);
     expect(dropUnaskedCause("환율은 0.59% 올랐지만 원인은 확인되지 않았어요.", "status")).toBe("환율은 0.59% 올랐지만 원인은 확인되지 않았어요.");
     expect(dropUnaskedCause("하락 원인은 확인할 수 없어요.", "status")).toBe("하락 원인은 확인할 수 없어요.");
+    // "수는 없어요" 꼴도 잡는다 (11/22 실업률)
+    expect(dropUnaskedCause("실업률은 2.5%예요. 실업률 수치만으로 변화의 원인을 단정할 수는 없어요.", "status")).toBe("실업률은 2.5%예요.");
     // 확인된 배경과 한계가 한 문장에 같이 있으면 지우지 않는다
     const mixed = "소비자물가는 올랐어요. 유가 상승이 물가 상승의 배경으로 보도됐지만, 금리와의 인과관계는 확인되지 않았어요.";
     expect(dropUnaskedCause(mixed, "cause", true)).toBe(mixed);
