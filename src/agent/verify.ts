@@ -92,7 +92,8 @@ function isQuoteBasis(value: number, unit: string, before: string, rest: string)
   if (/^\s*당/.test(rest)) return true;
   const unitAmount = value === 1 || (unit === "엔" && value === 100);
   // "100엔은 838.55원" · "1달러는 1,335원" 처럼 기준 단위 뒤에 바로 원화 금액이 오는 것도 기준 단위입니다 (11/22 다시 쓰기 원인)
-  return unitAmount && (/\/\s*$/.test(before) || /^\s*(?:(?:에|은|는|이|이면|면)\s*(?:약\s*)?\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest));
+  // "같은 100엔에 받는 원화" · "100엔어치" 처럼 기준 단위 앞뒤의 말로도 가립니다 (11/23 엔화 출렁임 질문의 다시 쓰기)
+  return unitAmount && (/\/\s*$/.test(before) || /같은\s*$/.test(before) || /^\s*(?:(?:에|은|는|이|이면|면)\s*(?:약\s*)?\d|[을를]\s*(?:사|살|바꾸|바꿀|환전)|어치|에\s*(?:받|필요|드|해당))/.test(rest));
 }
 
 /**
