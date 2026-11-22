@@ -67,7 +67,63 @@ export type Movement = {
   baseline: { from: string; to: string; changes: number; url: string; sourceName: string };
   /** 최근 SERIES_DAYS 일(이번 기간이 더 길면 그 기간)의 일별 환율. 받은 단위 그대로 (JPY 는 1엔 기준) */
   series: DailyRate[];
+  /** 하루 단위 출렁임 (11/23). 이번 기간의 하루 변화가 모자라면 없음 */
+  daily?: DailySwing;
 };
+
+/**
+ * 하루 단위 출렁임. "요즘 환율 변동이 심해" 는 30일 전체 변화가 아니라 하루하루 오르내린 폭을 묻는 경우가 많습니다
+ * (11/20 베타 1번: 30일 전체로는 +0.41% 인데 "변동이 왜 이렇게 심해?"). 하루 변화의 절댓값 평균을 이번 기간과 직전 90일로 비교합니다.
+ */
+export type DailySwing = {
+  /** 이번 기간 하루 평균 움직임 (%, 절댓값 평균) */
+  avgPct: number;
+  /** 직전 90일 하루 평균 움직임 (%) */
+  baselineAvgPct: number;
+  /** avgPct ÷ baselineAvgPct */
+  ratio: number;
+  level: MovementLevel;
+  /** 이번 기간에 가장 크게 움직인 날과 그날의 변화 (%, 부호 있음) */
+  max: { date: string; pct: number };
+  /** 평소 하루 움직임의 2배를 넘은 날 수 */
+  bigDays: number;
+  /** 이번 기간의 하루 변화 수 */
+  count: number;
+};
+
+/** 하루 평균 움직임이 평소의 몇 배부터 "큰 출렁임" 인지. 20개 안팎의 하루 변화로 잰 비율이라 표본 오차(±0.15 안팎)를 넘는 값으로 잡았습니다 */
+export const SWING_NOTABLE = 1.3;
+export const SWING_EXTREME = 1.8;
+export const MIN_SWING_CHANGES = 5;
+
+const changesOf = (rows: DailyRate[]) => rows.slice(1).map((r, i) => ({ date: r.date, pct: (r.rate / rows[i]!.rate - 1) * 100 }));
+const meanAbs = (xs: number[]) => xs.reduce((s, x) => s + Math.abs(x), 0) / xs.length;
+
+/** 이번 기간(비교 기준일 → 최신 기준일)과 직전 90일의 하루 변화로 출렁임을 잽니다. 하루 변화가 모자라면 undefined */
+export function dailySwing(recentRows: DailyRate[], baselineDaily: number[]): DailySwing | undefined {
+  const recent = changesOf(recentRows);
+  if (recent.length < MIN_SWING_CHANGES || baselineDaily.length < MIN_DAILY_CHANGES) return undefined;
+  const avg = meanAbs(recent.map((c) => c.pct));
+  const base = meanAbs(baselineDaily);
+  if (!(base > 0)) return undefined;
+  const ratio = round(avg / base, 2);
+  const max = recent.reduce((a, b) => (Math.abs(b.pct) > Math.abs(a.pct) ? b : a));
+  return {
+    avgPct: round(avg, 2),
+    baselineAvgPct: round(base, 2),
+    ratio,
+    level: ratio < SWING_NOTABLE ? "normal" : ratio < SWING_EXTREME ? "notable" : "extreme",
+    max: { date: max.date, pct: round(max.pct, 2) },
+    // 소수 둘째 자리로 보이는 값으로 셉니다 (0.4% 가 계산 오차로 0.40000001% 가 되어 "2배 넘음" 으로 세이지 않게)
+    bigDays: recent.filter((c) => round(Math.abs(c.pct), 2) > round(2 * base, 2)).length,
+    count: recent.length,
+  };
+}
+
+/** 하루 단위 출렁임을 묻는 질문인지 ("환율 변동이 왜이렇게 심해?", "요즘 환율 너무 출렁여") */
+export function isSwingQuestion(question: string): boolean {
+  return /변동(?:성|폭)?.{0,10}(심|크|커|많|잦)|출렁|요동|널뛰|들쭉날쭉|오르락\s*내리락|변덕|불안정|흔들|많이\s*움직/.test(question);
+}
 
 /** 게이트 한 번의 결과. 잴 대상이 없으면 step 이 없고, 재다가 실패하면 movement 가 null 이고 step 이 error 입니다. */
 export type MovementResult = { movement: Movement | null; step?: ToolStep };
@@ -275,8 +331,11 @@ function measure(target: Target, rows: DailyRate[], url: string, sourceName: str
     rates: { from: target.fromRate, to: target.toRate },
     baseline: { from: baseline[0]!.date, to: baseline.at(-1)!.date, changes: daily.length, url, sourceName },
     series: rows.filter((r) => r.date >= seriesStart && r.date <= target.to),
+    ...withSwing(dailySwing(rows.filter((r) => r.date >= target.from && r.date <= target.to), daily)),
   };
 }
+
+const withSwing = (swing: DailySwing | undefined) => (swing ? { daily: swing } : {});
 
 /** 일별 환율: Frankfurter 를 먼저, 답하지 않으면 같은 원천인 ECB 90일 파일을 직접 (같은 숫자). 어느 쪽을 썼는지 주소 · 이름을 함께 돌려줍니다 */
 async function fetchSeries(currency: string, from: string, to: string): Promise<{ rows: DailyRate[]; url: string; sourceName: string }> {
@@ -370,12 +429,25 @@ export function movementEvidence(m: Movement, id: string): Evidence {
       baselineStart: m.baseline.from,
       baselineEnd: m.baseline.to,
       baselineCount: m.baseline.changes,
+      // 하루 단위 출렁임 (있을 때만). 키 이름의 Pct 는 검증기가 % 로 읽고, dailyTimesTypical 은 "1.35배" 처럼 단위 없는 값입니다
+      ...(m.daily
+        ? {
+            dailyAvgMovePct: m.daily.avgPct,
+            baselineDailyAvgMovePct: m.daily.baselineAvgPct,
+            dailyTimesTypical: m.daily.ratio,
+            dailyLevel: m.daily.level,
+            maxDailyChangePct: m.daily.max.pct,
+            maxDailyDate: m.daily.max.date,
+            bigMoveDays: m.daily.bigDays,
+          }
+        : {}),
     },
     // 기준 기간 데이터는 조사의 환율 결과(E 번호)에 없어서 따로 받은 주소를 출처로 남깁니다 (원본 보기 · 출처 목록에서 열림).
     source: { name: `${m.baseline.sourceName} (${m.baseline.from} ~ ${m.period.to})`, url: m.baseline.url, asOf: m.period.to },
     note:
       `직전 ${BASELINE_DAYS}일(${m.baseline.from}~${m.baseline.to}) 하루 변화 ${m.baseline.changes}개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±${m.typicalPct.toFixed(2)}%. ` +
-      `이번 변화 ${signedPct(m.movePct)} 는 평소 폭의 ${times(m.zScore)}배입니다`,
+      `이번 변화 ${signedPct(m.movePct)} 는 평소 폭의 ${times(m.zScore)}배입니다` +
+      (m.daily ? `. 하루 단위로는 이번 기간 하루 평균 ${m.daily.avgPct.toFixed(2)}% 움직여 직전 ${BASELINE_DAYS}일 평균 ${m.daily.baselineAvgPct.toFixed(2)}% 의 ${m.daily.ratio.toFixed(2)}배입니다 (하루 변화의 절댓값 평균)` : ""),
     lineage: { op: "zscore", inputs: [m.ref] },
   };
 }
@@ -386,9 +458,51 @@ export function movementSummary(m: Movement): NonNullable<Report["movement"]> {
 }
 
 /** 리포트 상단 안내(notice). 코드가 계산한 값만 씁니다. */
-export function movementNotice(m: Movement): string {
+export function movementNotice(m: Movement, swing = false): string {
   const line = `${m.pair} ${m.period.days}일 변화(${signedPct(m.movePct)})는 직전 ${BASELINE_DAYS}일 기준 평소 폭(±${m.typicalPct.toFixed(2)}%)의 ${times(m.zScore)}배로, ${LEVEL_TEXT[m.level]}이에요.`;
+  // 출렁임을 묻는 질문이면 하루 단위 비교를 먼저 둡니다
+  if (swing && m.daily) {
+    const d = m.daily;
+    return `${m.pair} 는 최근 ${m.period.days}일 동안 하루 평균 ${d.avgPct.toFixed(2)}%씩 움직여, 직전 ${BASELINE_DAYS}일(하루 평균 ${d.baselineAvgPct.toFixed(2)}%)의 ${d.ratio.toFixed(2)}배예요. ${line}`;
+  }
   return m.level === "normal" ? `${line} 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있어요.` : line;
+}
+
+/** 평소의 이 배수보다 작으면 "평소보다 잔잔한 편" 이라고 씁니다 (평소 수준 안에서 더 조용한 쪽) */
+const CALM_RATIO = 0.8;
+const SWING_TEXT: Record<MovementLevel, string> = {
+  normal: "평소 수준",
+  notable: "평소보다 큰 출렁임",
+  extreme: "평소보다 훨씬 큰 출렁임",
+};
+
+/** 작성 입력에 붙이는 [하루 변동 폭]. 출렁임을 묻는 질문이고 하루 변화를 잰 경우만 */
+export function swingNote(m: Movement, calcId: string): string {
+  const d = m.daily;
+  if (!d) return "";
+  const max = new Date(`${d.max.date}T00:00:00Z`);
+  return [
+    `[하루 변동 폭] 질문은 환율이 얼마나 출렁이는지 물었습니다. 코드가 계산한 값입니다 (${calcId}).`,
+    `- ${m.pair} 는 ${m.period.from} → ${m.period.to} 동안 하루 평균 ${d.avgPct.toFixed(2)}%씩 움직였습니다 (하루 변화의 크기 평균). 직전 ${BASELINE_DAYS}일에는 하루 평균 ${d.baselineAvgPct.toFixed(2)}% 라 평소의 ${d.ratio.toFixed(2)}배, ${d.ratio < CALM_RATIO ? "평소보다 잔잔한 편" : SWING_TEXT[d.level]}입니다.`,
+    `- 가장 크게 움직인 날: ${d.max.date} (${max.getUTCMonth() + 1}월 ${max.getUTCDate()}일) ${signedPct(d.max.pct)}. 평소 하루 움직임의 2배를 넘은 날: ${d.count}일 중 ${d.bigDays}일.`,
+    `- summary 첫 문장과 headline 은 이 하루 변동 폭으로 답합니다 ("하루 평균 ○%씩 움직여 평소의 ○배"). 위 [움직임 크기] 의 "summary 첫 문장" 지시보다 이 지시가 우선합니다.`,
+    `- 둘째 문장에서 30일 전체 변화([움직임 크기])를 덧붙이고, 두 값이 다를 수 있다는 점을 한 문장으로 설명합니다 (전체로는 조금 변했어도 하루하루는 크게 오르내릴 수 있고, 그 반대도 있음).`,
+    d.level === "normal"
+      ? `- 하루하루 움직임도 평소 수준이면 그렇게 답합니다. 체감과 다를 수 있는 이유로, 이 자료는 하루 한 번 집계되는 기준 환율이라 장중에 오르내린 폭은 들어 있지 않다는 점을 한 번 씁니다.`
+      : `- 평소보다 크게 출렁였으면, 가장 크게 움직인 날 무렵의 보도가 장부에 있을 때만 "○○ 보도에 따르면" 으로 배경을 씁니다. 근거가 없으면 원인을 짐작하지 않습니다.`,
+    `- 숫자 카드는 코드가 넣습니다 (하루 평균 움직임, 가장 크게 움직인 날).`,
+  ].join("\n");
+}
+
+/** 하루 변동 폭 카드 둘을 맨 앞에 넣습니다. 값은 장부(calcId)의 값 그대로입니다 */
+export function withSwingNumbers<T extends { numbers: { label: string; value: string; change: string; asOf: string; ref: string | null }[] }>(output: T, m: Movement, calcId: string): T {
+  const d = m.daily;
+  if (!d) return output;
+  const cards = [
+    { label: `하루 평균 움직임 (최근 ${m.period.days}일)`, value: `${d.avgPct.toFixed(2)}%`, change: `평소(직전 ${BASELINE_DAYS}일 ${d.baselineAvgPct.toFixed(2)}%)의 ${d.ratio.toFixed(2)}배`, asOf: m.period.to, ref: calcId },
+    { label: "가장 크게 움직인 날", value: signedPct(d.max.pct), change: "", asOf: d.max.date, ref: calcId },
+  ];
+  return { ...output, numbers: [...cards, ...output.numbers.filter((n) => !(n.ref === calcId && /하루|움직인 날/.test(n.label)))] };
 }
 
 /** 실제 방향. X/KRW 는 오르면 원화 약세, 내리면 원화 강세입니다. */

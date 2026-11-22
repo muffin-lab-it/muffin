@@ -811,6 +811,7 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
   it("'100엔은 838.55원' 의 100엔은 기준 단위다", () => {
     expect(extractNumbers("100엔은 838.55원이에요").map((n) => n.value)).toEqual([838.55]);
     expect(extractNumbers("1달러는 1,335.94원이에요").map((n) => n.value)).toEqual([1335.94]);
+    expect(extractNumbers("같은 100엔에 받는 원화가 30일 전보다 줄었어요").map((n) => n.value)).toEqual([30]);
   });
 
   it("두 자료 사이의 차이는 본문에서 부호 없이 써도 통과하고, 같은 자료의 시간 변화는 부호를 본다", () => {

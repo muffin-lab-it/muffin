@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { muffinTools } from "../tools";
 import { stdev } from "../tools/calc/metrics";
-import { causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, pickTarget, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
+import { dailySwing, isSwingQuestion, swingNote, causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, pickTarget, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
 import type { Evidence, WriterOutput } from "./schema";
 import { verify } from "./verify";
 
@@ -88,6 +88,8 @@ describe("유의성 게이트: measureMovement", () => {
       rates: { from: 1353.71, to: 1339.36 },
       baseline: { from: "2026-07-06", to: "2026-10-03", changes: 89, url: seriesUrl("USD", "2026-07-05", "2026-11-02"), sourceName: "Frankfurter v2 일별 환율" },
       series: expect.any(Array),
+      // 하루 단위 출렁임: 이번 기간은 매일 0.04%, 직전 90일은 매일 0.3% 라 평소의 0.13배 (11/23)
+      daily: { avgPct: 0.04, baselineAvgPct: 0.3, ratio: 0.13, level: "normal", max: { date: expect.any(String), pct: -0.04 }, bigDays: 0, count: 30 },
     });
     // 차트용 일별 환율: 비교 기준일부터 최신 기준일까지 (리포트의 30일 변화와 같은 기간), 받은 단위 그대로
     expect(movement!.series[0]!.date).toBe("2026-10-03");
@@ -387,5 +389,41 @@ describe("유의성 게이트: 장부 · 안내 · 작성 입력", () => {
   it("원인 지도의 tool 은 모두 레지스트리에 있다", () => {
     const names = new Set(muffinTools.map((t) => t.name));
     for (const c of Object.values(causeMap).flat()) expect(names.has(c.tool)).toBe(true);
+  });
+});
+
+describe("하루 단위 출렁임 (11/23)", () => {
+  const rows = (start: string, changes: number[]) => {
+    let r = 1300;
+    return [{ date: start, rate: r }, ...changes.map((c, i) => ({ date: shift(start, i + 1), rate: (r *= 1 + c / 100) }))];
+  };
+  const baseline = Array.from({ length: 60 }, (_, i) => (i % 2 ? -0.2 : 0.2));
+
+  it("하루 변화의 절댓값 평균을 직전 90일과 비교하고, 가장 크게 움직인 날 · 평소의 2배를 넘은 날을 센다", () => {
+    const swing = dailySwing(rows("2026-10-23", [0.3, -0.5, 0.2, 0.6, -0.3, 0.1, -0.2, 0.4]), baseline)!;
+    expect(swing).toMatchObject({ avgPct: 0.33, baselineAvgPct: 0.2, ratio: 1.63, level: "notable", bigDays: 2, count: 8 });
+    expect(swing.max).toEqual({ date: "2026-10-27", pct: 0.6 });
+    expect(dailySwing(rows("2026-10-23", [0.2, -0.2, 0.2, 0.2, -0.2]), baseline)!.level).toBe("normal");
+    expect(dailySwing(rows("2026-10-23", [0.5, -0.4, 0.4, 0.5, -0.4]), baseline)!.level).toBe("extreme");
+  });
+
+  it("작성에는 하루 평균 움직임과 평소 대비를 알리고, 평소의 0.8배 아래면 잔잔한 편이라고 쓴다", () => {
+    const m = { ref: "E1", pair: "USD/KRW", period: { from: "2026-10-23", to: "2026-11-22", days: 30 }, daily: { avgPct: 0.17, baselineAvgPct: 0.23, ratio: 0.74, level: "normal", max: { date: "2026-11-06", pct: 0.68 }, bigDays: 1, count: 21 } } as never;
+    const note = swingNote(m, "C1");
+    expect(note).toContain("[하루 변동 폭]");
+    expect(note).toContain("하루 평균 0.17%씩 움직였습니다");
+    expect(note).toContain("평소의 0.74배, 평소보다 잔잔한 편입니다");
+    expect(note).toContain("2026-11-06 (11월 6일) +0.68%");
+    expect(swingNote({ ...(m as object), daily: undefined } as never, "C1")).toBe("");
+  });
+
+  it("하루 변화가 모자라면 재지 않는다", () => {
+    expect(dailySwing(rows("2026-10-23", [0.3, -0.5]), baseline)).toBeUndefined();
+    expect(dailySwing(rows("2026-10-23", [0.3, -0.5, 0.2, 0.6, -0.3]), baseline.slice(0, 10))).toBeUndefined();
+  });
+
+  it("출렁임을 묻는 질문을 가려낸다", () => {
+    for (const q of ["환율 변동이 왜이렇게 심해?", "요즘 환율 너무 출렁이는데", "원달러 환율 변동성 커졌어?", "환율이 요동치네"]) expect(isSwingQuestion(q)).toBe(true);
+    for (const q of ["환율 왜 올랐어?", "오늘 달러 환율 얼마야?", "최근 한 달 환율 얼마나 변했어?"]) expect(isSwingQuestion(q)).toBe(false);
   });
 });

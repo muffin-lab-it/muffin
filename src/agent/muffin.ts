@@ -33,7 +33,7 @@ import { ensureFxRate, ensureRateInflation, fxRateNote, fxRateRows, relationHead
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
-import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
+import { isSwingQuestion, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, swingNote, withSwingNumbers, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
 import { dropOffTopic, ensureMentioned, mentionedTools, offTopicGap, offTopicNote, offTopicParts, rescueScope, scopeGap, scopeNote } from "./scope-rescue";
@@ -223,7 +223,9 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   addUsage(researchCtx, "research");
   // 환율 원인 질문이면 원인 지도가 필요로 하는 같은 기간 다른 통화 환율을 코드가 채웁니다 (조사가 받아 오지 않은 통화만, src/agent/supplement.ts).
   // 잴 대상은 보강 전에 한 번만 고릅니다. 보강으로 통화가 늘어난 뒤 다시 고르면 대상이 바뀔 수 있습니다 (유로만 있던 장부에 달러가 더해지면 달러로)
-  const fxTarget = plan.intent === "cause" ? pickTarget(ctx.evidence, question, area) : undefined;
+  // 출렁임을 묻는 질문("요즘 환율 변동 심해?")은 원인 질문이 아니어도 일별 환율을 받아 하루 변동 폭을 잽니다 (movement.ts dailySwing)
+  const swing = isSwingQuestion(question);
+  const fxTarget = plan.intent === "cause" || swing ? pickTarget(ctx.evidence, question, area) : undefined;
   if (plan.intent === "cause") {
     await ensureOtherPairs(ctx, question, area, tools, fxTarget);
     // 물가 원인 질문이면 품목군별 등락률 · 기여도를 채웁니다 (src/agent/supplement.ts, 11/19 페르소나 테스트: 물가 "왜" 에 원인 0개)
@@ -251,7 +253,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // ✂️ 정제. 장부 전체와 메모를 보고 사실만 고르고, 차이 · 변동률은 계산 tool 로 C 번호를 받습니다. 실패하면 null.
   // 원인 질문이면 같은 시간에 유의성 게이트가 일별 환율을 받아 이번 움직임이 평소 범위인지 잽니다. 실패해도 리포트는 이어 갑니다.
   emit({ type: "stage", stage: "edit", status: "start" });
-  const gate: Promise<MovementResult> = plan.intent === "cause" ? measureMovement(ctx.evidence, { question, area, target: fxTarget }) : Promise.resolve({ movement: null });
+  const gate: Promise<MovementResult> = plan.intent === "cause" || swing ? measureMovement(ctx.evidence, { question, area, target: fxTarget }) : Promise.resolve({ movement: null });
   const editCtx = new RunContext(ctx);
   const facts = await runEdit(tuned(createEditorAgent(depth), "edit", depth), editInput(question, plan, ctx.evidence, notes), editCtx);
   addUsage(editCtx, "edit");
@@ -300,7 +302,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", fxRate ? fxRateNote(ctx.evidence) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", fxRate ? fxRateNote(ctx.evidence) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -312,6 +314,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     if (basket) out = withBasketNumbers(out, ctx.evidence);
     if (fxRate) out = withFxRateNumbers(out, ctx.evidence);
     if (example) out = withExampleNumbers(out, example);
+    if (movement && swing) out = withSwingNumbers(out, movement, movementId);
     return mergeSameCards(dropNewsCards(out, ctx.evidence));
   };
   let output = indexed(await runWriter(writer, input, writeCtx));
@@ -358,7 +361,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     report: assembleReport(finalOutput, ctx.evidence, verification, {
       mode: plan.mode,
       intent: plan.intent,
-      ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement) } : {}),
+      ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement, swing) } : {}),
       checks: applied.checks,
       matches: applied.matches,
       changes: changeDetailsFor(applied, ctx.evidence),
