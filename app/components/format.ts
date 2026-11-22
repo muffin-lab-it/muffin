@@ -62,8 +62,9 @@ export function newsCountLine(entries: Evidence[]): string {
     .filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value))
     .sort();
   const publishers = [...new Set(entries.map(publisherOf))];
+  const named = publishers.length > 3 ? `${publishers.slice(0, 3).join(" · ")} 외 ${publishers.length - 3}곳` : publishers.join(" · ");
   const range = dates.length === 0 ? "날짜 미제공" : dates[0] === dates[dates.length - 1] ? formatDateKo(dates[0]) : `${formatDateKo(dates[0])} ~ ${formatDateKo(dates[dates.length - 1])}`;
-  return `기사 ${entries.length}건 · ${range} · ${publishers.join(" · ")}`;
+  return `기사 ${entries.length}건 · ${range} · ${named}`;
 }
 
 export { publisherOf };

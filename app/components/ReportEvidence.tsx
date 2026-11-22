@@ -92,6 +92,7 @@ const valueLabels: Record<string, string> = {
   "latest.month": "최근 월", "latest.value": "최근 값", "latest.previousMonth.month": "전월", "latest.previousMonth.value": "전월 값", "latest.previousMonth.change": "전월 대비 변화",
   "latest.previousYear.month": "전년 같은 달", "latest.previousYear.value": "전년 같은 달 값", "latest.previousYear.change": "전년 같은 달 대비 변화",
   publishedAt: "발행일", publisher: "언론사", body: "본문 상태", url: "주소",
+  close: "종가", open: "시가", high: "고가", low: "저가", volume: "거래량", prevClose: "전일 종가", closeFrom: "기간 시작 종가", returnPct: "기간 수익률 (%)",
   category: "품목군", weight: "가중치 (12개 합 1000)", index: "지수", previousYearIndex: "전년 같은 달 지수", yoyPct: "전년 같은 달 대비 (%)",
   contributionPp: "총지수 등락 기여도 (%p, 근사)", contributionSumPp: "12개 품목군 기여도 합 (%p)", month: "기준 월", previousYearMonth: "비교 월",
   previousMonth: "전월", previousMonthIndex: "전월 지수", momPct: "전월 대비 (%)", momContributionPp: "총지수 전월 대비 기여도 (%p, 근사)", momContributionSumPp: "12개 품목군 전월 기여도 합 (%p)",

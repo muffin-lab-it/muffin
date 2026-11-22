@@ -42,3 +42,10 @@ describe("ETF 카드 한 줄 (11/21 QA-02)", () => {
     expect(etfBasisNote({ tool: "get_fx_krw_rate", values: { baseIndex: "x" } })).toBeNull();
   });
 });
+
+describe("기사 건수 줄의 언론사 (11/22)", () => {
+  it("넷 이상이면 셋만 적고 외 N곳", () => {
+    const news = (id: string, publisher: string): Evidence => ({ id, tool: "get_economic_news", label: "기사", values: { title: "t", publisher, publishedAt: "2026-11-21", body: "unavailable" }, source: { name: publisher, url: "https://example.com/a", asOf: "2026-11-21" } });
+    expect(newsCountLine(["한국경제", "경남일보", "국제신문", "매일경제", "연합뉴스"].map((p, i) => news(`E1-${i}`, p)))).toBe("기사 5건 · 2026. 11. 21. · 한국경제 · 경남일보 · 국제신문 외 2곳");
+  });
+});

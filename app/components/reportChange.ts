@@ -4,7 +4,8 @@ import type { ChangeDetail } from "@/src/agent/schema";
 export function reportChange(raw: string, detail?: ChangeDetail) {
   if (detail) {
     const value = detail.value;
-    const basis = detail.basis || (detail.days !== undefined ? `${detail.days}일 전과 비교` : "비교 시점과 비교");
+    // 1년 비교(11/21 백엔드 #128 금리 추세)는 "365일 전" 대신 "1년 전" 으로
+    const basis = detail.basis || (detail.days !== undefined ? (detail.days >= 360 && detail.days <= 372 ? "1년 전과 비교" : `${detail.days}일 전과 비교`) : "비교 시점과 비교");
     return {
       text: value === 0 ? `${basis}해 변화가 없어요` : `${basis}해 ${Math.abs(value).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${detail.unit} ${value > 0 ? "상승" : "하락"}`,
       direction: value > 0 ? "up" : value < 0 ? "down" : "flat",

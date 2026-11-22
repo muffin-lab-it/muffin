@@ -137,7 +137,7 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
               <ul className={styles.steps}>
                 {steps.map((st, i) => (
                   <li key={i}>
-                    {st.status === "ok" ? (st.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(st.tool)} · {st.ms}ms
+                    {st.status === "ok" ? (st.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(st.tool)} · {(st.ms / 1000).toFixed(1)}초
                     {st.fallbackAgeMs !== undefined ? ` · 저장된 응답(${formatAge(st.fallbackAgeMs)} 전)` : ""}
                     {st.error ? ` · ${st.error}` : ""}
                   </li>
