@@ -12,6 +12,8 @@ import type { InvokableTool } from "./supplement";
 
 /** 돈의 가치를 묻는 질문인지 */
 export function isMoneyValueQuestion(question: string): boolean {
+  // 다른 나라 · 다른 통화의 구매력을 묻는 질문은 대상이 아닙니다. 한국 물가와 원/달러 환율을 끼워 넣으면 묻지 않은 나라로 답하게 됩니다 (#135 Codex 리뷰)
+  if (/미국|일본|중국|유럽|유로존|해외|엔화|유로|위안|달러\s*(의\s*)?(가치|구매력|값)/.test(question)) return false;
   return /돈\s*값|돈의\s*가치|화폐\s*가치|원화\s*가치|구매력/.test(question);
 }
 

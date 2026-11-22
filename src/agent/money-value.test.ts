@@ -12,6 +12,7 @@ describe("돈의 가치 질문 (11/22)", () => {
     expect(isMoneyValueQuestion("요즘 돈값이 떨어졌다는데 무슨 말이야?")).toBe(true);
     expect(isMoneyValueQuestion("원화 가치가 왜 떨어져?")).toBe(true);
     expect(isMoneyValueQuestion("오늘 달러 환율 얼마야?")).toBe(false);
+    expect(isMoneyValueQuestion("미국 물가 때문에 달러 구매력이 얼마나 줄었어?")).toBe(false);
   });
 
   it("물가와 환율 중 없는 것만 채우고, 대상이 아니면 부르지 않는다", async () => {

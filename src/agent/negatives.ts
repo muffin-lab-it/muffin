@@ -30,7 +30,9 @@ export function dropUnaskedCause(summary: string, intent: Intent | undefined, ha
   if (!intent || (intent === "cause" && !hasWhy)) return summary;
   const paragraphs = summary.split(/\n{2,}/).map((p) => {
     const sentences = p.split(/(?<=[.!?])\s+/).filter(Boolean);
-    const kept = sentences.filter((s) => !(/원인|이유|배경/.test(s) && NEGATIVE.test(s) && !/\d/.test(s)));
+    // 한계만 말한 문장만 뺍니다. "…가 배경으로 보도됐지만, …는 확인되지 않았어요" 처럼 확인된 내용이 같이 든 문장은 그대로 둡니다 (#135 Codex 리뷰)
+    const onlyLimit = (s: string) => /원인|이유|배경/.test(s) && NEGATIVE.test(s) && !/\d/.test(s) && !/지만|으나|는데|이며|했고|됐고|이고,/.test(s);
+    const kept = sentences.filter((s) => !onlyLimit(s));
     return kept.length > 0 ? kept.join(" ") : p;
   });
   const out = paragraphs.join("\n\n");

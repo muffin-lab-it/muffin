@@ -25,6 +25,9 @@ describe("묻지 않은 부정 문장 정리 (11/22)", () => {
     expect(dropUnaskedCause(s, "cause")).toBe(s);
     expect(dropUnaskedCause("환율은 0.59% 올랐지만 원인은 확인되지 않았어요.", "status")).toBe("환율은 0.59% 올랐지만 원인은 확인되지 않았어요.");
     expect(dropUnaskedCause("하락 원인은 확인할 수 없어요.", "status")).toBe("하락 원인은 확인할 수 없어요.");
+    // 확인된 배경과 한계가 한 문장에 같이 있으면 지우지 않는다
+    const mixed = "소비자물가는 올랐어요. 유가 상승이 물가 상승의 배경으로 보도됐지만, 금리와의 인과관계는 확인되지 않았어요.";
+    expect(dropUnaskedCause(mixed, "cause", true)).toBe(mixed);
     // 원인 질문이라도 원인 칸에 근거를 적었으면 요약의 "단정하기 어려워요" 문장은 뺀다
     expect(dropUnaskedCause("코스닥 하락 원인은 단정하기 어려워요. 코스닥은 5.71% 내렸어요.", "cause", true)).toBe("코스닥은 5.71% 내렸어요.");
     expect(trimHeadline("코스닥은 2026-11-20에 5.71% 하락했지만, 원인은 제목 수준의 보도만으로 단정하기 어려워요.")).toBe("코스닥은 2026-11-20에 5.71% 하락했어요.");
