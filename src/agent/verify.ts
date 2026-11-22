@@ -67,6 +67,19 @@ const PERCENT_POINT = /^(?:%|퍼센트)\s?포인트$/;
 const FALLING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소|인하)/;
 /** 상승폭을 뜻하는 말. "14.0원 오른" · "2.55% 상승" · "30원가량 뛰어" · "0.25%p 인상". "1,337원으로 상승" 은 도착한 수준이라 해당하지 않습니다. */
 const RISING = /^\s*\)?\s*(?:가량|정도|만큼|씩|이나|나|이|가)?\s*(?:오른|올라|올랐|오르|상승|급등|뛴|뛰어|뛰었|반등|늘어|늘었|늘며|증가|확대|인상)/;
+/**
+ * 쉼표로 이어 쓴 변화량이 뒤의 하락 낱말을 같이 받는 꼴 (11/22 다시 쓰기 원인 조사).
+ * "17.98원, 1.21% 내렸어요" · "전월보다 0.1%p, 전년 동월보다 0.2%p 낮아요" 의 앞 숫자도 하락폭입니다.
+ * 앞 숫자 바로 뒤가 쉼표 · "와 · 과" 이고, 그 뒤에 비교 기준("전년 동월보다")만 끼고 다음 숫자 바로 뒤에 하락 낱말이 붙어 있을 때만 그렇게 봅니다.
+ */
+const SHARED_FALLING = /^\s*(?:\([^)]*\))?\s*(?:,|와|과|및)\s*([^.!?\n]{0,25}?)\d[\d,]*(?:\.\d+)?\s*(?:%p|%\s?포인트|퍼센트\s?포인트|%|bp|원|달러|엔|유로|포인트)?\s*(?:\([^)]*\))?\s*(?:가량|정도|만큼|씩)?\s*(?:낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소|인하)/;
+const DIRECTION_WORD = /오른|올라|올랐|오르|상승|급등|뛴|뛰어|뛰었|반등|늘어|늘었|늘며|증가|확대|인상|낮|하락|내려|내렸|내린|내리|떨어|감소|줄었|줄어|줄며|축소|인하/;
+function sharedFalling(rest: string): boolean {
+  const m = SHARED_FALLING.exec(rest);
+  // 사이에는 비교 기준("전년 동월보다")만 올 수 있습니다. 다른 대상을 말하는 말("미국은 그대로고 한국은")이 끼면 같은 하락으로 보지 않습니다
+  const middle = (m?.[1] ?? "").trim();
+  return !!m && !DIRECTION_WORD.test(middle) && (middle === "" || /^[가-힣\s]{0,14}보다$/.test(middle));
+}
 
 /**
  * 환율을 읽는 기준 단위인지. "1달러당 1,324원" · "100엔당 912원" · "1달러에 1,324원" · "같은 1달러를 사는 데" · "-12.57원/1달러" 의 외화 금액은 데이터 숫자가 아닙니다.
@@ -77,7 +90,8 @@ function isQuoteBasis(value: number, unit: string, before: string, rest: string)
   if (unit === "원" || !CURRENCY_UNITS.has(unit)) return false;
   if (/^\s*당/.test(rest)) return true;
   const unitAmount = value === 1 || (unit === "엔" && value === 100);
-  return unitAmount && (/\/\s*$/.test(before) || /^\s*(?:에\s*\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest));
+  // "100엔은 838.55원" · "1달러는 1,335원" 처럼 기준 단위 뒤에 바로 원화 금액이 오는 것도 기준 단위입니다 (11/22 다시 쓰기 원인)
+  return unitAmount && (/\/\s*$/.test(before) || /^\s*(?:(?:에|은|는|이|이면|면)\s*(?:약\s*)?\d|[을를]\s*(?:사|살|바꾸|바꿀|환전))/.test(rest));
 }
 
 /**
@@ -91,7 +105,8 @@ export function extractNumbers(text: string, opts: { movement?: boolean } = {}):
   const cleaned = text
     .replace(/\d{4}-\d{2}-\d{2}/g, " ")
     .replace(/\b\d{4}-(?:0[1-9]|1[0-2])\b/g, " ")
-    .replace(/\(\s*\d{4}\s*(?:년)?\s*=\s*100\s*\)/g, " ");
+    // 지수 기준 "(2020=100)" · "(1982-1984=100)" · "1982~84=100" 의 연도는 숫자가 아닙니다 (11/22: 미국 CPI 카드의 1984 가 대조에 걸려 다시 쓰기)
+    .replace(/\(?\s*\d{4}(?:\s*[-~–]\s*\d{2,4})?\s*(?:년)?\s*=\s*100\s*\)?/g, " ");
   const out: ParsedNumber[] = [];
   let group: ParsedNumber | null = null;
   let groupSign = 1;
@@ -140,7 +155,8 @@ export function extractNumbers(text: string, opts: { movement?: boolean } = {}):
     const rest = cleaned.slice((m.index ?? 0) + m[0].length);
     if (isQuoteBasis(value, unit, cleaned.slice(0, m.index ?? 0), rest)) continue;
     // 하락 낱말은 숫자 바로 뒤에서만 찾습니다. 붙은 괄호("34.69원(-2.55%) 낮습니다")는 건너뜁니다.
-    const falling = m[1] === "" && !isPeriodUnit(unit, m[2], value) && FALLING.test(rest.replace(/^\s*\([^)]*\)/, ""));
+    const afterParen = rest.replace(/^\s*\([^)]*\)/, "");
+    const falling = m[1] === "" && !isPeriodUnit(unit, m[2], value) && (FALLING.test(afterParen) || (!RISING.test(afterParen) && sharedFalling(rest)));
     const parsed: ParsedNumber = falling ? { value, unit, text: m[2], falling: true } : { value, unit, text: m[2] };
     const move = opts.movement && !isPeriodUnit(unit, m[2], value) ? movementOf(m[1] !== "", value, rest) : undefined;
     out.push(move === undefined ? parsed : { ...parsed, movement: move });
@@ -353,6 +369,34 @@ export function roleConflict(key: string, asOf: string, evidence: Evidence): str
 }
 
 /**
+ * 서로 다른 두 자료 사이의 차이(계산 diff · pp_diff, 입력 항목이 둘)는 문장에서 부호 없이 쓸 수 있습니다.
+ * 장부가 "한국 − 미국 = -0.88" 이어도 "미국 금리가 한국보다 0.88%p 높아요" 가 자연스러운 문장이라, 본문 대조에서는 반대 부호도 받습니다 (11/22).
+ * 같은 자료의 시간 변화(입력 항목이 하나: 30일 전 → 오늘)는 방향이 뜻이므로 부호를 그대로 봅니다. 숫자 카드도 같은 규칙입니다.
+ */
+/** 장부 항목이 가리키는 대상 (지표 · 통화쌍 · 지수 · 상품 이름과 나라). 같은 대상의 두 시점인지 가려내는 데 씁니다 */
+function subjectOf(e: Evidence | undefined): string | null {
+  if (!e) return null;
+  const v = e.values;
+  const name = v.indicator ?? v.pair ?? v.index ?? v.name ?? v.category;
+  return name === undefined ? null : `${e.tool}|${String(name)}|${String(v.country ?? "")}`;
+}
+
+/** 계산 결과의 차이 키. 입력 값(from · to)은 반대 부호가 뜻이 없어 넣지 않습니다 (#138 Codex 리뷰: "기준금리는 -3.00%" 가 통과) */
+const SPREAD_RESULT_KEY = /^(change|changePp|changeBp)$/;
+
+function spreadMirrors(evidence: Evidence, byId: Map<string, Evidence>): Candidate[] {
+  const op = evidence.lineage?.op;
+  const inputs = evidence.lineage?.inputs ?? [];
+  if ((op !== "diff" && op !== "pp_diff") || inputs.length !== 2) return [];
+  // 서로 다른 대상일 때만입니다. 같은 지표의 두 시점(올해 · 1년 전 물가 상승률)을 따로 받은 항목의 차이는 시간 변화라 부호가 뜻입니다 (#138 Codex 리뷰)
+  const [a, b] = inputs.map((id) => subjectOf(byId.get(id)));
+  if (!a || !b || a === b) return [];
+  return numericCandidates(evidence)
+    .filter((c) => SPREAD_RESULT_KEY.test(c.key) && c.value !== 0)
+    .map((c) => ({ ...c, value: -c.value }));
+}
+
+/**
  * numbers 하나하나를 장부와 대조합니다. value 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목 전체가 실패),
  * change 의 데이터 숫자도 모두 맞아야 합니다 (틀리면 change 만 비움).
  */
@@ -364,7 +408,9 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
     const e = byId.get(n.ref);
     if (!e) return { index, label, status: "unverified", reason: `장부에 없는 id ${n.ref}` };
 
-    const candidates = numericCandidates(e);
+    // 두 자료 사이의 차이는 카드에서도 부호 없이 "미국이 한국보다 0.88%p 높은 폭" 으로 쓸 수 있습니다. 막으면 다시 쓰기에서 부호를 맞추려다
+    // "한국 금리가 미국보다 높다" 처럼 방향을 거꾸로 쓰는 일이 생겼습니다 (11/22). 같은 자료의 시간 변화는 그대로 부호를 봅니다
+    const candidates = [...numericCandidates(e), ...spreadMirrors(e, byId)];
     // label 에 숫자를 적었으면("USD/KRW 1,500원") 그것도 장부와 맞아야 합니다. 이름 속 정수("KODEX 200")는 보지 않습니다.
     const labelBad = extractNumbers(n.label).filter(isStrictNumber).find((c) => !matchValue(c, candidates));
     if (labelBad) return { index, label, status: "unverified", reason: `label 의 숫자 ${labelBad.text}${labelBad.unit} 가 ${n.ref} 의 값과 다름` };
@@ -432,8 +478,10 @@ export type TextFinding = { field: TextField; index: number; text: string; unmat
  * 본문에 쓴 금융 숫자가 장부 어딘가에 있는지. numbers 와 달리 ref 가 없으니 장부 전체와 대조합니다.
  * 단위 · 소수점 · 천 단위 쉼표가 있는 숫자만 봅니다 (이름 속 정수 "KODEX 200" 은 제외).
  */
+
 export function verifyText(output: WriterOutput, evidence: Evidence[]): TextFinding[] {
-  const all = evidence.flatMap(numericCandidates);
+  const byId = new Map(evidence.map((e) => [e.id, e]));
+  const all = [...evidence.flatMap(numericCandidates), ...evidence.flatMap((e) => spreadMirrors(e, byId))];
   const check = (field: TextField, index: number, text: string): TextFinding | null => {
     const unmatched = extractNumbers(text)
       .filter(isStrictNumber)

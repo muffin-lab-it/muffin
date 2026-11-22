@@ -50,6 +50,7 @@ async function main() {
   const r = data.report;
   console.log(`# ${data.input?.question ?? ""}`);
   console.log(`${kst(data.at)} · ${data.input?.depth ?? ""}${data.input?.area ? ` · ${data.input.area}` : ""} · 의도 ${data.intent ?? "-"} · ${(data.ms / 1000).toFixed(0)}초 · 다시 쓰기 ${data.rewrites ?? 0}회 · ${data.ok ? "성공" : `실패(${data.stage}: ${data.error ?? ""})`}`);
+  for (const reason of data.quality?.rewriteReasons ?? []) console.log(`다시 쓰기 이유: ${reason}`);
   console.log(`tool: ${(data.steps ?? []).map((s) => `${s.tool}${s.status === "ok" ? "" : "(실패)"}`).join(", ") || "-"}`);
   if (!r) {
     console.log("\n(이 실행에는 리포트 본문이 저장되지 않았습니다)");

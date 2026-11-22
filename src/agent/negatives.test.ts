@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropUnaskedCause, trimHeadline, trimNegatives } from "./negatives";
+import { dropInternalPhrases, dropUnaskedCause, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -37,5 +37,13 @@ describe("묻지 않은 부정 문장 정리 (11/22)", () => {
     const output: WriterOutput = { summary: "환율은 올랐어요.", headline: "환율은 올랐어요.", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
     expect(trimNegatives(output, "status")).toBe(output);
     expect(trimNegatives({ ...output, headline: "환율은 올랐지만, 원인은 알 수 없어요." }, "status").headline).toBe("환율은 올랐어요.");
+  });
+});
+
+describe("내부 용어 머리 구절 떼기 (11/22)", () => {
+  it("'장부의 계산 결과 기준' 같은 머리 구절만 떼고 뜻은 남긴다", () => {
+    expect(dropInternalPhrases("장부의 계산 결과 기준 미국−한국 금리 차이는 0.88%p예요.")).toBe("미국−한국 금리 차이는 0.88%p예요.");
+    expect(dropInternalPhrases("증거 장부에 따르면 환율은 0.87% 올랐어요.")).toBe("환율은 0.87% 올랐어요.");
+    expect(dropInternalPhrases("환율은 0.87% 올랐어요.")).toBe("환율은 0.87% 올랐어요.");
   });
 });

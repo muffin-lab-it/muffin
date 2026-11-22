@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       usage: result.usage,
       steps: result.steps.map((step) => step.error ? { ...step, error: clip(redactSecrets(step.error), 500) } : step),
       rewrites: result.rewrites,
-      quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}) },
+      quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}), ...(result.rewriteReasons ? { rewriteReasons: result.rewriteReasons } : {}) },
       verification: pickVerification(result.report.verification),
       intent: result.plan.intent,
       ...(mock ? {} : { report: result.report, facts: result.facts }),

@@ -49,6 +49,7 @@ type Outcome = {
   usage?: ResearchResult["usage"];
   intent?: Intent;
   edit?: ResearchResult["edit"];
+  rewriteReasons?: ResearchResult["rewriteReasons"];
   facts?: ResearchResult["facts"];
 };
 type Run = (onEvent: (event: MuffinEvent) => void) => Promise<Outcome>;
@@ -126,7 +127,7 @@ export async function POST(req: Request) {
   }
   const run: Run = async (onEvent) => {
     const result = await (mock ? mockResearch : research)(parsed.data, { onEvent });
-    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent, ...(result.edit ? { edit: result.edit } : {}), facts: result.facts };
+    return { report: result.report, steps: result.steps, rewrites: result.rewrites, model: result.model, usage: result.usage, intent: result.plan.intent, ...(result.edit ? { edit: result.edit } : {}), ...(result.rewriteReasons ? { rewriteReasons: result.rewriteReasons } : {}), facts: result.facts };
   };
   return streamResponse(req, run, { id, started, at, mock, input, headers });
 }
@@ -186,7 +187,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
               ...(result.usage ? { usage: result.usage } : {}),
               steps: result.steps.map((step) => (step.error ? { ...step, error: clip(redactSecrets(step.error), 500) } : step)),
               rewrites: result.rewrites,
-              quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}) },
+              quality: { ...qualityOf(result.report), ...(result.edit ? { edit: result.edit } : {}), ...(result.rewriteReasons ? { rewriteReasons: result.rewriteReasons } : {}) },
               verification: pickVerification(result.report.verification),
               ...(result.intent ? { intent: result.intent } : {}),
               // 녹화 재생 · 모킹은 실제 실행이 아니라 본문을 남기지 않습니다

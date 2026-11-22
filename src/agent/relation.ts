@@ -200,7 +200,8 @@ const NEGATIVE_HEADLINE = /확인되지\s*않|확인할\s*수\s*없|단정할\s*
  * (11/22 실측: 1년 비교를 주고도 한 줄이 "금리 차이는 환율에 영향을 줄 수 있지만 … 단정할 수는 없어요"). 값은 숫자 카드와 같습니다.
  */
 export function relationHeadline(headline: string | null | undefined, evidence: Evidence[]): string | null | undefined {
-  if (headline && !NEGATIVE_HEADLINE.test(headline)) return headline;
+  // 부정 문장이거나 숫자가 하나도 없는 일반론("금리 차이는 환율에 영향을 줄 수 있어요")이면 장부 값으로 만든 한 줄로 바꿉니다
+  if (headline && !NEGATIVE_HEADLINE.test(headline) && /\d/.test(headline)) return headline;
   const fxRate = fxRateRows(evidence);
   if (fxRate) {
     const p = Number(fxRate.fx.values.changePct);

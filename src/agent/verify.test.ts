@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence, WriterOutput } from "./schema";
-import {
+import { verifyText,
   SUMMARY_FALLBACK,
   applyVerification,
   extractNumbers,
@@ -783,5 +783,55 @@ describe("변화량이 값인 카드 (11/19)", () => {
     expect(premium.status === "verified" && premium.key).toBe("latest.premiumPct");
     expect(premium.status === "verified" && premium.changeOk).toBe(false);
     expect(ret.status === "verified" && ret.changeOk).toBe(true);
+  });
+});
+
+describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 기준 연도", () => {
+  it("쉼표 · 와 로 이어 쓴 앞 숫자도 뒤의 하락 낱말을 받는다", () => {
+    expect(extractNumbers("17.98원, 1.21% 내렸어요").map((n) => [n.value, n.falling ?? false])).toEqual([[17.98, true], [1.21, true]]);
+    expect(extractNumbers("전월보다 0.1%p, 전년 동월보다 0.2%p 낮아요").map((n) => [n.value, n.falling ?? false])).toEqual([[0.1, true], [0.2, true]]);
+    expect(extractNumbers("17.98원(1.21%) 내렸어요")[0]!.falling).toBe(true);
+  });
+
+  it("중간에 다른 방향 낱말이 있거나 문장이 끝나면 받지 않는다", () => {
+    expect(extractNumbers("17.98원 올랐고, 1.21% 내렸어요")[0]!.falling ?? false).toBe(false);
+    expect(extractNumbers("환율은 1,335.94원이에요. 30일 전보다 0.87% 내렸어요")[0]!.falling ?? false).toBe(false);
+    expect(extractNumbers("0.5%p, 미국은 그대로고 한국은 0.2%p 낮아요")[0]!.falling ?? false).toBe(false);
+  });
+
+  it("지수 기준 연도는 숫자로 보지 않는다", () => {
+    expect(extractNumbers("337.476 (1982-1984=100)").map((n) => n.value)).toEqual([337.476]);
+    expect(extractNumbers("337.476 (1982~84=100)").map((n) => n.value)).toEqual([337.476]);
+    expect(extractNumbers("120.73(2020=100)").map((n) => n.value)).toEqual([120.73]);
+  });
+
+  it("'100엔은 838.55원' 의 100엔은 기준 단위다", () => {
+    expect(extractNumbers("100엔은 838.55원이에요").map((n) => n.value)).toEqual([838.55]);
+    expect(extractNumbers("1달러는 1,335.94원이에요").map((n) => n.value)).toEqual([1335.94]);
+  });
+
+  it("두 자료 사이의 차이는 본문에서 부호 없이 써도 통과하고, 같은 자료의 시간 변화는 부호를 본다", () => {
+    const src = { name: "x", url: "", asOf: "2026-11-20" };
+    const kr = { id: "E1", tool: "get_rate_data", label: "금리", values: { indicator: "한국은행 기준금리", rate: 3, unit: "%" }, source: src };
+    const us = { id: "E2", tool: "get_rate_data", label: "금리", values: { indicator: "미국 실효 연방기금금리", rate: 3.88, unit: "%" }, source: src };
+    const spread = { id: "C1", tool: "calc_metrics", label: "계산", values: { changePp: -0.88, from: 3.88, to: 3, unit: "%" }, source: src, lineage: { op: "pp_diff", inputs: ["E2", "E1"] } };
+    const base = { summary: "미국 금리가 한국보다 0.88%p 높아요.", numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
+    expect(verifyText(base, [kr, us, spread])).toEqual([]);
+    const fx = { id: "E3", tool: "get_fx_krw_rate", label: "환율", values: { rate: 1467.73, change: -17.98 }, source: src };
+    const time = { id: "C2", tool: "calc_metrics", label: "계산", values: { op: "diff", value: -17.98, unit: "원" }, source: src, lineage: { op: "diff", inputs: ["E3"] } };
+    expect(verifyText({ ...base, summary: "유로 환율은 17.98원 올랐어요." }, [fx, time])).toHaveLength(1);
+    // 숫자 카드도 같다: 장부가 한국 − 미국 = -0.88 이어도 "미국이 높은 폭 0.88%p" 카드는 통과, 시간 변화는 부호를 본다
+    const card = (label: string, value: string, ref: string) => ({ ...base, numbers: [{ label, value, change: "", asOf: "2026-11-20", ref }] });
+    expect(verify(card("미국 금리가 한국보다 높은 폭", "0.88%p", "C1"), [kr, us, spread]).ok).toBe(true);
+    expect(verify(card("유로 환율 변화", "+17.98원", "C2"), [fx, time]).ok).toBe(false);
+    // 입력 값(from · to)의 반대 부호는 받지 않는다
+    expect(verifyText({ ...base, summary: "한국 기준금리는 -3.00%예요." }, [kr, us, spread])).toHaveLength(1);
+    expect(verify(card("한국 기준금리", "-3.00%", "C1"), [kr, us, spread]).ok).toBe(false);
+    // 같은 지표의 두 시점을 따로 받은 항목의 차이는 시간 변화라 부호를 본다
+    const cpiNow = { id: "E4", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.previousYear.change": 2.38 }, source: src };
+    const cpiBefore = { id: "E5", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.previousYear.change": 2.82 }, source: src };
+    const fell = { id: "C3", tool: "calc_metrics", label: "계산", values: { changePp: -0.44, from: 2.82, to: 2.38, unit: "%" }, source: src, lineage: { op: "pp_diff", inputs: ["E5", "E4"] } };
+    expect(verifyText({ ...base, summary: "물가 상승률은 0.44%p 올랐어요." }, [cpiNow, cpiBefore, fell])).toHaveLength(1);
+    expect(verifyText({ ...base, summary: "물가 상승률은 0.44%p 낮아졌어요." }, [cpiNow, cpiBefore, fell])).toEqual([]);
   });
 });
