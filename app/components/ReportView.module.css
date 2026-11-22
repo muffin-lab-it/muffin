@@ -682,3 +682,6 @@
 .report :global(.report-continue) a { color:#6b4a94; font-weight:600; text-decoration:none; }
 .report :global(.report-continue) a:hover { text-decoration:underline; }
 .report :global(.report-area-note) { font-size:13px; color:#7a7186; }
+/* 11/22 운영 확인: 묶인 딸린 숫자의 값이 본값 크기(28~40px)로 커지던 것. 본값 b 규칙보다 구체적으로 */
+.report .metrics :global(.num .num-subs) b { display:inline; margin:0; font-size:16px; line-height:1.5; letter-spacing:-.01em; font-weight:650; }
+.report .metrics :global(.num .num-subs) li { align-items:center; }
