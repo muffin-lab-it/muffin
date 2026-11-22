@@ -18,7 +18,7 @@ import type { Area, Evidence, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
-import { etfBasisNote, formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, publisherOf, valueTone } from "./format";
+import { etfBasisNote, formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
 import { usedEvidenceIds } from "./ReportSources";
 import { evidenceCategory } from "./reportCategory";
 import { splitAreaPrefix } from "./home-form";
@@ -116,16 +116,20 @@ function ReasonLinks({ refs, evidence }: { refs: string[]; evidence: Evidence[] 
 }
 
 export function ReportView({
-  report,
+  report: rawReport,
   steps,
   area,
   question,
-  headline = report.headline ?? undefined,
-  impactTitles = report.impactTitles ?? [],
+  headline: rawHeadline = rawReport.headline ?? undefined,
+  impactTitles: rawImpactTitles = rawReport.impactTitles ?? [],
   header,
   actions,
   createdAt,
 }: ReportViewProps) {
+  // 모델이 쓴 문장 속 "2026-10" · "2026-11-20" 을 "2026년 10월" · "2026년 11월 20일" 로 (11/22 운영). 원본 데이터 표는 그대로
+  const report = prettyReport(rawReport);
+  const headline = rawHeadline ? prettyDates(rawHeadline) : undefined;
+  const impactTitles = rawImpactTitles.map(prettyDates);
   // 추천이 비면 영역에 맞는 기본 질문 둘을 두어 후속 탐색이 끊기지 않게 (11/21 QA-06)
   const supported = supportedReportTopics(report.nextTopics, area, question);
   const nextTopics = supported.length > 0 ? supported : fallbackReportTopics(area, question);

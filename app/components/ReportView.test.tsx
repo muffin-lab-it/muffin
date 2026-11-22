@@ -796,7 +796,7 @@ describe("백엔드 #135 뒤 운영 확인 (11/22)", () => {
     ];
     const $ = render(report);
     expect($(".num-subs .num-sub-detail")).toHaveLength(0);
-    expect($(".num-subs-shared").text()).toBe("최근 30일(2026-10-20~2026-11-19)");
+    expect($(".num-subs-shared").text()).toBe("최근 30일(2026년 10월 20일~11월 19일)"); // 11/22: 문장 속 날짜도 한국어로
     const cpi = fixture();
     cpi.numbers = [
       { ...base, label: "한국 소비자물가지수", value: "120.73", ref, change: "" },
@@ -820,5 +820,22 @@ describe("백엔드 #135 뒤 운영 확인 (11/22)", () => {
     expect(item.find(".source-number")).toHaveLength(1);
     expect(item.find(".source-number-subs li")).toHaveLength(1);
     expect(item.find(".source-number-subs li").text()).toContain("+0.50%p");
+  });
+});
+
+describe("문장 속 날짜 표기 (11/22)", () => {
+  it("요약 · 본문 · 카드 라벨의 날짜는 한국어로, 원본 데이터 표는 그대로", () => {
+    const report = fixture();
+    report.headline = "한국의 계절조정 실업률은 2026-10월 2.5%예요.";
+    report.summary = "2026-11-20 기준 3%로, 2025-11-20보다 0.50%p 높아요.";
+    report.caveats = ["CPI 는 2026-10 관측값이에요."];
+    report.numbers[0]!.label = "물가 상승률 (2026-10, 전년 같은 달 대비)";
+    report.evidence[0]!.values = { ...report.evidence[0]!.values, asOf: "2026-11-20" };
+    const $ = render(report);
+    expect($("section[class*=hero] h3").text()).toBe("한국의 계절조정 실업률은 2026년 10월 2.5%예요.");
+    expect($.text()).toContain("2026년 11월 20일 기준 3%로, 2025년 11월 20일보다");
+    expect($.text()).toContain("CPI 는 2026년 10월 관측값이에요.");
+    expect($(".num .metric-label").first().text()).toBe("물가 상승률 (2026년 10월, 전년 같은 달 대비)");
+    expect($(".evidence-values dd").map((_, el) => $(el).text()).get()).toContain("2026-11-20");
   });
 });
