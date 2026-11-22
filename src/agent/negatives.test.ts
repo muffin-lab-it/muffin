@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropInternalPhrases, dropUnaskedCause, trimHeadline, trimNegatives } from "./negatives";
+import { dropDecisionDisclaimer, dropInternalPhrases, dropUnaskedCause, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -45,5 +45,20 @@ describe("내부 용어 머리 구절 떼기 (11/22)", () => {
     expect(dropInternalPhrases("장부의 계산 결과 기준 미국−한국 금리 차이는 0.88%p예요.")).toBe("미국−한국 금리 차이는 0.88%p예요.");
     expect(dropInternalPhrases("증거 장부에 따르면 환율은 0.87% 올랐어요.")).toBe("환율은 0.87% 올랐어요.");
     expect(dropInternalPhrases("환율은 0.87% 올랐어요.")).toBe("환율은 0.87% 올랐어요.");
+  });
+});
+
+describe("판단 요청의 고지 반복 떼기 (11/22 QA)", () => {
+  it("요약 첫머리의 '대신 결정할 수 없지만' 구절이나 그 말뿐인 첫 문장을 뗀다", () => {
+    expect(dropDecisionDisclaimer("매수 여부는 대신 결정할 수 없지만, 확인 가능한 최신 종가 기준 KODEX 200은 80,630원이에요.")).toBe("확인 가능한 최신 종가 기준 KODEX 200은 80,630원이에요.");
+    expect(dropDecisionDisclaimer("투자 판단은 대신할 수 없어요. 환율은 1,335.94원이에요.")).toBe("환율은 1,335.94원이에요.");
+    const plain = "환율은 1,335.94원이에요. 같은 달러를 사는 데 원화가 더 들어요.";
+    expect(dropDecisionDisclaimer(plain)).toBe(plain);
+  });
+
+  it("판단 요청이 아니면 건드리지 않는다", () => {
+    const output = { summary: "매수 여부는 대신 결정할 수 없지만, 환율은 올랐어요.", headline: null, numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
+    expect(trimNegatives(output, "status")).toBe(output);
+    expect(trimNegatives(output, "decision").summary).toBe("환율은 올랐어요.");
   });
 });

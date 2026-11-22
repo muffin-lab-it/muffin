@@ -18,12 +18,18 @@ describe("질문에 적힌 가상의 숫자 계산 (11/22)", () => {
     expect(exampleIn("기준금리가 3%에서 4%로 올랐는데 왜 올랐어?")).toBeNull();
     expect(exampleIn("환율이 1,300원에서 1,400원으로 올랐어")).toBeNull();
     expect(exampleIn("금리 내려가는 추세야?")).toBeNull();
+    // 예시라고 밝히면 과거형이어도 가상 예시다 (11/22 QA)
+    expect(exampleIn("금리가 3%에서 4%가 됐다는 예시에서 1% 오른 거야? %랑 %p가 너무 헷갈려.")).toEqual({ from: 3, to: 4, unit: "%" });
   });
 
   it("차이와 비율 변화를 계산해 계산 항목(C 번호)으로 장부에 올린다", () => {
     const ctx = new ResearchContext();
     const e = addExampleCalc(ctx, "금리가 3%에서 4%로 오르면 얼마나 오른 거야?")!;
     expect(e).toMatchObject({ id: "C1", tool: "calc_example", values: { fromPct: 3, toPct: 4, diffPp: 1, relativePct: 33.33 } });
+    // 질문이 스스로 말한 % 는 바로잡을 때 인용하도록 장부에 둔다
+    const asked = addExampleCalc(new ResearchContext(), "금리가 3%에서 4%가 됐다는 예시에서 1% 오른 거야?")!;
+    expect(asked.values.askedPct).toBe(1);
+    expect(exampleNote(asked)).toContain("1% 가 아니라 1%p");
     expect(ctx.steps.at(-1)).toMatchObject({ tool: "calc_example", status: "ok" });
     const won = addExampleCalc(new ResearchContext(), "환율이 1,300원에서 1,400원이 되면?")!;
     expect(won.values).toMatchObject({ currency: "원", amountFrom: 1300, amountTo: 1400, change: 100, changePct: 7.69 });
