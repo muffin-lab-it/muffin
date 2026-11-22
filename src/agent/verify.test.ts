@@ -791,6 +791,9 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
     expect(extractNumbers("17.98원, 1.21% 내렸어요").map((n) => [n.value, n.falling ?? false])).toEqual([[17.98, true], [1.21, true]]);
     expect(extractNumbers("전월보다 0.1%p, 전년 동월보다 0.2%p 낮아요").map((n) => [n.value, n.falling ?? false])).toEqual([[0.1, true], [0.2, true]]);
     expect(extractNumbers("17.98원(1.21%) 내렸어요")[0]!.falling).toBe(true);
+    // 비교 기준에 기준 값이 들어간 꼴 (11/22 운영 실업률)
+    const unemployment = extractNumbers("2026-09의 2.6%보다 0.1%포인트, 2025-10의 2.7%보다 0.2%포인트 낮아요.");
+    expect(unemployment.map((n) => [n.value, n.unit, n.falling ?? false])).toEqual([[2.6, "%", false], [0.1, "%p", true], [2.7, "%", false], [0.2, "%p", true]]);
   });
 
   it("중간에 다른 방향 낱말이 있거나 문장이 끝나면 받지 않는다", () => {
