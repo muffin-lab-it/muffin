@@ -820,5 +820,9 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
     const fx = { id: "E3", tool: "get_fx_krw_rate", label: "환율", values: { rate: 1467.73, change: -17.98 }, source: src };
     const time = { id: "C2", tool: "calc_metrics", label: "계산", values: { op: "diff", value: -17.98, unit: "원" }, source: src, lineage: { op: "diff", inputs: ["E3"] } };
     expect(verifyText({ ...base, summary: "유로 환율은 17.98원 올랐어요." }, [fx, time])).toHaveLength(1);
+    // 숫자 카드도 같다: 장부가 한국 − 미국 = -0.88 이어도 "미국이 높은 폭 0.88%p" 카드는 통과, 시간 변화는 부호를 본다
+    const card = (label: string, value: string, ref: string) => ({ ...base, numbers: [{ label, value, change: "", asOf: "2026-11-20", ref }] });
+    expect(verify(card("미국 금리가 한국보다 높은 폭", "0.88%p", "C1"), [kr, us, spread]).ok).toBe(true);
+    expect(verify(card("유로 환율 변화", "+17.98원", "C2"), [fx, time]).ok).toBe(false);
   });
 });

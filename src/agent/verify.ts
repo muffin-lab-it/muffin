@@ -369,6 +369,17 @@ export function roleConflict(key: string, asOf: string, evidence: Evidence): str
 }
 
 /**
+ * 서로 다른 두 자료 사이의 차이(계산 diff · pp_diff, 입력 항목이 둘)는 문장에서 부호 없이 쓸 수 있습니다.
+ * 장부가 "한국 − 미국 = -0.88" 이어도 "미국 금리가 한국보다 0.88%p 높아요" 가 자연스러운 문장이라, 본문 대조에서는 반대 부호도 받습니다 (11/22).
+ * 같은 자료의 시간 변화(입력 항목이 하나: 30일 전 → 오늘)는 방향이 뜻이므로 부호를 그대로 봅니다. 숫자 카드도 같은 규칙입니다.
+ */
+function spreadMirrors(evidence: Evidence): Candidate[] {
+  const op = evidence.lineage?.op;
+  if ((op !== "diff" && op !== "pp_diff") || (evidence.lineage?.inputs.length ?? 0) < 2) return [];
+  return numericCandidates(evidence).filter((c) => !c.key.endsWith("#text") && c.value !== 0).map((c) => ({ ...c, value: -c.value }));
+}
+
+/**
  * numbers 하나하나를 장부와 대조합니다. value 의 데이터 숫자는 모두 맞아야 하고(하나라도 틀리면 항목 전체가 실패),
  * change 의 데이터 숫자도 모두 맞아야 합니다 (틀리면 change 만 비움).
  */
@@ -380,7 +391,9 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
     const e = byId.get(n.ref);
     if (!e) return { index, label, status: "unverified", reason: `장부에 없는 id ${n.ref}` };
 
-    const candidates = numericCandidates(e);
+    // 두 자료 사이의 차이는 카드에서도 부호 없이 "미국이 한국보다 0.88%p 높은 폭" 으로 쓸 수 있습니다. 막으면 다시 쓰기에서 부호를 맞추려다
+    // "한국 금리가 미국보다 높다" 처럼 방향을 거꾸로 쓰는 일이 생겼습니다 (11/22). 같은 자료의 시간 변화는 그대로 부호를 봅니다
+    const candidates = [...numericCandidates(e), ...spreadMirrors(e)];
     // label 에 숫자를 적었으면("USD/KRW 1,500원") 그것도 장부와 맞아야 합니다. 이름 속 정수("KODEX 200")는 보지 않습니다.
     const labelBad = extractNumbers(n.label).filter(isStrictNumber).find((c) => !matchValue(c, candidates));
     if (labelBad) return { index, label, status: "unverified", reason: `label 의 숫자 ${labelBad.text}${labelBad.unit} 가 ${n.ref} 의 값과 다름` };
@@ -448,16 +461,6 @@ export type TextFinding = { field: TextField; index: number; text: string; unmat
  * 본문에 쓴 금융 숫자가 장부 어딘가에 있는지. numbers 와 달리 ref 가 없으니 장부 전체와 대조합니다.
  * 단위 · 소수점 · 천 단위 쉼표가 있는 숫자만 봅니다 (이름 속 정수 "KODEX 200" 은 제외).
  */
-/**
- * 서로 다른 두 자료 사이의 차이(계산 diff · pp_diff, 입력 항목이 둘)는 문장에서 부호 없이 쓸 수 있습니다.
- * 장부가 "한국 − 미국 = -0.88" 이어도 "미국 금리가 한국보다 0.88%p 높아요" 가 자연스러운 문장이라, 본문 대조에서는 반대 부호도 받습니다 (11/22).
- * 같은 자료의 시간 변화(입력 항목이 하나: 30일 전 → 오늘)는 방향이 뜻이므로 부호를 그대로 봅니다. 숫자 카드(numbers)는 이 완화를 받지 않습니다.
- */
-function spreadMirrors(evidence: Evidence): Candidate[] {
-  const op = evidence.lineage?.op;
-  if ((op !== "diff" && op !== "pp_diff") || (evidence.lineage?.inputs.length ?? 0) < 2) return [];
-  return numericCandidates(evidence).filter((c) => !c.key.endsWith("#text") && c.value !== 0).map((c) => ({ ...c, value: -c.value }));
-}
 
 export function verifyText(output: WriterOutput, evidence: Evidence[]): TextFinding[] {
   const all = [...evidence.flatMap(numericCandidates), ...evidence.flatMap(spreadMirrors)];
