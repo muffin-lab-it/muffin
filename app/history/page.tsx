@@ -5,6 +5,7 @@ import styles from "../HomeHistory.module.css";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { homeAreaLabel } from "../components/home-form";
+import { prettyDates } from "../components/format";
 import { deleteReport, HISTORY_KEY, listReports, type ReportRecord } from "@/src/lib/history";
 
 const depthLabels = { easy: "Easy", standard: "Standard", deep: "Deep Dive" } as const;
@@ -60,7 +61,7 @@ export default function HistoryPage() {
       {records === undefined ? <div className={styles.empty} role="status"><span aria-hidden="true">◌</span><h2>리포트를 불러오고 있어요.</h2></div>
         : !error && records.length === 0 ? <section className={styles.empty}><span aria-hidden="true">♧</span><h2>아직 담아 둔 리포트가 없어요.</h2><p>작은 질문 하나로 나만의 경제 연구를 시작해 보세요.</p><Link href="/" className={styles.newReport}>첫 리포트 만들기</Link></section>
         : !error && filtered?.length === 0 ? <section className={styles.empty}><h2>찾는 리포트가 없어요.</h2><p>다른 단어로 검색해 보세요.</p><button type="button" onClick={() => setQuery("")}>검색 초기화</button></section>
-        : <ul className={styles.historyGrid}>{filtered?.map(record => <li key={record.id} className={styles.historyCard}><Link href={`/report/${encodeURIComponent(record.id)}`} className={styles.cardLink}><div className={styles.cardChips}><span>{homeAreaLabel(record.input)}</span><span>{depthLabels[record.input.depth]}</span></div><h2>{record.input.question}</h2><p className={styles.cardSummary}>{record.report.summary}</p><div className={styles.cardFoot}><time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</time></div></Link><button type="button" className={styles.deleteButton} disabled={!!deleting} onClick={() => { setError(null); setConfirmation(record); }} aria-label={`${record.input.question} 리포트 삭제`}>삭제</button></li>)}</ul>}
+        : <ul className={styles.historyGrid}>{filtered?.map(record => <li key={record.id} className={styles.historyCard}><Link href={`/report/${encodeURIComponent(record.id)}`} className={styles.cardLink}><div className={styles.cardChips}><span>{homeAreaLabel(record.input)}</span><span>{depthLabels[record.input.depth]}</span></div><h2>{record.input.question}</h2><p className={styles.cardSummary}>{prettyDates(record.report.summary)}</p><div className={styles.cardFoot}><time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</time></div></Link><button type="button" className={styles.deleteButton} disabled={!!deleting} onClick={() => { setError(null); setConfirmation(record); }} aria-label={`${record.input.question} 리포트 삭제`}>삭제</button></li>)}</ul>}
     </div>
   );
 }

@@ -7,6 +7,8 @@ describe("날짜 · 색 · 기준 설명 · 링크 라벨 (11/21 QA 1묶음)", (
     expect(formatDateKo("2026-11-20")).toBe("2026. 11. 20.");
     expect(formatDateKo("2026-01-05T09:00:00Z")).toBe("2026. 1. 5.");
     expect(formatDateKo("2026년 10월")).toBe("2026년 10월");
+    expect(formatDateKo("2026-10")).toBe("2026. 10.");
+    expect(formatDateKo("2026-13")).toBe("2026-13");
     expect(formatDateKo(undefined)).toBe("");
   });
   it("본값이 부호 있는 비율일 때만 오름 · 내림 색", () => {
@@ -47,5 +49,24 @@ describe("기사 건수 줄의 언론사 (11/22)", () => {
   it("넷 이상이면 셋만 적고 외 N곳", () => {
     const news = (id: string, publisher: string): Evidence => ({ id, tool: "get_economic_news", label: "기사", values: { title: "t", publisher, publishedAt: "2026-11-21", body: "unavailable" }, source: { name: publisher, url: "https://example.com/a", asOf: "2026-11-21" } });
     expect(newsCountLine(["한국경제", "경남일보", "국제신문", "매일경제", "연합뉴스"].map((p, i) => news(`E1-${i}`, p)))).toBe("기사 5건 · 2026. 11. 21. · 한국경제 · 경남일보 · 국제신문 외 2곳");
+  });
+});
+
+describe("문장 속 날짜 (11/22 운영: '2026-10월 2.5%예요')", () => {
+  it("연월 · 날짜 · 기간을 한국어로", async () => {
+    const { prettyDates } = await import("./format");
+    expect(prettyDates("한국의 계절조정 실업률은 2026-10월 2.5%예요.")).toBe("한국의 계절조정 실업률은 2026년 10월 2.5%예요.");
+    expect(prettyDates("2026-10 기준 2.82% 올랐어요")).toBe("2026년 10월 기준 2.82% 올랐어요");
+    expect(prettyDates("2026-11-20 기준 3%로, 2025-11-20보다 높아요")).toBe("2026년 11월 20일 기준 3%로, 2025년 11월 20일보다 높아요");
+    expect(prettyDates("최근 30일(2026-10-20~2026-11-19)")).toBe("최근 30일(2026년 10월 20일~11월 19일)");
+    expect(prettyDates("2025-12-20 ~ 2026-01-19")).toBe("2025년 12월 20일~2026년 1월 19일");
+    expect(prettyDates("2025-10의 2.38%에서 2026-10의 2.82%로")).toBe("2025년 10월의 2.38%에서 2026년 10월의 2.82%로");
+  });
+  it("날짜가 아닌 것은 건드리지 않는다", async () => {
+    const { prettyDates } = await import("./format");
+    expect(prettyDates("(2020=100) 지수 120.73")).toBe("(2020=100) 지수 120.73");
+    expect(prettyDates("https://example.com/2026-11-20/article")).toBe("https://example.com/2026-11-20/article");
+    expect(prettyDates("2026-13 은 달이 아님, 1,392.40원")).toBe("2026-13 은 달이 아님, 1,392.40원");
+    expect(prettyDates("2026-11-20T09:00:00Z")).toBe("2026-11-20T09:00:00Z");
   });
 });

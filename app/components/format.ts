@@ -4,8 +4,60 @@ import type { Evidence } from "@/src/agent/schema";
 export function formatDateKo(value: string | null | undefined): string {
   if (!value) return "";
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
-  if (!match) return value;
-  return `${match[1]}. ${Number(match[2])}. ${Number(match[3])}.`;
+  if (match) return `${match[1]}. ${Number(match[2])}. ${Number(match[3])}.`;
+  // 월 단위 지표(CPI · 실업률)의 기준일 "2026-10" 은 "2026. 10." (11/22 운영: 물가 카드에 "기준일 2026-10" 이 그대로 나옴)
+  const month = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value.trim());
+  if (month) return `${month[1]}. ${Number(month[2])}.`;
+  return value;
+}
+
+const DAY = String.raw`(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])`;
+const MONTH = String.raw`(\d{4})-(0[1-9]|1[0-2])`;
+// 앞뒤가 숫자 · 영문 · 주소 기호면 날짜가 아닌 것으로 봅니다 (주소 · "2026-11-20T09:00" · "2026-13")
+const NOT_BEFORE = String.raw`(?<![\dA-Za-z/.:-])`;
+const NOT_AFTER = String.raw`(?![\dA-Za-z/:-])`;
+const md = (m: string, d: string) => `${Number(m)}월 ${Number(d)}일`;
+const RANGE_RE = new RegExp(String.raw`${NOT_BEFORE}${DAY}\s*([~–])\s*${DAY}${NOT_AFTER}`, "g");
+const DAY_RE = new RegExp(`${NOT_BEFORE}${DAY}${NOT_AFTER}`, "g");
+const MONTH_WOL_RE = new RegExp(`${NOT_BEFORE}${MONTH}월`, "g");
+const MONTH_RE = new RegExp(`${NOT_BEFORE}${MONTH}${NOT_AFTER}`, "g");
+
+/**
+ * 모델이 쓴 문장 속 날짜를 한국어로 (11/22 운영: "2026-10월 2.5%예요"). 장부의 "2026-10" · "2026-11-20" 을 그대로 옮겨 생깁니다.
+ * "2026-10월" · "2026-10" → "2026년 10월", "2026-11-20" → "2026년 11월 20일", 해가 같은 기간 "2026-10-20~2026-11-19" → "2026년 10월 20일~11월 19일".
+ * 화면에 보일 때만 바꿉니다. 검증은 이미 끝났고, 원본 데이터 표는 원본 그대로 둡니다.
+ */
+export function prettyDates(text: string): string {
+  return text
+    .replace(RANGE_RE, (_all, y1: string, m1: string, d1: string, sep: string, y2: string, m2: string, d2: string) =>
+      `${y1}년 ${md(m1, d1)}${sep}${y1 === y2 ? "" : `${y2}년 `}${md(m2, d2)}`)
+    .replace(DAY_RE, (_all, y: string, m: string, d: string) => `${y}년 ${md(m, d)}`)
+    .replace(MONTH_WOL_RE, (_all, y: string, m: string) => `${y}년 ${Number(m)}월`)
+    .replace(MONTH_RE, (_all, y: string, m: string) => `${y}년 ${Number(m)}월`);
+}
+
+/** 화면에 보일 리포트 문장에 prettyDates 를 적용한 사본. 값 · 기준일 · 장부(원본 데이터)는 건드리지 않습니다 */
+export function prettyReport<R extends {
+  summary: string; headline?: string | null; notice?: string | null;
+  why: { claim: string; evidence: string }[]; impact: string[]; impactTitles?: string[];
+  caveats: string[]; dataGaps: string[];
+  numbers: { label: string; change: string }[];
+  verification: { removed: string[] };
+}>(report: R): R {
+  const p = prettyDates;
+  return {
+    ...report,
+    summary: p(report.summary),
+    ...(report.headline ? { headline: p(report.headline) } : {}),
+    ...(report.notice ? { notice: p(report.notice) } : {}),
+    why: report.why.map(w => ({ ...w, claim: p(w.claim), evidence: p(w.evidence) })),
+    impact: report.impact.map(p),
+    ...(report.impactTitles ? { impactTitles: report.impactTitles.map(p) } : {}),
+    caveats: report.caveats.map(p),
+    dataGaps: report.dataGaps.map(p),
+    numbers: report.numbers.map(n => ({ ...n, label: p(n.label), change: p(n.change) })),
+    verification: { ...report.verification, removed: report.verification.removed.map(p) },
+  };
 }
 
 /** 본값이 변화량(+2.82% · −0.56%p)인 숫자 카드는 오름 빨강 · 내림 파랑 (11/20 외부 F10). 수준값(3.00%)은 색을 두지 않습니다. */
