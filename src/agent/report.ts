@@ -137,6 +137,32 @@ export function foreignEtfOutput(question: string): WriterOutput | null {
   };
 }
 
+/** 개별 기업 주가 질문의 상단 안내 */
+export const STOCK_NOTICE = "개별 기업의 주가는 머핀이 조회하지 않아 데이터를 조사하지 않았어요. 주가지수와 국내 상장 ETF 는 볼 수 있어요.";
+
+/** 개별 기업의 주가를 묻는 질문에 모델 없이 돌려주는 고정 본문 (11/22). 볼 수 있는 대상(지수 · ETF)으로 이어 줍니다 */
+export function stockOutput(question: string): WriterOutput {
+  const topics: [string, string][] = [
+    ["요즘 코스피 어때?", "코스피 지수의 종가와 최근 한 달 변화를 보여 줘요"],
+    ["코스닥은 요즘 어때?", "코스닥 지수의 종가와 최근 한 달 변화를 보여 줘요"],
+    ["KODEX 200 요즘 어때?", "국내 대표 기업 200개를 따라가는 ETF 의 종가 · 수익률을 보여 줘요"],
+  ];
+  return {
+    summary:
+      "머핀은 개별 기업의 주가와 실적은 조회하지 않아요. 대신 코스피 · 코스닥 · S&P 500 · 나스닥 같은 주가지수와 국내 상장 ETF 는 숫자와 출처로 답할 수 있어요. " +
+      "시장 전체의 흐름이 궁금하면 아래 질문으로 확인해 보세요.",
+    headline: null,
+    numbers: [],
+    why: [],
+    impact: [],
+    impactTitles: [],
+    caveats: [],
+    dataGaps: [`"${question}" 에 답할 개별 종목 시세 자료가 없어요.`],
+    nextTopics: topics.map(([topic]) => topic),
+    topicReasons: topics.map(([, reason]) => reason),
+  };
+}
+
 /** why.evidence 가 "데이터로 확인되지 않음" 인지. 실행 로그 · 평가 · v1 변환이 같은 기준을 씁니다. */
 export const UNSUPPORTED_EVIDENCE = /확인되지\s*않/;
 
@@ -194,7 +220,7 @@ const FX_TOOL = "get_fx_krw_rate";
  */
 export function fxBasisCaveats(evidence: Evidence[], caveats: string[] = []): string[] {
   const fx = evidence.find((e) => e.tool === FX_TOOL);
-  if (!fx || caveats.some((c) => /포털|은행 앱|실시간/.test(c))) return [];
+  if (!fx || caveats.some((c) => /포털|은행 앱|실시간|호가|중간\s*환율|중간시장|mid-market|기준\s*환율/i.test(c))) return [];
   return [
     `환율은 하루 한 번 집계되는 기준 환율이에요 (출처: ${fx.source.name}). 포털 · 은행 앱의 실시간 환율이나 수수료가 붙는 실제 환전 금액과는 다를 수 있어요.`,
   ];

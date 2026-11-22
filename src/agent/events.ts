@@ -43,6 +43,7 @@ export const toolLabels: Record<string, string> = {
   get_kr_stock_index: "국내 지수 확인",
   get_us_stock_index: "미국 지수 확인",
   calc_index_today: "당일 지수 검산",
+  calc_example: "가상 예시 계산",
 };
 
 export function labelFor(toolName: string): string {

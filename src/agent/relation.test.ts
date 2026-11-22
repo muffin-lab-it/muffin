@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { cpiPair, ensureRateInflation, isRateInflationQuestion, relationNote, relationRows, withRelationNumbers } from "./relation";
+import { cpiPair, ensureFxRate, ensureRateInflation, fxRateNote, fxRateRows, isFxRateQuestion, isRateInflationQuestion, relationHeadline, relationNote, relationRows, withFxRateNumbers, withRelationNumbers } from "./relation";
 import type { Evidence, WriterOutput } from "./schema";
 
 const cpi = (id: string, monthKey: string, change: number): Evidence => ({
@@ -89,5 +89,43 @@ describe("물가와 금리의 관계 질문 (11/21)", () => {
     ]);
     const kept = output([card("E1", "120.73")]);
     expect(withRelationNumbers(kept, [now])).toBe(kept);
+  });
+});
+
+describe("환율과 금리의 관계 질문 (11/22)", () => {
+  const fx: Evidence = { id: "E5", tool: "get_fx_krw_rate", label: "환율", values: { pair: "USD/KRW", rate: 1335.94, asOf: "2026-11-22", "comparison.rate": 1472.42, "comparison.asOf": "2025-11-22", changePct: -9.27 }, source: { name: "Frankfurter v2", url: "https://api.frankfurter.dev", asOf: "2026-11-22" } };
+  const fx30: Evidence = { ...fx, id: "E6", values: { ...fx.values, "comparison.rate": 1324.45, "comparison.asOf": "2026-10-23", changePct: 0.87 } };
+  const dff: Evidence = { id: "E7", tool: "get_rate_data", label: "금리", values: { indicator: "미국 실효 연방기금금리", rate: 3.88, asOf: "2026-11-19", comparisonDate: "2025-11-19", comparisonRate: 3.88, changePp: 0, requestedDays: 365 }, source: { name: "FRED", url: "https://fred.stlouisfed.org/series/DFF", asOf: "2026-11-19" } };
+
+  it("환율과 금리의 관계를 묻는 질문만 대상이다", () => {
+    expect(isFxRateQuestion("환율이랑 금리 관계 알려줘")).toBe(true);
+    expect(isFxRateQuestion("금리가 환율에 어떤 영향을 줘?")).toBe(true);
+    expect(isFxRateQuestion("엔화 환율이랑 일본 금리 관계는?")).toBe(false);
+    expect(isFxRateQuestion("2020년 환율과 금리 관계는?")).toBe(false);
+    expect(isFxRateQuestion("오늘 달러 환율 얼마야?")).toBe(false);
+  });
+
+  it("1년 비교 자료 중 없는 것만 채운다", async () => {
+    const ctx = new ResearchContext();
+    ctx.addEvidence([fx30, year]);
+    const fxTool = vi.fn(async (...args: [unknown, string]) => (args.length ? "ok" : ""));
+    const rateTool = vi.fn(async (...args: [unknown, string]) => (args.length ? "ok" : ""));
+    expect(await ensureFxRate(ctx, "환율이랑 금리 관계 알려줘", [{ name: "get_fx_krw_rate", invoke: fxTool }, { name: "get_rate_data", invoke: rateTool }])).toBe(true);
+    expect(fxTool.mock.calls.map((c) => c[1])).toEqual(['{"currency":"USD","days":365}']);
+    expect(rateTool.mock.calls.map((c) => c[1])).toEqual(['{"series":"DFF","days":365}']);
+  });
+
+  it("세 항목이 다 있을 때 나란히 적고, 카드와 한 줄 요약을 장부 값으로 만든다", () => {
+    expect(fxRateRows([fx30, year, dff])).toBeNull();
+    const evidence = [fx30, fx, year, dff];
+    const note = fxRateNote(evidence);
+    expect(note).toContain("[환율과 금리 나란히]");
+    expect(note).toContain("2025-11-22 1,472.42원 → 2026-11-22 1,335.94원, 1년 변화 -9.27% (ref E5)");
+    expect(note).toContain("좁혀졌습니다");
+    const out = withFxRateNumbers(output([{ label: "원/달러 환율", value: "1,335.94원", change: "30일 +0.87%", asOf: "2026-11-22", ref: "E6" }]), evidence);
+    expect(out.numbers.map((n) => [n.label, n.change, n.ref])).toEqual([["달러당 원화 환율", "1년 -9.27%", "E5"], ["한국은행 기준금리", "1년 +0.50%p", "E3"], ["미국 실효 연방기금금리", "1년 변동 없음", "E7"]]);
+    expect(relationHeadline("금리 차이는 환율에 영향을 줄 수 있지만, 이번 자료만으로 인과관계를 단정할 수는 없어요", evidence)).toBe("지난 1년 원/달러 환율은 9.27% 내렸고, 한국 금리는 0.50%p 올랐고, 미국 금리는 그대로였어요.");
+    expect(relationHeadline("지난 1년 환율은 내렸어요.", evidence)).toBe("지난 1년 환율은 내렸어요.");
+    expect(relationHeadline(null, [now, before, year])).toBe("지난 1년 물가 상승률은 2.38%에서 2.82%로, 기준금리는 2.5%에서 3%로 움직였어요.");
   });
 });
