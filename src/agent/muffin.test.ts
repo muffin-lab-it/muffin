@@ -340,6 +340,8 @@ describe("research() 다섯 단계", () => {
     const stock = await research({ question: "삼성전자 주가 어때?", depth: "easy" });
     expect(runMock).not.toHaveBeenCalled();
     expect(stock.report.mode).toBe("out_of_scope");
+    expect(stock.report.notice).toContain("개별 기업의 주가");
+    expect(stock.report.nextTopics[0]).toBe("요즘 코스피 어때?");
 
     mockRuns({ plan: { intent: "decision", tools: ["get_rate_data"], reason: "대출 판단" }, writer: [good] });
     const loan = await research({ question: "금리 오르면 내 대출 이자 어떻게 돼?", depth: "easy", area: "rate" });

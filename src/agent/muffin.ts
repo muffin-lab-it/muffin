@@ -32,7 +32,7 @@ import { ensureMoneyValue, moneyValueNote, moneyValueRows } from "./money-value"
 import { ensureFxRate, ensureRateInflation, fxRateNote, fxRateRows, relationHeadline, relationNote, relationRows, withFxRateNumbers, withRelationNumbers } from "./relation";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
-import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput } from "./report";
+import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
@@ -190,12 +190,12 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   if (plan.mode === "out_of_scope") {
     // 조사 · 정제 · 작성을 건너뜁니다. 숫자가 없으니 검증은 pass 이고, 어떤 tool 도 부르지 않았습니다.
     emit({ type: "stage", stage: "verify", status: "start" });
-    const output = foreign ?? outOfScopeOutput(question);
+    const output = foreign ?? (stock ? stockOutput(question) : outOfScopeOutput(question));
     const verification = summarizeVerification({ output, checks: [], matches: [], removed: [] }, 0);
     emit({ type: "verify", verification });
     emit({ type: "stage", stage: "verify", status: "done" });
     return {
-      report: assembleReport(output, [], verification, { mode: "out_of_scope", intent: "out_of_scope", notice: foreign ? FOREIGN_ETF_NOTICE : OUT_OF_SCOPE_NOTICE }),
+      report: assembleReport(output, [], verification, { mode: "out_of_scope", intent: "out_of_scope", notice: foreign ? FOREIGN_ETF_NOTICE : stock ? STOCK_NOTICE : OUT_OF_SCOPE_NOTICE }),
       steps: [],
       rewrites: 0,
       plan,
