@@ -78,6 +78,24 @@ export function groupNumbers(numbers: NumberItem[]): { main: NumberItem; index: 
     .map(({ number, index }) => ({ main: number, index, subs: (subsOf.get(index) ?? []).map(sub => ({ n: numbers[sub], index: sub })) }));
 }
 
+/**
+ * 딸린 숫자 줄의 보조 설명: 비교 기간(또는 변화 문구) · 본값과 다른 기준일. 라벨에 이미 있는 말은 뺍니다
+ * (11/22 운영 확인: "한국 소비자물가지수 전월 대비 0.25%" 아래에 "전월 대비" 가 한 번 더 나옴).
+ * 딸린 숫자의 비교 기간 · 다른 기준일은 그대로 남깁니다 (Codex 리뷰: 묶으면서 기간 · 날짜가 사라지지 않게).
+ */
+export function subRows(subs: { n: NumberItem; index: number }[], mainAsOf: string, skipped: boolean) {
+  const squash = (text: string) => text.replace(/\s+/g, "");
+  return subs.map(({ n, index }) => {
+    const change = n.change && !/^이번\s*주$/.test(n.change.trim()) ? reportChange(n.change, n.changeDetail) : null;
+    const period = n.changeDetail?.from && n.changeDetail.to ? `비교 기간 ${formatDateKo(n.changeDetail.from)} → ${formatDateKo(n.changeDetail.to)}` : change?.text;
+    const parts = [
+      period && !squash(n.label).includes(squash(period)) ? period : null,
+      n.asOf && n.asOf !== mainAsOf ? `기준일 ${formatDateKo(n.asOf)}` : null,
+    ].filter((part): part is string => !!part);
+    return { index, label: n.label, value: n.value, check: skipped ? "unverified" as const : n.check, detail: parts.join(" · ") };
+  });
+}
+
 /** 원인 문장의 근거 링크. 뉴스는 기사로 바로 새 창, 데이터는 아래 출처 칸으로 (11/20 QA 3: "원본 보기" 가 기사인 줄 알았는데 아래로 내려가 두 번 눌러야 했음). */
 function ReasonLinks({ refs, evidence }: { refs: string[]; evidence: Evidence[] }) {
   const items = refs.map(ref => ({ ref, entry: evidence.find(item => item.id === ref) }));
@@ -121,6 +139,10 @@ export function ReportView({
   const metaLine = (header || createdAt || areaChips)
     ? <div className="report-meta-line">{areaChips}{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}{mismatch && <span className="report-area-note">질문에 맞춰 {mismatch.join(" · ")}를 중심으로 설명했어요</span>}</div>
     : null;
+  // 판단 요청 고지("투자 판단을 대신하지 않아요 …")는 그 질문에 붙은 안내라 질문 카드 안에 둡니다 (11/22 운영 확인: 브랜드 제목 위에 떠 있었음)
+  const questionNotice = report.notice && report.mode !== "research"
+    ? <p className="report-notice report-question-notice"><span aria-hidden="true">ⓘ</span>{report.notice}</p>
+    : null;
   const newsEntries = report.evidence.filter(isNewsEvidence);
   const cards = groupNumbers(report.numbers);
   // 도구 표는 리포트에서 빼고(11/20 QA 7 · 하니 5, 전체 표는 /admin) 저장본 · 실패 · 호출 생략만 주의점 옆에 메모로 남깁니다
@@ -132,16 +154,17 @@ export function ReportView({
     <div className={styles.reportContainer}>
     <ReportEvidenceScope>
     <ReportDisplay className={`report ${styles.report}`}>
-      {report.notice && report.mode !== "research" && <p className="report-notice">{report.notice}</p>}
       <header className="report-brand-header"><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1></div>{actions && <div className="report-actions">{actions}</div>}</header>
       {questionText && (
         <section className={styles.questionCard} aria-label="나의 질문">
           <h2>나의 질문</h2>
           <blockquote>{questionText}</blockquote>
           {metaLine}
+          {questionNotice}
         </section>
       )}
       {!questionText && metaLine}
+      {!questionText && questionNotice}
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <h2>갓 구운 한입 요약</h2>
@@ -178,16 +201,14 @@ export function ReportView({
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`} valueKey={valueKey} origin={origin}><b className={tone ?? undefined}>{n.value}</b></EvidenceReference>
                 {change && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
                 {n.changeDetail?.from && n.changeDetail.to && <small className="metric-period">비교 기간 {formatDateKo(n.changeDetail.from)} → {formatDateKo(n.changeDetail.to)}</small>}
-                {card.subs.length > 0 && <ul className="num-subs">{card.subs.map(sub => {
-                  const subCheck = report.verification.status === "skipped" ? "unverified" : sub.n.check;
-                  // 딸린 숫자의 비교 기간 · 다른 기준일은 그대로 남깁니다 (Codex 리뷰: 묶으면서 기간 · 날짜가 사라지지 않게)
-                  const subChange = sub.n.change && !/^이번\s*주$/.test(sub.n.change.trim()) ? reportChange(sub.n.change, sub.n.changeDetail) : null;
-                  const detail = [
-                    sub.n.changeDetail?.from && sub.n.changeDetail.to ? `비교 기간 ${formatDateKo(sub.n.changeDetail.from)} → ${formatDateKo(sub.n.changeDetail.to)}` : subChange?.text,
-                    sub.n.asOf && sub.n.asOf !== n.asOf ? `기준일 ${formatDateKo(sub.n.asOf)}` : null,
-                  ].filter(Boolean).join(" · ");
-                  return <li key={sub.index}><span className="num-sub-label">{sub.n.label}</span><b className={valueTone(sub.n.value) ?? undefined}>{sub.n.value}</b><span className={`report-badge check-${subCheck}`}>{checkLabels[subCheck]}</span>{detail && <small className="num-sub-detail">{detail}</small>}</li>;
-                })}</ul>}
+                {card.subs.length > 0 && (() => {
+                  const rows = subRows(card.subs, n.asOf, report.verification.status === "skipped");
+                  const shared = rows.length >= 2 && rows.every(row => row.detail && row.detail === rows[0]!.detail) ? rows[0]!.detail : null;
+                  return <>
+                    <ul className="num-subs">{rows.map(row => <li key={row.index}><span className="num-sub-label">{row.label}</span><b className={valueTone(row.value) ?? undefined}>{row.value}</b><span className={`report-badge check-${row.check}`}>{checkLabels[row.check]}</span>{!shared && row.detail && <small className="num-sub-detail">{row.detail}</small>}</li>)}</ul>
+                    {shared && <small className="num-subs-shared">{shared}</small>}
+                  </>;
+                })()}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>
                   {source && <span className="metric-source">{source.name}</span>}

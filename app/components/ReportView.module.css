@@ -685,3 +685,14 @@
 /* 11/22 운영 확인: 묶인 딸린 숫자의 값이 본값 크기(28~40px)로 커지던 것. 본값 b 규칙보다 구체적으로 */
 .report .metrics :global(.num .num-subs) b { display:inline; margin:0; font-size:16px; line-height:1.5; letter-spacing:-.01em; font-weight:650; }
 .report .metrics :global(.num .num-subs) li { align-items:center; }
+
+/* 11/22 운영 확인 (백엔드 #135 뒤): 판단 요청 고지는 질문 카드 안, 딸린 숫자 공통 기간은 한 번, 출처 카드의 여러 숫자는 작은 줄 */
+.report :global(.report-question-notice) { display:flex; align-items:baseline; gap:6px; margin:12px 0 0; padding:0; background:none; border-radius:0; font-size:13px; line-height:1.6; color:#6b6377; }
+.report :global(.report-question-notice) > span { flex:none; color:#8b7fa0; }
+.report :global(.num-subs-shared) { display:block; margin:6px 0 0; font-size:13px; color:#7c7287; }
+.report :global(.source-number-subs) { list-style:none; margin:-2px 0 12px; padding:0; display:grid; gap:4px; }
+.report :global(.source-number-subs) li { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; font-size:14px; color:#58515f; }
+.report :global(.source-number-subs) b { font-size:15px; color:#34303c; font-variant-numeric:tabular-nums; }
+.report :global(.source-number-subs) small { font-size:13px; color:#7c7287; }
+/* 숫자 링크는 숫자 위에서만 반응 (카드 너비 전체가 링크라 빈 곳에 마우스를 대도 숫자가 보라색이 되던 것) */
+.report .metrics :global(.metric-value-link) { display:inline-block; }

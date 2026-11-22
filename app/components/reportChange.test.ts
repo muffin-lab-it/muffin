@@ -24,3 +24,11 @@ describe("1년 비교 (11/22)", () => {
     expect(reportChange("30일 +2%", { key: "changePct", value: 2, unit: "%", basis: "", days: 30 }).text).toBe("30일 전과 비교해 2% 상승");
   });
 });
+
+describe("백엔드가 basis 에 365일을 적어도 1년으로 (11/22)", () => {
+  it("basis 문구의 360~372일 전은 1년 전", () => {
+    expect(reportChange("", { key: "changePp", value: 0.5, unit: "%p", basis: "365일 전과 비교", days: 365 }).text).toBe("1년 전과 비교해 0.5%p 상승");
+    expect(reportChange("", { key: "changePp", value: 0, unit: "%p", basis: "30일 전과 비교", days: 30 }).text).toBe("30일 전과 비교해 변화가 없어요");
+    expect(reportChange("366일 +0.5%p").text).toBe("1년 전보다 0.5%p 상승");
+  });
+});
