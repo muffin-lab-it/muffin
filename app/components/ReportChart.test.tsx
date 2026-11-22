@@ -49,3 +49,19 @@ describe("차트 인터랙티브 (11/21 사용자 요청)", () => {
     expect($(".chart-hover-text").text()).toContain("그날 값");
   });
 });
+
+describe("차트 조사와 지수 주제 (11/22)", () => {
+  it("받침에 따라 이 · 가", async () => {
+    const { particle } = await import("./ReportChart");
+    expect(particle("환율")).toBe("이");
+    expect(particle("지수")).toBe("가");
+    expect(particle("물가")).toBe("가");
+    expect(particle("금리")).toBe("가");
+  });
+  it("지수 차트는 '지수가 … 내렸어요'", () => {
+    const chart = { kind: "line" as const, title: "코스피 2026-10-20 ~ 2026-11-19", unit: "지수(포인트)", series: [{ label: "코스피", ref: "E1", points: [{ t: "2026-10-20", v: 5553 }, { t: "2026-11-19", v: 5138 }] }] };
+    const text = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />)).text();
+    expect(text).toContain("지수가 5,553에서 5,138로");
+    expect(text).not.toContain("지표이");
+  });
+});

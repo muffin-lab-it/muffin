@@ -759,3 +759,21 @@ describe("11/21 QA 최종리포트 화면 항목", () => {
     expect(render(report)(".num .metric-basis").text()).toBe("코스피 200 지수를 따라가는 국내 상장 ETF");
   });
 });
+
+describe("백엔드 1차 반영 뒤 화면 (11/22)", () => {
+  it("기사는 번호로 참조되지 않아도 접히지 않고, 계산 묶음은 맨 뒤", () => {
+    const report = fixture();
+    const article = (id: string): Report["evidence"][number] => ({ id, tool: "get_economic_news", label: "기사", values: { title: id, publisher: "연합뉴스", publishedAt: "2026-11-21", body: "unavailable" }, source: { name: "연합뉴스", url: `https://www.yna.co.kr/${id}`, asOf: "2026-11-21" } });
+    report.evidence.push(article("E9-1"), article("E9-2"), article("E9-3"));
+    const $ = render(report);
+    expect($(".source-unused .evidence-record[data-evidence-id^='E9-']")).toHaveLength(0);
+    expect($(".source-panel[data-source-group='뉴스'] .evidence-record[data-evidence-id^='E9-']")).toHaveLength(3);
+    const chips = $(".source-chips button").map((_, el) => $(el).text()).get();
+    if (chips.includes("계산")) expect(chips[chips.length - 1]).toBe("계산");
+  });
+  it("접힌 자료 목록은 다섯 개까지만 적는다", () => {
+    const report = fixture();
+    for (let i = 0; i < 7; i++) report.evidence.push({ ...report.evidence[0]!, id: `E8-${i}`, tool: "get_rate_data", label: `금리 확인 ${i}` });
+    expect(render(report)(".source-unused > summary").text()).toMatch(/외 \d+개$/);
+  });
+});

@@ -46,13 +46,16 @@ export function ReportSources({ report }: { report: Report }) {
   const scope = useEvidenceSelection();
   const rootId = useEvidenceTarget("section-sources");
   const used = usedEvidenceIds(report);
-  const usedEntries = report.evidence.filter(entry => used.has(entry.id));
+  // 기사는 리포트의 재료 그 자체라 번호로 참조되지 않아도 접지 않습니다 (11/22 운영 확인: 기사 11건 중 10건이 '안 쓴 자료' 로 접힘)
+  const isShown = (entry: Evidence) => used.has(entry.id) || /news/i.test(entry.tool);
+  const usedEntries = report.evidence.filter(isShown);
   // 쓴 자료가 하나도 없는 리포트(숫자 · 원인 없음)는 전부 그대로 보여 줍니다
   const shown = usedEntries.length > 0 ? usedEntries : report.evidence;
-  const folded = usedEntries.length > 0 ? report.evidence.filter(entry => !used.has(entry.id)) : [];
-  // 숫자 카드 순서대로 주제를 배열해 리포트가 쓴 자료가 첫 탭에 옵니다
+  const folded = usedEntries.length > 0 ? report.evidence.filter(entry => !isShown(entry)) : [];
+  // 숫자 카드 순서대로 주제를 배열해 리포트가 쓴 자료가 첫 탭에 옵니다. 계산은 파생이라 맨 뒤
   const firstByNumbers = report.numbers.map(number => report.evidence.find(entry => entry.id === number.ref)).filter((entry): entry is Evidence => !!entry);
-  const groups = [...new Set([...firstByNumbers, ...shown].map(evidenceCategory))].filter(group => shown.some(entry => evidenceCategory(entry) === group));
+  const ordered = [...new Set([...firstByNumbers, ...shown].map(evidenceCategory))].filter(group => shown.some(entry => evidenceCategory(entry) === group));
+  const groups = [...ordered.filter(group => group !== "계산"), ...ordered.filter(group => group === "계산")];
   // Preserve sources without a matching evidence record, without repeating linked originals.
   const extraSources = report.sources.filter(source => !report.evidence.some(entry => entry.source.url === source.url && entry.source.name === source.name && entry.source.asOf === source.asOf));
   if (extraSources.length > 0) groups.push("참고 문서");
@@ -75,7 +78,7 @@ export function ReportSources({ report }: { report: Report }) {
       </div>}
     </div>)}
     {/* 조회는 했지만 리포트에 쓰지 않은 자료는 뒤로 접어 둡니다 (11/21 QA 4) */}
-    {folded.length > 0 && <PrintOpenDetails className="source-unused" summary={`조회했지만 리포트에 쓰지 않은 자료 ${folded.length}개 · ${folded.map(entry => `${evidenceCategory(entry)} ${entry.id}`).join(", ")}`}>
+    {folded.length > 0 && <PrintOpenDetails className="source-unused" summary={`조회했지만 리포트에 쓰지 않은 자료 ${folded.length}개 · ${folded.slice(0, 5).map(entry => `${evidenceCategory(entry)} ${entry.id}`).join(", ")}${folded.length > 5 ? ` 외 ${folded.length - 5}개` : ""}`}>
       <div className="source-data-grid">{folded.map(entry => <div key={entry.id} className="source-data-item"><EvidenceRecord entry={entry} evidence={report.evidence} usedKeys={[]} /></div>)}</div>
     </PrintOpenDetails>}
     <p className="section-guide">{groups.length > 1 ? "주제를 고른 뒤, 리포트에 쓰인 수치의 출처와 기준일을 확인해 보세요." : "리포트에 쓰인 수치의 출처와 기준일을 확인해 보세요."} 비교에 사용한 자료도 아래에서 함께 볼 수 있어요.</p>

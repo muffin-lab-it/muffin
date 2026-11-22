@@ -25,6 +25,12 @@ export function fxUnitLabel(unit: string | undefined): string | null {
   return `${Number(m[1]).toLocaleString("ko-KR")}${CURRENCY_KO[m[2]!] ?? m[2]}당 원화 금액`;
 }
 
+/** 받침 유무에 따라 '이' · '가' (11/22 운영 확인: 지수 차트에 "지표이" 로 나옴) */
+export function particle(word: string): "이" | "가" {
+  const code = word.charCodeAt(word.length - 1);
+  if (code < 0xac00 || code > 0xd7a3) return "가";
+  return (code - 0xac00) % 28 === 0 ? "가" : "이";
+}
 /** 화면 x(뷰박스 단위)에 가장 가까운 점의 번호 */
 export function nearestIndex(xs: number[], x: number): number {
   let best = 0;
@@ -61,7 +67,8 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const change = from.v ? ((last.v / from.v - 1) * 100).toFixed(2) : null;
   // 환율 차트는 통화마다 제목이 다르니(JPY(100)/KRW 최근 30일) 단위로 알아봅니다. 11/19 페르소나 테스트: 엔화 차트 설명에 "지표 이" 가 나옴
   const fxLabel = fxUnitLabel(chart.unit);
-  const subject = fxLabel || /\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : "지표";
+  const subject = fxLabel || /\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : /지수|코스피|코스닥|S&P|나스닥|다우/i.test(`${chart.title} ${chart.unit ?? ""}`) ? "지수" : "지표";
+  const subjectWithParticle = `${subject}${particle(subject)}`;
   const unitLabel = fxLabel ? `${fxLabel}(원)` : chart.unit || "지표 값";
   const pointXs = points.map((p) => sx(p.t));
   // 화면 좌표 → 뷰박스 좌표. SVG 가 넓은 칸 가운데 놓이면 가로 여백이 생기므로 너비 비율이 아니라 변환 행렬로 바꿉니다 (Codex 리뷰)
@@ -135,7 +142,7 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
       </svg>
       <p className="chart-hover-text" aria-live="polite">{tipText ?? "선 위에 마우스를 올리거나 손가락으로 짚으면 그날 값이 보여요."}</p>
       <div className="chart-summary">
-        <p><strong>{subject}이 {fmtValue(from.v)}에서 {fmtValue(last.v)}로{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {longDate(from.t)}부터 {longDate(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{longDate(first.t)}부터 {longDate(last.t)}까지 {Math.round(day(last.t) - day(first.t))}일간의 {subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : `${unitLabel} 기준으로 표시했어요.`}</span></p>
+        <p><strong>{subjectWithParticle} {fmtValue(from.v)}에서 {fmtValue(last.v)}로{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {longDate(from.t)}부터 {longDate(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{longDate(first.t)}부터 {longDate(last.t)}까지 {Math.round(day(last.t) - day(first.t))}일간의 {subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : `${unitLabel} 기준으로 표시했어요.`}</span></p>
         {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
       {events.length > 0 && (
         <ul className="chart-events">
