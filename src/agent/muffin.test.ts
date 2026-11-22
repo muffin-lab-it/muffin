@@ -8,7 +8,8 @@ vi.mock("@openai/agents", async (importOriginal) => {
 
 vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false) }));
 vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNewsNote: vi.fn(() => "") }));
-vi.mock("./relation", () => ({ ensureRateInflation: vi.fn(async () => false), relationNote: vi.fn(() => ""), relationRows: vi.fn(() => null), withRelationNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./relation", () => ({ ensureRateInflation: vi.fn(async () => false), relationNote: vi.fn(() => ""), relationRows: vi.fn(() => null), withRelationNumbers: vi.fn((o: unknown) => o), ensureFxRate: vi.fn(async () => false), fxRateNote: vi.fn(() => ""), fxRateRows: vi.fn(() => null), relationHeadline: vi.fn((h: unknown) => h), withFxRateNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./money-value", () => ({ ensureMoneyValue: vi.fn(async () => false), moneyValueNote: vi.fn(() => ""), moneyValueRows: vi.fn(() => []) }));
 vi.mock("./etf-basket", () => ({ ensureEtfBasket: vi.fn(async () => false), basketNote: vi.fn(() => ""), basketRows: vi.fn(() => []), withBasketNumbers: vi.fn((o: unknown) => o) }));
 vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), rateYearNote: vi.fn(() => ""), yearRates: vi.fn(() => []) }));
 vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), officialIndex: vi.fn(() => undefined), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
@@ -18,7 +19,7 @@ import { indexFor } from "./index-quote";
 import { ensureOtherPairs } from "./supplement";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
-import { plainQuestion, research, hintAreaFor, modelFor } from "./muffin";
+import { isStockQuestion, plainQuestion, research, hintAreaFor, modelFor } from "./muffin";
 import { DECISION_NOTICE } from "./report";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
 
@@ -329,6 +330,21 @@ describe("research() 다섯 단계", () => {
     expect(result.plan).toMatchObject({ intent: "status", mode: "research", tools: ["get_fx_krw_rate", "get_rate_data"] });
     expect(inputOf(3)).toContain("[질문의 범위]");
     expect(result.report.dataGaps.some((g) => g.includes("범위 밖이라"))).toBe(true);
+  });
+
+  it("개별 기업의 주가 질문은 모델을 부르지 않고 범위 밖 안내로 간다. 생활 영향 질문은 판단 요청으로 보지 않는다 (11/22)", async () => {
+    expect(isStockQuestion("삼성전자 주가 어때?")).toBe(true);
+    expect(isStockQuestion("코스피 지수랑 삼성전자 주가 비교")).toBe(false);
+    expect(isStockQuestion("요즘 코스피 어때?")).toBe(false);
+    mockRuns({ writer: [] });
+    const stock = await research({ question: "삼성전자 주가 어때?", depth: "easy" });
+    expect(runMock).not.toHaveBeenCalled();
+    expect(stock.report.mode).toBe("out_of_scope");
+
+    mockRuns({ plan: { intent: "decision", tools: ["get_rate_data"], reason: "대출 판단" }, writer: [good] });
+    const loan = await research({ question: "금리 오르면 내 대출 이자 어떻게 돼?", depth: "easy", area: "rate" });
+    expect(loan.plan).toMatchObject({ intent: "status", mode: "research" });
+    expect(loan.report.notice ?? "").not.toContain("투자 판단");
   });
 
   it("판단 요청이면 작성에 모드 규칙이 붙고 리포트에 안내가 달린다", async () => {

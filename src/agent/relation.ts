@@ -112,3 +112,105 @@ export function withRelationNumbers(output: WriterOutput, evidence: Evidence[]):
   for (const e of evidence) if (e.lineage?.inputs.some((id) => same.has(id))) same.add(e.id);
   return { ...output, numbers: [...cards, ...output.numbers.filter((n) => !(n.ref && same.has(n.ref)))] };
 }
+
+/**
+ * 환율과 금리의 관계 질문 (11/22). 11/21 점검: "환율이랑 금리 관계 알려줘" 에 30일 비교만 있어 금리가 둘 다 "변동 없음" 이라
+ * "인과관계는 확인되지 않아요" 가 한 줄 요약이 됐습니다. 물가 · 금리와 같은 방식으로 1년 전 값과 나란히 놓습니다:
+ * 원/달러 환율 1년 변화, 한국은행 기준금리와 미국 실효 연방기금금리의 1년 변화, 두 금리의 차이.
+ */
+export function isFxRateQuestion(question: string): boolean {
+  if (/(19|20)\d{2}\s*년|\d+\s*년\s*(전|간|동안)|작년|지난해|재작년/.test(question)) return false;
+  return /상관|관계|연관|영향|같이\s*움직|따라\s*움직/.test(question) && /환율|달러|원화/.test(question) && /금리/.test(question) && !/엔화|유로|위안|일본|유럽|중국/.test(question);
+}
+
+const isUsdYear = (e: Evidence) => e.tool === areaTools.fx && e.values.pair === "USD/KRW" && typeof e.values.changePct === "number" && daysBetween(e.values["comparison.asOf"], e.values.asOf) >= 330;
+const isDffYear = (e: Evidence) => e.tool === areaTools.rate && e.values.indicator === "미국 실효 연방기금금리" && Number(e.values.requestedDays) === 365;
+function daysBetween(from: unknown, to: unknown): number {
+  return (Date.parse(String(to)) - Date.parse(String(from))) / 86_400_000;
+}
+
+/** 환율 · 금리 관계 질문이면 1년 비교 자료 중 없는 것을 채웁니다 (원/달러 365일, 한국 · 미국 정책금리 365일) */
+export async function ensureFxRate(ctx: ResearchContext, question: string, tools: readonly InvokableTool[]): Promise<boolean> {
+  if (!isFxRateQuestion(question)) return false;
+  const fx = tools.find((t) => t.name === areaTools.fx);
+  const rate = tools.find((t) => t.name === areaTools.rate);
+  if (!fx || !rate) return false;
+  const rc = new RunContext(ctx);
+  const quiet = (p: Promise<unknown>) => p.catch(() => undefined);
+  await Promise.all([
+    ctx.evidence.some(isUsdYear) ? undefined : quiet(fx.invoke(rc, JSON.stringify({ currency: "USD", days: 365 }))),
+    ctx.evidence.some(isBokYear) ? undefined : quiet(rate.invoke(rc, JSON.stringify({ series: "BOK", days: 365 }))),
+    ctx.evidence.some(isDffYear) ? undefined : quiet(rate.invoke(rc, JSON.stringify({ series: "DFF", days: 365 }))),
+  ]);
+  return true;
+}
+
+/** [환율과 금리 나란히] 에 쓰는 항목들. 셋이 다 있어야 비교가 됩니다 */
+export function fxRateRows(evidence: Evidence[]): { fx: Evidence; bok: Evidence; dff: Evidence } | null {
+  const fx = evidence.find(isUsdYear);
+  const bok = evidence.find(isBokYear);
+  const dff = evidence.find(isDffYear);
+  return fx && bok && dff ? { fx, bok, dff } : null;
+}
+
+const won = (n: unknown) => Number(n).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** 작성 입력에 붙이는 [환율과 금리 나란히] */
+export function fxRateNote(evidence: Evidence[]): string {
+  const rows = fxRateRows(evidence);
+  if (!rows) return "";
+  const { fx, bok, dff } = rows;
+  const gapNow = Number(dff.values.rate) - Number(bok.values.rate);
+  const gapBefore = Number(dff.values.comparisonRate) - Number(bok.values.comparisonRate);
+  const gapWay = Math.abs(gapNow - gapBefore) < 0.005 ? "그대로입니다" : gapNow > gapBefore ? "벌어졌습니다" : "좁혀졌습니다";
+  const fxPct = Number(fx.values.changePct);
+  return [
+    `[환율과 금리 나란히] 질문은 환율과 금리의 관계를 물었습니다. 상관계수는 계산하지 않았지만, 지난 1년 두 지표의 움직임을 나란히 볼 수 있습니다.`,
+    `- 원/달러 환율: ${fx.values["comparison.asOf"]} ${won(fx.values["comparison.rate"])}원 → ${fx.values.asOf} ${won(fx.values.rate)}원, 1년 변화 ${fxPct > 0 ? "+" : ""}${fxPct.toFixed(2)}% (ref ${fx.id}). ${fxPct > 0 ? "환율이 올라 원화가 약해진" : "환율이 내려 원화가 강해진"} 방향입니다.`,
+    `- 한국은행 기준금리: ${bok.values.comparisonDate} ${bok.values.comparisonRate}% → ${bok.values.asOf} ${bok.values.rate}% (ref ${bok.id})`,
+    `- 미국 실효 연방기금금리: ${dff.values.comparisonDate} ${dff.values.comparisonRate}% → ${dff.values.asOf} ${dff.values.rate}% (ref ${dff.id})`,
+    `- 미국 금리가 한국보다 높은 폭은 1년 사이 ${gapWay}. 이 폭을 숫자로 쓰려면 장부의 계산 항목(C 번호)이 있을 때만 씁니다.`,
+    `요약의 첫 문장은 이 1년 비교를 값과 함께 씁니다. "인과관계는 확인되지 않아요" 로 시작하거나 한 줄 요약을 그 말로 끝내지 않습니다.`,
+    `일반적으로 미국 금리가 한국보다 높아질수록 달러를 가지려는 수요가 늘어 환율이 오르기 쉽다는 것은 일반적인 설명입니다. 쓸 때는 "일반적으로" 라고 밝히고, 이번 1년이 그 설명대로 움직였는지 반대였는지를 위 값으로 말합니다.`,
+    `두 시점을 비교한 것이라 인과관계를 뜻하지 않는다는 점은 주의점에 한 번만 씁니다. 숫자 카드는 코드가 넣습니다.`,
+  ].join("\n");
+}
+
+/** 환율 · 두 금리의 1년 비교 카드를 맨 앞에 넣고, 작성이 같은 지표로 쓴 카드는 뺍니다 */
+export function withFxRateNumbers(output: WriterOutput, evidence: Evidence[]): WriterOutput {
+  const rows = fxRateRows(evidence);
+  if (!rows) return output;
+  const { fx, bok, dff } = rows;
+  const same = new Set(evidence.filter((e) => (e.tool === areaTools.fx && e.values.pair === "USD/KRW") || (e.tool === areaTools.rate && (e.values.indicator === "한국은행 기준금리" || e.values.indicator === "미국 실효 연방기금금리"))).map((e) => e.id));
+  // 이 항목들로 만든 계산(C 번호)도 뺍니다 (30일 비교 카드가 1년 비교와 나란히 나오지 않게)
+  for (const e of evidence) if (e.lineage?.inputs.some((id) => same.has(id))) same.add(e.id);
+  const fxPct = Number(fx.values.changePct);
+  const cards: WriterOutput["numbers"] = [
+    { label: "달러당 원화 환율", value: `${won(fx.values.rate)}원`, change: `1년 ${fxPct > 0 ? "+" : ""}${fxPct.toFixed(2)}%`, asOf: String(fx.values.asOf), ref: fx.id },
+    { label: "한국은행 기준금리", value: `${Number(bok.values.rate)}%`, change: `1년 ${pp(Number(bok.values.changePp))}`, asOf: String(bok.values.asOf), ref: bok.id },
+    { label: "미국 실효 연방기금금리", value: `${Number(dff.values.rate)}%`, change: `1년 ${pp(Number(dff.values.changePp))}`, asOf: String(dff.values.asOf), ref: dff.id },
+  ];
+  return { ...output, numbers: [...cards, ...output.numbers.filter((n) => !(n.ref && same.has(n.ref)))] };
+}
+
+const NEGATIVE_HEADLINE = /확인되지\s*않|확인할\s*수\s*없|단정할\s*수|판단할\s*수\s*없|알기\s*어려|단정하기\s*어려/;
+
+/**
+ * 관계 질문의 한 줄 요약이 없거나 "…인과관계는 단정할 수 없어요" 로 끝나면, 코드가 장부 값으로 만든 한 줄로 바꿉니다
+ * (11/22 실측: 1년 비교를 주고도 한 줄이 "금리 차이는 환율에 영향을 줄 수 있지만 … 단정할 수는 없어요"). 값은 숫자 카드와 같습니다.
+ */
+export function relationHeadline(headline: string | null | undefined, evidence: Evidence[]): string | null | undefined {
+  if (headline && !NEGATIVE_HEADLINE.test(headline)) return headline;
+  const fxRate = fxRateRows(evidence);
+  if (fxRate) {
+    const p = Number(fxRate.fx.values.changePct);
+    const part = (name: string, d: number, last: boolean) =>
+      Math.abs(d) < 0.005 ? `${name} 금리는 그대로${last ? "였어요" : "였고"}` : `${name} 금리는 ${Math.abs(d).toFixed(2)}%p ${d > 0 ? (last ? "올랐어요" : "올랐고") : last ? "내렸어요" : "내렸고"}`;
+    return `지난 1년 원/달러 환율은 ${Math.abs(p).toFixed(2)}% ${p > 0 ? "올랐고" : "내렸고"}, ${part("한국", Number(fxRate.bok.values.changePp), false)}, ${part("미국", Number(fxRate.dff.values.changePp), true)}.`;
+  }
+  const rows = relationRows(evidence);
+  if (rows) {
+    return `지난 1년 물가 상승률은 ${(yoy(rows.before) as number).toFixed(2)}%에서 ${(yoy(rows.now) as number).toFixed(2)}%로, 기준금리는 ${Number(rows.bok.values.comparisonRate)}%에서 ${Number(rows.bok.values.rate)}%로 움직였어요.`;
+  }
+  return headline;
+}

@@ -115,7 +115,10 @@ describe("depthInstructions", () => {
       expect(result.match(/\[모드: 판단 요청\]/g)).toHaveLength(1);
     }
     expect(depthInstructions("standard", "research")).not.toContain("[모드: 판단 요청]");
-    expect(modeRules.decision_facts).toContain("판단을 대신하지 않습니다");
+    expect(modeRules.decision_facts).toContain("판단을 대신하지 않지만");
+    // 11/22: 판단 제한 문구만 되풀이하지 않고, 경우를 나눠 판단 재료를 준다
+    expect(modeRules.decision_facts).toContain("어떤 경우에는 → 어떤 영향");
+    expect(modeRules.decision_facts).toContain("사라 · 팔라 · 기다려라");
   });
 });
 

@@ -23,10 +23,13 @@ import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
+import { trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, macroNewsNote } from "./news-topics";
 import { ensureRateYear, rateYearNote, yearRates } from "./rate-trend";
-import { ensureRateInflation, relationNote, relationRows, withRelationNumbers } from "./relation";
+import { addExampleCalc, exampleNote, withExampleNumbers } from "./example-calc";
+import { ensureMoneyValue, moneyValueNote, moneyValueRows } from "./money-value";
+import { ensureFxRate, ensureRateInflation, fxRateNote, fxRateRows, relationHeadline, relationNote, relationRows, withFxRateNumbers, withRelationNumbers } from "./relation";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput } from "./report";
@@ -39,6 +42,17 @@ import { applyVerification, summarizeVerification, verify } from "./verify";
 import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
 
 export { modelFor } from "./models";
+
+/**
+ * 개별 기업의 주가를 묻는 질문인지. "주가 · 주식 시세" 를 묻는데 지수(코스피 · 나스닥 등) · ETF · 증시 전체가 아닌 경우입니다.
+ * 기업 이름을 다 알 수는 없어, 다루는 대상의 낱말이 없을 때만 그렇게 봅니다.
+ */
+export function isStockQuestion(question: string): boolean {
+  return /주가|주식\s*(시세|가격)|시가총액/.test(question) && !/지수|코스피|코스닥|나스닥|S&P|에스앤피|다우|증시|ETF|이티에프|KODEX|TIGER|환율|금리|물가/i.test(question);
+}
+
+/** 사거나 팔거나 투자할지를 묻는 낱말. 이 낱말이 없으면 판단 요청으로 보지 않습니다 */
+export const DECISION_WORDS = /사도|살까|사야|살\s*만|사는\s*게|팔까|팔아|팔면|매수|매도|투자|들어가도|넣어도|갈아타|환전해도|바꿔도|바꿀까|가입해도|해지/;
 
 /** 스트림 라우트의 마감(STREAM_TIMEOUT_MS 55초)과 같은 기본 예산. research() 를 부른 시각부터 셉니다. */
 export const TIME_BUDGET_MS = 55_000;
@@ -150,8 +164,12 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const planCtx = new RunContext(ctx);
   // 미국 상장 ETF(QQQ · SPY 등)만 묻는 질문은 국내 ETF tool 로 조회할 수 없어, 분류 모델을 부르지 않고 범위 밖으로 안내합니다.
   const foreign = foreignEtfOutput(question);
+  // 개별 기업의 주가를 묻는 질문은 조회할 자료가 없습니다. 분류가 뉴스 tool 로 보내 빈 리포트가 나오던 것을 범위 밖 안내로 돌립니다 (11/21 점검: "삼성전자 주가 어때?")
+  const stock = !foreign && isStockQuestion(question);
   const planned = foreign
     ? { intent: "out_of_scope" as const, tools: [], reason: "미국 상장 ETF 는 조회할 수 없음" }
+    : stock
+      ? { intent: "out_of_scope" as const, tools: [], reason: "개별 기업의 주가는 조회할 수 없음" }
     : await runPlan(tuned(createPlannerAgent(depth), "plan", depth), planInput(asked, area, depth), planCtx, defaultPlan(question, area));
   addUsage(planCtx, "plan");
   // 분류가 범위 밖이라 해도 지수 tool 로 답할 수 있는 지수 질문("나스닥 요즘 어때?")이면 현황 질문으로 조사합니다 (지수 tool 은 레지스트리에 없어 분류가 모름)
@@ -162,7 +180,10 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     : scope
       ? { intent: "status" as const, tools: scope.tools, reason: "범위 밖 대상이 섞였지만 답할 수 있는 부분이 있는 질문" }
       : planned;
-  const plan = { ...normalizePlan(rescuedPlan, question, area), mode: modeFor(rescuedPlan.intent) };
+  // 판단 요청은 사거나 팔거나 투자할지를 물을 때만입니다. 분류가 "금리 오르면 내 대출 이자 어떻게 돼?" 같은 생활 영향 질문을 판단 요청으로 보내면
+  // "투자 판단을 대신하지 않아요" 안내가 엉뚱하게 붙으므로 현황 질문으로 돌립니다 (11/21 점검)
+  const settledPlan = rescuedPlan.intent === "decision" && !DECISION_WORDS.test(question) ? { ...rescuedPlan, intent: "status" as const } : rescuedPlan;
+  const plan = { ...normalizePlan(settledPlan, question, area), mode: modeFor(settledPlan.intent) };
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
   emit({ type: "stage", stage: "plan", status: "done" });
 
@@ -203,6 +224,11 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 정책금리의 짧은 기간 변화가 0 이면 1년 전과도 비교할 수 있게 365일로 한 번 더 받습니다 (src/agent/rate-trend.ts)
   // 물가와 금리의 관계를 묻는 질문이면 1년 전 물가 상승률 · 기준금리를 채워 두 지표를 나란히 볼 수 있게 합니다 (src/agent/relation.ts)
   await ensureRateInflation(ctx, question, muffinTools);
+  // 환율과 금리의 관계 질문이면 1년 비교 자료를, 돈의 가치 질문이면 물가 · 환율을 채웁니다 (relation.ts · money-value.ts)
+  await ensureFxRate(ctx, question, muffinTools);
+  const moneyValue = await ensureMoneyValue(ctx, question, muffinTools);
+  // 질문에 적힌 가상의 숫자("3%에서 4%로")는 코드가 계산해 계산 항목으로 올립니다 (example-calc.ts)
+  const example = addExampleCalc(ctx, question);
   await ensureRateYear(ctx, muffinTools, question);
   // 종목을 정하지 않은 ETF 질문("etf 요즘 뭐가 좋아?")이면 자산군별 대표 ETF 의 수익률을 채웁니다 (src/agent/etf-basket.ts)
   const basket = await ensureEtfBasket(ctx, question, muffinTools);
@@ -241,12 +267,15 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 지수 값을 가진 항목도 정제가 뺐더라도 [지수 값] 으로 다시 보여 주므로 "쓰지 않은 자료" 에서 뺍니다
   // 코드가 조사 뒤에 채운 항목들. 정제가 뺐더라도 "쓰지 않은 자료" 로 알리지 않고, 작성의 사실 목록에 넣어 인용할 수 있게 합니다 (src/agent/extra-facts.ts)
   const relation = relationRows(ctx.evidence);
+  const fxRate = fxRateRows(ctx.evidence);
   const ensured = new Set<string>([
     ...(index ? indexRefs(ctx.evidence, index) : []),
     ...yearRates(ctx.evidence).map((e) => e.id),
     ...macroNews.map((e) => e.id),
     ...(basket ? basketRows(ctx.evidence).map((r) => r.e.id) : []),
     ...(relation ? Object.values(relation).map((e) => e.id) : []),
+    ...(fxRate ? Object.values(fxRate).map((e) => e.id) : []),
+    ...(moneyValue ? moneyValueRows(ctx.evidence).map((e) => e.id) : []),
   ]);
   for (const id of ensured) rescued.add(id);
   const writerFacts = withEnsuredFacts(facts, ctx.evidence, ensured);
@@ -258,7 +287,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : ""]
+  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", fxRate ? fxRateNote(ctx.evidence) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -268,6 +297,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
     if (relation) out = withRelationNumbers(out, ctx.evidence);
     if (basket) out = withBasketNumbers(out, ctx.evidence);
+    if (fxRate) out = withFxRateNumbers(out, ctx.evidence);
+    if (example) out = withExampleNumbers(out, example);
     return mergeSameCards(dropNewsCards(out, ctx.evidence));
   };
   let output = indexed(await runWriter(writer, input, writeCtx));
@@ -295,10 +326,12 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const gaps = fallbackGaps(ctx.steps);
   // 환율 자료를 썼으면 어떤 환율인지(포털 · 은행 앱과 다를 수 있음)를 코드가 "주의점" 에 적습니다
   // 같은 한계를 주의점 · 확인하지 못한 것에 되풀이한 줄을 줄입니다 (src/agent/trim.ts). 코드가 넣는 줄은 그 뒤에 붙여 줄어들지 않습니다
-  const trimmed = trimRepeats(applied.output);
+  // 한 줄 요약 끝의 "…지만 확인되지 않아요" 와, 원인을 묻지 않은 질문의 "원인은 확인할 수 없어요" 문장을 뗍니다 (src/agent/negatives.ts)
+  const trimmed = trimNegatives(trimRepeats(applied.output), plan.intent);
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
     ...trimmed,
+    ...(fxRate || relation ? { headline: relationHeadline(trimmed.headline, ctx.evidence) } : {}),
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
     dataGaps: [...trimmed.dataGaps, ...(scope ? [scopeGap(scope)] : []), ...gaps],
   };
