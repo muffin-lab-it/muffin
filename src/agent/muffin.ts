@@ -331,7 +331,9 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
     ...trimmed,
-    ...(fxRate || relation ? { headline: relationHeadline(trimmed.headline, ctx.evidence) } : {}),
+    // 관계 질문의 한 줄은 꼬리를 떼기 전의 원래 문장으로 판단합니다. 뗀 뒤에는 "금리 차이는 환율에 영향을 줄 수 있어요." 처럼 숫자 없는 일반론만 남아
+    // 바꿀 조건에 걸리지 않았습니다 (11/22 운영 14번)
+    ...(fxRate || relation ? { headline: relationHeadline(applied.output.headline, ctx.evidence) } : {}),
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
     dataGaps: [...trimmed.dataGaps, ...(scope ? [scopeGap(scope)] : []), ...gaps],
   };

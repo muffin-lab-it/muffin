@@ -125,7 +125,9 @@ describe("환율과 금리의 관계 질문 (11/22)", () => {
     const out = withFxRateNumbers(output([{ label: "원/달러 환율", value: "1,335.94원", change: "30일 +0.87%", asOf: "2026-11-22", ref: "E6" }]), evidence);
     expect(out.numbers.map((n) => [n.label, n.change, n.ref])).toEqual([["달러당 원화 환율", "1년 -9.27%", "E5"], ["한국은행 기준금리", "1년 +0.50%p", "E3"], ["미국 실효 연방기금금리", "1년 변동 없음", "E7"]]);
     expect(relationHeadline("금리 차이는 환율에 영향을 줄 수 있지만, 이번 자료만으로 인과관계를 단정할 수는 없어요", evidence)).toBe("지난 1년 원/달러 환율은 9.27% 내렸고, 한국 금리는 0.50%p 올랐고, 미국 금리는 그대로였어요.");
-    expect(relationHeadline("지난 1년 환율은 내렸어요.", evidence)).toBe("지난 1년 환율은 내렸어요.");
+    expect(relationHeadline("지난 1년 환율은 9.27% 내렸어요.", evidence)).toBe("지난 1년 환율은 9.27% 내렸어요.");
+    // 숫자 없는 일반론도 바꾼다 (11/22 운영 14번)
+    expect(relationHeadline("금리 차이는 환율에 영향을 줄 수 있어요.", evidence)).toContain("9.27% 내렸고");
     expect(relationHeadline(null, [now, before, year])).toBe("지난 1년 물가 상승률은 2.38%에서 2.82%로, 기준금리는 2.5%에서 3%로 움직였어요.");
   });
 });
