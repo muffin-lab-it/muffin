@@ -92,6 +92,8 @@ export type ResearchResult = {
   steps: ToolStep[];
   /** 검증 실패로 작성 Agent 가 다시 쓴 횟수 (최대 1) */
   rewrites: number;
+  /** 첫 초안이 검증에 걸린 이유 (다시 쓰기가 돌았을 때만, 줄마다 200자까지). 실행 로그에 남겨 다시 쓰기 원인을 세려고 둡니다 (11/22) */
+  rewriteReasons?: string[];
   /** 📋 분류 결과와 모드. 평가(의도 일치) · 로그용. 리포트에는 mode 만 들어갑니다 */
   plan: PlanOutput & { mode: ReportMode };
   /** ✂️ 정제 결과. 실패 · 건너뜀이면 null. 평가에서 뺀 항목을 볼 때 씁니다 (리포트에는 들어가지 않음) */
@@ -311,6 +313,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   let result = verify(output, ctx.evidence);
   let revisions = 0;
   const revisionSkipped = !result.ok && Date.now() + REVISION_RESERVE_MS > deadline;
+  // 첫 초안이 걸린 이유. 다시 쓰기가 돌든 건너뛰든 로그에 남깁니다
+  const rewriteReasons = result.ok ? undefined : result.failures.map((f) => (f.length > 200 ? `${f.slice(0, 200)}…` : f));
   if (!result.ok && !revisionSkipped) {
     revisions = 1;
     const reviseCtx = new RunContext(ctx);
@@ -351,6 +355,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     }),
     steps: ctx.steps,
     rewrites: revisions,
+    ...(rewriteReasons ? { rewriteReasons } : {}),
     plan,
     facts,
     edit: summarizeEdit(facts, reversed.size),

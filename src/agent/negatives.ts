@@ -39,9 +39,21 @@ export function dropUnaskedCause(summary: string, intent: Intent | undefined, ha
   return out.trim().length > 0 ? out : summary;
 }
 
+/**
+ * 내부 용어가 앞에 붙은 구절을 뗍니다. 작성이 지시문의 말을 그대로 옮겨 "장부의 계산 결과 기준 …" 처럼 쓰는 일이 있습니다 (11/22).
+ * 사용자는 "장부" 가 무엇인지 모릅니다. 문장 뜻은 그대로 두고 그 머리 구절만 뺍니다.
+ */
+export function dropInternalPhrases(text: string): string {
+  return text
+    .replace(/(?:증거\s*)?장부(?:의|에\s*있는|상의?|에서)?\s*(?:계산\s*결과|계산값|값|자료)?\s*(?:기준(?:으로)?|에\s*따르면|로\s*보면)\s*,?\s*/g, "")
+    .replace(/(?:증거\s*)?장부(?:의|에\s*있는|에서)\s*/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /** 검증 뒤의 출력에 두 정리를 적용합니다. 바뀐 것이 없으면 받은 그대로 돌려줍니다 */
 export function trimNegatives(output: WriterOutput, intent: Intent | undefined): WriterOutput {
-  const headline = output.headline ? trimHeadline(output.headline) : output.headline;
-  const summary = dropUnaskedCause(output.summary, intent, output.why.length > 0);
+  const headline = output.headline ? dropInternalPhrases(trimHeadline(output.headline)) : output.headline;
+  const summary = dropInternalPhrases(dropUnaskedCause(output.summary, intent, output.why.length > 0));
   return headline === output.headline && summary === output.summary ? output : { ...output, headline, summary };
 }
