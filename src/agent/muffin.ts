@@ -36,7 +36,7 @@ import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE,
 import { measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
-import { rescueScope, scopeGap, scopeNote } from "./scope-rescue";
+import { dropOffTopic, ensureMentioned, mentionedTools, offTopicGap, offTopicNote, offTopicParts, rescueScope, scopeGap, scopeNote } from "./scope-rescue";
 import { trimGapInputs, trimRepeats } from "./trim";
 import { applyVerification, summarizeVerification, verify } from "./verify";
 import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
@@ -185,7 +185,15 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 판단 요청은 사거나 팔거나 투자할지를 물을 때만입니다. 분류가 "금리 오르면 내 대출 이자 어떻게 돼?" 같은 생활 영향 질문을 판단 요청으로 보내면
   // "투자 판단을 대신하지 않아요" 안내가 엉뚱하게 붙으므로 현황 질문으로 돌립니다 (11/21 점검)
   const settledPlan = rescuedPlan.intent === "decision" && !DECISION_WORDS.test(question) ? { ...rescuedPlan, intent: "status" as const } : rescuedPlan;
-  const plan = { ...normalizePlan(settledPlan, question, area), mode: modeFor(settledPlan.intent) };
+  const normalized = normalizePlan(settledPlan, question, area);
+  // 질문에 이름이 나온 영역(환율 · 금리 · 물가)의 tool 은 분류가 빠뜨려도 조사에 줍니다 (11/22 QA: "미국 여행 갈 때 환율이 무슨 의미인지" 에 환율 tool 이 빠져 "환율 자료가 없어요")
+  const plan = {
+    ...normalized,
+    ...(settledPlan.intent === "out_of_scope" ? {} : { tools: [...new Set([...normalized.tools, ...mentionedTools(question).filter((t) => t !== areaTools.news)])] }),
+    mode: modeFor(settledPlan.intent),
+  };
+  // 금융 질문에 섞인 범위 밖 부탁("그리고 오늘 저녁 메뉴도 추천해줘")은 답하지 않고 그렇다고 밝힙니다 (scope-rescue.ts)
+  const offTopic = plan.mode === "out_of_scope" ? null : offTopicParts(question);
   emit({ type: "plan", intent: plan.intent, mode: plan.mode, tools: plan.tools });
   emit({ type: "stage", stage: "plan", status: "done" });
 
@@ -229,6 +237,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 환율과 금리의 관계 질문이면 1년 비교 자료를, 돈의 가치 질문이면 물가 · 환율을 채웁니다 (relation.ts · money-value.ts)
   await ensureFxRate(ctx, question, muffinTools);
   const moneyValue = await ensureMoneyValue(ctx, question, muffinTools);
+  // 질문이 이름을 댄 영역(환율 · 금리 · 물가)을 조사가 건너뛰었으면 기본 입력으로 채웁니다 (scope-rescue.ts)
+  const mentioned = await ensureMentioned(ctx, question, muffinTools);
   // 질문에 적힌 가상의 숫자("3%에서 4%로")는 코드가 계산해 계산 항목으로 올립니다 (example-calc.ts)
   const example = addExampleCalc(ctx, question);
   await ensureRateYear(ctx, muffinTools, question);
@@ -278,6 +288,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     ...(relation ? Object.values(relation).map((e) => e.id) : []),
     ...(fxRate ? Object.values(fxRate).map((e) => e.id) : []),
     ...(moneyValue ? moneyValueRows(ctx.evidence).map((e) => e.id) : []),
+    ...mentioned,
   ]);
   for (const id of ensured) rescued.add(id);
   const writerFacts = withEnsuredFacts(facts, ctx.evidence, ensured);
@@ -289,7 +300,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", fxRate ? fxRateNote(ctx.evidence) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", fxRate ? fxRateNote(ctx.evidence) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -331,7 +342,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 환율 자료를 썼으면 어떤 환율인지(포털 · 은행 앱과 다를 수 있음)를 코드가 "주의점" 에 적습니다
   // 같은 한계를 주의점 · 확인하지 못한 것에 되풀이한 줄을 줄입니다 (src/agent/trim.ts). 코드가 넣는 줄은 그 뒤에 붙여 줄어들지 않습니다
   // 한 줄 요약 끝의 "…지만 확인되지 않아요" 와, 원인을 묻지 않은 질문의 "원인은 확인할 수 없어요" 문장을 뗍니다 (src/agent/negatives.ts)
-  const trimmed = trimNegatives(trimRepeats(applied.output), plan.intent);
+  const trimmed = trimNegatives(trimRepeats(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output), plan.intent);
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
     ...trimmed,
@@ -339,7 +350,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     // 바꿀 조건에 걸리지 않았습니다 (11/22 운영 14번)
     ...(fxRate || relation ? { headline: relationHeadline(applied.output.headline, ctx.evidence) } : {}),
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
-    dataGaps: [...trimmed.dataGaps, ...(scope ? [scopeGap(scope)] : []), ...gaps],
+    // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
+    dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
   };
 
   return {

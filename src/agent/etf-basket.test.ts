@@ -24,6 +24,7 @@ describe("종목을 정하지 않은 ETF 질문 (11/21)", () => {
     expect(isGeneralEtfQuestion("배당 ETF 추천해줘")).toBe(false);
     expect(isGeneralEtfQuestion("etf가 뭐야?")).toBe(false);
     expect(isGeneralEtfQuestion("최근 1년 ETF 어때?")).toBe(false);
+    expect(isGeneralEtfQuestion("환율이 이제 내려갔잖아 그럼 앞으로 etf는 뭘 사면 좋을까??? 난 2030 직장인이야 보통 무엇을사지??")).toBe(true);
     expect(isGeneralEtfQuestion("환율 왜 올랐어?")).toBe(false);
   });
 

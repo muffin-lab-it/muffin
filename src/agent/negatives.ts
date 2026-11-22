@@ -51,9 +51,23 @@ export function dropInternalPhrases(text: string): string {
     .trim();
 }
 
+/**
+ * 판단 요청 리포트의 요약 · 한 줄이 "매수 여부는 대신 결정할 수 없지만, …" 으로 시작하면 그 앞 구절을 뗍니다.
+ * 화면 맨 위에 "투자 판단을 대신하지 않아요" 안내가 이미 있어 같은 말이 두 번 나옵니다 (11/22 QA). 그 말뿐인 첫 문장은 통째로 뺍니다.
+ */
+const DISCLAIMER = /(?:대신\s*(?:결정|판단)(?:해\s*드릴|할|하지)?\s*(?:수\s*없|않)|대신할\s*수\s*없|대신하지\s*않|판단은\s*(?:본인|사용자|직접)|결정은\s*(?:본인|사용자|직접))/;
+export function dropDecisionDisclaimer(text: string): string {
+  const lead = /^([^.!?]{0,60}?)(?:지만|으나|는데)\s*,?\s*/.exec(text);
+  if (lead && DISCLAIMER.test(lead[1]!)) return text.slice(lead[0].length);
+  const first = /^[^.!?]*[.!?]\s*/.exec(text);
+  if (first && DISCLAIMER.test(first[0]) && !/\d/.test(first[0]) && text.length > first[0].length) return text.slice(first[0].length);
+  return text;
+}
+
 /** 검증 뒤의 출력에 두 정리를 적용합니다. 바뀐 것이 없으면 받은 그대로 돌려줍니다 */
 export function trimNegatives(output: WriterOutput, intent: Intent | undefined): WriterOutput {
-  const headline = output.headline ? dropInternalPhrases(trimHeadline(output.headline)) : output.headline;
-  const summary = dropInternalPhrases(dropUnaskedCause(output.summary, intent, output.why.length > 0));
+  const decision = (t: string) => (intent === "decision" ? dropDecisionDisclaimer(t) : t);
+  const headline = output.headline ? decision(dropInternalPhrases(trimHeadline(output.headline))) : output.headline;
+  const summary = decision(dropInternalPhrases(dropUnaskedCause(output.summary, intent, output.why.length > 0)));
   return headline === output.headline && summary === output.summary ? output : { ...output, headline, summary };
 }
