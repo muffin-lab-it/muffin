@@ -486,7 +486,7 @@ export function swingNote(m: Movement, calcId: string): string {
     `- ${m.pair} 는 ${m.period.from} → ${m.period.to} 동안 하루 평균 ${d.avgPct.toFixed(2)}%씩 움직였습니다 (하루 변화의 크기 평균). 직전 ${BASELINE_DAYS}일에는 하루 평균 ${d.baselineAvgPct.toFixed(2)}% 라 평소의 ${d.ratio.toFixed(2)}배, ${d.ratio < CALM_RATIO ? "평소보다 잔잔한 편" : SWING_TEXT[d.level]}입니다.`,
     `- 가장 크게 움직인 날: ${d.max.date} (${max.getUTCMonth() + 1}월 ${max.getUTCDate()}일) ${signedPct(d.max.pct)}. 평소 하루 움직임의 2배를 넘은 날: ${d.count}일 중 ${d.bigDays}일.`,
     `- summary 첫 문장과 headline 은 이 하루 변동 폭으로 답합니다 ("하루 평균 ○%씩 움직여 평소의 ○배"). 위 [움직임 크기] 의 "summary 첫 문장" 지시보다 이 지시가 우선합니다.`,
-    `- 둘째 문장에서 30일 전체 변화([움직임 크기])를 덧붙이고, 두 값이 다를 수 있다는 점을 한 문장으로 설명합니다 (전체로는 조금 변했어도 하루하루는 크게 오르내릴 수 있고, 그 반대도 있음).`,
+    `- 둘째 문장에서 이번 기간(${m.period.days}일) 전체 변화([움직임 크기])를 덧붙이고, 두 값이 다를 수 있다는 점을 한 문장으로 설명합니다 (전체로는 조금 변했어도 하루하루는 크게 오르내릴 수 있고, 그 반대도 있음).`,
     d.level === "normal"
       ? `- 하루하루 움직임도 평소 수준이면 그렇게 답합니다. 체감과 다를 수 있는 이유로, 이 자료는 하루 한 번 집계되는 기준 환율이라 장중에 오르내린 폭은 들어 있지 않다는 점을 한 번 씁니다.`
       : `- 평소보다 크게 출렁였으면, 가장 크게 움직인 날 무렵의 보도가 장부에 있을 때만 "○○ 보도에 따르면" 으로 배경을 씁니다. 근거가 없으면 원인을 짐작하지 않습니다.`,

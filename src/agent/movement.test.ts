@@ -414,6 +414,9 @@ describe("하루 단위 출렁임 (11/23)", () => {
     expect(note).toContain("하루 평균 0.17%씩 움직였습니다");
     expect(note).toContain("평소의 0.74배, 평소보다 잔잔한 편입니다");
     expect(note).toContain("2026-11-06 (11월 6일) +0.68%");
+    // 기간은 잰 기간 그대로 (#141 Codex 리뷰: "최근 3개월" 질문에 30일이라고 쓰지 않게)
+    expect(note).toContain("이번 기간(30일) 전체 변화");
+    expect(swingNote({ ...(m as object), period: { from: "2026-08-24", to: "2026-11-22", days: 90 } } as never, "C1")).toContain("이번 기간(90일) 전체 변화");
     expect(swingNote({ ...(m as object), daily: undefined } as never, "C1")).toBe("");
   });
 
