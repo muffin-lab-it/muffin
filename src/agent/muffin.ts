@@ -340,7 +340,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     if (basket) out = withBasketNumbers(out, ctx.evidence);
     if (example) out = withExampleNumbers(out, example);
     if (movement && swing) out = withSwingNumbers(out, movement, movementId);
-    return mergeSameCards(dropNewsCards(out, ctx.evidence));
+    return mergeSameCards(dropNewsCards(out, ctx.evidence), ctx.evidence);
   };
   let output = indexed(await runWriter(writer, input, writeCtx));
   addUsage(writeCtx, "write");
