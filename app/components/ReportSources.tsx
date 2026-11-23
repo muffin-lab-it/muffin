@@ -67,7 +67,7 @@ export function ReportSources({ report }: { report: Report }) {
     {groups.length > 1 && <div className="source-chips" role="group" aria-label="자료 주제 선택">
       {groups.map(group => <button type="button" key={group} aria-pressed={active === group} onClick={() => scope?.select(group)}>{group}</button>)}
     </div>}
-    {groups.length === 0 && <p className="report-muted">연결된 자료가 없습니다.</p>}
+    {groups.length === 0 && <p className="report-muted">연결된 자료가 없어요.</p>}
     {groups.map(group => <div className="source-panel" key={group} data-source-group={group} hidden={active !== group}>
       <div className="source-panel-heading"><h3>{group}</h3></div>
       {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {formatDateKo(source.asOf) || "미제공"}</li>)}</ul> : <div className="source-data-grid">

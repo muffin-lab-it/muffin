@@ -102,3 +102,32 @@ describe("1년 차트 (11/23 백엔드 #144 관계 질문)", () => {
     expect(roParticle("1,333")).toBe("으로");
   });
 });
+
+describe("막대 차트 · 비율 선 차트 (11/23)", () => {
+  const etf = (label: string, ref: string, v: number) => ({ label, ref, points: [{ t: "2026-11-20", v }] });
+  it("시리즈마다 막대 하나, 0 기준 색 · 부호, 가장 높은 · 낮은 것", () => {
+    const chart = { kind: "bar" as const, title: "대표 ETF 최근 30일 가격 수익률", unit: "%", series: [etf("KODEX 200 (국내 대형주)", "E3", -15.06), etf("ACE 국고채10년 (국내 국채)", "E7", 2.71), etf("KODEX 코스닥150 (국내 코스닥)", "E4", -21.1)] };
+    const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
+    expect($(".chart-svg")).toHaveLength(0);
+    expect($(".bar-rows li")).toHaveLength(3);
+    expect($(".bar-value").map((_, el) => $(el).text()).get()).toEqual(["−15.06%", "+2.71%", "−21.1%"]);
+    expect($(".bar-fill").eq(1).attr("class")).toContain("tone-up");
+    expect($(".bar-fill").eq(0).attr("class")).toContain("tone-down");
+    expect($(".chart-summary").text()).toContain("가장 높은 것은 ACE 국고채10년 (국내 국채) +2.71%, 가장 낮은 것은 KODEX 코스닥150 (국내 코스닥) −21.1%예요.");
+    expect($(".chart-summary").text()).toContain("2026년 11월 20일 기준이에요.");
+  });
+  it("비율(%) 선 차트는 %p 로 변화를 말하고 월별 점은 '2026년 10월'", () => {
+    const months = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
+    const chart = { kind: "line" as const, title: "한국 소비자물가 상승률 (전년 같은 달 대비)", unit: "%", series: [{ label: "한국 CPI", ref: "E1", points: months.map((t, i) => ({ t, v: Number((2.38 + i * 0.04).toFixed(2)) })) }] };
+    const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
+    const text = $.text();
+    expect(text).toContain("한국 소비자물가 상승률이 2.38%에서 2.82%로 0.44%p 올랐어요");
+    expect(text).toContain("2025년 11월부터 2026년 10월까지 1년간의 한국 소비자물가 상승률 변화 그래프예요. 단위는 %예요.");
+    expect(text).toContain("그달 값이 보여요");
+    expect($("svg").attr("aria-label")).toContain("(+0.44%p)");
+    const axis = $(".chart-axis text").map((_, el) => $(el).text()).get();
+    expect(axis[0]).toBe("25.11");
+    expect(axis[axis.length - 1]).toBe("26.10");
+    expect($(".chart-grid text").first().text()).toMatch(/%$/);
+  });
+});

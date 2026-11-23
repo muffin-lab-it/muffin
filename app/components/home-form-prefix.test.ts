@@ -24,3 +24,15 @@ describe("질문 글자 수 (11/21 QA-09)", () => {
     expect(questionAllowance(["fx", "etf"])).toBe(500 - prefix);
   });
 });
+
+describe("다섯 영역 모두 고르기 (11/23 외부 1번 G1)", () => {
+  it("다섯 번째 영역을 고르면 Auto(빈 선택)로 돌아가고 안내가 바뀐다", async () => {
+    const { toggleHomeArea, areaHint } = await import("./home-form");
+    expect(toggleHomeArea(["fx", "etf", "news", "rate"], "macro")).toEqual([]);
+    expect(toggleHomeArea(["fx", "etf"], "rate")).toEqual(["fx", "etf", "rate"]);
+    expect(areaHint([], true)).toContain("Auto 머핀과 같아서 Auto 로 바꿨어요");
+    expect(areaHint([], false)).toContain("Auto 머핀은 질문을 보고");
+    expect(areaHint(["fx"], false)).toBe("환율 자료를 중심으로 리포트를 만들어요.");
+    expect(areaHint(["fx", "rate"], false)).toContain("환율 · 금리 자료를 함께 살펴보고");
+  });
+});

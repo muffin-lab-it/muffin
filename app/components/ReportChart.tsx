@@ -59,11 +59,70 @@ export function nearestIndex(xs: number[], x: number): number {
 const TIP_W = 170;
 const TIP_H = 28;
 
+/** 월 단위 점("2026-10")은 그달 1일로 둡니다 (물가 상승률 추이 같은 월별 차트, 11/23) */
+const normT = (t: string) => (/^\d{4}-\d{2}$/.test(t) ? `${t}-01` : t);
+/** 값이 비율(%)인 차트: 변화는 %p 차이로 말하고 눈금 · 값에 % 를 붙입니다 */
+export const isRateUnit = (unit: string | undefined) => (unit ?? "").trim() === "%";
+const signed = (v: number, suffix: string) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${suffix}`;
+
+/**
+ * 막대 차트 (11/23 백엔드 요청: 대표 ETF 비교 등). 시리즈가 여럿이면 시리즈마다 막대 하나(마지막 점의 값),
+ * 하나뿐이면 점마다 막대 하나. 값은 장부 그대로이고 0 을 기준으로 오른쪽(오름 · 빨강) · 왼쪽(내림 · 파랑)으로 그립니다.
+ */
+export function BarChart({ chart }: { chart: Chart }) {
+  const rate = isRateUnit(chart.unit);
+  const monthly = chart.series.length === 1 && chart.series[0]!.points.every((p) => /^\d{4}-\d{2}(-01)?$/.test(p.t));
+  const bars = chart.series.length > 1
+    ? chart.series.flatMap((s) => { const lastPoint = s.points.at(-1); return lastPoint ? [{ key: `${s.ref}-${s.label}`, label: s.label, v: lastPoint.v, t: normT(lastPoint.t) }] : []; })
+    : (chart.series[0]?.points ?? []).map((p) => { const t = normT(p.t); return { key: t, label: monthly ? `${t.slice(0, 4)}년 ${Number(t.slice(5, 7))}월` : `${t.slice(0, 4)}년 ${longDate(t)}`, v: p.v, t }; });
+  if (bars.length < 2) return null;
+  const fmt = (v: number) => (rate ? signed(v, "%") : `${fmtValue(v)}${chart.unit && chart.unit !== "%" ? ` ${chart.unit}` : ""}`);
+  const min = Math.min(0, ...bars.map((b) => b.v));
+  const max = Math.max(0, ...bars.map((b) => b.v));
+  const span = max - min || 1;
+  const zero = ((0 - min) / span) * 100;
+  const top = bars.reduce((a, b) => (b.v > a.v ? b : a));
+  const bottom = bars.reduce((a, b) => (b.v < a.v ? b : a));
+  const sameDate = chart.series.length > 1 && bars.every((b) => b.t === bars[0]!.t);
+  const tone = (v: number) => (v > 0 ? "tone-up" : v < 0 ? "tone-down" : "tone-flat");
+  return (
+    <figure className="chart chart-bar">
+      <figcaption><b>{chart.title}</b></figcaption>
+      <ul className="bar-rows">
+        {bars.map((b) => {
+          const left = b.v >= 0 ? zero : ((b.v - min) / span) * 100;
+          const width = (Math.abs(b.v) / span) * 100;
+          return (
+            <li key={b.key}>
+              <span className="bar-label">{b.label}</span>
+              <span className="bar-track" aria-hidden="true">
+                <span className="bar-zero" style={{ left: `${zero}%` }} />
+                <span className={`bar-fill ${tone(b.v)}`} style={{ left: `${left}%`, width: `${Math.max(width, b.v === 0 ? 0 : 0.8)}%` }} />
+              </span>
+              <b className={`bar-value ${rate ? tone(b.v) : ""}`}>{fmt(b.v)}</b>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="chart-summary">
+        <p>
+          <strong>가장 높은 것은 {top.label} {fmt(top.v)}, 가장 낮은 것은 {bottom.label} {fmt(bottom.v)}예요.</strong>
+          <span className="chart-period">{sameDate ? `${bars[0]!.t.slice(0, 4)}년 ${longDate(bars[0]!.t)} 기준이에요. ` : ""}{rate ? "0 을 기준으로 오른쪽은 오름, 왼쪽은 내림이에요." : "값을 나란히 놓고 비교해 보세요."}</span>
+        </p>
+      </div>
+    </figure>
+  );
+}
+
 export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const [hover, setHover] = useState<number | null>(null);
+  if (chart.kind === "bar") return <BarChart chart={chart} />;
   const series = chart.series[0];
   if (!series || series.points.length < 2) return null;
-  const points = series.points;
+  const monthly = series.points.every((p) => /^\d{4}-\d{2}(-01)?$/.test(p.t)) && series.points.length >= 3;
+  const points = series.points.map((p) => ({ ...p, t: normT(p.t) }));
+  const rate = isRateUnit(chart.unit);
+  const valueText = (v: number) => `${fmtValue(v)}${rate ? "%" : ""}`;
   const xs = points.map((p) => day(p.t));
   const x0 = Math.min(...xs);
   const x1 = Math.max(...xs);
@@ -83,7 +142,8 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const from = (band && points.find((p) => p.t >= band.from)) || first;
   const ticks = [y0 + margin, (y0 + y1) / 2, y1 - margin];
   const events = (chart.events ?? []).filter((e) => day(e.at) >= x0 && day(e.at) <= x1);
-  const change = from.v ? ((last.v / from.v - 1) * 100).toFixed(2) : null;
+  const change = rate ? (last.v - from.v).toFixed(2) : from.v ? ((last.v / from.v - 1) * 100).toFixed(2) : null;
+  const changeUnit = rate ? "%p" : "%";
   // 환율 차트는 통화마다 제목이 다르니(JPY(100)/KRW 최근 30일) 단위로 알아봅니다. 11/19 페르소나 테스트: 엔화 차트 설명에 "지표 이" 가 나옴
   const fxLabel = fxUnitLabel(chart.unit);
   const subject = fxLabel || /\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : /지수|코스피|코스닥|S&P|나스닥|다우/i.test(`${chart.title} ${chart.unit ?? ""}`) ? "지수" : "지표";
@@ -92,13 +152,16 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   // 1년 차트(11/23 백엔드 #144 관계 질문): 양 끝이 "11/20 · 11/20" 처럼 같아 보이지 않게 해가 바뀌면 연도를 붙입니다
   const spanDays = Math.round(x1 - x0);
   const multiYear = first.t.slice(0, 4) !== last.t.slice(0, 4);
-  const dateY = (t: string) => (multiYear ? `${t.slice(0, 4)}년 ${longDate(t)}` : longDate(t));
-  const axisDate = (t: string) => (multiYear ? `${t.slice(2, 4)}.${Number(t.slice(5, 7))}.${Number(t.slice(8, 10))}` : fmtDate(t));
-  const periodText = spanDays >= 350 && spanDays <= 380 ? "1년간" : spanDays > 62 ? `약 ${Math.round(spanDays / 30.4)}개월간` : `${spanDays}일간`;
+  const dateY = (t: string) => (monthly ? `${t.slice(0, 4)}년 ${Number(t.slice(5, 7))}월` : multiYear ? `${t.slice(0, 4)}년 ${longDate(t)}` : longDate(t));
+  const axisDate = (t: string) => (monthly ? (multiYear ? `${t.slice(2, 4)}.${Number(t.slice(5, 7))}` : `${Number(t.slice(5, 7))}월`) : multiYear ? `${t.slice(2, 4)}.${Number(t.slice(5, 7))}.${Number(t.slice(8, 10))}` : fmtDate(t));
+  // 월별 점은 달 수를 그대로 셉니다 (2025년 11월 ~ 2026년 10월 = 12개월 = 1년간)
+  const monthCount = (Number(last.t.slice(0, 4)) - Number(first.t.slice(0, 4))) * 12 + Number(last.t.slice(5, 7)) - Number(first.t.slice(5, 7)) + 1;
+  const periodText = monthly ? (monthCount === 12 ? "1년간" : `${monthCount}개월간`) : spanDays >= 350 && spanDays <= 380 ? "1년간" : spanDays > 62 ? `약 ${Math.round(spanDays / 30.4)}개월간` : `${spanDays}일간`;
   const ticksX = monthTicks(first.t, last.t, sx, PAD.left, W - PAD.right);
   // 지수 차트는 제목 앞의 지수 이름을 씁니다 ("코스피 2025-11-20 ~ 2026-11-20" → 코스피)
-  const name = subject === "지수" ? chart.title.replace(/\s*\d{4}-\d{2}-\d{2}.*$/, "").trim() || null : null;
-  const lead = name ? `${name} 지수가` : subjectWithParticle;
+  const titleName = chart.title.replace(/\s*\(.*$/, "").replace(/\s*\d{4}-\d{2}(-\d{2})?.*$/, "").trim() || null;
+  const name = subject === "지수" || rate ? titleName : null;
+  const lead = name ? (subject === "지수" && !rate ? `${name} 지수가` : `${name}${particle(name)}`) : subjectWithParticle;
   const tipWidth = multiYear ? 210 : TIP_W;
   const pointXs = points.map((p) => sx(p.t));
   // 화면 좌표 → 뷰박스 좌표. SVG 가 넓은 칸 가운데 놓이면 가로 여백이 생기므로 너비 비율이 아니라 변환 행렬로 바꿉니다 (Codex 리뷰)
@@ -110,10 +173,10 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
     setHover(nearestIndex(pointXs, point.x));
   };
   const hovered = hover === null ? null : points[hover] ?? null;
-  const tipText = hovered ? `${dateY(hovered.t)} · ${fmtValue(hovered.v)}` : null;
+  const tipText = hovered ? `${dateY(hovered.t)} · ${valueText(hovered.v)}` : null;
   const tipX = hovered ? sx(hovered.t) : 0;
   const tipLeft = tipX + 12 + tipWidth > W - PAD.right ? tipX - 12 - tipWidth : tipX + 12;
-  const summary = `${chart.title}: ${axisDate(from.t)} ${fmtValue(from.v)} 에서 ${axisDate(last.t)} ${fmtValue(last.v)}${change ? ` (${Number(change) >= 0 ? "+" : ""}${change}%)` : ""}${band ? `. ${band.label}: ${fmtValue(band.low)}~${fmtValue(band.high)}` : ""}${events.length ? `. 뉴스 ${events.length}건 표시` : ""}`;
+  const summary = `${chart.title}: ${dateY(from.t)} ${valueText(from.v)} 에서 ${dateY(last.t)} ${valueText(last.v)}${change ? ` (${Number(change) >= 0 ? "+" : ""}${change}${changeUnit})` : ""}${band ? `. ${band.label}: ${fmtValue(band.low)}~${fmtValue(band.high)}` : ""}${events.length ? `. 뉴스 ${events.length}건 표시` : ""}`;
 
   return (
     <figure className="chart">
@@ -132,14 +195,14 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
         {ticks.map((v) => (
           <g key={v} className="chart-grid">
             <line x1={PAD.left} x2={W - PAD.right} y1={sy(v)} y2={sy(v)} />
-            <text x={PAD.left - 6} y={sy(v) + 4} textAnchor="end">{fmtValue(v)}</text>
+            <text x={PAD.left - 6} y={sy(v) + 4} textAnchor="end">{valueText(v)}</text>
           </g>
         ))}
         {ticksX.map((t) => <line key={t} className="chart-month-line" x1={sx(t)} x2={sx(t)} y1={PAD.top} y2={H - PAD.bottom} />)}
         <path d={path} className={points.length > 120 ? "chart-line chart-line-dense" : "chart-line"} />
         <circle cx={sx(last.t)} cy={sy(last.v)} r={4} className="chart-last" />
         {/* 마지막 점은 늘 오른쪽 끝이라 라벨을 점 왼쪽 위에 끝 맞춤 (휴대폰에서 글씨가 커지면 "4,870" 이 잘리던 것) */}
-        <text x={sx(last.t) - 8} y={sy(last.v) - 10} textAnchor="end" className="chart-last-label">{fmtValue(last.v)}</text>
+        <text x={sx(last.t) - 8} y={sy(last.v) - 10} textAnchor="end" className="chart-last-label">{valueText(last.v)}</text>
         {/* 마우스 · 손가락 위치를 받는 투명 판. 뉴스 점은 이 위에 그려 제목 풍선이 살아 있습니다 */}
         <rect className="chart-hover-target" x={PAD.left} y={PAD.top} width={W - PAD.left - PAD.right} height={H - PAD.top - PAD.bottom} fill="transparent"
           onMouseMove={(event) => locate(event.clientX, event.clientY, event.currentTarget.ownerSVGElement)}
@@ -173,9 +236,9 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
           <text x={W - PAD.right} y={H - 28} textAnchor="end">{axisDate(last.t)}</text>
         </g>
       </svg>
-      <p className="chart-hover-text" aria-live="polite">{tipText ?? "선 위에 마우스를 올리거나 손가락으로 짚으면 그날 값이 보여요."}</p>
+      <p className="chart-hover-text" aria-live="polite">{tipText ?? `선 위에 마우스를 올리거나 손가락으로 짚으면 ${monthly ? "그달" : "그날"} 값이 보여요.`}</p>
       <div className="chart-summary">
-        <p><strong>{lead} {fmtValue(from.v)}에서 {fmtValue(last.v)}{roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}의 {name ?? subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : `${unitLabel} 기준으로 표시했어요.`}</span></p>
+        <p><strong>{lead} {valueText(from.v)}에서 {valueText(last.v)}{rate ? "로" : roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}${changeUnit} ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}의 {name ?? subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : rate ? "단위는 %예요." : `${unitLabel} 기준으로 표시했어요.`}</span></p>
         {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
       {events.length > 0 && (
         <ul className="chart-events">

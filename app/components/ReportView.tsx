@@ -162,7 +162,8 @@ export function ReportView({
   // 도구 표는 리포트에서 빼고(11/20 QA 7 · 하니 5, 전체 표는 /admin) 저장본 · 실패 · 호출 생략만 주의점 옆에 메모로 남깁니다
   // 백엔드가 "확인하지 못한 것" 에 이미 적은 tool(저장된 응답 사용 줄, src/agent/report.ts)은 메모에서 뺍니다 (11/23 운영: 같은 말이 두 번)
   const mentioned = (tool: string) => [...report.caveats, ...report.dataGaps].some(line => line.startsWith(`${labelFor(tool)}:`));
-  const toolNotes = (steps ?? []).filter(step => (step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open") && !mentioned(step.tool));
+  // 계산 도구 실패는 자료를 못 받은 게 아니라 내부 계산이 안 된 것이라 보여 주지 않습니다 (11/23 재점검: "계산: 확인하지 못했어요 (데이터를 확인하지 못했습니다.)")
+  const toolNotes = (steps ?? []).filter(step => (step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open") && !mentioned(step.tool) && !/^calc_/.test(step.tool));
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
@@ -229,8 +230,11 @@ export function ReportView({
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>
                   {source && <span className="metric-source">{source.name}</span>}
-                  {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference>}
-                  <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                  {/* '근거 보기' 와 검사 배지는 한 덩어리로 줄을 넘깁니다. 출처 이름이 길면(FRED 전체 이름) 배지만 혼자 다음 줄로 떨어지던 것 (11/23 #147 참고 카드 확인) */}
+                  <span className={styles.metricActions}>
+                    {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference>}
+                    <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                  </span>
                 </div>
                 {basis && <small className="metric-basis">{basis}</small>}
               </EvidenceOrigin>
@@ -283,11 +287,11 @@ export function ReportView({
 
           {report.charts && report.charts.length > 0 && (
             <section>
-              <h2>숫자의 변화 추이</h2>
+              <h2>{report.charts.every(c => c.kind === "bar") ? "숫자 한눈에 비교" : "숫자의 변화 추이"}</h2>
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
               ))}
-              <p className="section-guide">날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요.</p>
+              <p className="section-guide">{report.charts.every(c => c.kind === "bar") ? "항목별 값을 나란히 놓고 비교해 보세요." : "날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요."}</p>
             </section>
           )}
         </div>
@@ -313,7 +317,7 @@ export function ReportView({
 
         {toolNotes.length > 0 && <section className="report-tools"><h2>자료 확인 메모</h2>
           <ul>{toolNotes.map((step, i) => <li key={i}>{labelFor(step.tool)}: {step.status === "error"
-            ? `확인하지 못했어요${step.error ? ` (${step.error})` : ""}`
+            ? `자료를 받지 못했어요${/timeout|시간|초과/i.test(step.error ?? "") ? " (응답 시간 초과)" : ""}`
             : step.breaker === "open" ? "잠시 호출을 쉬고 있어 이번에는 부르지 않았어요"
             : `${formatAge(step.fallbackAgeMs ?? 0)} 전에 저장해 둔 응답을 썼어요`}</li>)}</ul>
         </section>}

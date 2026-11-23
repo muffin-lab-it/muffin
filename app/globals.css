@@ -219,3 +219,22 @@ button.ghost:hover { color: var(--up); }
 .depth-chip[data-depth="easy"] { background:#f3f4f6; border-color:#dce0e5; color:#4b5563; }
 .depth-chip[data-depth="standard"] { background:#d1d5db; border-color:#b4bbc5; color:#374151; }
 .depth-chip[data-depth="deep"] { background:#4b5563; border-color:#374151; color:#ffffff; }
+
+/* 11/23 막대 차트 (대표 ETF 비교 등): 이름 · 막대 · 값 한 줄, 0 기준 오른쪽 오름(빨강) · 왼쪽 내림(파랑). 휴대폰은 이름 · 값 위, 막대 아래 */
+.bar-rows { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.bar-rows li { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr) auto; grid-template-areas: "label track value"; align-items: center; gap: 6px 14px; }
+.bar-label { grid-area: label; font-size: 14px; line-height: 1.5; color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+.bar-track { grid-area: track; position: relative; height: 14px; background: var(--surface-2); border-radius: 7px; }
+.bar-zero { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--ink-3); opacity: .55; }
+.bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 7px; }
+.bar-fill.tone-up { background: var(--up); }
+.bar-fill.tone-down { background: var(--down); }
+.bar-fill.tone-flat { background: var(--ink-3); }
+.bar-value { grid-area: value; min-width: 72px; text-align: right; font-size: 15px; font-variant-numeric: tabular-nums; }
+.bar-value.tone-up { color: var(--up); }
+.bar-value.tone-down { color: var(--down); }
+@media (max-width: 600px) {
+  .bar-rows li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label value" "track track"; }
+}
+/* PDF: 막대는 배경색으로 그려서 '배경 그래픽' 이 꺼져 있어도 보이게 */
+@media print { .chart-bar .bar-track, .chart-bar .bar-fill, .chart-bar .bar-zero { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

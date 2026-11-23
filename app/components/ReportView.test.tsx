@@ -103,7 +103,7 @@ describe("리포트 증거 표시 계약", () => {
     report.numbers = [{ ...report.numbers[0], ref: "C1", check: "derived" }];
     report.evidence = [{ ...report.evidence[0], id: "C1", values: {}, lineage: { op: "spread", inputs: ["E404"] } }];
     const $ = render(report);
-    expect($(".evidence-record").text()).toContain("공개된 원본 값이 없습니다");
+    expect($(".evidence-record").text()).toContain("공개된 원본 값이 없어요");
     expect($(".evidence-inputs").text()).toContain("연결된 자료 없음");
   });
 });
@@ -172,7 +172,7 @@ describe("리포트 하단 도구 실행 내역", () => {
     expect($(".report-details")).toHaveLength(0);
     expect(text).toContain("자료 확인 메모");
     expect(text).toContain("잠시 호출을 쉬고 있어");
-    expect(text).toContain("timeout");
+    expect(text).toContain("응답 시간 초과"); // 11/23: 원래 오류 문구 대신 사용자 말로
     expect(text).not.toContain("820");
     expect(text).not.toContain("ms");
   });
@@ -442,8 +442,7 @@ it("도구 기록은 표가 아니라 실패 · 저장본만 메모로 남긴다
   expect($(".tool-table")).toHaveLength(0);
   const notes = $(".report-tools li").map((_, el) => $(el).text()).get();
   expect(notes).toHaveLength(1);
-  expect(notes[0]).toContain("확인하지 못했어요");
-  expect(notes[0]).toContain("조회 실패");
+  expect(notes[0]).toBe("금리 확인: 자료를 받지 못했어요"); // 11/23: 내부 오류 문구는 붙이지 않음
 });
 
 describe("원인 칸 · 영향 칸 · 비교 기간 (11/19 페르소나 테스트 반영)", () => {
@@ -862,5 +861,13 @@ describe("#141 뒤 운영 확인 (11/23)", () => {
     const $ = render(report, [{ tool: "get_korean_economic_news", status: "ok", ms: 30, fallbackAgeMs: 3 * 3_600_000 }]);
     expect($(".report-tools")).toHaveLength(0);
     expect($.text().match(/경제 뉴스 확인:/g)).toHaveLength(1);
+  });
+});
+
+describe("11/23 재점검", () => {
+  it("계산 도구 실패는 자료 확인 메모에 보이지 않는다", () => {
+    const $ = render(fixture(), [{ tool: "calc_metrics", status: "error", ms: 5, error: "데이터를 확인하지 못했습니다." }]);
+    expect($(".report-tools")).toHaveLength(0);
+    expect($.text()).not.toContain("데이터를 확인하지 못했습니다");
   });
 });

@@ -49,7 +49,7 @@ describe("QualityView (심사용 공개 페이지)", () => {
 
   it("기록이 없으면 안내 문구로 대신한다", () => {
     const html = renderToStaticMarkup(<QualityView weekly={[]} ops={null} generatedAt="2026-11-17T06:00:00.000Z" />);
-    expect(html).toContain("아직 기록이 없습니다");
-    expect(html).toContain("실행 기록을 지금 읽지 못했습니다");
+    expect(html).toContain("아직 기록이 없어요");
+    expect(html).toContain("실행 기록을 지금 읽지 못했어요");
   });
 });
