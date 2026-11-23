@@ -21,6 +21,11 @@ describe("코드가 채운 장부 항목을 작성의 사실 목록에 넣기 (1
     expect(factOf(etf)).toBe("KODEX 200 가격 수익률 -7.06% (2026-10-20 → 2026-11-19)");
     expect(factOf(news)).toBe("연합뉴스 기사 제목: 코스피 5%대 급락 마감");
     expect(factOf(fx)).toBeNull();
+    const jpy: Evidence = { ...fx, id: "E5", values: { pair: "JPY(100)/KRW", rate: 839.31, asOf: "2026-11-23", "comparison.rate": 937.66, "comparison.asOf": "2025-11-23", changePct: -10.49 } };
+    expect(factOf(jpy)).toBe("100엔당 원화 환율 839.31원 (2026-11-23), 2025-11-23 937.66원 대비 -10.49%");
+    expect(factOf({ ...jpy, values: { ...jpy.values, pair: "USD/KRW", rate: 1336.36 } })).toContain("달러당 원화 환율 1,336.36원");
+    const jobs: Evidence = { id: "E8", tool: "get_macro_indicators", label: "실업률", values: { country: "KR", indicator: "unemployment", "latest.month": "202610", "latest.value": 2.5, "latest.previousYear.month": "202510", "latest.previousYear.value": 2.7, "latest.previousYear.change": -0.2 }, source: src };
+    expect(factOf(jobs)).toBe("한국 실업률 2.5% (2026-10), 2025-10 2.7% 대비 -0.20%p");
   });
 
   it("정제가 고르지 않은 것만 사실 목록 뒤에 붙인다", () => {
