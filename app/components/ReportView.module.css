@@ -235,6 +235,7 @@
 .report :global(.impact-card) p { margin:0; color:#696178; font-size:15px; }
 .report :global(.chart-summary) { background: #f6f3f9; border: 1px solid #e4dbea; border-radius:12px; padding:20px; margin-top:16px; }
 .report :global(.chart-summary) > p { font-size:18px; color:#303442; margin:0 0 16px; }
+.report :global(.chart-summary) > p:last-child { margin-bottom:0; } /* 막대 차트처럼 뒤에 비교 설명이 없으면 상자 아래가 비어 보였음 */
 .report :global(.chart-context) { padding-top:16px; border-top:1px solid var(--brand-purple-border); font-size:14px; }
 .report :global(.chart-context) p { margin:8px 0; }
 .report :global(.chart-context) small { font-size:12px; }
@@ -619,7 +620,7 @@
 .report :global(.reason-news) { font-size:14px; }
 .report :global(.reason-news) > summary { cursor:pointer; color:#1d4ed8; text-decoration:underline; text-underline-offset:3px; font-weight:500; }
 .report :global(.reason-news) ul { margin:6px 0 0; padding-left:18px; }
-.report :global(.evidence-meta) > span + a::before { content:"·"; margin-right:8px; color:#8a8391; }
+.report :global(.evidence-meta) > span + a::before { content:"·"; margin-right:8px; color:#8a8391; display:inline-block; text-decoration:none; } /* 링크 밑줄이 구분점까지 번지지 않게 */
 .report :global(.verification-toggle:not(.reference-toggle)) > summary { cursor:pointer; }
 .report :global(.report-tools ul) { padding-left:20px; }
 .report :global(.report-area-chips) { gap:6px; }

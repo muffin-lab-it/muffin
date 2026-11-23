@@ -114,7 +114,7 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
         <ul className={styles.links}>
           <li><Link href="/">홈</Link> — 질문을 넣고 리포트를 받아요. 리포트 아래 &lsquo;검증이 한 일&rsquo; 을 펼치면 숫자 대조 내역을 볼 수 있어요.</li>
           <li><Link href="/compare">깊이별 비교</Link> — 같은 질문을 Easy · Deep 으로 나란히, 실시간 또는 녹화.</li>
-          <li><Link href="/replay">녹화 재생</Link> — 실제 실행을 그대로 다시 봅니다. 모델 호출 없음.</li>
+          <li><Link href="/replay">녹화 재생</Link> — 실제 실행을 그대로 다시 봐요. 모델은 부르지 않아요.</li>
         </ul>
         <p className={styles.note}>바로 써 볼 질문: {EXAMPLES.map((q, i) => <span key={q}>{i ? " · " : ""}<q>{q}</q></span>)}</p>
       </section>

@@ -871,3 +871,86 @@ describe("11/23 재점검", () => {
     expect($.text()).not.toContain("데이터를 확인하지 못했습니다");
   });
 });
+
+describe("11/23 운영 브라우저 검수", () => {
+  it("계산식의 장부 키를 화면 라벨로 바꾸고, 환산 키도 한글로 보여 준다", () => {
+    const report = fixture();
+    const calc = report.evidence.find(entry => entry.id === "C1")!;
+    calc.note = "E1.change -3.77 × 100 ÷ 100 = -3.77원. 장부 값에 사용자가 말한 금액을 곱한 결과";
+    calc.values = { scaled: -3.77, from: -3.77, amount: 100, unit: "원" };
+    const record = render(report)(`.evidence-record[data-evidence-id='C1']`);
+    expect(record.find(".evidence-formula").text()).toContain("E1 변화량 -3.77 × 100 ÷ 100 = -3.77원");
+    expect(record.text()).not.toContain("E1.change");
+    expect(record.text()).toContain("환산 결과");
+    expect(record.text()).toContain("환산할 금액");
+    expect(record.find(".evidence-note").text()).toBe("장부 값에 사용자가 말한 금액을 곱한 결과");
+  });
+
+  it("출처 이름의 ISO 기간을 리포트 문장처럼 한국어로 보여 준다", () => {
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === "E1")!;
+    fx.source = { ...fx.source, name: "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)" };
+    report.sources = report.sources.map(source => source.url === fx.source.url ? { ...source, name: fx.source.name } : source);
+    const $ = render(report);
+    expect($(".metric-source").first().text()).toBe("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)");
+    expect($.text()).not.toContain("2026-07-27");
+  });
+
+  it("제목만 확인한 기사 안내는 뉴스 묶음 위에 한 번만 나온다", () => {
+    const report = fixture();
+    for (const entry of report.evidence.filter(e => e.id.startsWith("E4-"))) entry.values.body = "not_requested";
+    const $ = render(report);
+    const panel = $("[data-source-group='뉴스']");
+    expect(panel.find(".news-title-note")).toHaveLength(1);
+    expect(panel.find(".news-title-note").text()).toContain("기사 2건 모두 제목만 확인해");
+    expect(panel.text()).not.toContain("제목만 확인한 기사라");
+    expect(panel.text()).not.toContain("본문 미요청");
+  });
+});
+
+describe("월 단위 지표의 기준일 (11/23 운영 검수)", () => {
+  it("물가 · 고용 지표 카드의 '매달 1일' 기준일은 달로 보여 준다", () => {
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === "E1")!;
+    fx.tool = "get_macro_indicators";
+    fx.source = { ...fx.source, asOf: "2026-10-01" };
+    const card = report.numbers.find(n => n.ref === "E1")!;
+    card.asOf = "2026-10-01";
+    const $ = render(report);
+    const text = $(".numbers").text();
+    expect(text).toContain("기준일 2026. 10.");
+    expect(text).not.toContain("2026. 10. 1.");
+  });
+  it("월 단위 장부와 같은 자료 목록도 기준일을 같이 바꿔 '참고 문서' 에 다시 나오지 않는다 (Codex 리뷰)", () => {
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === "E1")!;
+    fx.tool = "get_macro_indicators";
+    fx.source = { ...fx.source, asOf: "2026-10-01" };
+    // 자료 목록의 E1 도 같은 자료(주소 · 이름 · 기준일)로 맞춥니다
+    report.sources = report.sources.map(source => source.id === "E1" ? { ...source, url: fx.source.url, name: fx.source.name, asOf: "2026-10-01" } : source);
+    const $ = render(report);
+    expect($("[data-source-group='참고 문서']")).toHaveLength(0);
+    expect($.text()).not.toContain("2026. 10. 1.");
+  });
+  it("일별 자료의 1일은 그대로 날짜로 보여 준다", () => {
+    const report = fixture();
+    const card = report.numbers.find(n => n.ref === "E1")!;
+    card.asOf = "2026-10-01";
+    expect(render(report)(".numbers").text()).toContain("기준일 2026. 10. 1.");
+  });
+});
+
+describe("계산 방식 이름 (11/23 운영 검수)", () => {
+  it("검증 상세와 원본 표의 계산 방식을 한글로 보여 준다", () => {
+    expect(formatEvidenceValue("op", "scale")).toBe("금액 환산");
+    expect(formatEvidenceValue("op", "zscore")).toBe("평소 움직임과 비교");
+    const report = fixture();
+    const c2 = report.evidence.find(entry => entry.id === "C2")!;
+    report.numbers.push({ label: "평소 30일 변동 폭", value: "±1.63%", change: "", asOf: "2026-11-23", ref: "C2", check: "derived" } as Report["numbers"][number]);
+    expect(c2.lineage?.op).toBeDefined();
+    c2.lineage = { ...c2.lineage!, op: "zscore" };
+    const text = render(report)(".report-verification").text();
+    expect(text).not.toContain("zscore");
+    expect(text).toContain("평소 움직임과 비교");
+  });
+});

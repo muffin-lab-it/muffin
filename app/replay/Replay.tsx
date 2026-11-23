@@ -112,7 +112,7 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
   return (
     <>
       <p className={styles.banner} role="note">
-        🎞️ 저장된 실행 다시 보기 · {recordedLabel(selected.recordedAt)} 에 실제로 돌린 것 · {speed}배속 · 지금 데이터가 아닙니다
+        🎞️ 저장된 실행 다시 보기 · {recordedLabel(selected.recordedAt)} 에 실제로 돌린 것 · {speed}배속 · 지금 데이터가 아니에요
       </p>
       <div className="report-head">
         <h1>{result ? "Today's Muffin" : "🧁 Muffin이 리포트를 만들고 있어요…"}</h1>

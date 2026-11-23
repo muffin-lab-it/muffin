@@ -23,7 +23,7 @@
 .search{display:flex;align-items:center;gap:17px;border:1px solid #cdc2e0;border-radius:17px;min-height:78px;padding:15px 22px}
 .search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px #8b5cf610}
 .search svg{width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:2;flex-shrink:0;align-self:center}
-.search textarea{width:100%;min-width:0;border:0!important;background:none;outline:none!important;box-shadow:none!important;font:inherit;font-size:21px;color:var(--ink);padding:0;line-height:32px;min-height:32px;height:32px;max-height:220px;resize:none;field-sizing:content}
+.search textarea{width:100%;min-width:0;border:0!important;background:none;outline:none!important;box-shadow:none!important;font:inherit;font-size:21px;color:var(--ink);padding:0;line-height:32px;min-height:32px;max-height:220px;resize:none;field-sizing:content}
 .search textarea::placeholder{color:#92909c;opacity:1}
 .questionLimit{display:block;font-size:14px;margin:9px 0 26px;color:#777080;line-height:1.7}
 .fieldset{border:0;padding:0;margin:0;min-width:0}
@@ -93,7 +93,7 @@
 @media(min-width:1450px){.mascot{width:470px;height:370px}.hero{min-height:420px}}
 @media(max-width:1100px){.hero h1{font-size:35px}.mascot{width:360px;height:310px}.areas{gap:8px}.option>span{font-size:15px;gap:4px}.badge{font-size:9px!important}.depths .option small{font-size:14px}}
 @media(max-width:900px){.hero{padding:32px 0 16px;min-height:300px}.mascot{width:310px;height:290px}.hero h1{font-size:32px}.description{font-size:16px}.eyebrow{font-size:15px}.form{padding:24px}.option>span{font-size:14px}.badge{font-size:8px!important}.depths .option small{font-size:13px}}
-@media(max-width:600px){.hero{position:relative;display:block;padding:31px 4px 0}.eyebrow{font-size:14px;margin-bottom:13px}.hero h1{font-size:30px;letter-spacing:-1.5px}.description{font-size:15px;margin:13px 0 0}.mascot{display:block;margin:-4px auto -8px;width:280px;height:220px}.form{padding:18px 16px;border-radius:20px}.search{padding:14px 12px;min-height:62px;gap:10px;border-radius:13px}.search textarea{font-size:15px;line-height:28px;min-height:28px;height:28px}.search svg{width:21px;height:21px}.questionLimit{font-size:12px;margin-bottom:23px}.fieldset legend{font-size:17px}.areas{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.option>span{height:46px;font-size:15px}.hint{font-size:13px;margin:10px 0 20px}.depths{gap:7px}.depths .option>span{height:90px;padding:7px 5px;gap:7px}.depths .option b{font-size:17px}.depths .option small{font-size:12px;line-height:1.5;text-align:center;word-break:keep-all}.submit{font-size:18px;min-height:52px;margin-top:22px;border-radius:14px}}
+@media(max-width:600px){.hero{position:relative;display:block;padding:31px 4px 0}.eyebrow{font-size:14px;margin-bottom:13px}.hero h1{font-size:30px;letter-spacing:-1.5px}.description{font-size:15px;margin:13px 0 0}.mascot{display:block;margin:-4px auto -8px;width:280px;height:220px}.form{padding:18px 16px;border-radius:20px}.search{padding:14px 12px;min-height:62px;gap:10px;border-radius:13px}.search textarea{font-size:15px;line-height:28px;min-height:28px}.search svg{width:21px;height:21px}.questionLimit{font-size:12px;margin-bottom:23px}.fieldset legend{font-size:17px}.areas{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.option>span{height:46px;font-size:15px}.hint{font-size:13px;margin:10px 0 20px}.depths{gap:7px}.depths .option>span{height:90px;padding:7px 5px;gap:7px}.depths .option b{font-size:17px}.depths .option small{font-size:12px;line-height:1.5;text-align:center;word-break:keep-all}.submit{font-size:18px;min-height:52px;margin-top:22px;border-radius:14px}}
 
 /* 5. 홈 하단: 분홍 머핀 아이콘과 설명 방식 버튼 */
 .submit img{flex-shrink:0;width:28px;height:28px}
@@ -113,7 +113,7 @@
 
 /* 7. 홈에서 질문 확인 중인 상태와 지원 범위 안내 */
 .checking{font-size:15px;color:var(--accent);line-height:1.8;margin:0 0 22px}
-.scopeNotice{background:#fff8f7;border:1px solid #f0cfcc;border-radius:14px;padding:20px 22px;margin:0 0 25px}
+.scopeNotice{background:#fff8f7;border:1px solid #f0cfcc;border-radius:14px;padding:20px 22px;margin:0 0 25px;word-break:keep-all;overflow-wrap:anywhere}
 .scopeNotice h2{font-size:19px;color:#c83532;line-height:1.6;margin:0 0 10px}
 .scopeNotice p{font-size:14px;color:#765c60;line-height:1.9;margin:0}
 .fieldset:disabled .option{cursor:wait}
@@ -158,7 +158,16 @@
 /* 11/23 디자인 리뷰: '리포트 굽기' 를 질문칸 옆으로. 휴대폰은 질문칸 아래 꽉 찬 버튼 */
 .askRow{display:flex;align-items:stretch;gap:12px}
 .askRow .search{flex:1;min-width:0}
-.askSubmit{width:auto;min-height:78px;margin:0;padding:0 24px;flex:none;border-radius:17px;font-size:19px;gap:10px;white-space:nowrap}
+.askSubmit{width:auto;min-height:78px;margin:0;padding:0 24px;flex:none;align-self:flex-start;border-radius:17px;font-size:19px;gap:10px;white-space:nowrap}
 .askSubmit span{font-size:24px}
 @media(max-width:720px){.askSubmit{padding:0 18px;font-size:17px}}
 @media(max-width:600px){.askRow{flex-direction:column}.askSubmit{width:100%;min-height:56px}}
+
+/* 11/23 범위 밖 안내의 추천 질문: 누르면 입력칸에 채움 */
+.scopeTopics{margin-top:14px;padding-top:12px;border-top:1px solid #f0cfcc}
+.scopeTopics>p{font-size:13px;font-weight:700;color:#765c60;margin:0 0 8px}
+.scopeTopics ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.scopeTopics li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.scopeTopics button{border:1px solid var(--brand-purple-border);border-radius:999px;background:#fff;color:var(--brand-purple-strong);padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;text-align:left}
+.scopeTopics button:hover{background:var(--brand-purple-tint)}
+.scopeTopics small{font-size:12px;color:#8a7478;line-height:1.6}

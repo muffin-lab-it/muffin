@@ -3,6 +3,9 @@ import { ApiError, streamReport, type ReportRequest, type ReportResponse } from 
 import { getReport, saveReport } from "@/src/lib/history";
 import type { ProgressError } from "./Progress";
 
+/** 범위 밖 질문에 서버가 만든 안내와 대신 물어볼 질문 (미국 상장 ETF · 개별 주가 · 그 밖) */
+export type ScopeInfo = { summary: string; topics: { question: string; reason?: string }[] };
+
 type State = {
   phase: "idle" | "checking" | "unsupported" | "research" | "saving" | "error" | "navigating";
   input?: ReportRequest;
@@ -10,7 +13,15 @@ type State = {
   result?: ReportResponse;
   error?: ProgressError;
   retrySeconds: number;
+  scope?: ScopeInfo;
 };
+
+/** 범위 밖 리포트에서 홈 안내에 쓸 것만 (11/23 운영 검수: "QQQ 요즘 수익률 어때?" 에 서버가 만든 국내 ETF 안내 · 추천 질문이 버려지고 고정 문구만 보였음) */
+export function scopeOf(report: ReportResponse["report"]): ScopeInfo | undefined {
+  const summary = report.summary?.trim();
+  if (!summary) return undefined;
+  return { summary, topics: (report.nextTopics ?? []).slice(0, 3).map((question, index) => ({ question, reason: report.topicReasons?.[index] || undefined })) };
+}
 
 /** 홈의 한 요청을 관리합니다. 중복 실행과 화면 이탈 후의 저장·이동을 막습니다. */
 export function createHomeReport(deps = { streamReport, saveReport, getReport }, navigate: (url: string) => void) {
@@ -45,16 +56,25 @@ export function createHomeReport(deps = { streamReport, saveReport, getReport },
     const input = { ...request, question: request.question.trim() };
     update({ phase: "checking", input, events: [], retrySeconds: 0 });
     let terminal = false;
+    // 범위 밖이면 저장 · 이동은 하지 않지만, 뒤이어 오는 범위 밖 리포트의 안내 · 추천 질문은 받아 홈에 보여 줍니다
+    let outOfScope = false;
     try {
       const result = await deps.streamReport(input, event => {
-        if (token !== generation || terminal) return;
+        if (token !== generation) return;
+        if (outOfScope) {
+          const scope = event.type === "report" ? scopeOf(event.report) : undefined;
+          if (scope) update({ ...state, scope });
+          return;
+        }
+        if (terminal) return;
         const unsupported = (event.type === "plan" && event.mode === "out_of_scope")
           || (event.type === "report" && event.report.mode === "out_of_scope");
         if (unsupported) {
-          // The server may still finish verify/report. Ignore that generation; never save it.
-          generation++;
+          // The server may still finish verify/report. Never save it.
+          outOfScope = true;
           terminal = true;
-          update({ phase: "unsupported", input, events: [...state.events, event], retrySeconds: 0 });
+          const scope = event.type === "report" ? scopeOf(event.report) : undefined;
+          update({ phase: "unsupported", input, events: [...state.events, event], retrySeconds: 0, ...(scope ? { scope } : {}) });
           return;
         }
         terminal = event.type === "error" || event.type === "report";
@@ -63,13 +83,15 @@ export function createHomeReport(deps = { streamReport, saveReport, getReport },
         update({ ...state, phase: beganWork && state.phase === "checking" ? "research" : state.phase, events: [...state.events, event] });
       });
       if (token !== generation) return;
-      if (result.report.mode === "out_of_scope") {
-        update({ phase: "unsupported", input, events: state.events, retrySeconds: 0 });
+      if (outOfScope || result.report.mode === "out_of_scope") {
+        const scope = scopeOf(result.report) ?? state.scope;
+        update({ phase: "unsupported", input, events: state.events, retrySeconds: 0, ...(scope ? { scope } : {}) });
         return;
       }
       await persist(token, input, result);
     } catch (error) {
-      if (token !== generation) return;
+      // 범위 밖 안내를 이미 띄웠으면 그 뒤의 연결 오류로 안내를 지우지 않습니다
+      if (token !== generation || outOfScope) return;
       const streamError = state.events.find(event => event.type === "error");
       const failure: ProgressError = streamError?.type === "error"
         ? { message: streamError.message, id: streamError.id }

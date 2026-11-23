@@ -72,7 +72,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
     return (
       <>
         <h1>🔀 깊이별 비교</h1>
-        <p className="sub">같은 질문을 Easy · Standard · Deep Dive 로 만든 리포트를 나란히 봅니다. 녹화는 모델 호출 없이, 실시간은 실제로 만듭니다.</p>
+        <p className="sub">같은 질문을 Easy · Standard · Deep Dive 로 만든 리포트를 나란히 봐요. 녹화는 모델을 부르지 않고, 실시간은 실제로 만들어요.</p>
         {missing && <div className="error" role="alert">{missing}</div>}
         <h2 className={styles.h2}>녹화에서 보기</h2>
         {groups.length === 0 ? (
@@ -138,9 +138,9 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
   return (
     <>
       {session.mode === "replay" ? (
-        <p className={styles.banner} role="note">🎞️ 저장된 실행 다시 보기 · {session.columns.map((c) => `${depthLabels[c.depth]} ${c.replay ? recordedLabel(c.replay.recordedAt) : ""}`).join(" · ")} · {session.speed}배속 · 지금 데이터가 아닙니다</p>
+        <p className={styles.banner} role="note">🎞️ 저장된 실행 다시 보기 · {session.columns.map((c) => `${depthLabels[c.depth]} ${c.replay ? recordedLabel(c.replay.recordedAt) : ""}`).join(" · ")} · {session.speed}배속 · 지금 데이터가 아니에요</p>
       ) : (
-        <p className={styles.banner} role="note">실시간으로 만드는 중 · 깊이마다 따로 OpenAI 와 데이터 API 를 부릅니다</p>
+        <p className={styles.banner} role="note">실시간으로 만드는 중 · 깊이마다 따로 OpenAI 와 데이터 API 를 불러요</p>
       )}
       <div className="report-head">
         <h1>깊이별 비교</h1>

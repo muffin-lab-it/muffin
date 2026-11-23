@@ -82,6 +82,12 @@ function HomeForm() {
     setQuestion("");
     editQuestion();
   }
+  /** 범위 밖 안내의 추천 질문을 입력칸에 채웁니다. 깊이 · 영역을 고를 수 있게 바로 굽지는 않습니다 */
+  function pickScopeTopic(topic: string) {
+    setQuestion(topic);
+    setFormError(null);
+    editQuestion();
+  }
   // 자동 높이(field-sizing)가 없는 브라우저(아이폰 사파리 등)는 내용 높이로 맞춥니다 (11/20 외부 F2: 긴 질문이 한 줄에 잘림)
   useEffect(() => {
     const field = questionField.current;
@@ -97,7 +103,7 @@ function HomeForm() {
     setFormError(null);
     const input = buildHomeInput(question, depth, selectedAreas);
     if (input.question.length > QUESTION_MAX) {
-      setFormError("선택한 관심 영역을 함께 보내려면 질문을 조금 줄여주세요.");
+      setFormError("선택한 관심 영역을 함께 보내려면 질문을 조금 줄여 주세요.");
       questionField.current?.focus();
       return;
     }
@@ -138,7 +144,11 @@ function HomeForm() {
           </div>
           <small id="question-limit" className={styles.questionLimit}><span>궁금한 금융 이야기를 자유롭게 물어보세요.</span><span className={styles.questionCount} data-over={over > 0 ? "true" : undefined}>{over > 0 ? `${over}자 줄여 주세요 · ` : ""}{question.length} / {allowance}자</span></small>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
-          {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2><p>생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요.</p><button type="button" className={styles.clearQuestion} onClick={clearQuestion}>지우고 다시 쓰기</button></section>}
+          {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2>
+            {/* 서버가 만든 이유(미국 상장 ETF · 개별 주가 등)와 대신 물어볼 질문 (11/23 운영 검수 · QA 11 · 20명 시나리오 2) */}
+            <p>{state.scope?.summary ?? "생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요."}</p>
+            {state.scope && state.scope.topics.length > 0 && <div className={styles.scopeTopics}><p>이렇게 물어보면 답할 수 있어요</p><ul>{state.scope.topics.map(topic => <li key={topic.question}><button type="button" onClick={() => pickScopeTopic(topic.question)}>{topic.question}</button>{topic.reason && <small>{topic.reason}</small>}</li>)}</ul></div>}
+            <button type="button" className={styles.clearQuestion} onClick={clearQuestion}>지우고 다시 쓰기</button></section>}
           {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${formatWait(state.retrySeconds)} 후 다시 시도` : "다시 시도"}</button>}</div>}
           <fieldset className={styles.fieldset} disabled={busy} aria-describedby="area-hint"><legend>관심 영역</legend>
             <div className={styles.areas}>

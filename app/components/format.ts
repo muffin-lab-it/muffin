@@ -41,10 +41,18 @@ export function prettyReport<R extends {
   summary: string; headline?: string | null; notice?: string | null;
   why: { claim: string; evidence: string }[]; impact: string[]; impactTitles?: string[];
   caveats: string[]; dataGaps: string[];
-  numbers: { label: string; change: string }[];
+  numbers: { label: string; change: string; asOf?: string | null; ref?: string | null }[];
   verification: { removed: string[] };
+  evidence?: { id: string; tool: string; label: string; source: { name: string; url?: string; asOf?: string | null } }[];
+  sources?: { name: string; url?: string; asOf?: string | null }[];
 }>(report: R): R {
   const p = prettyDates;
+  // 물가 · 고용 지표는 월 단위라 "2026-10-01" 도 "2026. 10." 로 (11/23 운영 검수: 같은 물가 카드가 "기준일 2026. 10." · "2026. 10. 1." 로 섞임)
+  const monthly = new Set((report.evidence ?? []).filter(e => /macro|cpi/i.test(e.tool)).map(e => e.id));
+  const monthOf = (value: string) => /^\d{4}-\d{2}-01$/.test(value) ? value.slice(0, 7) : value;
+  // 자료 목록(sources)은 장부와 주소 · 이름 · 기준일로 짝을 맞추므로, 월 단위 장부와 같은 자료면 기준일도 같이 바꿉니다 (Codex 리뷰: 한쪽만 바꾸면 '참고 문서' 에 같은 출처가 한 번 더 나옴)
+  const sourceKey = (source: { name: string; url?: string; asOf?: string | null }) => `${source.url ?? ""}|${source.name}|${source.asOf ?? ""}`;
+  const monthlySources = new Set((report.evidence ?? []).filter(e => monthly.has(e.id)).map(e => sourceKey(e.source)));
   return {
     ...report,
     summary: p(report.summary),
@@ -55,8 +63,12 @@ export function prettyReport<R extends {
     ...(report.impactTitles ? { impactTitles: report.impactTitles.map(p) } : {}),
     caveats: report.caveats.map(p),
     dataGaps: report.dataGaps.map(p),
-    numbers: report.numbers.map(n => ({ ...n, label: p(n.label), change: p(n.change) })),
+    numbers: report.numbers.map(n => ({ ...n, label: p(n.label), change: p(n.change), ...(n.ref && monthly.has(n.ref) && n.asOf ? { asOf: monthOf(n.asOf) } : {}) })),
     verification: { ...report.verification, removed: report.verification.removed.map(p) },
+    // 출처 이름 · 장부 라벨의 기간도 (11/23 운영 검수: 계산 카드 아래 "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)" 이 휴대폰에서 날짜 중간에 줄바꿈).
+    // 자료 목록(sources)도 같이 바꿔야 출처 묶음이 이름으로 장부와 짝을 맞춥니다
+    ...(report.evidence ? { evidence: report.evidence.map(e => ({ ...e, label: p(e.label), source: { ...e.source, name: p(e.source.name), ...(monthly.has(e.id) && e.source.asOf ? { asOf: monthOf(e.source.asOf) } : {}) } })) as R["evidence"] } : {}),
+    ...(report.sources ? { sources: report.sources.map(s => ({ ...s, name: p(s.name), ...(s.asOf && monthlySources.has(sourceKey(s)) ? { asOf: monthOf(s.asOf) } : {}) })) as R["sources"] } : {}),
   };
 }
 
