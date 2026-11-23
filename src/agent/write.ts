@@ -93,12 +93,12 @@ export const toolWritingRules = `[Tool별 규칙]
 - rate · change · changePct 와 comparison.rate · comparison.asOf 를 구분하고 실제 비교일을 표시합니다. 일별 기준환율을 실시간 환전 호가로 표현하지 않습니다.
 
 [ETF: get_etf_kr_price]
-- latest.changePct 는 일간 등락률, period.returnPct 는 분배금을 제외한 기간 가격 수익률입니다. period.trackingDiffPp 는 기초지수 대비 수익률 차이(%p)이며 latest.premiumPct(괴리율, %)와 구분합니다.
+- latest.changePct 는 일간 등락률, period.returnPct 는 분배금을 제외한 기간 가격 수익률입니다. period.trackingDiffPp 는 기초지수 대비 수익률 차이(%p)입니다. latest.premiumPct(괴리율, %)와 구분합니다.
 - period.closeFrom · period.indexCloseFrom 의 기준일은 period.from 입니다. 최신 값의 기준일과 섞지 않습니다. 장부에 없는 비교값은 계산하거나 채우지 않습니다.
 - 환율 영향과 지수의 TR·PR 조건은 제공된 note에 따라 밝히며, 추적 차이만으로 운용 성과의 원인을 확정하지 않습니다.
 
 [금리: get_rate_data]
-- indicator 로 지표를 구분합니다. DGS10은 미국 국채 10년물 시장금리, DFF는 실효 연방기금금리이며 정책금리 목표 범위와 동일시하지 않습니다.
+- indicator 로 지표를 구분합니다. DGS10은 미국 국채 10년물 시장금리, DFF는 실효 연방기금금리입니다. 정책금리 목표 범위와 동일시하지 않습니다.
 - rate · comparisonRate 는 금리 수준(%), changePp · changeBp 는 Tool이 제공한 변동폭입니다. comparisonDate 를 실제 비교 기준일로 사용합니다.
 - 국가별 정책금리는 정의가 다릅니다. 제공된 definition · note 를 따르고 정의가 입력에 없으면 같다고 단정하지 않습니다. stale 경고가 있으면 asOf 이후 변경이 반영되지 않았을 수 있음을 밝힙니다.
 
@@ -106,7 +106,7 @@ export const toolWritingRules = `[Tool별 규칙]
 - cpi_categories의 yoyPct · momPct는 품목군 가격 등락률(%), contributionPp · momContributionPp는 총지수 등락률에 대한 근사 기여도(%p)입니다. 기여도 순위를 가격 상승률 순위로 해석하지 않고, 전년 동월 대비와 전월 대비를 섞지 않습니다. 품목군 가격이 변한 배경은 별도 근거가 있을 때만 설명합니다.
 - latest.value 는 관측값, latest.previousMonth.change · latest.previousYear.change 는 각각 전월 · 전년 동월 대비 변화입니다. CPI 값은 지수이고 변화는 %, 실업률 값은 %이고 변화는 %p입니다.
 - 같은 CPI 지수에 전월 대비와 전년 동월 대비 카드를 각각 표시하면 label에 "전월 대비" · "전년 동월 대비"를 붙여 비교 기준을 구분합니다.
-- source.asOf 의 월 첫날은 관측 월을 나타내는 표기이며 발표일·조회일이 아닙니다. latest.month 와 비교 월을 기준으로 설명하고 최근 3개월을 달력 분기로 바꾸지 않습니다.
+- source.asOf 의 월 첫날은 관측 월을 나타내는 표기입니다. 발표일·조회일이 아닙니다. latest.month 와 비교 월을 기준으로 설명하고 최근 3개월을 달력 분기로 바꾸지 않습니다.
 - 국가별 CPI의 기준연도와 계절조정 조건이 다르므로 지수 수준을 직접 비교하지 않습니다. 장부에 없는 과거 월별 값은 조회 기간만 보고 채우지 않습니다.
 
 [뉴스: get_korean_economic_news]
@@ -115,6 +115,7 @@ export const toolWritingRules = `[Tool별 규칙]
   summary · dataGaps · caveats 를 포함한 리포트 전체에서 이 구분을 유지합니다. note · 조사 메모 · [확인하지 못한 것] 의 원인 근거 부족을 본문 미확보로 줄여 쓰지 않습니다.
   일부 기사의 상태를 전체 기사로 일반화하지 않습니다. 입력에 body 값이 없는 기사의 확보 상태는 추정하지 않고, 본문 확보 목표의 부족 수량을 제목만 확인한 기사 수로 바꾸지 않습니다.
 - 본문 미확보·미요청 기사는 제목에 직접 드러난 사실만 사용하고 제목에 없는 원인을 추정하지 않습니다. 본문 확보 자체도 원인·인과관계 입증은 아닙니다.
+- 뉴스를 묻는 질문은 본문이 없어도 기사 제목으로 정리합니다 ("기사 제목으로 보면 오늘은 ○○ · △△ 소식이 많았어요"). 요약 · 한 줄 요약을 "본문이 없어 정리할 수 없어요" 로 시작하지 않고, 제목만 봤다는 점은 주의점에 한 번만 씁니다. 사용자에게 "요청하지 않았다 · RSS · Google News · UTC" 같은 수집 과정을 말하지 않습니다.
 - 기사 수치가 장부에 없으면 확인된 근거 범위에서 숫자 없이 "기사에 따르면 … 늘었다"처럼 씁니다. 장부의 제목과 숫자가 일치해도 공식 통계로 독립 검증된 값이라고 표현하지 않습니다.
 
 [계산: calc_metrics]

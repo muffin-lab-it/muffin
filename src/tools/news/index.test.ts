@@ -104,7 +104,7 @@ describe("News Tool", () => {
       failureCounts: source === "google" ? { original_url_unresolved: 2 } : {},
     });
     if (content === "list") {
-      expect(note).toMatch(/^기사 본문은 요청하지 않았으며, RSS의 제목·발행일·링크만 확인했습니다\./);
+      expect(note).toMatch(/^기사 본문은 보지 않고 제목·발행일·링크만 확인했습니다\./);
       expect(note).not.toContain("건의 기사 본문을 확보했습니다");
     } else {
       expect(note).toContain(`본문 목표 충족 상태(bodyStatus): ${data.bodyStatus}.`);
@@ -114,8 +114,8 @@ describe("News Tool", () => {
         expect(note).toContain(`목표 대비 ${data.missingCount}건 부족합니다.`);
         expect(note).not.toMatch(/링크만 확인|제목만|제목 목록만|본문 일부 추출/);
       } else {
-        expect(note).toMatch(/^본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다\./);
-        expect(note).toContain(`본문은 0건이며 Google News 제목 목록 ${data.count}건만 대신 반환했습니다.`);
+        expect(note).toMatch(/^본문은 확보하지 못했고 기사 제목 목록만 확인했습니다\./);
+        expect(note).toContain(`본문은 0건이라 기사 제목 목록 ${data.count}건만 대신 반환했습니다.`);
         expect(note).toContain(`본문 확보 목표 ${data.requestedCount}건 대비 ${data.missingCount}건 부족합니다.`);
         expect(note).toContain("제목에 없는 원인·인과관계를 추정하지 마세요");
         expect(data.articles.every((article) => !("text" in article.body))).toBe(true);
@@ -124,7 +124,7 @@ describe("News Tool", () => {
     expect(note).toContain("반환 기사별 body.status를 참조하세요.");
     expect(note).toContain("기사 속 수치는 별도 검증이 필요합니다.");
     expect(note).toContain("본문 확보와 원인·인과관계 입증은 별개입니다.");
-    expect(note).toContain("Google News 중계 링크");
+    expect(note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있습니다");
     expect(result.source).toHaveLength(data.count);
     expect(context.evidence).toHaveLength(data.count);
     expect(context.sources).toHaveLength(data.count);
@@ -481,7 +481,7 @@ describe("News Tool", () => {
     expect(fallback.data.articles.every(({ body }) => body.status === "unavailable" && body.reason === "original_url_unresolved" && !("text" in body))).toBe(true);
     expect(fallback.note).toContain("본문은 0건");
     expect(fallback.note).toContain("제목에 없는 원인·인과관계를 추정하지 마세요");
-    expect(fallback.note).toContain("Google News 중계 링크");
+    expect(fallback.note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있습니다");
   });
 
   it.each([1, 2, 10])("제목 fallback %i건과 본문 0건을 구분하고 Source·Evidence 순서를 유지한다", async (limit) => {

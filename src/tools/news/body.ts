@@ -62,7 +62,7 @@ const extractors: Partial<Record<Article["source"], Extractor>> = {
 
 export async function fetchArticleBody(article: Article, timeoutMs = 2_500): Promise<BodyResult> {
   if (article.source === "google") {
-    return { status: "unavailable", reason: "original_url_unresolved", detail: "Google News 중계 링크에서 원문 URL을 확정할 수 없습니다." };
+    return { status: "unavailable", reason: "original_url_unresolved", detail: "뉴스 검색 서비스의 링크라 원문 주소를 확정할 수 없습니다." };
   }
   const extractor = extractors[article.source];
   if (!extractor) return { status: "unavailable", reason: "unsupported_publisher", detail: "본문 추출기를 지원하지 않는 언론사입니다." };
