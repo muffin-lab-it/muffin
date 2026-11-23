@@ -356,9 +356,47 @@ describe("News Tool", () => {
     expect(result.source).toHaveLength(result.data.count);
   });
 
-  it("검색 결과가 없으면 명시적으로 실패한다", async () => {
-    mockFeeds();
+  it("직접 피드와 뉴스 검색 모두 결과가 없으면 명시적으로 실패한다", async () => {
+    mockFeeds({ google: "<rss><channel></channel></rss>" });
     await expect(execute({ ...input, sources: ["yonhap"], query: "없는 검색어" })).rejects.toThrow("조건에 맞는 뉴스 기사");
+  });
+
+  it("직접 피드에 검색어와 맞는 기사가 없으면 같은 검색어로 뉴스 검색 결과를 받고 메모에 적는다 (11/23 녹화: 물가 원인 뉴스 0.5초 실패)", async () => {
+    const calls = mockFeeds();
+    const result = await execute({ ...input, sources: ["yonhap", "hankyung"], query: "없는 검색어" });
+    expect(calls.find((url) => url.hostname === "news.google.com")?.searchParams.get("q")).toBe("없는 검색어");
+    expect(result.data.articles.length).toBeGreaterThan(0);
+    expect(result.data.articles.every((a) => a.source === "google")).toBe(true);
+    expect(result.note).toContain("뉴스 검색 결과를 대신 받았어요");
+    // 직접 피드에 맞는 기사가 있으면 검색하지 않는다
+    const direct = mockFeeds();
+    await execute({ ...input, sources: ["yonhap", "hankyung"], query: null });
+    expect(direct.some((url) => url.hostname === "news.google.com")).toBe(false);
+  });
+
+  it("검색어가 있는데 직접 기사의 본문을 하나도 못 받으면 같은 검색어의 뉴스 검색 제목을 대신 쓴다 (11/23 로컬: 한국경제 유료 기사 2건)", async () => {
+    const searched: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (req: string | URL) => {
+      const url = new URL(String(req));
+      if (url.pathname === "/feed/economy") return new Response(syntheticFeed(2, "hankyung"));
+      if (url.hostname === "news.google.com") {
+        searched.push(url.searchParams.get("q") ?? "");
+        return new Response(syntheticFeed(2, "google"));
+      }
+      return new Response("hk_premium_only: 'y'");
+    }));
+    const result = await execute({ ...input, sources: ["hankyung"], query: "합성 경제", content: "body", limit: 3 });
+    expect(searched).toEqual(["합성 경제"]);
+    expect(result.data.collectedCount).toBe(0);
+    expect(result.data.articles.every((a) => a.source === "google" && a.body.status === "unavailable")).toBe(true);
+    expect(result.note).toContain("뉴스 검색 결과를 대신 받았어요");
+  });
+
+  it("검색어의 낱말이 모두 든 제목을 찾는다 (순서 · 띄어쓰기 달라도)", async () => {
+    const { titleMatches } = await import("./index");
+    expect(titleMatches("소비자물가 2.8% 상승…석유류 올라", "소비자물가 상승")).toBe(true);
+    expect(titleMatches("소비자물가 2.8% 상승", "물가 원인")).toBe(false);
+    expect(titleMatches("Fed 금리 동결", "fed 동결")).toBe(true);
   });
 
   it("연합뉴스·한국경제 본문을 분리 추출하고 광고·구독 영역을 제외한다", () => {
