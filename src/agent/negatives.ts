@@ -173,14 +173,22 @@ export function dropDecisionDisclaimer(text: string): string {
  * 검증 뒤의 출력을 다듬습니다 (사실은 바꾸지 않음): 한 줄 요약의 부정 꼬리, 묻지 않은 원인 한계, 첫 문장의 한계(→ 확인하지 못한 것),
  * 내부 용어, "~이며" 문장 나누기. 바뀐 것이 없으면 받은 그대로 돌려줍니다. 같은 한계의 되풀이는 이 뒤에 trimRepeats 가 줄입니다.
  */
+/** 기사를 고르거나 뺀 작업 설명 ("경제와 관련 없는 기사도 있어 추렸어요", 11/23 화면 QA). 사용자에게 필요 없는 과정 말이라 주의점 · 확인하지 못한 것에서 뺍니다 */
+const PICK_TALK = /(?:기사|뉴스)[^.!?]*(?:추렸|추려|걸렀|걸러\s*냈|제외했|골랐|골라\s*(?:냈|썼))|관련\s*(?:없는|없어\s*보이는)\s*(?:기사|뉴스)/;
+export function dropPickTalk(lines: string[]): string[] {
+  return lines
+    .map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => s.trim() && !PICK_TALK.test(s)).join(" "))
+    .filter((l) => l.trim().length > 0);
+}
+
 export function trimNegatives(output: WriterOutput, intent: Intent | undefined): WriterOutput {
   const decision = (t: string) => (intent === "decision" ? dropDecisionDisclaimer(t) : t);
   const headline = output.headline ? plainWords(decision(dropInternalPhrases(trimHeadline(output.headline)))) : output.headline;
   const lead = dropLeadingLimit({ summary: output.summary, dataGaps: output.dataGaps });
   const summary = splitEmyeo(plainWords(decision(dropInternalPhrases(dropUnaskedCause(lead.summary, intent, output.why.length > 0)))));
   const tidy = (lines: string[]) => lines.map((l) => splitEmyeo(plainWords(l)));
-  const caveats = tidy(output.caveats);
-  const dataGaps = tidy(lead.dataGaps);
+  const caveats = tidy(dropPickTalk(output.caveats));
+  const dataGaps = tidy(dropPickTalk(lead.dataGaps));
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   return headline === output.headline && summary === output.summary && same(caveats, output.caveats) && same(dataGaps, output.dataGaps)
     ? output

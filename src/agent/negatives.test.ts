@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDecisionDisclaimer, dropFetchTalk, dropInternalPhrases, dropLeadingLimit, dropUnaskedCause, plainWords, splitEmyeo, trimHeadline, trimNegatives } from "./negatives";
+import { dropDecisionDisclaimer, dropFetchTalk, dropPickTalk, dropInternalPhrases, dropLeadingLimit, dropUnaskedCause, plainWords, splitEmyeo, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -164,3 +164,16 @@ describe("조회 과정 문장 빼기 (11/23 운영 뉴스 질문)", () => {
     expect(dropFetchTalk(clean, [NEWS])).toBe(clean);
   });
 });
+
+describe("기사 고르기 작업 설명 빼기 (11/23 화면 QA, C3 남은 것)", () => {
+  it("주의점 · 확인하지 못한 것에서 기사를 고르거나 뺐다는 문장만 뺀다", () => {
+    expect(dropPickTalk(["경제와 관련 없는 기사도 있어 추렸어요.", "기사 속 수치는 별도 검증되지 않았어요.", "기사 본문은 보지 않고 제목만 확인했어요. 상품 할인 기사는 제외했어요."])).toEqual([
+      "기사 속 수치는 별도 검증되지 않았어요.",
+      "기사 본문은 보지 않고 제목만 확인했어요.",
+    ]);
+    expect(dropPickTalk(["질문과 관련 없는 뉴스는 근거로 쓰지 않았어요."])).toEqual([]);
+    const plain = ["환율은 일별 매수·매도 중간값이에요."];
+    expect(dropPickTalk(plain)).toEqual(plain);
+  });
+});
+
