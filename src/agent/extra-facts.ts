@@ -26,6 +26,16 @@ export function factOf(e: Evidence): string | null {
   if (e.tool === areaTools.macro && v.indicator === "cpi" && typeof v["latest.previousYear.change"] === "number") {
     return `${v.country === "KR" ? "한국" : "미국"} 소비자물가 상승률(전년 같은 달 대비) ${Number(v["latest.previousYear.change"]).toFixed(2)}% (${month(v["latest.month"])})`;
   }
+  // 환율 · 실업률 (11/23 관계 질문): 정제가 1년 원/엔 환율을 30일 값과 중복이라며 빼자, 작성이 "원/엔 환율 자료는 확인하지 못했어요" 라고 썼습니다
+  if (e.tool === areaTools.fx && typeof v.rate === "number" && typeof v.changePct === "number" && v["comparison.asOf"]) {
+    const base = String(v.pair).split("/")[0]!;
+    const unit = `${({ "JPY(100)": "100엔", USD: "달러", EUR: "유로" } as Record<string, string>)[base] ?? base}당 원화`;
+    return `${unit} 환율 ${points(v.rate)}원 (${v.asOf}), ${v["comparison.asOf"]} ${points(v["comparison.rate"])}원 대비 ${pct(v.changePct)}`;
+  }
+  if (e.tool === areaTools.macro && v.indicator === "unemployment" && typeof v["latest.value"] === "number") {
+    const name = `${v.country === "KR" ? "한국" : "미국"} 실업률 ${v["latest.value"]}% (${month(v["latest.month"])})`;
+    return typeof v["latest.previousYear.value"] === "number" ? `${name}, ${month(v["latest.previousYear.month"])} ${v["latest.previousYear.value"]}% 대비 ${pp(v["latest.previousYear.change"])}` : name;
+  }
   if (e.tool === areaTools.etf && typeof v["period.returnPct"] === "number") return `${v.name} 가격 수익률 ${pct(v["period.returnPct"])} (${v["period.from"]} → ${v["period.to"]})`;
   if (e.tool === areaTools.news && typeof v.title === "string") return `${e.source.name} 기사 제목: ${v.title}`;
   return null;
