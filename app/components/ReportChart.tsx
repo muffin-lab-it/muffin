@@ -183,7 +183,8 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   return (
     <figure className="chart">
       <figcaption>
-        <b>{name ?? subject}{spanDays >= 300 ? " 1년" : ""} 변화를 확인해 보세요</b>
+        {/* 월별 차트는 열두 달이 다 있을 때만 '1년' (11/23 백엔드 #151: 미국 물가는 11점이라 설명의 '11개월간' 과 어긋남) */}
+        <b>{name ?? subject}{(monthly ? monthCount >= 12 : spanDays >= 300) ? " 1년" : ""} 변화를 확인해 보세요</b>
 
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="chart-svg" onMouseLeave={() => setHover(null)}>

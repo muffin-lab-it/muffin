@@ -277,3 +277,37 @@ describe("진행 화면 진입 조건", () => {
     response.resolve(result); await pending;
   });
 });
+
+describe("범위 밖 안내 (11/23 운영 검수)", () => {
+  it("범위 밖 plan 뒤에 온 리포트의 안내와 추천 질문을 받아 두고 저장하지 않는다", async () => {
+    const { deps, navigate, request } = setup();
+    const response = deferred<ReportResponse>();
+    let emit!: (event: MuffinEvent) => void;
+    deps.streamReport.mockImplementation((_, callback) => { emit = callback; return response.promise; });
+    const pending = request.start({ ...input, question: "QQQ 요즘 수익률 어때?" });
+    emit({ type: "plan", mode: "out_of_scope", intent: "out_of_scope", tools: [] });
+    expect(request.getSnapshot().phase).toBe("unsupported");
+    expect(request.getSnapshot().scope).toBeUndefined();
+    const scoped = { ...result.report, mode: "out_of_scope" as const, summary: "QQQ 는 미국에 상장된 ETF 라 머핀이 볼 수 없어요.", nextTopics: ["TIGER 미국나스닥100 한 달 수익률 얼마야?", "TIGER 미국나스닥100 요즘 어때?"], topicReasons: ["QQQ 와 같은 나스닥100 지수를 따라가는 국내 상장 ETF 예요", ""] };
+    emit({ type: "report", report: scoped } as MuffinEvent);
+    expect(request.getSnapshot().scope?.summary).toBe("QQQ 는 미국에 상장된 ETF 라 머핀이 볼 수 없어요.");
+    expect(request.getSnapshot().scope?.topics).toEqual([
+      { question: "TIGER 미국나스닥100 한 달 수익률 얼마야?", reason: "QQQ 와 같은 나스닥100 지수를 따라가는 국내 상장 ETF 예요" },
+      { question: "TIGER 미국나스닥100 요즘 어때?", reason: undefined },
+    ]);
+    response.resolve({ ...result, report: scoped }); await pending;
+    expect(request.getSnapshot().phase).toBe("unsupported");
+    expect(request.getSnapshot().scope?.topics).toHaveLength(2);
+    expect(deps.saveReport).not.toHaveBeenCalled(); expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("범위 밖 안내 뒤의 연결 오류는 안내를 지우지 않는다", async () => {
+    const { deps, request } = setup();
+    deps.streamReport.mockImplementation(async (_, emit) => {
+      emit({ type: "plan", mode: "out_of_scope", intent: "out_of_scope", tools: [] });
+      throw new Error("연결 끊김");
+    });
+    await request.start(input);
+    expect(request.getSnapshot().phase).toBe("unsupported");
+  });
+});

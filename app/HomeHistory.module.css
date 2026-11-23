@@ -162,3 +162,12 @@
 .askSubmit span{font-size:24px}
 @media(max-width:720px){.askSubmit{padding:0 18px;font-size:17px}}
 @media(max-width:600px){.askRow{flex-direction:column}.askSubmit{width:100%;min-height:56px}}
+
+/* 11/23 범위 밖 안내의 추천 질문: 누르면 입력칸에 채움 */
+.scopeTopics{margin-top:14px;padding-top:12px;border-top:1px solid #f0cfcc}
+.scopeTopics>p{font-size:13px;font-weight:700;color:#765c60;margin:0 0 8px}
+.scopeTopics ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.scopeTopics li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.scopeTopics button{border:1px solid var(--brand-purple-border);border-radius:999px;background:#fff;color:var(--brand-purple-strong);padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;text-align:left}
+.scopeTopics button:hover{background:var(--brand-purple-tint)}
+.scopeTopics small{font-size:12px;color:#8a7478;line-height:1.6}

@@ -140,3 +140,13 @@ describe("11/23 운영 검수", () => {
     expect($("figcaption").text()).toBe("대표 ETF 최근 30일 가격 수익률 (2026년 10월 21일~11월 20일)");
   });
 });
+
+describe("월별 차트 제목의 1년 (11/23 백엔드 #151)", () => {
+  it("11개월이면 제목에 1년을 붙이지 않고 설명은 11개월간", () => {
+    const months = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"];
+    const chart = { kind: "line" as const, title: "미국 소비자물가 상승률 (전년 같은 달 대비)", unit: "%", series: [{ label: "미국 CPI", ref: "E1", points: months.map((t, i) => ({ t, v: 2.7 + i * 0.02 })) }] };
+    const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
+    expect($("figcaption").text()).toBe("미국 소비자물가 상승률 변화를 확인해 보세요");
+    expect($.text()).toContain("2025년 11월부터 2026년 9월까지 11개월간의 미국 소비자물가 상승률 변화 그래프예요");
+  });
+});
