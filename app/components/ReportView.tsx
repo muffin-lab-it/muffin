@@ -218,7 +218,8 @@ export function ReportView({
                 <div className="metric-label"><small>{n.label}</small></div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`} valueKey={valueKey} origin={origin}><b className={tone ?? undefined}>{n.value}</b></EvidenceReference>
                 {change && !repeatsValue(n.value, detail) && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
-                {detail?.from && detail.to && <small className="metric-period">비교 기간 {formatDateKo(detail.from)} → {formatDateKo(detail.to)}</small>}
+                {/* 날짜 하나는 한 줄에 (11/23 녹화 확인: 카드 네 장일 때 '2026. 11.' 과 '23.' 이 갈라짐). 줄은 화살표 앞뒤에서만 바뀝니다 */}
+                {detail?.from && detail.to && <small className="metric-period">비교 기간 <span className="nowrap">{formatDateKo(detail.from)}</span> → <span className="nowrap">{formatDateKo(detail.to)}</span></small>}
                 {card.subs.length > 0 && (() => {
                   const rows = subRows(card.subs, n.asOf, report.verification.status === "skipped");
                   const shared = rows.length >= 2 && rows.every(row => row.detail && row.detail === rows[0]!.detail) ? rows[0]!.detail : null;

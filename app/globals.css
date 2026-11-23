@@ -238,3 +238,5 @@ button.ghost:hover { color: var(--up); }
 }
 /* PDF: 막대는 배경색으로 그려서 '배경 그래픽' 이 꺼져 있어도 보이게 */
 @media print { .chart-bar .bar-track, .chart-bar .bar-fill, .chart-bar .bar-zero { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+/* 날짜처럼 중간에서 끊기면 안 되는 짧은 덩어리 */
+.nowrap { white-space: nowrap; }
