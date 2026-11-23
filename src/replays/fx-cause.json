@@ -1,200 +1,201 @@
 {
   "version": 1,
   "id": "fx-cause",
-  "recordedAt": "2026-11-17T04:59:22.206Z",
+  "recordedAt": "2026-11-23T07:02:50.896Z",
   "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
   "depth": "standard",
   "area": "fx",
   "model": "gpt-6-luna",
   "usage": {
-    "requests": 6,
-    "inputTokens": 35437,
-    "outputTokens": 3185,
+    "requests": 5,
+    "inputTokens": 29290,
+    "outputTokens": 1970,
     "byModel": {
       "gpt-5.4-mini": {
         "requests": 2,
-        "inputTokens": 7612,
-        "cachedInputTokens": 0,
-        "outputTokens": 549
+        "inputTokens": 8090,
+        "cachedInputTokens": 2688,
+        "outputTokens": 436
       },
       "gpt-6-luna": {
-        "requests": 4,
-        "inputTokens": 27825,
-        "cachedInputTokens": 8517,
-        "outputTokens": 2636
+        "requests": 3,
+        "inputTokens": 21200,
+        "cachedInputTokens": 10788,
+        "outputTokens": 1534
       }
     }
   },
-  "ms": 43172,
+  "ms": 26059,
   "events": [
     {
-      "t": 0,
+      "t": 2,
       "type": "stage",
       "stage": "plan",
       "status": "start"
     },
     {
-      "t": 3368,
+      "t": 4045,
       "type": "plan",
       "intent": "cause",
       "mode": "research",
       "tools": [
         "get_fx_krw_rate",
+        "get_korean_economic_news",
         "get_rate_data",
-        "get_korean_economic_news"
+        "get_macro_indicators"
       ]
     },
     {
-      "t": 3368,
+      "t": 4045,
       "type": "stage",
       "stage": "plan",
       "status": "done"
     },
     {
-      "t": 3368,
+      "t": 4045,
       "type": "stage",
       "stage": "research",
       "status": "start"
     },
     {
-      "t": 8444,
+      "t": 7181,
       "type": "step",
       "step": {
         "tool": "get_rate_data",
         "status": "ok",
-        "ms": 1812
+        "ms": 800
       }
     },
     {
-      "t": 8447,
+      "t": 7183,
       "type": "step",
       "step": {
         "tool": "get_rate_data",
         "status": "ok",
-        "ms": 1814
+        "ms": 803
       }
     },
     {
-      "t": 8448,
-      "type": "step",
-      "step": {
-        "tool": "get_fx_krw_rate",
-        "status": "ok",
-        "ms": 1825
-      }
-    },
-    {
-      "t": 8450,
+      "t": 7361,
       "type": "step",
       "step": {
         "tool": "get_korean_economic_news",
         "status": "ok",
-        "ms": 1816
+        "ms": 979
       }
     },
     {
-      "t": 17140,
+      "t": 7518,
       "type": "step",
       "step": {
         "tool": "get_fx_krw_rate",
         "status": "ok",
-        "ms": 1341
+        "ms": 1149
       }
     },
     {
-      "t": 17156,
+      "t": 14618,
       "type": "step",
       "step": {
         "tool": "get_fx_krw_rate",
         "status": "ok",
-        "ms": 1351
+        "ms": 1331
       }
     },
     {
-      "t": 17157,
+      "t": 14618,
+      "type": "step",
+      "step": {
+        "tool": "get_fx_krw_rate",
+        "status": "ok",
+        "ms": 1329
+      }
+    },
+    {
+      "t": 14620,
       "type": "stage",
       "stage": "research",
       "status": "done"
     },
     {
-      "t": 17157,
+      "t": 14620,
       "type": "stage",
       "stage": "edit",
       "status": "start"
     },
     {
-      "t": 26305,
+      "t": 17919,
       "type": "step",
       "step": {
         "tool": "calc_movement",
         "status": "ok",
-        "ms": 909
+        "ms": 894
       }
     },
     {
-      "t": 26306,
+      "t": 17920,
       "type": "stage",
       "stage": "edit",
       "status": "done"
     },
     {
-      "t": 26306,
+      "t": 17920,
       "type": "stage",
       "stage": "write",
       "status": "start"
     },
     {
-      "t": 35223,
+      "t": 26051,
       "type": "stage",
       "stage": "write",
       "status": "done"
     },
     {
-      "t": 35223,
+      "t": 26051,
       "type": "stage",
       "stage": "verify",
       "status": "start"
     },
     {
-      "t": 43168,
+      "t": 26055,
       "type": "verify",
       "verification": {
         "status": "pass",
         "numbers": {
-          "total": 2,
-          "verified": 1,
+          "total": 4,
+          "verified": 3,
           "derived": 1,
           "reported": 0,
           "unverified": 0
         },
         "why": {
           "data": 0,
-          "news": 2,
+          "news": 0,
           "none": 0,
           "unsupported": 0
         },
         "advice": 0,
-        "revisions": 1,
+        "revisions": 0,
         "removed": []
       }
     },
     {
-      "t": 43168,
+      "t": 26055,
       "type": "stage",
       "stage": "verify",
       "status": "done"
     }
   ],
   "report": {
-    "summary": "최근 30일 원·달러 환율은 평소 범위 안에서 소폭 올랐습니다. 기사 제목에는 외국인의 달러선물 매수와 달러 강세에도 제한적인 움직임이 언급됐습니다. 다만 제목만으로는 이 요인들이 이번 움직임의 원인인지 확인할 수 없습니다.",
-    "headline": "최근 원·달러 환율은 평소 범위 안에서 소폭 상승했지만 원인은 확정하기 어렵습니다.",
+    "summary": "원·달러 환율은 최근 30일 동안 1.00% 올라 원화 약세였고, 평소 범위 안의 움직임이에요. 이 정도 변동은 뚜렷한 원인 없이도 생겨요. 기사 제목에는 위험회피와 코스피 급락이 함께 언급됐지만, 이를 환율 상승의 원인으로 단정할 수는 없어요.",
+    "headline": "원·달러 환율은 최근 30일 1.00% 올라 평소 범위 안에서 움직였어요.",
     "numbers": [
       {
-        "label": "USD/KRW",
-        "value": "1,336.5원",
-        "change": "30일 +0.03%",
-        "asOf": "2026-11-17",
-        "ref": "E3",
+        "label": "달러당 원화 환율",
+        "value": "1,337.74원",
+        "change": "30일 +1.00%",
+        "asOf": "2026-11-23",
+        "ref": "E4",
         "check": "verified",
         "match": {
           "key": "rate",
@@ -206,145 +207,142 @@
         },
         "changeDetail": {
           "key": "changePct",
-          "value": 0.03,
+          "value": 1,
           "unit": "%",
-          "from": "2026-10-18",
-          "to": "2026-11-17",
+          "from": "2026-10-24",
+          "to": "2026-11-23",
           "days": 30,
           "basis": "30일 전과 비교"
         }
       },
       {
-        "label": "30일 환율 변동의 평소 폭",
-        "value": "±1.66%",
-        "change": "",
-        "asOf": "2026-11-17",
+        "label": "평소 움직임 대비 30일 변화",
+        "value": "+1.00%",
+        "change": "평소 폭의 0.61배",
+        "asOf": "2026-11-23",
         "ref": "C1",
         "check": "derived",
         "match": {
-          "key": "typicalMovePct",
+          "key": "movePct",
+          "policy": "exact",
+          "change": {
+            "key": "zScore",
+            "policy": "exact"
+          }
+        }
+      },
+      {
+        "label": "한국은행 기준금리",
+        "value": "3.00%",
+        "change": "30일 변동 없음",
+        "asOf": "2026-11-21",
+        "ref": "E2",
+        "check": "verified",
+        "match": {
+          "key": "rate",
+          "policy": "exact"
+        }
+      },
+      {
+        "label": "미국 실효 연방기금금리",
+        "value": "3.88%",
+        "change": "30일 변동 없음",
+        "asOf": "2026-11-19",
+        "ref": "E1",
+        "check": "verified",
+        "match": {
+          "key": "rate",
           "policy": "exact"
         }
       }
     ],
-    "why": [
-      {
-        "claim": "기사 제목은 횡보장 중 외국인의 달러선물 매수를 언급했지만, 이것이 환율 움직임을 일으켰는지는 확인되지 않았습니다.",
-        "evidence": "KB Think 제목은 외국인의 달러선물 매수와 환율의 1,340원대 진입을 언급합니다. 본문은 확보되지 않았습니다.",
-        "basis": "news",
-        "refs": [
-          "E4-2"
-        ]
-      },
-      {
-        "claim": "기사 제목은 달러 강세에도 환율이 제한적으로 움직였다고 전해, 달러 강세만으로 이번 움직임을 설명하기 어렵습니다.",
-        "evidence": "뉴스투데이 제목은 환율이 보합권이며 달러 강세에도 제한적 움직임이라고 전합니다. 본문은 확보되지 않았습니다.",
-        "basis": "news",
-        "refs": [
-          "E4-5"
-        ]
-      }
-    ],
+    "why": [],
     "impact": [
-      "달러당 원화 금액의 상승은 같은 달러를 사는 데 필요한 원화가 늘었다는 뜻입니다.",
-      "30일 변화는 제시된 평소 움직임 범위 안에 있어, 이 기간의 움직임을 이례적으로 크다고 단정하기 어렵습니다.",
-      "해외자산의 원화 환산 가치와 수입품의 원화 비용은 환율 영향을 받지만, 이번 자료만으로 각각의 실제 영향 규모는 알 수 없습니다."
+      "달러로 결제하는 수입품을 사면 같은 물건에 필요한 원화가 늘 수 있어요.",
+      "달러 자산을 보유하면 달러 가치가 원화로 환산될 때 원화 평가액이 커질 수 있어요."
     ],
     "impactTitles": [
-      "달러 구매 비용",
-      "움직임의 크기",
-      "해외자산·수입품 영향"
+      "수입품의 원화 비용",
+      "달러 자산의 원화 환산 가치"
     ],
     "caveats": [
-      "환율은 일별 중간시장 기준이며 실시간 매수·매도 호가가 아닙니다.",
-      "뉴스 기사 본문은 확보되지 않았고 제목만 확인했습니다. 제목은 원인이나 인과관계를 입증하지 않습니다.",
-      "정책금리는 최신 관측일이 조회일보다 앞설 수 있으며, 시장금리의 일별 변동과는 다릅니다."
+      "환율은 하루 한 번 정해지는 매수·매도 중간값이라 실시간 환전 가격과 다를 수 있어요.",
+      "관련 기사 본문은 확보되지 않아 제목에 언급된 위험회피와 코스피 급락이 환율 상승의 원인인지는 확인되지 않아요. 한국·미국 금리는 최근 30일 변동이 없었고, 이 자료만으로 환율 움직임을 설명할 수 없어요."
     ],
-    "dataGaps": [
-      "최근 환율 변동의 원인을 확정하려면 원인을 설명하는 기사 본문이나 관련 시장 자료가 필요합니다.",
-      "30일 비교만으로 ‘요즘’ 전체의 움직임이나 다른 기간의 변동 양상을 판단하기는 어렵습니다."
-    ],
-    "nextTopics": [
-      "외국인 달러선물 포지션",
-      "원·달러 환율과 달러지수",
-      "한미 금리와 환율"
-    ],
-    "topicReasons": [
-      "기사 제목이 외국인의 달러선물 매수를 언급해 실제 포지션 변화와 환율의 관계를 살펴볼 수 있습니다.",
-      "달러 강세가 제목에 언급됐지만 환율은 제한적으로 움직였다고 해 달러지수와의 비교가 이어집니다.",
-      "두 나라 정책금리는 비교 자료에 포함됐지만, 금리 수준만으로 환율 원인을 설명할 수 없어 추가 맥락을 살펴볼 수 있습니다."
-    ],
+    "dataGaps": [],
+    "nextTopics": [],
     "version": 2,
     "mode": "research",
-    "notice": "USD/KRW 30일 변화(+0.03%)는 직전 90일 기준 평소 폭(±1.66%)의 0.02배로, 평소 범위 안의 움직임입니다. 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있습니다.",
+    "notice": "USD/KRW 30일 변화(+1.00%)는 직전 90일 기준 평소 폭(±1.63%)의 0.61배로, 평소 범위 안의 움직임이에요. 이 정도 움직임은 뚜렷한 원인 없이도 생길 수 있어요.",
+    "intent": "cause",
     "sources": [
-      {
-        "name": "한국은행 경제통계시스템(ECOS)",
-        "url": "https://ecos.bok.or.kr",
-        "asOf": "2026-11-14",
-        "id": "E1"
-      },
       {
         "name": "Federal Reserve Bank of St. Louis (FRED)",
         "url": "https://fred.stlouisfed.org/series/DFF",
-        "asOf": "2026-11-13",
+        "asOf": "2026-11-19",
+        "id": "E1"
+      },
+      {
+        "name": "한국은행 경제통계시스템(ECOS)",
+        "url": "https://ecos.bok.or.kr",
+        "asOf": "2026-11-21",
         "id": "E2"
       },
       {
+        "name": "이투데이",
+        "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFBjc2tYbVd2SzBiUDhvb25HN1NDYnV6TXlZZ2RGa0pvbVNma1VpZ0oxMzRlR2l0aC1QQ0dCVTNiWnJXRG91LVhDRVZjaWxIdTBJY1VFSm9FU0dOOTJaQ0tiM2NzeGFUYUFrTGN4dW81c3htdUdT?oc=5",
+        "asOf": "2026-11-23T06:58:00.000Z",
+        "id": "E3-1"
+      },
+      {
+        "name": "데이터투자",
+        "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFByMVQ3YXk5b0JHWTFGbXM2ZUdDR3ZhQVA0NkN5MmxTaktKNWhvcXZMcnRPODJ2aXZDd2hmd09BdERvTVkzTHVYdGtyVkJRYWg5U0IxdGxSRUwyei1xbkhLeXl2VnRTeGpYWXhkUkNFZ0tqTGs?oc=5",
+        "asOf": "2026-11-23T06:45:52.000Z",
+        "id": "E3-2"
+      },
+      {
+        "name": "조세일보",
+        "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFAzNV9XaDllbFhlaEhja2xyM19WU0xlQWFtSjB1VU9Jd0FsbXpFMG5XNzZRUlYtdzNLVWlQTkRjUEEzSFktSFpKZzNwMjE2N0RSbDYzTU5ERVZNS1o3RFJYZFdaMVZnbU1mQ1hqYUlWTFNSWGg3?oc=5",
+        "asOf": "2026-11-23T06:42:04.000Z",
+        "id": "E3-3"
+      },
+      {
+        "name": "뉴데일리 경제",
+        "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE5oZENZSlgwZ0xBSlpuTUthRW1qWm95STN0d3o4TzJMVXVnUHRSWXdaR3lOQVpDTzVfd0d0akdBM1FTMzhraDFNdVc1WmluUElkeVRCU3YtZ1RaX1o0OVp2YV9uYnNHcmM3ejhyd205Ty0zWDBucmxib2lMQdIBgAFBVV95cUxNemU1VWh1ZzdhLUxHY2NYeUNRaU0za3F4VGNJX09KNXQxTXVyeEtLZGhBZzg3c25EZExYZHAtWVZnTDQ4X0VjRkhxOVV2MTNrSl9URHdqRmRTZ3FKRkJKMHVteVAwN0JYVmtjSkVsdmVDRC1rY3ZSZ05paElqNHdMOA?oc=5",
+        "asOf": "2026-11-23T06:41:00.000Z",
+        "id": "E3-4"
+      },
+      {
+        "name": "파이낸셜뉴스",
+        "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5Kc0FkdGtXOHVVRERSa3FBWXdVSXZkdWhwdGJiYjVqbUlhekMzcm1CSC1iNFY5YTJVTnk5bUtsVVBWbXhMTE1HUmVQZU0wdHBrUloySDhyQXlpUQ?oc=5",
+        "asOf": "2026-11-23T06:40:28.000Z",
+        "id": "E3-5"
+      },
+      {
         "name": "Frankfurter v2",
-        "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-10-04&to=2026-11-17",
-        "asOf": "2026-11-17",
+        "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-10-10&to=2026-11-23",
+        "asOf": "2026-11-23",
         "pageUrl": "https://frankfurter.dev/",
-        "id": "E3"
-      },
-      {
-        "name": "비즈니스포스트",
-        "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE85VU9MWFdJZU94Y3pNa21qdnBXQi1OeWhUYkZGdnA3cVA5cElYdTEzMWNTU2tFaU11UlA5N3libG9yTklwOE5xYWNyVG83NlRJUDhMREtxc0VWbTRfNDRBM1czVFFWVHJKSGQxYmFBay1ZZ0U?oc=5",
-        "asOf": "2026-11-17T02:49:36.000Z",
-        "id": "E4-1"
-      },
-      {
-        "name": "KB Think",
-        "url": "https://news.google.com/rss/articles/CBMickFVX3lxTFBYekJndkQzNnVZM1RKeklxOTFGejg2Y2NyLW1NaGJMTnlySXBUSUVoTlBuYkNtWVE0STB0ZFB2OHFXTWs3eEJDZGNQYTJkazViNHBTSGF2eWVhRTlCRDlnSHhTZDdGU2VFSWl4NlJxTVFOdw?oc=5",
-        "asOf": "2026-11-17T02:18:10.000Z",
-        "id": "E4-2"
-      },
-      {
-        "name": "KB Think",
-        "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9sajJPRjlRMlN5VENuZFoxVXloNWg2ZUoxTW9mYXBuV0ZLUUVxdld3M3J3SDVHQUxGcENNNlNGT1F3SEdYTGU4Wl94d0V4Znp6TnNRYTVSWHJaRlVzS29sQw?oc=5",
-        "asOf": "2026-11-17T02:01:41.000Z",
-        "id": "E4-3"
-      },
-      {
-        "name": "잡포스트",
-        "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE1CTXZNQXJHVTgzb3RPR2hxVENfQjk3cno2NVJ6ejRsLW44X3puTFlMN1A2aUhRTTVvVkFzOFlCM3lrZnpjLTdTYktxQWc1MTl0aVV1T21xZmc4SkN1TVlaMzZTY2EzcXFiOE0xcEZ30gFyQVVfeXFMTXlybGxaNnFTY05xSG9nT2RiYXdpZTJSRGJFa2s0VkFKUG9NdUo4MEMyem9vRlliUVcxQkRGVl9OTGZuMHFBcFdwQzByNWpZcXZORzR6MXJpeW5PbnR6VEVJRlVON0RjdXZCMmZ4VWNzNHNn?oc=5",
-        "asOf": "2026-11-17T01:42:07.000Z",
-        "id": "E4-4"
-      },
-      {
-        "name": "뉴스투데이",
-        "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE9fU0Zxd01HbzhQMFM5VTVzN2pmX1BCQk4yMG5pMDAxcUlITXgxVXJheWhjbmt0OHZFbFlsdGZxSHdiWnZLb1EwQy1EMTBmcm1fZ0ZKeDQ3T0lIdTY5dnc?oc=5",
-        "asOf": "2026-11-17T00:52:00.000Z",
-        "id": "E4-5"
+        "id": "E4"
       },
       {
         "name": "Frankfurter v2",
-        "url": "https://api.frankfurter.dev/v2/rates?base=eur&quotes=krw&from=2026-10-04&to=2026-11-17",
-        "asOf": "2026-11-17",
+        "url": "https://api.frankfurter.dev/v2/rates?base=eur&quotes=krw&from=2026-10-10&to=2026-11-23",
+        "asOf": "2026-11-23",
         "pageUrl": "https://frankfurter.dev/",
         "id": "E5"
       },
       {
         "name": "Frankfurter v2",
-        "url": "https://api.frankfurter.dev/v2/rates?base=jpy&quotes=krw&from=2026-10-04&to=2026-11-17",
-        "asOf": "2026-11-17",
+        "url": "https://api.frankfurter.dev/v2/rates?base=jpy&quotes=krw&from=2026-10-10&to=2026-11-23",
+        "asOf": "2026-11-23",
         "pageUrl": "https://frankfurter.dev/",
         "id": "E6"
       },
       {
-        "name": "Frankfurter v2 일별 환율 (2026-07-21 ~ 2026-11-17)",
-        "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-07-20&to=2026-11-17",
-        "asOf": "2026-11-17",
+        "name": "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)",
+        "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-07-26&to=2026-11-23",
+        "asOf": "2026-11-23",
         "pageUrl": "https://frankfurter.dev/",
         "id": "C1"
       }
@@ -353,36 +351,13 @@
       {
         "id": "E1",
         "tool": "get_rate_data",
-        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
-        "values": {
-          "indicator": "한국은행 기준금리",
-          "rate": 3,
-          "unit": "%",
-          "asOf": "2026-11-14",
-          "comparisonDate": "2026-10-15",
-          "comparisonRate": 3,
-          "changePp": 0,
-          "changeBp": 0,
-          "requestedDays": 30,
-          "observationCount": 31
-        },
-        "source": {
-          "name": "한국은행 경제통계시스템(ECOS)",
-          "url": "https://ecos.bok.or.kr",
-          "asOf": "2026-11-14"
-        },
-        "note": "기준금리는 정책금리로, 시장금리의 일별 변동과는 다릅니다. ECOS 단위 '연%'를 '%'로 표기합니다. 변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, 그날 값이 없으면 직전 관측일 값을 사용합니다. 최신 관측일은 발표 시차로 오늘보다 이전일 수 있습니다."
-      },
-      {
-        "id": "E2",
-        "tool": "get_rate_data",
         "label": "금리 확인 · Federal Reserve Bank of St. Louis (FRED)",
         "values": {
           "indicator": "미국 실효 연방기금금리",
           "rate": 3.88,
           "unit": "%",
-          "asOf": "2026-11-13",
-          "comparisonDate": "2026-10-14",
+          "asOf": "2026-11-19",
+          "comparisonDate": "2026-10-20",
           "comparisonRate": 3.88,
           "changePp": 0,
           "changeBp": 0,
@@ -392,116 +367,139 @@
         "source": {
           "name": "Federal Reserve Bank of St. Louis (FRED)",
           "url": "https://fred.stlouisfed.org/series/DFF",
-          "asOf": "2026-11-13"
+          "asOf": "2026-11-19"
         },
-        "note": "DGS10은 미국 국채 10년물 시장금리, DFF는 미국 실효 연방기금금리입니다. 주말·미국 공휴일 등 값이 없는 날('.')은 제외합니다. 변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, 그날 값이 없으면 직전 관측일 값을 사용합니다. 최신 관측일은 발표 시차로 오늘보다 이전일 수 있습니다."
+        "note": "미국 실효 연방기금금리는 은행끼리 하루 동안 빌려주는 실제 금리의 평균이에요. 연준이 정하는 목표 범위와는 달라요. 주말 · 미국 공휴일처럼 값이 없는 날은 뺐어요. 변화는 최신 관측일과, 비교 기간만큼 앞선 날(그날 값이 없으면 바로 앞 관측일)의 값을 비교했어요. 발표 시차 때문에 최신 관측일이 오늘보다 앞설 수 있어요."
       },
       {
-        "id": "E3",
+        "id": "E2",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-11-21",
+          "comparisonDate": "2026-10-22",
+          "comparisonRate": 3,
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30,
+          "observationCount": 31
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-11-21"
+        },
+        "note": "기준금리는 정책금리라 매일 움직이는 시장금리와 달라요. 한국은행 자료의 단위 '연%' 를 '%' 로 적었어요. 변화는 최신 관측일과, 비교 기간만큼 앞선 날(그날 값이 없으면 바로 앞 관측일)의 값을 비교했어요. 발표 시차 때문에 최신 관측일이 오늘보다 앞설 수 있어요."
+      },
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 이투데이",
+        "values": {
+          "title": "[환율마감] 위험회피⋯원ㆍ달러 장중 1350원 돌파 ‘2주일만 최고’ - 이투데이",
+          "publisher": "이투데이",
+          "publishedAt": "2026-11-23T06:58:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "이투데이",
+          "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFBjc2tYbVd2SzBiUDhvb25HN1NDYnV6TXlZZ2RGa0pvbVNma1VpZ0oxMzRlR2l0aC1QQ0dCVTNiWnJXRG91LVhDRVZjaWxIdTBJY1VFSm9FU0dOOTJaQ0tiM2NzeGFUYUFrTGN4dW81c3htdUdT?oc=5",
+          "asOf": "2026-11-23T06:58:00.000Z"
+        },
+        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
+      },
+      {
+        "id": "E3-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 데이터투자",
+        "values": {
+          "title": "코스피 급락에 달러-원 환율 1,350원 돌파…2주 만에 최고치 기록했다 - 데이터투자",
+          "publisher": "데이터투자",
+          "publishedAt": "2026-11-23T06:45:52.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "데이터투자",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFByMVQ3YXk5b0JHWTFGbXM2ZUdDR3ZhQVA0NkN5MmxTaktKNWhvcXZMcnRPODJ2aXZDd2hmd09BdERvTVkzTHVYdGtyVkJRYWg5U0IxdGxSRUwyei1xbkhLeXl2VnRTeGpYWXhkUkNFZ0tqTGs?oc=5",
+          "asOf": "2026-11-23T06:45:52.000Z"
+        },
+        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
+      },
+      {
+        "id": "E3-3",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 조세일보",
+        "values": {
+          "title": "원·달러 환율, 9.7원 오른 1345.9원 - 조세일보",
+          "publisher": "조세일보",
+          "publishedAt": "2026-11-23T06:42:04.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "조세일보",
+          "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFAzNV9XaDllbFhlaEhja2xyM19WU0xlQWFtSjB1VU9Jd0FsbXpFMG5XNzZRUlYtdzNLVWlQTkRjUEEzSFktSFpKZzNwMjE2N0RSbDYzTU5ERVZNS1o3RFJYZFdaMVZnbU1mQ1hqYUlWTFNSWGg3?oc=5",
+          "asOf": "2026-11-23T06:42:04.000Z"
+        },
+        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
+      },
+      {
+        "id": "E3-4",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 뉴데일리 경제",
+        "values": {
+          "title": "[속보] 원·달러 환율, 9.7원 오른 1345.9원 마감 - 뉴데일리 경제",
+          "publisher": "뉴데일리 경제",
+          "publishedAt": "2026-11-23T06:41:00.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "뉴데일리 경제",
+          "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE5oZENZSlgwZ0xBSlpuTUthRW1qWm95STN0d3o4TzJMVXVnUHRSWXdaR3lOQVpDTzVfd0d0akdBM1FTMzhraDFNdVc1WmluUElkeVRCU3YtZ1RaX1o0OVp2YV9uYnNHcmM3ejhyd205Ty0zWDBucmxib2lMQdIBgAFBVV95cUxNemU1VWh1ZzdhLUxHY2NYeUNRaU0za3F4VGNJX09KNXQxTXVyeEtLZGhBZzg3c25EZExYZHAtWVZnTDQ4X0VjRkhxOVV2MTNrSl9URHdqRmRTZ3FKRkJKMHVteVAwN0JYVmtjSkVsdmVDRC1rY3ZSZ05paElqNHdMOA?oc=5",
+          "asOf": "2026-11-23T06:41:00.000Z"
+        },
+        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
+      },
+      {
+        "id": "E3-5",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 파이낸셜뉴스",
+        "values": {
+          "title": "원·달러 환율 9.7원 오른 1345.9원 - 파이낸셜뉴스",
+          "publisher": "파이낸셜뉴스",
+          "publishedAt": "2026-11-23T06:40:28.000Z",
+          "body": "unavailable"
+        },
+        "source": {
+          "name": "파이낸셜뉴스",
+          "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5Kc0FkdGtXOHVVRERSa3FBWXdVSXZkdWhwdGJiYjVqbUlhekMzcm1CSC1iNFY5YTJVTnk5bUtsVVBWbXhMTE1HUmVQZU0wdHBrUloySDhyQXlpUQ?oc=5",
+          "asOf": "2026-11-23T06:40:28.000Z"
+        },
+        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
+      },
+      {
+        "id": "E4",
         "tool": "get_fx_krw_rate",
         "label": "환율 확인 · Frankfurter v2",
         "values": {
           "pair": "USD/KRW",
           "unit": "KRW per 1 USD",
-          "rate": 1336.5,
-          "asOf": "2026-11-17",
-          "comparison.rate": 1336.07,
-          "comparison.asOf": "2026-10-18",
-          "change": 0.43,
-          "changePct": 0.03
+          "rate": 1337.74,
+          "asOf": "2026-11-23",
+          "comparison.rate": 1324.49,
+          "comparison.asOf": "2026-10-24",
+          "change": 13.25,
+          "changePct": 1
         },
         "source": {
           "name": "Frankfurter v2",
-          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-10-04&to=2026-11-17",
-          "asOf": "2026-11-17",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-10-10&to=2026-11-23",
+          "asOf": "2026-11-23",
           "pageUrl": "https://frankfurter.dev/"
         },
-        "note": "일별 mid-market 환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
-      },
-      {
-        "id": "E4-1",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 비즈니스포스트",
-        "values": {
-          "title": "글로벌 투자은행들 내년 원화 포함 '인공지능 수혜' 아시아 통화 강세 전망, \"수출기업 환전 확대\" - 비즈니스포스트",
-          "publisher": "비즈니스포스트",
-          "publishedAt": "2026-11-17T02:49:36.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "비즈니스포스트",
-          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE85VU9MWFdJZU94Y3pNa21qdnBXQi1OeWhUYkZGdnA3cVA5cElYdTEzMWNTU2tFaU11UlA5N3libG9yTklwOE5xYWNyVG83NlRJUDhMREtxc0VWbTRfNDRBM1czVFFWVHJKSGQxYmFBay1ZZ0U?oc=5",
-          "asOf": "2026-11-17T02:49:36.000Z"
-        },
-        "note": "본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다. 본문 목표 충족 상태(bodyStatus): partial. 반환 기사 목록 5건의 수량 충족 상태(resultStatus): complete. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 본문 확보 목표 5건 대비 5건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. 반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
-      },
-      {
-        "id": "E4-2",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · KB Think",
-        "values": {
-          "title": "[외환] 횡보장에도 外人 달러선물 매수에 1,340원대 진입 - KB Think",
-          "publisher": "KB Think",
-          "publishedAt": "2026-11-17T02:18:10.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "KB Think",
-          "url": "https://news.google.com/rss/articles/CBMickFVX3lxTFBYekJndkQzNnVZM1RKeklxOTFGejg2Y2NyLW1NaGJMTnlySXBUSUVoTlBuYkNtWVE0STB0ZFB2OHFXTWs3eEJDZGNQYTJkazViNHBTSGF2eWVhRTlCRDlnSHhTZDdGU2VFSWl4NlJxTVFOdw?oc=5",
-          "asOf": "2026-11-17T02:18:10.000Z"
-        },
-        "note": "본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다. 본문 목표 충족 상태(bodyStatus): partial. 반환 기사 목록 5건의 수량 충족 상태(resultStatus): complete. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 본문 확보 목표 5건 대비 5건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. 반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
-      },
-      {
-        "id": "E4-3",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · KB Think",
-        "values": {
-          "title": "[환율 전망] 중요한 건 꺾이지 않는 경상흑자 - KB Think",
-          "publisher": "KB Think",
-          "publishedAt": "2026-11-17T02:01:41.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "KB Think",
-          "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9sajJPRjlRMlN5VENuZFoxVXloNWg2ZUoxTW9mYXBuV0ZLUUVxdld3M3J3SDVHQUxGcENNNlNGT1F3SEdYTGU4Wl94d0V4Znp6TnNRYTVSWHJaRlVzS29sQw?oc=5",
-          "asOf": "2026-11-17T02:01:41.000Z"
-        },
-        "note": "본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다. 본문 목표 충족 상태(bodyStatus): partial. 반환 기사 목록 5건의 수량 충족 상태(resultStatus): complete. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 본문 확보 목표 5건 대비 5건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. 반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
-      },
-      {
-        "id": "E4-4",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 잡포스트",
-        "values": {
-          "title": "[오늘의 환율] 11월 17일 원·달러 환율 1341원…엔화·유로·위안화 일제히 상승 - 잡포스트",
-          "publisher": "잡포스트",
-          "publishedAt": "2026-11-17T01:42:07.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "잡포스트",
-          "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE1CTXZNQXJHVTgzb3RPR2hxVENfQjk3cno2NVJ6ejRsLW44X3puTFlMN1A2aUhRTTVvVkFzOFlCM3lrZnpjLTdTYktxQWc1MTl0aVV1T21xZmc4SkN1TVlaMzZTY2EzcXFiOE0xcEZ30gFyQVVfeXFMTXlybGxaNnFTY05xSG9nT2RiYXdpZTJSRGJFa2s0VkFKUG9NdUo4MEMyem9vRlliUVcxQkRGVl9OTGZuMHFBcFdwQzByNWpZcXZORzR6MXJpeW5PbnR6VEVJRlVON0RjdXZCMmZ4VWNzNHNn?oc=5",
-          "asOf": "2026-11-17T01:42:07.000Z"
-        },
-        "note": "본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다. 본문 목표 충족 상태(bodyStatus): partial. 반환 기사 목록 5건의 수량 충족 상태(resultStatus): complete. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 본문 확보 목표 5건 대비 5건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. 반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
-      },
-      {
-        "id": "E4-5",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 뉴스투데이",
-        "values": {
-          "title": "환율, 1330원대 중반서 보합권…달러 강세에도 제한적 움직임 - 뉴스투데이",
-          "publisher": "뉴스투데이",
-          "publishedAt": "2026-11-17T00:52:00.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "뉴스투데이",
-          "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE9fU0Zxd01HbzhQMFM5VTVzN2pmX1BCQk4yMG5pMDAxcUlITXgxVXJheWhjbmt0OHZFbFlsdGZxSHdiWnZLb1EwQy1EMTBmcm1fZ0ZKeDQ3T0lIdTY5dnc?oc=5",
-          "asOf": "2026-11-17T00:52:00.000Z"
-        },
-        "note": "본문은 확보하지 못했고 Google News 제목 목록만 확인했습니다. 본문 목표 충족 상태(bodyStatus): partial. 반환 기사 목록 5건의 수량 충족 상태(resultStatus): complete. 본문은 0건이며 Google News 제목 목록 5건만 대신 반환했습니다. 본문 확보 목표 5건 대비 5건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다. 반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다. Google News 링크는 원 언론사가 아닌 Google News 중계 링크일 수 있습니다."
+        "note": "하루 한 번 정해지는 매수·매도 중간값 환율이에요. 실시간으로 사고파는 값이 아니에요. 변화는 최신 기준일과 30일 전(그날 값이 없으면 그 앞 가장 가까운 날) 값을 비교했어요."
       },
       {
         "id": "E5",
@@ -510,20 +508,20 @@
         "values": {
           "pair": "EUR/KRW",
           "unit": "KRW per 1 EUR",
-          "rate": 1474.81,
-          "asOf": "2026-11-17",
-          "comparison.rate": 1501.59,
-          "comparison.asOf": "2026-10-18",
-          "change": -26.78,
-          "changePct": -1.78
+          "rate": 1469.67,
+          "asOf": "2026-11-23",
+          "comparison.rate": 1485.52,
+          "comparison.asOf": "2026-10-24",
+          "change": -15.85,
+          "changePct": -1.07
         },
         "source": {
           "name": "Frankfurter v2",
-          "url": "https://api.frankfurter.dev/v2/rates?base=eur&quotes=krw&from=2026-10-04&to=2026-11-17",
-          "asOf": "2026-11-17",
+          "url": "https://api.frankfurter.dev/v2/rates?base=eur&quotes=krw&from=2026-10-10&to=2026-11-23",
+          "asOf": "2026-11-23",
           "pageUrl": "https://frankfurter.dev/"
         },
-        "note": "일별 mid-market 환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다."
+        "note": "하루 한 번 정해지는 매수·매도 중간값 환율이에요. 실시간으로 사고파는 값이 아니에요. 변화는 최신 기준일과 30일 전(그날 값이 없으면 그 앞 가장 가까운 날) 값을 비교했어요."
       },
       {
         "id": "E6",
@@ -532,47 +530,54 @@
         "values": {
           "pair": "JPY(100)/KRW",
           "unit": "KRW per 100 JPY",
-          "rate": 836.54,
-          "asOf": "2026-11-17",
-          "comparison.rate": 845.33,
-          "comparison.asOf": "2026-10-18",
-          "change": -8.79,
-          "changePct": -1.04
+          "rate": 841.04,
+          "asOf": "2026-11-23",
+          "comparison.rate": 843.48,
+          "comparison.asOf": "2026-10-24",
+          "change": -2.44,
+          "changePct": -0.29
         },
         "source": {
           "name": "Frankfurter v2",
-          "url": "https://api.frankfurter.dev/v2/rates?base=jpy&quotes=krw&from=2026-10-04&to=2026-11-17",
-          "asOf": "2026-11-17",
+          "url": "https://api.frankfurter.dev/v2/rates?base=jpy&quotes=krw&from=2026-10-10&to=2026-11-23",
+          "asOf": "2026-11-23",
           "pageUrl": "https://frankfurter.dev/"
         },
-        "note": "일별 mid-market 환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 30일 전 이하인 가장 가까운 데이터와의 차이입니다. JPY는 국내 관행에 따라 100엔 기준으로 표시합니다."
+        "note": "하루 한 번 정해지는 매수·매도 중간값 환율이에요. 실시간으로 사고파는 값이 아니에요. 변화는 최신 기준일과 30일 전(그날 값이 없으면 그 앞 가장 가까운 날) 값을 비교했어요. 엔화는 국내 관행대로 100엔 기준이에요."
       },
       {
         "id": "C1",
         "tool": "calc_movement",
         "label": "평소 움직임과 비교 · USD/KRW 30일 변화의 크기 (직전 90일 기준)",
         "values": {
-          "movePct": 0.03,
-          "typicalMovePct": 1.66,
-          "zScore": 0.02,
-          "timesTypical": 0.02,
+          "movePct": 1,
+          "typicalMovePct": 1.63,
+          "zScore": 0.61,
+          "timesTypical": 0.61,
           "level": "normal",
           "periodDays": 30,
-          "baselineStart": "2026-07-21",
-          "baselineEnd": "2026-10-18",
-          "baselineCount": 89
+          "baselineStart": "2026-07-27",
+          "baselineEnd": "2026-10-24",
+          "baselineCount": 89,
+          "dailyAvgMovePct": 0.17,
+          "baselineDailyAvgMovePct": 0.23,
+          "dailyTimesTypical": 0.76,
+          "dailyLevel": "normal",
+          "maxDailyChangePct": 0.68,
+          "maxDailyDate": "2026-11-06",
+          "bigMoveDays": 3
         },
         "source": {
-          "name": "Frankfurter v2 일별 환율 (2026-07-21 ~ 2026-11-17)",
-          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-07-20&to=2026-11-17",
-          "asOf": "2026-11-17",
+          "name": "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)",
+          "url": "https://api.frankfurter.dev/v2/rates?base=usd&quotes=krw&from=2026-07-26&to=2026-11-23",
+          "asOf": "2026-11-23",
           "pageUrl": "https://frankfurter.dev/"
         },
-        "note": "직전 90일(2026-07-21~2026-10-18) 하루 변화 89개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±1.66%. 이번 변화 +0.03% 는 평소 폭의 0.02배입니다",
+        "note": "직전 90일(2026-07-27~2026-10-24) 하루 변화 89개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±1.63%. 이번 변화 +1.00% 는 평소 폭의 0.61배예요. 하루 단위로는 이번 기간 하루 평균 0.17% 움직여 직전 90일 평균 0.23% 의 0.76배예요 (하루 변화의 절댓값 평균)",
         "lineage": {
           "op": "zscore",
           "inputs": [
-            "E3"
+            "E4"
           ]
         }
       }
@@ -580,25 +585,25 @@
     "verification": {
       "status": "pass",
       "numbers": {
-        "total": 2,
-        "verified": 1,
+        "total": 4,
+        "verified": 3,
         "derived": 1,
         "reported": 0,
         "unverified": 0
       },
       "why": {
         "data": 0,
-        "news": 2,
+        "news": 0,
         "none": 0,
         "unsupported": 0
       },
       "advice": 0,
-      "revisions": 1,
+      "revisions": 0,
       "removed": []
     },
     "movement": {
-      "ref": "E3",
-      "zScore": 0.02,
+      "ref": "E4",
+      "zScore": 0.61,
       "window": 90,
       "level": "normal"
     },
@@ -611,30 +616,6 @@
             "label": "USD/KRW",
             "ref": "C1",
             "points": [
-              {
-                "t": "2026-10-18",
-                "v": 1336.07
-              },
-              {
-                "t": "2026-10-19",
-                "v": 1332.25
-              },
-              {
-                "t": "2026-10-20",
-                "v": 1328.85
-              },
-              {
-                "t": "2026-10-21",
-                "v": 1326.51
-              },
-              {
-                "t": "2026-10-22",
-                "v": 1324.83
-              },
-              {
-                "t": "2026-10-23",
-                "v": 1324.45
-              },
               {
                 "t": "2026-10-24",
                 "v": 1324.49
@@ -725,47 +706,71 @@
               },
               {
                 "t": "2026-11-15",
-                "v": 1335.79
+                "v": 1335.88
               },
               {
                 "t": "2026-11-16",
-                "v": 1335.91
+                "v": 1335.31
               },
               {
                 "t": "2026-11-17",
-                "v": 1336.5
+                "v": 1336.33
+              },
+              {
+                "t": "2026-11-18",
+                "v": 1333.39
+              },
+              {
+                "t": "2026-11-19",
+                "v": 1331.02
+              },
+              {
+                "t": "2026-11-20",
+                "v": 1334.74
+              },
+              {
+                "t": "2026-11-21",
+                "v": 1335.58
+              },
+              {
+                "t": "2026-11-22",
+                "v": 1336.27
+              },
+              {
+                "t": "2026-11-23",
+                "v": 1337.74
               }
             ]
           }
         ],
         "events": [
           {
-            "ref": "E4-1",
-            "label": "글로벌 투자은행들 내년 원화 포함 '인공지능 수혜…",
-            "at": "2026-11-17"
+            "ref": "E3-1",
+            "label": "[환율마감] 위험회피⋯원ㆍ달러 장중 1350원 돌…",
+            "at": "2026-11-23"
           },
           {
-            "ref": "E4-2",
-            "label": "[외환] 횡보장에도 外人 달러선물 매수에 1,34…",
-            "at": "2026-11-17"
+            "ref": "E3-2",
+            "label": "코스피 급락에 달러-원 환율 1,350원 돌파…2…",
+            "at": "2026-11-23"
           },
           {
-            "ref": "E4-3",
-            "label": "[환율 전망] 중요한 건 꺾이지 않는 경상흑자 -…",
-            "at": "2026-11-17"
+            "ref": "E3-3",
+            "label": "원·달러 환율, 9.7원 오른 1345.9원 - …",
+            "at": "2026-11-23"
           },
           {
-            "ref": "E4-4",
-            "label": "[오늘의 환율] 11월 17일 원·달러 환율 13…",
-            "at": "2026-11-17"
+            "ref": "E3-4",
+            "label": "[속보] 원·달러 환율, 9.7원 오른 1345.…",
+            "at": "2026-11-23"
           }
         ],
         "band": {
-          "from": "2026-10-18",
-          "to": "2026-11-17",
-          "low": 1313.89,
-          "high": 1358.25,
-          "label": "평소 폭 ±1.66% (직전 90일 기준)"
+          "from": "2026-10-24",
+          "to": "2026-11-23",
+          "low": 1302.9,
+          "high": 1346.08,
+          "label": "평소 폭 ±1.63% (직전 90일 기준)"
         },
         "unit": "KRW per 1 USD"
       }
@@ -776,38 +781,38 @@
     {
       "tool": "get_rate_data",
       "status": "ok",
-      "ms": 1812
+      "ms": 800
     },
     {
       "tool": "get_rate_data",
       "status": "ok",
-      "ms": 1814
-    },
-    {
-      "tool": "get_fx_krw_rate",
-      "status": "ok",
-      "ms": 1825
+      "ms": 803
     },
     {
       "tool": "get_korean_economic_news",
       "status": "ok",
-      "ms": 1816
+      "ms": 979
     },
     {
       "tool": "get_fx_krw_rate",
       "status": "ok",
-      "ms": 1341
+      "ms": 1149
     },
     {
       "tool": "get_fx_krw_rate",
       "status": "ok",
-      "ms": 1351
+      "ms": 1331
+    },
+    {
+      "tool": "get_fx_krw_rate",
+      "status": "ok",
+      "ms": 1329
     },
     {
       "tool": "calc_movement",
       "status": "ok",
-      "ms": 909
+      "ms": 894
     }
   ],
-  "rewrites": 1
+  "rewrites": 0
 }

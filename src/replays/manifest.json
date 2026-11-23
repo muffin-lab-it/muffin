@@ -1,5 +1,58 @@
 [
   {
+    "id": "macro-cause",
+    "recordedAt": "2026-11-23T07:10:15.411Z",
+    "question": "최근 소비자물가 상승 원인은 뭐야?",
+    "depth": "standard",
+    "area": "macro",
+    "model": "gpt-6-luna",
+    "ms": 28273
+  },
+  {
+    "id": "rate-kospi",
+    "recordedAt": "2026-11-23T07:05:49.133Z",
+    "question": "금리랑 코스피 관계 알려줘",
+    "depth": "standard",
+    "model": "gpt-6-luna",
+    "ms": 17787
+  },
+  {
+    "id": "macro-cause-deep",
+    "recordedAt": "2026-11-23T07:04:58.445Z",
+    "question": "최근 소비자물가 상승 원인은 뭐야?",
+    "depth": "deep",
+    "area": "macro",
+    "model": "gpt-6-sol",
+    "ms": 48571
+  },
+  {
+    "id": "fx-cause-deep",
+    "recordedAt": "2026-11-23T07:03:46.666Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "deep",
+    "area": "fx",
+    "model": "gpt-6-sol",
+    "ms": 38035
+  },
+  {
+    "id": "fx-cause-easy",
+    "recordedAt": "2026-11-23T07:03:19.451Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "easy",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 24903
+  },
+  {
+    "id": "fx-cause",
+    "recordedAt": "2026-11-23T07:02:50.896Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "standard",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 26059
+  },
+  {
     "id": "rate-compare",
     "recordedAt": "2026-11-23T06:47:25.542Z",
     "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",
@@ -15,14 +68,6 @@
     "depth": "standard",
     "model": "gpt-6-luna",
     "ms": 16148
-  },
-  {
-    "id": "rate-kospi",
-    "recordedAt": "2026-11-23T06:46:17.857Z",
-    "question": "금리랑 코스피 관계 알려줘",
-    "depth": "standard",
-    "model": "gpt-6-luna",
-    "ms": 16790
   },
   {
     "id": "rate-trend",
@@ -58,50 +103,5 @@
     "area": "etf",
     "model": "gpt-6-luna",
     "ms": 21909
-  },
-  {
-    "id": "macro-cause-deep",
-    "recordedAt": "2026-11-17T05:03:24.414Z",
-    "question": "최근 소비자물가 상승 원인은 뭐야?",
-    "depth": "deep",
-    "area": "macro",
-    "model": "gpt-6-sol",
-    "ms": 35392
-  },
-  {
-    "id": "macro-cause",
-    "recordedAt": "2026-11-17T05:03:02.314Z",
-    "question": "최근 소비자물가 상승 원인은 뭐야?",
-    "depth": "standard",
-    "area": "macro",
-    "model": "gpt-6-luna",
-    "ms": 20123
-  },
-  {
-    "id": "fx-cause-deep",
-    "recordedAt": "2026-11-17T05:00:36.083Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "deep",
-    "area": "fx",
-    "model": "gpt-6-sol",
-    "ms": 44507
-  },
-  {
-    "id": "fx-cause-easy",
-    "recordedAt": "2026-11-17T05:00:07.862Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "easy",
-    "area": "fx",
-    "model": "gpt-6-luna",
-    "ms": 25595
-  },
-  {
-    "id": "fx-cause",
-    "recordedAt": "2026-11-17T04:59:22.206Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "standard",
-    "area": "fx",
-    "model": "gpt-6-luna",
-    "ms": 43172
   }
 ]
