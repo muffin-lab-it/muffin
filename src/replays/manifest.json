@@ -1,5 +1,65 @@
 [
   {
+    "id": "rate-compare",
+    "recordedAt": "2026-11-23T06:47:25.542Z",
+    "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",
+    "depth": "standard",
+    "area": "rate",
+    "model": "gpt-6-luna",
+    "ms": 24309
+  },
+  {
+    "id": "etf-basket",
+    "recordedAt": "2026-11-23T06:47:07.235Z",
+    "question": "etf 요즘 뭐가 좋아?",
+    "depth": "standard",
+    "model": "gpt-6-luna",
+    "ms": 16148
+  },
+  {
+    "id": "rate-kospi",
+    "recordedAt": "2026-11-23T06:46:17.857Z",
+    "question": "금리랑 코스피 관계 알려줘",
+    "depth": "standard",
+    "model": "gpt-6-luna",
+    "ms": 16790
+  },
+  {
+    "id": "rate-trend",
+    "recordedAt": "2026-11-23T06:46:00.504Z",
+    "question": "금리 내려가는 추세야?",
+    "depth": "easy",
+    "model": "gpt-6-luna",
+    "ms": 15451
+  },
+  {
+    "id": "etf-decision-deep",
+    "recordedAt": "2026-11-23T06:44:44.931Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "deep",
+    "area": "etf",
+    "model": "gpt-6-sol",
+    "ms": 27817
+  },
+  {
+    "id": "etf-decision-easy",
+    "recordedAt": "2026-11-23T06:44:25.859Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "easy",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 16719
+  },
+  {
+    "id": "etf-decision",
+    "recordedAt": "2026-11-23T06:44:01.109Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "standard",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 21909
+  },
+  {
     "id": "macro-cause-deep",
     "recordedAt": "2026-11-17T05:03:24.414Z",
     "question": "최근 소비자물가 상승 원인은 뭐야?",
@@ -16,42 +76,6 @@
     "area": "macro",
     "model": "gpt-6-luna",
     "ms": 20123
-  },
-  {
-    "id": "rate-compare",
-    "recordedAt": "2026-11-17T05:02:41.649Z",
-    "question": "한국 기준금리랑 미국 금리 차이가 요즘 어때?",
-    "depth": "standard",
-    "area": "rate",
-    "model": "gpt-6-luna",
-    "ms": 19081
-  },
-  {
-    "id": "etf-decision-deep",
-    "recordedAt": "2026-11-17T05:02:14.178Z",
-    "question": "KODEX 200 지금 사도 돼?",
-    "depth": "deep",
-    "area": "etf",
-    "model": "gpt-6-sol",
-    "ms": 24864
-  },
-  {
-    "id": "etf-decision-easy",
-    "recordedAt": "2026-11-17T05:01:50.496Z",
-    "question": "KODEX 200 지금 사도 돼?",
-    "depth": "easy",
-    "area": "etf",
-    "model": "gpt-6-luna",
-    "ms": 21179
-  },
-  {
-    "id": "etf-decision",
-    "recordedAt": "2026-11-17T05:01:23.174Z",
-    "question": "KODEX 200 지금 사도 돼?",
-    "depth": "standard",
-    "area": "etf",
-    "model": "gpt-6-luna",
-    "ms": 24854
   },
   {
     "id": "fx-cause-deep",

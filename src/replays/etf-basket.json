@@ -1,0 +1,629 @@
+{
+  "version": 1,
+  "id": "etf-basket",
+  "recordedAt": "2026-11-23T06:47:07.235Z",
+  "question": "etf 요즘 뭐가 좋아?",
+  "depth": "standard",
+  "model": "gpt-6-luna",
+  "usage": {
+    "requests": 5,
+    "inputTokens": 22545,
+    "outputTokens": 1273,
+    "byModel": {
+      "gpt-5.4-mini": {
+        "requests": 2,
+        "inputTokens": 8216,
+        "cachedInputTokens": 5376,
+        "outputTokens": 614
+      },
+      "gpt-6-luna": {
+        "requests": 3,
+        "inputTokens": 14329,
+        "cachedInputTokens": 10415,
+        "outputTokens": 659
+      }
+    }
+  },
+  "ms": 16148,
+  "events": [
+    {
+      "t": 1,
+      "type": "stage",
+      "stage": "plan",
+      "status": "start"
+    },
+    {
+      "t": 2220,
+      "type": "plan",
+      "intent": "status",
+      "mode": "research",
+      "tools": [
+        "get_etf_kr_price"
+      ]
+    },
+    {
+      "t": 2220,
+      "type": "stage",
+      "stage": "plan",
+      "status": "done"
+    },
+    {
+      "t": 2220,
+      "type": "stage",
+      "stage": "research",
+      "status": "start"
+    },
+    {
+      "t": 4438,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 716
+      }
+    },
+    {
+      "t": 7914,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 336
+      }
+    },
+    {
+      "t": 8021,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 441
+      }
+    },
+    {
+      "t": 8059,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 478
+      }
+    },
+    {
+      "t": 8059,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 477
+      }
+    },
+    {
+      "t": 8059,
+      "type": "step",
+      "step": {
+        "tool": "get_etf_kr_price",
+        "status": "ok",
+        "ms": 480
+      }
+    },
+    {
+      "t": 8060,
+      "type": "stage",
+      "stage": "research",
+      "status": "done"
+    },
+    {
+      "t": 8060,
+      "type": "stage",
+      "stage": "edit",
+      "status": "start"
+    },
+    {
+      "t": 11586,
+      "type": "stage",
+      "stage": "edit",
+      "status": "done"
+    },
+    {
+      "t": 11586,
+      "type": "stage",
+      "stage": "write",
+      "status": "start"
+    },
+    {
+      "t": 16142,
+      "type": "stage",
+      "stage": "write",
+      "status": "done"
+    },
+    {
+      "t": 16142,
+      "type": "stage",
+      "stage": "verify",
+      "status": "start"
+    },
+    {
+      "t": 16145,
+      "type": "verify",
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 6,
+          "verified": 6,
+          "derived": 0,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 0,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      }
+    },
+    {
+      "t": 16145,
+      "type": "stage",
+      "stage": "verify",
+      "status": "done"
+    }
+  ],
+  "report": {
+    "summary": "최근 30일에는 국내 국채 ETF가 오른 반면, 주식·금 ETF는 모두 내렸어요. ACE 국고채10년은 2.71% 상승했고, KODEX 코스닥150은 21.10% 하락했어요. ‘좋다’는 기준이 정해지지 않아 우열을 말할 수는 없고, 이 기간의 가격 수익률은 향후 성과를 뜻하지 않아요.",
+    "headline": "최근 30일에는 국고채 ETF가 오르고 주식·금 ETF는 내렸어요",
+    "numbers": [
+      {
+        "label": "KODEX 200 (국내 대형주)",
+        "value": "-15.06%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E1",
+        "check": "verified",
+        "match": {
+          "key": "period.returnPct",
+          "policy": "rounded"
+        }
+      },
+      {
+        "label": "KODEX 코스닥150 (국내 코스닥)",
+        "value": "-21.10%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E2",
+        "check": "verified",
+        "match": {
+          "key": "period.returnPct",
+          "policy": "rounded"
+        }
+      },
+      {
+        "label": "TIGER 미국S&P500 (미국 대형주)",
+        "value": "-6.92%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E6",
+        "check": "verified",
+        "match": {
+          "key": "period.returnPct",
+          "policy": "rounded"
+        }
+      },
+      {
+        "label": "TIGER 미국나스닥100 (미국 기술주)",
+        "value": "-10.70%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E3",
+        "check": "verified",
+        "match": {
+          "key": "period.returnPct",
+          "policy": "rounded"
+        }
+      },
+      {
+        "label": "ACE 국고채10년 (국내 국채)",
+        "value": "+2.71%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E4",
+        "check": "verified",
+        "match": {
+          "key": "period.returnPct",
+          "policy": "rounded"
+        }
+      },
+      {
+        "label": "ACE KRX금현물 (금)",
+        "value": "-12.71%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E5",
+        "check": "verified",
+        "match": {
+          "key": "period.returnPct",
+          "policy": "rounded"
+        }
+      }
+    ],
+    "why": [],
+    "impact": [
+      "국내 국채 가격 흐름을 살펴보는 경우, 이 기간 ACE 국고채10년의 가격 수익률은 상승했어요.",
+      "국내 주식시장 흐름을 살펴보는 경우, 이 기간 코스닥150 추종 ETF의 가격 수익률은 하락했어요.",
+      "미국 주식이나 금에 관심이 있다면, 해당 ETF도 이 기간 가격 수익률이 하락했다는 점을 비교할 수 있어요."
+    ],
+    "impactTitles": [
+      "국내 국채",
+      "국내 주식",
+      "미국 주식과 금"
+    ],
+    "caveats": [
+      "수익률은 분배금을 제외한 가격 기준이에요. 대표 ETF 목록은 자산군별로 미리 정한 비교 대상이며, 과거 수익률이 앞으로의 수익률을 보장하지 않아요."
+    ],
+    "dataGaps": [
+      "‘좋다’의 기준이 수익률·위험·수수료·투자 지역 중 무엇인지 정해지지 않아 개인 상황에 맞는 우열을 판단할 수 없어요."
+    ],
+    "nextTopics": [],
+    "version": 2,
+    "mode": "research",
+    "intent": "status",
+    "sources": [
+      {
+        "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "url": "https://www.data.go.kr/data/15094806/openapi.do",
+        "asOf": "2026-11-20",
+        "id": "E1"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "E1",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 200",
+          "baseIndex": "코스피 200",
+          "latest.date": "2026-11-20",
+          "latest.close": 76210,
+          "latest.change": -4420,
+          "latest.changePct": -5.48,
+          "latest.nav": 76302.42,
+          "latest.premiumPct": -0.12112328809492313,
+          "latest.open": 77370,
+          "latest.high": 77900,
+          "latest.low": 75585,
+          "latest.volume": 21323459,
+          "latest.tradeValue": 1635336637896,
+          "latest.netAssets": 19598277807643,
+          "latest.indexClose": 755.34,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 89725,
+          "period.indexCloseFrom": 891.04,
+          "period.returnPct": -15.062691557536922,
+          "period.indexReturnPct": -15.22939486442808,
+          "period.trackingDiffPp": 0.16670330689115787,
+          "period.high": 97550,
+          "period.low": 75585
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-20"
+        },
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
+      },
+      {
+        "id": "E2",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "KODEX 코스닥150",
+          "baseIndex": "코스닥 150",
+          "latest.date": "2026-11-20",
+          "latest.close": 10510,
+          "latest.change": -810,
+          "latest.changePct": -7.16,
+          "latest.nav": 10518.34,
+          "latest.premiumPct": -0.07929007809217181,
+          "latest.open": 10820,
+          "latest.high": 10895,
+          "latest.low": 10435,
+          "latest.volume": 53545072,
+          "latest.tradeValue": 569682128514,
+          "latest.netAssets": 3956473791906,
+          "latest.indexClose": 1058.78,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 13320,
+          "period.indexCloseFrom": 1344.53,
+          "period.returnPct": -21.096096096096094,
+          "period.indexReturnPct": -21.252779781782483,
+          "period.trackingDiffPp": 0.15668368568638869,
+          "period.high": 13575,
+          "period.low": 10165
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-20"
+        },
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
+      },
+      {
+        "id": "E3",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국나스닥100",
+          "baseIndex": "NASDAQ 100",
+          "latest.date": "2026-11-20",
+          "latest.close": 155220,
+          "latest.change": -7205,
+          "latest.changePct": -4.44,
+          "latest.nav": 156702.02,
+          "latest.premiumPct": -0.9457567936903364,
+          "latest.open": 156425,
+          "latest.high": 156595,
+          "latest.low": 154830,
+          "latest.volume": 2794595,
+          "latest.tradeValue": 435783392112,
+          "latest.netAssets": 10818707590361,
+          "latest.indexClose": 25028.98,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 173825,
+          "period.indexCloseFrom": 29822.52,
+          "period.returnPct": -10.70329354235582,
+          "period.indexReturnPct": -16.073557834817453,
+          "period.trackingDiffPp": 5.370264292461634,
+          "period.high": 176780,
+          "period.low": 154830
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-20"
+        },
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
+      },
+      {
+        "id": "E4",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "ACE 국고채10년",
+          "baseIndex": "KIS 10년 국고채 지수 (총수익)",
+          "latest.date": "2026-11-20",
+          "latest.close": 86350,
+          "latest.change": 510,
+          "latest.changePct": 0.59,
+          "latest.nav": 86342.14,
+          "latest.premiumPct": 0.009103318495465345,
+          "latest.open": 85840,
+          "latest.high": 86350,
+          "latest.low": 85830,
+          "latest.volume": 13503,
+          "latest.tradeValue": 1162973094,
+          "latest.netAssets": 587558263991,
+          "latest.indexClose": 16371.87,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 84070,
+          "period.indexCloseFrom": 15957.87,
+          "period.returnPct": 2.7120256928749864,
+          "period.indexReturnPct": 2.59433119833663,
+          "period.trackingDiffPp": 0.11769449453835623,
+          "period.high": 86410,
+          "period.low": 83895
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-20"
+        },
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
+      },
+      {
+        "id": "E5",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "ACE KRX금현물",
+          "baseIndex": "KRX 금현물지수",
+          "latest.date": "2026-11-20",
+          "latest.close": 21250,
+          "latest.change": -955,
+          "latest.changePct": -4.3,
+          "latest.nav": 21351.03,
+          "latest.premiumPct": -0.47318560275545885,
+          "latest.open": 21590,
+          "latest.high": 21620,
+          "latest.low": 20980,
+          "latest.volume": 2154626,
+          "latest.tradeValue": 45804753900,
+          "latest.netAssets": 3200519174942,
+          "latest.indexClose": 3584.79,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 24345,
+          "period.indexCloseFrom": 4103.96,
+          "period.returnPct": -12.713082768535633,
+          "period.indexReturnPct": -12.65046442947787,
+          "period.trackingDiffPp": -0.0626183390577637,
+          "period.high": 25185,
+          "period.low": 20980
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-20"
+        },
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
+      },
+      {
+        "id": "E6",
+        "tool": "get_etf_kr_price",
+        "label": "국내 ETF 시세 확인 · 금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+        "values": {
+          "name": "TIGER 미국S&P500",
+          "baseIndex": "S&P 500",
+          "latest.date": "2026-11-20",
+          "latest.close": 23665,
+          "latest.change": -735,
+          "latest.changePct": -3.01,
+          "latest.nav": 23764.35,
+          "latest.premiumPct": -0.41806319129283376,
+          "latest.open": 23765,
+          "latest.high": 23795,
+          "latest.low": 23615,
+          "latest.volume": 31407503,
+          "latest.tradeValue": 745176436673,
+          "latest.netAssets": 19913339222743,
+          "latest.indexClose": 6910.39,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 25425,
+          "period.indexCloseFrom": 7757.17,
+          "period.returnPct": -6.922320550639139,
+          "period.indexReturnPct": -10.91609440040633,
+          "period.trackingDiffPp": 3.993773849767191,
+          "period.high": 25750,
+          "period.low": 23615
+        },
+        "source": {
+          "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
+          "url": "https://www.data.go.kr/data/15094806/openapi.do",
+          "asOf": "2026-11-20"
+        },
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
+      }
+    ],
+    "verification": {
+      "status": "pass",
+      "numbers": {
+        "total": 6,
+        "verified": 6,
+        "derived": 0,
+        "reported": 0,
+        "unverified": 0
+      },
+      "why": {
+        "data": 0,
+        "news": 0,
+        "none": 0,
+        "unsupported": 0
+      },
+      "advice": 0,
+      "revisions": 0,
+      "removed": []
+    },
+    "charts": [
+      {
+        "kind": "bar",
+        "title": "대표 ETF 최근 30일 가격 수익률 (2026-10-21~2026-11-20)",
+        "series": [
+          {
+            "label": "KODEX 200 (국내 대형주)",
+            "ref": "E1",
+            "points": [
+              {
+                "t": "2026-11-20",
+                "v": -15.062691557536922
+              }
+            ]
+          },
+          {
+            "label": "KODEX 코스닥150 (국내 코스닥)",
+            "ref": "E2",
+            "points": [
+              {
+                "t": "2026-11-20",
+                "v": -21.096096096096094
+              }
+            ]
+          },
+          {
+            "label": "TIGER 미국S&P500 (미국 대형주)",
+            "ref": "E6",
+            "points": [
+              {
+                "t": "2026-11-20",
+                "v": -6.922320550639139
+              }
+            ]
+          },
+          {
+            "label": "TIGER 미국나스닥100 (미국 기술주)",
+            "ref": "E3",
+            "points": [
+              {
+                "t": "2026-11-20",
+                "v": -10.70329354235582
+              }
+            ]
+          },
+          {
+            "label": "ACE 국고채10년 (국내 국채)",
+            "ref": "E4",
+            "points": [
+              {
+                "t": "2026-11-20",
+                "v": 2.7120256928749864
+              }
+            ]
+          },
+          {
+            "label": "ACE KRX금현물 (금)",
+            "ref": "E5",
+            "points": [
+              {
+                "t": "2026-11-20",
+                "v": -12.713082768535633
+              }
+            ]
+          }
+        ],
+        "unit": "%"
+      }
+    ],
+    "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
+  },
+  "steps": [
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 716
+    },
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 336
+    },
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 441
+    },
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 478
+    },
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 477
+    },
+    {
+      "tool": "get_etf_kr_price",
+      "status": "ok",
+      "ms": 480
+    }
+  ],
+  "rewrites": 0
+}

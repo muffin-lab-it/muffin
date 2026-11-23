@@ -1,31 +1,31 @@
 {
   "version": 1,
   "id": "etf-decision",
-  "recordedAt": "2026-11-17T05:01:23.174Z",
+  "recordedAt": "2026-11-23T06:44:01.109Z",
   "question": "KODEX 200 지금 사도 돼?",
   "depth": "standard",
   "area": "etf",
   "model": "gpt-6-luna",
   "usage": {
-    "requests": 6,
-    "inputTokens": 22985,
-    "outputTokens": 2132,
+    "requests": 5,
+    "inputTokens": 19419,
+    "outputTokens": 1232,
     "byModel": {
       "gpt-5.4-mini": {
         "requests": 2,
-        "inputTokens": 5145,
-        "cachedInputTokens": 2304,
-        "outputTokens": 358
+        "inputTokens": 6256,
+        "cachedInputTokens": 2688,
+        "outputTokens": 252
       },
       "gpt-6-luna": {
-        "requests": 4,
-        "inputTokens": 17840,
-        "cachedInputTokens": 7679,
-        "outputTokens": 1774
+        "requests": 3,
+        "inputTokens": 13163,
+        "cachedInputTokens": 1851,
+        "outputTokens": 980
       }
     }
   },
-  "ms": 24854,
+  "ms": 21909,
   "events": [
     {
       "t": 1,
@@ -34,73 +34,74 @@
       "status": "start"
     },
     {
-      "t": 2001,
+      "t": 3963,
       "type": "plan",
       "intent": "decision",
       "mode": "decision_facts",
       "tools": [
-        "get_etf_kr_price"
+        "get_etf_kr_price",
+        "get_korean_economic_news"
       ]
     },
     {
-      "t": 2001,
+      "t": 3963,
       "type": "stage",
       "stage": "plan",
       "status": "done"
     },
     {
-      "t": 2001,
+      "t": 3963,
       "type": "stage",
       "stage": "research",
       "status": "start"
     },
     {
-      "t": 4108,
+      "t": 7209,
       "type": "step",
       "step": {
         "tool": "get_etf_kr_price",
         "status": "ok",
-        "ms": 444
+        "ms": 1353
       }
     },
     {
-      "t": 6570,
+      "t": 10921,
       "type": "stage",
       "stage": "research",
       "status": "done"
     },
     {
-      "t": 6570,
+      "t": 10921,
       "type": "stage",
       "stage": "edit",
       "status": "start"
     },
     {
-      "t": 8981,
+      "t": 13478,
       "type": "stage",
       "stage": "edit",
       "status": "done"
     },
     {
-      "t": 8981,
+      "t": 13478,
       "type": "stage",
       "stage": "write",
       "status": "start"
     },
     {
-      "t": 17722,
+      "t": 21901,
       "type": "stage",
       "stage": "write",
       "status": "done"
     },
     {
-      "t": 17722,
+      "t": 21901,
       "type": "stage",
       "stage": "verify",
       "status": "start"
     },
     {
-      "t": 24853,
+      "t": 21906,
       "type": "verify",
       "verification": {
         "status": "pass",
@@ -118,50 +119,49 @@
           "unsupported": 0
         },
         "advice": 0,
-        "revisions": 1,
+        "revisions": 0,
         "removed": []
       }
     },
     {
-      "t": 24853,
+      "t": 21906,
       "type": "stage",
       "stage": "verify",
       "status": "done"
     }
   ],
   "report": {
-    "summary": "매수 여부는 개인의 투자 기간과 위험 감내도에 따라 달라지므로 단정할 수 없습니다. 2026-11-16 기준 종가는 79,900원이며, 당일 등락률은 -3.87%, 최근 30일 가격 수익률은 -11.15%입니다. 최근 30일 코스피 200 수익률도 -11.19%로 하락했으며, 이 ETF의 기간 수익률은 분배금을 제외한 가격 기준입니다.",
-    "headline": "KODEX 200은 2026-11-16 기준 79,900원이며 최근 30일 가격 수익률은 -11.15%입니다.",
+    "summary": "KODEX 200의 2026-11-20 종가는 76,210원이고, 당일 5.48% 하락했어요. 최근 한 달 가격 수익률은 -15.06%로 기초지수 수익률 -15.23%와 비슷했어요. 이 흐름만으로 매수 시점의 적절성을 판단할 수는 없어요. 투자 기간과 감당할 수 있는 손실 폭에 따라 의미가 달라져요.",
+    "headline": "KODEX 200은 2026-11-20 종가 76,210원으로 당일 5.48% 하락했어요.",
     "numbers": [
       {
         "label": "KODEX 200 종가",
-        "value": "79,900원",
-        "change": "",
-        "asOf": "2026-11-16",
+        "value": "76,210원",
+        "change": "당일 -5.48%",
+        "asOf": "2026-11-20",
         "ref": "E1",
         "check": "verified",
         "match": {
           "key": "latest.close",
-          "policy": "exact"
-        }
-      },
-      {
-        "label": "KODEX 200 일간 등락률",
-        "value": "-3.87%",
-        "change": "2026-11-16 일간",
-        "asOf": "2026-11-16",
-        "ref": "E1",
-        "check": "verified",
-        "match": {
+          "policy": "exact",
+          "change": {
+            "key": "latest.changePct",
+            "policy": "exact"
+          }
+        },
+        "changeDetail": {
           "key": "latest.changePct",
-          "policy": "exact"
+          "value": -5.48,
+          "unit": "%",
+          "to": "2026-11-20",
+          "basis": "직전 거래일과 비교"
         }
       },
       {
-        "label": "KODEX 200 최근 30일 가격 수익률",
-        "value": "-11.15%",
-        "change": "2026-10-19~2026-11-16",
-        "asOf": "2026-11-16",
+        "label": "KODEX 200 가격 수익률",
+        "value": "-15.06%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
         "ref": "E1",
         "check": "verified",
         "match": {
@@ -170,54 +170,61 @@
         }
       },
       {
-        "label": "코스피 200 최근 30일 수익률",
-        "value": "-11.19%",
-        "change": "2026-10-19~2026-11-16",
-        "asOf": "2026-11-16",
+        "label": "기초지수 수익률",
+        "value": "-15.23%",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
         "ref": "E1",
         "check": "verified",
         "match": {
           "key": "period.indexReturnPct",
           "policy": "rounded"
         }
+      },
+      {
+        "label": "기초지수 대비 추적 차이",
+        "value": "0.17%p",
+        "change": "2026-10-21~2026-11-20",
+        "asOf": "2026-11-20",
+        "ref": "E1",
+        "check": "verified",
+        "match": {
+          "key": "period.trackingDiffPp",
+          "policy": "rounded"
+        }
       }
     ],
     "why": [],
     "impact": [
-      "최근 30일 가격 하락은 해당 기간의 가격 변동을 보여주며, 향후 수익을 보장하거나 예측하지 않습니다.",
-      "ETF와 기초지수의 같은 기간 수익률이 비슷한 하락 흐름을 보였습니다.",
-      "가격 기준 수익률이므로 분배금까지 포함한 총수익률과는 다를 수 있습니다."
+      "짧은 기간 안에 써야 하는 돈이라면 최근 가격 하락이 매도 시점의 손실로 이어질 수 있어요.",
+      "오래 투자하는 경우에도 최근 하락만으로 이후 가격 흐름을 알 수는 없고, 투자 기간과 감내할 손실 폭이 결과에 영향을 줘요."
     ],
     "impactTitles": [
-      "최근 가격 흐름",
-      "기초지수와의 비교",
-      "수익률 산정 범위"
+      "단기 자금의 가격 변동",
+      "투자 기간과 손실 감내"
     ],
     "caveats": [
-      "시세는 T+1 공개 데이터로, 최신값은 직전 영업일 종가 기준이며 다음 영업일 오후 1시 이후 갱신됩니다.",
-      "기간 수익률은 분배금을 제외한 가격 기준입니다."
+      "기간 수익률은 분배금을 제외한 가격 기준이에요.",
+      "시세는 다음 영업일 오후 1시 이후 공개되는 자료라, 기준일의 종가를 보여줘요."
     ],
-    "dataGaps": [],
+    "dataGaps": [
+      "투자 기간과 감당할 수 있는 손실 폭은 확인되지 않았어요."
+    ],
     "nextTopics": [
-      "KODEX 200 추적차이",
-      "분배금 포함 총수익률",
-      "ETF 투자 기간과 변동성",
-      "코스피 200 구성 종목"
+      "[etf] 최근 30일 KODEX 200의 가격과 기초지수 수익률은 얼마나 차이 나나요?"
     ],
     "topicReasons": [
-      "기간 수익률과 기초지수 수익률의 차이를 더 구체적으로 살펴볼 수 있습니다.",
-      "분배금을 포함하면 가격 기준 수익률과 어떤 차이가 있는지 확인할 수 있습니다.",
-      "최근 가격 변동을 투자 기간과 위험 감내도의 관점에서 이해하는 데 도움이 됩니다.",
-      "기초지수의 움직임이 ETF 성과와 연결되는 배경을 확인할 수 있습니다."
+      "최근 한 달 KODEX 200과 기초지수의 수익률 차이를 비교해 볼 수 있어요."
     ],
     "version": 2,
     "mode": "decision_facts",
-    "notice": "투자 판단을 대신하지 않습니다. 아래는 판단에 필요한 사실만 정리한 것입니다.",
+    "notice": "투자 판단을 대신하지 않아요. 아래는 판단에 필요한 사실만 정리한 것이에요.",
+    "intent": "decision",
     "sources": [
       {
         "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
         "url": "https://www.data.go.kr/data/15094806/openapi.do",
-        "asOf": "2026-11-16",
+        "asOf": "2026-11-20",
         "id": "E1"
       }
     ],
@@ -229,35 +236,35 @@
         "values": {
           "name": "KODEX 200",
           "baseIndex": "코스피 200",
-          "latest.date": "2026-11-16",
-          "latest.close": 79900,
-          "latest.change": -3215,
-          "latest.changePct": -3.87,
-          "latest.nav": 79959.95,
-          "latest.premiumPct": -0.07497503437658114,
-          "latest.open": 83350,
-          "latest.high": 83770,
-          "latest.low": 79350,
-          "latest.volume": 22174186,
-          "latest.tradeValue": 1794741203821,
-          "latest.netAssets": 20621671286614,
-          "latest.indexClose": 791.56,
-          "period.from": "2026-10-19",
-          "period.to": "2026-11-16",
-          "period.closeFrom": 89930,
-          "period.indexCloseFrom": 891.3,
-          "period.returnPct": -11.153119092627595,
-          "period.indexReturnPct": -11.190396050712447,
-          "period.trackingDiffPp": 0.03727695808485265,
+          "latest.date": "2026-11-20",
+          "latest.close": 76210,
+          "latest.change": -4420,
+          "latest.changePct": -5.48,
+          "latest.nav": 76302.42,
+          "latest.premiumPct": -0.12112328809492313,
+          "latest.open": 77370,
+          "latest.high": 77900,
+          "latest.low": 75585,
+          "latest.volume": 21323459,
+          "latest.tradeValue": 1635336637896,
+          "latest.netAssets": 19598277807643,
+          "latest.indexClose": 755.34,
+          "period.from": "2026-10-21",
+          "period.to": "2026-11-20",
+          "period.closeFrom": 89725,
+          "period.indexCloseFrom": 891.04,
+          "period.returnPct": -15.062691557536922,
+          "period.indexReturnPct": -15.22939486442808,
+          "period.trackingDiffPp": 0.16670330689115787,
           "period.high": 97550,
-          "period.low": 76460
+          "period.low": 75585
         },
         "source": {
           "name": "금융위원회 증권상품시세정보 (공공데이터포털, 원천 KRX)",
           "url": "https://www.data.go.kr/data/15094806/openapi.do",
-          "asOf": "2026-11-16"
+          "asOf": "2026-11-20"
         },
-        "note": "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). 기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. 해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다."
+        "note": "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. 해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요."
       }
     ],
     "verification": {
@@ -276,7 +283,7 @@
         "unsupported": 0
       },
       "advice": 0,
-      "revisions": 1,
+      "revisions": 0,
       "removed": []
     },
     "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
@@ -285,8 +292,8 @@
     {
       "tool": "get_etf_kr_price",
       "status": "ok",
-      "ms": 444
+      "ms": 1353
     }
   ],
-  "rewrites": 1
+  "rewrites": 0
 }
