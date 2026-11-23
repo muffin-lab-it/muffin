@@ -37,7 +37,20 @@ const ECON_WORD = /금리|환율|물가|주가|증시|코스피|코스닥|국고
 export function isLocalNotice(title: string): boolean {
   return LOCAL_ADMIN.test(title) || ((LOCAL_HINT.test(title) || LOCAL_GOVT_LEAD.test(title)) && !ECON_WORD.test(title));
 }
-/** 리포트 본문(최종 출력)이 ids 중 하나를 인용하지 않았으면 그 항목을 뺀 장부. 검증은 이미 전체 장부로 끝났습니다 */
+/** 차트의 사건 점 중 ids 를 가리키는 것을 뺍니다. 점이 하나도 남지 않으면 events 를 지웁니다 */
+export function withoutEvents<C extends { events?: { ref: string }[] }>(charts: C[], ids: Set<string>): C[] {
+  if (ids.size === 0) return charts;
+  return charts.map((c) => {
+    if (!c.events) return c;
+    const events = c.events.filter((e) => !ids.has(e.ref));
+    if (events.length === c.events.length) return c;
+    const rest = { ...c };
+    delete rest.events;
+    return events.length > 0 ? { ...rest, events } : rest;
+  });
+}
+
+/** 리포트 본문(최종 출력 · 차트)이 ids 중 하나를 가리키지 않으면 그 항목을 뺀 장부. 검증은 이미 전체 장부로 끝났습니다 */
 export function withoutUncited<E extends { id: string }>(evidence: E[], ids: Set<string>, output: unknown): E[] {
   if (ids.size === 0) return evidence;
   const text = JSON.stringify(output);

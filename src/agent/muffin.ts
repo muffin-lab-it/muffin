@@ -25,7 +25,7 @@ import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
 import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
-import { addMacroNews, localNewsIds, macroNewsNote, withoutUncited } from "./news-topics";
+import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
 import { deepNote, deepRefs, ensureDeep, withDeepNumbers } from "./deep";
 import { ensureRateReference, ensureRateYear, rateReferenceNote, rateYearNote, withRateReference, yearRates } from "./rate-trend";
@@ -387,8 +387,10 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
   };
 
+  // 지역 행정 기사를 가리키는 차트 사건 점은 뺍니다. 근거 목록에서 빠진 기사를 점이 가리키지 않게 합니다 (#154 Codex 리뷰)
+  const shownCharts = withoutEvents(charts, localNews);
   return {
-    report: assembleReport(finalOutput, withoutUncited(ctx.evidence, localNews, finalOutput), verification, {
+    report: assembleReport(finalOutput, withoutUncited(ctx.evidence, localNews, { finalOutput, charts: shownCharts }), verification, {
       mode: plan.mode,
       intent: plan.intent,
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement, swing) } : {}),
@@ -396,7 +398,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
       matches: applied.matches,
       changes: changeDetailsFor(applied, ctx.evidence),
       ...(movement ? { movement: movementSummary(movement) } : {}),
-      ...(charts.length > 0 ? { charts } : {}),
+      ...(shownCharts.length > 0 ? { charts: shownCharts } : {}),
     }),
     steps: ctx.steps,
     rewrites: revisions,

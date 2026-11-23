@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { MACRO_TOPICS, addMacroNews, isGeneralNewsQuestion, isLocalNotice, localNewsIds, macroNewsNote, withoutUncited } from "./news-topics";
+import { MACRO_TOPICS, addMacroNews, isGeneralNewsQuestion, isLocalNotice, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import type { Evidence } from "./schema";
 
 const article = (title: string, url: string) => ({ title, url, publisher: "연합뉴스", publishedAt: "2026-11-20T07:29:21.000Z", source: "yonhap", body: { status: "not_requested" } });
@@ -88,6 +88,17 @@ describe("지역 행정 · 정당 기사 거르기 (11/23 운영 '오늘 경제 
     const general = [item("E1-1", "[게시판] 신한은행, '땡겨요'에서 크리스마스 케이크"), item("E1-2", "전북 학교 건물 24% 안전 C등급 이하"), item("E1-3", "한국 경제 내년 3.5% 성장 전망…반도체 수출 호황"), item("E2-1", "코스피 5%대 급락")];
     expect([...localNewsIds(general, [general[3]!])]).toEqual(["E1-1", "E1-2"]);
     expect(localNewsIds(general).size).toBe(0);
+  });
+
+  it("지역 기사를 가리키는 차트 사건 점은 빼고, 점이 남은 기사는 근거에서 지우지 않는다 (#154 Codex 리뷰)", () => {
+    const chart = { kind: "line", events: [{ ref: "E1-1", label: "도의회, 고환율 대응 예산 심의", at: "2026-11-20" }, { ref: "E2-1", label: "환율 1350원", at: "2026-11-21" }] };
+    const [kept] = withoutEvents([chart], new Set(["E1-1"]));
+    expect(kept!.events).toEqual([{ ref: "E2-1", label: "환율 1350원", at: "2026-11-21" }]);
+    const [none] = withoutEvents([{ kind: "line", events: [{ ref: "E1-1" }] }], new Set(["E1-1"]));
+    expect(none).not.toHaveProperty("events");
+    expect(withoutEvents([chart], new Set())[0]).toBe(chart);
+    const ev = [{ id: "E1-1" }, { id: "E2-1" }];
+    expect(withoutUncited(ev, new Set(["E1-1"]), { charts: [chart] }).map((e) => e.id)).toEqual(["E1-1", "E2-1"]);
   });
 });
 
