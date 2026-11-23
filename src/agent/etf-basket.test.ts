@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { ETF_BASKET, basketNote, basketRows, ensureEtfBasket, isGeneralEtfQuestion, withBasketNumbers } from "./etf-basket";
+import { ETF_BASKET, basketChart, basketNote, basketRows, ensureEtfBasket, isGeneralEtfQuestion, withBasketNumbers } from "./etf-basket";
 import type { Evidence, WriterOutput } from "./schema";
 
 const etf = (id: string, name: string, returnPct: number): Evidence => ({
@@ -76,3 +76,16 @@ describe("종목을 정하지 않은 ETF 질문 (11/21)", () => {
     expect(withBasketNumbers(kept, [kodex])).toBe(kept);
   });
 });
+
+describe("대표 ETF 수익률 막대 차트 (11/23, 화면 준비 뒤 켬)", () => {
+  it("ETF 하나가 막대 하나(series 하나 · 점 하나)이고, 목록 순서 · ETF 마다의 근거 번호를 쓴다. 둘 미만이면 null", () => {
+    const chart = basketChart([bond, kodex, kosdaq])!;
+    expect(chart.kind).toBe("bar");
+    expect(chart.unit).toBe("%");
+    expect(chart.title).toMatch(/^대표 ETF 30일 수익률 \(\d{4}-\d{2}-\d{2}~\d{4}-\d{2}-\d{2}\)$/);
+    expect(chart.series.map((s) => [s.label.split(" (")[0], s.ref, s.points.length])).toEqual([["KODEX 200", "E1", 1], ["KODEX 코스닥150", "E2", 1], ["ACE 국고채10년", "E5", 1]]);
+    expect(chart.series[0]!.points[0]!.v).toBeCloseTo(-7.060111);
+    expect(basketChart([kodex])).toBeNull();
+  });
+});
+

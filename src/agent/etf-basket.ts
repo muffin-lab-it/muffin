@@ -8,7 +8,7 @@
 import { RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
 import { areaTools } from "./plan";
-import type { Evidence, WriterOutput } from "./schema";
+import type { Chart, Evidence, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
 
 /** 자산군별 대표 ETF (고정). 수익률로 고른 것이 아니라 자산군마다 하나씩 정해 둔 것입니다 */
@@ -98,3 +98,21 @@ export function withBasketNumbers(output: WriterOutput, evidence: Evidence[]): W
   }));
   return { ...output, numbers: [...cards, ...output.numbers.filter((n) => !(n.ref && ids.has(n.ref)))] };
 }
+
+/**
+ * 대표 ETF 수익률 막대 차트 (11/23 리더 결정: 물가 추이 · ETF 비교 차트 중 ETF 막대만 먼저). 막대 하나가 series 하나이고,
+ * 점은 하나(t: 기간 끝 날짜, v: 기간 수익률 %)입니다. ref 가 ETF 마다 달라 막대마다 근거를 가리킬 수 있습니다. 순서는 목록 순서(수익률 순 아님).
+ * 화면(ReportChart)이 kind "bar" 를 그리게 된 뒤에 리포트에 넣습니다. 지금 화면은 series[0] 을 날짜 선으로 그려서 먼저 넣으면 깨집니다.
+ */
+export function basketChart(evidence: Evidence[]): Chart | null {
+  const rows = basketRows(evidence);
+  if (rows.length < 2) return null;
+  const first = rows[0]!.e.values;
+  return {
+    kind: "bar",
+    title: `대표 ETF ${BASKET_DAYS}일 수익률 (${first["period.from"]}~${first["period.to"]})`,
+    unit: "%",
+    series: rows.map(({ item, e }) => ({ label: `${item.name} (${item.group})`, ref: e.id, points: [{ t: String(e.values["period.to"]), v: e.values["period.returnPct"] as number }] })),
+  };
+}
+
