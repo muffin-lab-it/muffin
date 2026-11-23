@@ -228,7 +228,7 @@ function resultFromRates(
       changePct: round((change / comparisonValue) * 100, 2),
     },
     source,
-    note: `일별 ${isEcos ? "매매기준" : "mid-market"} 환율입니다. 실시간 매수·매도 호가가 아니며, 변동값은 최신 기준일에서 ${days}일 전 이하인 가장 가까운 데이터와의 차이입니다.${currency === "JPY" ? " JPY는 국내 관행에 따라 100엔 기준으로 표시합니다." : ""}`,
+    note: `일별 ${isEcos ? "매매기준" : "매수·매도 중간값"} 환율입니다. 실시간 매수·매도 호가가 아닙니다. 변동값은 최신 기준일에서 ${days}일 전 이하인 가장 가까운 데이터와의 차이입니다.${currency === "JPY" ? " JPY는 국내 관행에 따라 100엔 기준으로 표시합니다." : ""}`,
   };
 }
 

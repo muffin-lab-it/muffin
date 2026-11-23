@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDecisionDisclaimer, dropInternalPhrases, dropUnaskedCause, trimHeadline, trimNegatives } from "./negatives";
+import { dropDecisionDisclaimer, dropInternalPhrases, dropLeadingLimit, dropUnaskedCause, plainWords, splitEmyeo, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -62,5 +62,66 @@ describe("판단 요청의 고지 반복 떼기 (11/22 QA)", () => {
     const output = { summary: "매수 여부는 대신 결정할 수 없지만, 환율은 올랐어요.", headline: null, numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
     expect(trimNegatives(output, "status")).toBe(output);
     expect(trimNegatives(output, "decision").summary).toBe("환율은 올랐어요.");
+  });
+});
+
+describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
+  it("A2: 한 줄 요약의 부정 꼬리는 과거형이 아닌 흔한 끝(전하지만 → 전해요)도 뗀다", () => {
+    expect(trimHeadline("뉴스 제목은 연준의 금리 동결을 전하지만, 기사 본문은 확인되지 않았어요.")).toBe("뉴스 제목은 연준의 금리 동결을 전해요.");
+  });
+
+  it("A2: 요약 첫 문장이 한계뿐이면 확인하지 못한 것으로 내린다. 값이 든 문장 · 한 문장뿐인 요약은 그대로", () => {
+    const out = dropLeadingLimit({
+      summary: "기사 본문을 확보하지 못해 오늘 환율 관련 뉴스의 내용과 맥락은 정리할 수 없어요. 확인 가능한 환율 자료에서는 달러당 원화 환율이 2026-10-24보다 2026-11-23에 높았어요.",
+      dataGaps: [],
+    });
+    expect(out.summary).toBe("확인 가능한 환율 자료에서는 달러당 원화 환율이 2026-10-24보다 2026-11-23에 높았어요.");
+    expect(out.dataGaps).toEqual(["기사 본문을 확보하지 못해 오늘 환율 관련 뉴스의 내용과 맥락은 정리할 수 없어요."]);
+    const kept = { summary: "환율은 0.87% 올랐지만 원인은 확인되지 않았어요. 금리는 그대로예요.", dataGaps: [] };
+    expect(dropLeadingLimit(kept)).toBe(kept);
+    const one = { summary: "자료가 없어 확인할 수 없어요.", dataGaps: [] };
+    expect(dropLeadingLimit(one)).toBe(one);
+    // 확인된 내용과 한계가 한 문장에 같이 들었으면 앞 구절은 첫 문장으로 남기고 한계 구절만 내린다 (#147 Codex 리뷰)
+    const mixed = dropLeadingLimit({ summary: "뉴스 제목은 연준의 금리 동결을 전하지만 기사 본문은 확인하지 못했어요. 시장 반응은 더 지켜봐야 해요.", dataGaps: [] });
+    expect(mixed.summary).toBe("뉴스 제목은 연준의 금리 동결을 전해요. 시장 반응은 더 지켜봐야 해요.");
+    expect(mixed.dataGaps).toEqual(["기사 본문은 확인하지 못했어요."]);
+    // 어미를 바꿀 수 없거나 다른 이음으로 섞인 문장은 그대로 둔다
+    for (const summary of ["제목은 동결을 전하는 기사가 많은데 본문은 확인하지 못했어요. 시장 반응은 더 지켜봐야 해요.", "연준은 동결을 발표했고 그 이유는 확인되지 않았어요. 시장 반응은 더 지켜봐야 해요."]) {
+      const same = { summary, dataGaps: [] };
+      expect(dropLeadingLimit(same)).toBe(same);
+    }
+  });
+
+  it("C3: 수집 과정 · 영어 용어를 풀어 쓴다", () => {
+    expect(plainWords("뉴스는 제목만 확인했고 본문은 요청하지 않았어요.")).toBe("뉴스는 제목만 확인했고 본문은 보지 않았어요.");
+    expect(plainWords("환율은 일별 mid-market 환율이며 실시간 매수·매도 호가와는 달라요.")).toBe("환율은 일별 매수·매도 중간값 환율이며 실시간 매수·매도 호가와는 달라요.");
+    expect(plainWords("기사 본문은 요청하지 않았습니다. RSS 제목·발행 시각·링크만 확인했으며 Google News 링크는 중계 링크일 수 있습니다.")).toBe("기사 본문은 보지 않았습니다. 제목·발행 시각·링크만 확인했으며 링크는 중계 링크일 수 있습니다.");
+  });
+
+  it("D2: '명사이며 · 했으며' 는 두 문장으로 나누고, 동사 줄기(보이며 · 움직이며)는 그대로 둔다", () => {
+    expect(splitEmyeo("환율은 일별 중간환율이며 실시간 매수·매도 호가가 아니에요.")).toBe("환율은 일별 중간환율이에요. 실시간 매수·매도 호가가 아니에요.");
+    expect(splitEmyeo("CPI 기준일은 관측 월의 첫날 표기이며 발표일이나 조회일이 아니에요.")).toBe("CPI 기준일은 관측 월의 첫날 표기예요. 발표일이나 조회일이 아니에요.");
+    expect(splitEmyeo("뉴스 기사는 제목만 확인했으며 본문은 확보하지 못했어요.")).toBe("뉴스 기사는 제목만 확인했어요. 본문은 확보하지 못했어요.");
+    expect(splitEmyeo("비교 대상은 자산군별로 미리 정한 대표 ETF 목록이며, 과거 수익률이 앞으로의 수익률을 뜻하지는 않아요.")).toBe("비교 대상은 자산군별로 미리 정한 대표 ETF 목록이에요. 과거 수익률이 앞으로의 수익률을 뜻하지는 않아요.");
+    for (const t of ["환율이 크게 움직이며 불안이 커졌어요.", "물가가 높게 보이며 부담이 커요.", "금리가 오르며 대출 이자가 늘어요."]) expect(splitEmyeo(t)).toBe(t);
+    // 동사 목록 밖의 동사도 그대로 둔다: 명사로 확실한 끝 글자만 나눈다 (#147 Codex 리뷰)
+    for (const t of ["물가 오름세가 꺾이며 부담이 줄어요.", "환율이 출렁이며 불안이 커졌어요.", "자금이 모이며 거래가 늘었어요.", "투자자가 몰리며 거래가 늘었어요."]) expect(splitEmyeo(t)).toBe(t);
+    expect(splitEmyeo("기준은 2026-11-20이며 발표일이 아니에요.")).toBe("기준은 2026-11-20이에요. 발표일이 아니에요.");
+    expect(splitEmyeo("이 값은 전년 같은 달 대비 상승률이며 전월 대비가 아니에요.")).toBe("이 값은 전년 같은 달 대비 상승률이에요. 전월 대비가 아니에요.");
+  });
+
+  it("trimNegatives 는 주의점 · 확인하지 못한 것에도 내부 용어 풀기와 문장 나누기를 적용한다", () => {
+    const output: WriterOutput = {
+      summary: "기사 본문을 확보하지 못해 내용은 정리할 수 없어요. 연준은 금리를 동결했어요.",
+      headline: "뉴스 제목은 연준의 금리 동결을 전하지만, 기사 본문은 확인되지 않았어요.",
+      numbers: [], why: [], impact: [],
+      caveats: ["뉴스 기사는 제목만 확인했으며 본문은 요청하지 않았어요."],
+      dataGaps: [], nextTopics: [],
+    };
+    const out = trimNegatives(output, "status");
+    expect(out.headline).toBe("뉴스 제목은 연준의 금리 동결을 전해요.");
+    expect(out.summary).toBe("연준은 금리를 동결했어요.");
+    expect(out.caveats).toEqual(["뉴스 기사는 제목만 확인했어요. 본문은 보지 않았어요."]);
+    expect(out.dataGaps).toEqual(["기사 본문을 확보하지 못해 내용은 정리할 수 없어요."]);
   });
 });

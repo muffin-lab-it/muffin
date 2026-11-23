@@ -19,7 +19,7 @@ import { krIndexTool } from "../tools/kr-index";
 import { usIndexTool } from "../tools/us-index";
 import type { ResearchContext } from "./context";
 import { INDEX_TODAY_TOOL, INDEX_TOOL, INDEX_WORDS, US_INDEX_TOOL, isUs, points, type IndexName } from "./index-quote";
-import { NEGATIVE, endsPast } from "./negatives";
+import { NEGATIVE, politeEnd } from "./negatives";
 import { areaTools } from "./plan";
 import type { Evidence, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
@@ -146,6 +146,11 @@ function questionCountries(question: string): Country[] {
   const found = new Set<Country>();
   for (const [re, countries] of COUNTRY_WORDS) if (new RegExp(re.source, re.flags.replace("g", "")).test(question)) for (const c of countries) found.add(c);
   return [...found];
+}
+
+/** 질문이 나라 · 지역(해외 · 주요국 포함)을 하나라도 말했는지 (rate-trend.ts 가 참고 금리를 붙일지 정할 때) */
+export function namesCountry(question: string): boolean {
+  return questionCountries(question).length > 0;
 }
 
 /**
@@ -525,14 +530,6 @@ const CAUSAL = /(?:상관|인과)\s*관계|원인|관계를|관계\s*때문|때�
 /** 한계를 말하는 끝: "…뜻하지는 않아요 · 말할 수는 없어요 · 볼 수는 없어요 · 입증할 수는 없어요" */
 const LIMIT = new RegExp(`${NEGATIVE.source}|(?:뜻|의미)하(?:지|진)(?:는|도)?\\s*않|(?:말|판단|입증|단정|설명)할\\s*수\\s*(?:는|도)?\\s*없|볼\\s*수\\s*(?:는|도)?\\s*없`);
 const CAUSAL_CAVEAT = "두 시점을 비교한 것이라 통계적 상관관계나 인과관계를 뜻하지는 않아요.";
-/** "-지만" 앞 구절을 해요체로 끝맺기. 과거형(했 · 였)과 흔한 끝(있 · 없 · 쉽 · 않 · 같 · 많 · 하)만 바꾸고, 나머지는 null (어미를 안전하게 바꿀 수 없음) */
-const POLITE: [string, string][] = [["있", "있어요"], ["없", "없어요"], ["않", "않아요"], ["같", "같아요"], ["많", "많아요"], ["쉽", "쉬워요"], ["어렵", "어려워요"], ["하", "해요"]];
-function politeEnd(head: string): string | null {
-  if (endsPast(head)) return `${head}어요.`;
-  const hit = POLITE.find(([end]) => head.endsWith(end));
-  return hit ? `${head.slice(0, -hit[0].length)}${hit[1]}.` : null;
-}
-
 /**
  * 한계 문장 정리. "A지만, (한계)" 꼴이면 A 만 해요체로 남기고, "(한계)고, B" 꼴이면 B 만 남깁니다.
  * 그 밖에 한계만 말한 문장은 null(뺌). 값이 든 문장과 일반적인 관계를 말한 문장은 그대로 둡니다.

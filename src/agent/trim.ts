@@ -43,7 +43,8 @@ export function overlap(a: string, b: string): number {
   return both / Math.min(x.size, y.size);
 }
 const SAME = 0.6;
-const INTERNAL = /증거 장부|조사 메모|사실 목록|장부에\s|\bref\b|숫자 카드|데이터 도구|\btool\b/i;
+// UTC: 기사 게시 시각의 시간대 이야기는 사용자에게 쓸모가 없습니다 (화면은 한국 날짜로 보여 줌, 11/23 운영 "게시 시각은 UTC 기준이며 …")
+const INTERNAL = /증거 장부|조사 메모|사실 목록|장부에\s|\bref\b|숫자 카드|데이터 도구|\btool\b|\bUTC\b/i;
 const CODE_LINE = /^검증을 통과하지 못해 뺀 숫자/;
 
 /** 되풀이를 뺀 주의점 · 확인하지 못한 것. 바뀐 것이 없으면 받은 그대로 돌려줍니다 */

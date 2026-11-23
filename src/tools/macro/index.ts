@@ -345,7 +345,7 @@ function toResult(
         : `https://fred.stlouisfed.org/series/${series.code}`,
       asOf: isoMonth(last),
     },
-    note: "asOf는 마지막 관측 월의 첫날 표기이며 발표일·조회일이 아닙니다. 지표마다 최신 관측 월이 다를 수 있습니다. " +
+    note: "asOf는 마지막 관측 월의 첫날 표기입니다. 발표일·조회일이 아닙니다. 지표마다 최신 관측 월이 다를 수 있습니다. " +
       "자료 개정 및 반올림으로 공식 발표 변화와 차이가 날 수 있습니다. 변화는 소수점 6자리로 반올림합니다. " +
       (input.indicator === "cpi"
         ? "CPI는 가격 지수이며 변화의 단위는 %입니다. 한국은 원계열, 미국은 계절조정입니다. 국가별 기준연도와 조정 방식이 달라 지수 수준을 직접 비교하지 않습니다. 한국 전월 변화에는 계절성이 포함됩니다. "
@@ -507,7 +507,7 @@ export async function executeCategories(rawInput: Input): Promise<ToolResult<Cat
       { name: `한국은행 ECOS — ${series.name}`, url, asOf },
       ...categories.map((c) => ({ name: `한국은행 ECOS — 소비자물가지수 · ${c.name}`, url, asOf })),
     ],
-    note: "asOf는 마지막 관측 월의 첫날 표기이며 발표일·조회일이 아닙니다. 등락률은 전년 같은 달 대비(yoyPct)와 전월 대비(momPct) 두 가지(%)이고 기여도(contributionPp · momContributionPp)는 가중치 ÷ 1000 × 등락률의 근사치(%p)라 통계청 공식 기여도와 일치하지 않을 수 있고, 12개 기여도 합도 총지수 등락률과 다를 수 있습니다. " +
+    note: "asOf는 마지막 관측 월의 첫날 표기입니다. 발표일·조회일이 아닙니다. 등락률은 전년 같은 달 대비(yoyPct)와 전월 대비(momPct) 두 가지(%)이고 기여도(contributionPp · momContributionPp)는 가중치 ÷ 1000 × 등락률의 근사치(%p)라 통계청 공식 기여도와 일치하지 않을 수 있고, 12개 기여도 합도 총지수 등락률과 다를 수 있습니다. " +
       "unit은 지수(index · previousYearIndex · previousMonthIndex)의 단위입니다. 가중치(weight)는 ECOS 제공값이며 12개 합이 1000인 비중으로, 퍼센트가 아닙니다. 양의 기여도는 총지수 상승에, 음의 기여도는 하락에 보탠 정도입니다. categories는 전년 동월 대비 기여도 내림차순이며 품목군 자체의 가격 상승률 순위가 아닙니다. 전월 비교에는 momPct · momContributionPp를 함께 사용합니다. 기여도가 큰 품목군은 총지수 변화를 구성하는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없습니다. 한국 원계열이며 투자 판단은 제공하지 않습니다.",
   };
 }

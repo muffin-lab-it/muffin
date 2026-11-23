@@ -220,7 +220,7 @@ const FX_TOOL = "get_fx_krw_rate";
  */
 export function fxBasisCaveats(evidence: Evidence[], caveats: string[] = []): string[] {
   const fx = evidence.find((e) => e.tool === FX_TOOL);
-  if (!fx || caveats.some((c) => /포털|은행 앱|실시간|호가|중간\s*환율|중간시장|mid-market|기준\s*환율/i.test(c))) return [];
+  if (!fx || caveats.some((c) => /포털|은행 앱|실시간|호가|중간\s*(?:값|환율)|중간시장|mid-market|기준\s*환율/i.test(c))) return [];
   return [
     `환율은 하루 한 번 집계되는 기준 환율이에요 (출처: ${fx.source.name}). 포털 · 은행 앱의 실시간 환율이나 수수료가 붙는 실제 환전 금액과는 다를 수 있어요.`,
   ];
