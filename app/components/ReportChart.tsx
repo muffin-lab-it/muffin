@@ -11,7 +11,7 @@ import type { Chart, Evidence } from "@/src/agent/schema";
 
 const W = 640;
 const H = 280;
-const PAD = { top: 42, right: 16, bottom: 48, left: 56 };
+const PAD = { top: 42, right: 16, bottom: 48, left: 68 }; // 휴대폰에서 세로축 숫자(9,115)가 왼쪽에서 잘리지 않게 56 → 68 (11/23)
 
 const day = (t: string) => Date.parse(`${t}T00:00:00Z`) / 86_400_000;
 const fmtDate = (t: string) => `${Number(t.slice(5, 7))}/${Number(t.slice(8, 10))}`;
@@ -30,6 +30,25 @@ export function particle(word: string): "이" | "가" {
   const code = word.charCodeAt(word.length - 1);
   if (code < 0xac00 || code > 0xd7a3) return "가";
   return (code - 0xac00) % 28 === 0 ? "가" : "이";
+}
+/** 숫자 뒤 '로' · '으로'. 끝자리 소리로 고릅니다: 0(십 · 백 · 천 · 만) · 3(삼) · 6(육) 은 받침이 있어 '으로', 나머지는 '로' (ㄹ 받침 1 · 7 · 8 포함) */
+export function roParticle(numberText: string): "로" | "으로" {
+  const last = numberText.replace(/\D/g, "").at(-1);
+  return last !== undefined && "036".includes(last) ? "으로" : "로";
+}
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+/** 긴 차트(1년)의 가운데 눈금: 다음 달 1일부터 2 · 3달 간격, 양 끝 라벨과 겹치지 않는 것만 */
+export function monthTicks(firstT: string, lastT: string, sx: (t: string) => number, left: number, right: number): string[] {
+  const span = day(lastT) - day(firstT);
+  if (span <= 120) return [];
+  const step = span > 300 ? 3 : 2;
+  const ticks: string[] = [];
+  for (let d = new Date(Date.UTC(Number(firstT.slice(0, 4)), Number(firstT.slice(5, 7)), 1)); iso(d) < lastT; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + step, 1))) {
+    const t = iso(d);
+    const x = sx(t);
+    if (x - left > 64 && right - x > 64) ticks.push(t);
+  }
+  return ticks;
 }
 /** 화면 x(뷰박스 단위)에 가장 가까운 점의 번호 */
 export function nearestIndex(xs: number[], x: number): number {
@@ -70,6 +89,17 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
   const subject = fxLabel || /\/KRW|환율/.test(chart.title) ? "환율" : /금리/.test(chart.title) ? "금리" : /물가/.test(chart.title) ? "물가" : /지수|코스피|코스닥|S&P|나스닥|다우/i.test(`${chart.title} ${chart.unit ?? ""}`) ? "지수" : "지표";
   const subjectWithParticle = `${subject}${particle(subject)}`;
   const unitLabel = fxLabel ? `${fxLabel}(원)` : chart.unit || "지표 값";
+  // 1년 차트(11/23 백엔드 #144 관계 질문): 양 끝이 "11/20 · 11/20" 처럼 같아 보이지 않게 해가 바뀌면 연도를 붙입니다
+  const spanDays = Math.round(x1 - x0);
+  const multiYear = first.t.slice(0, 4) !== last.t.slice(0, 4);
+  const dateY = (t: string) => (multiYear ? `${t.slice(0, 4)}년 ${longDate(t)}` : longDate(t));
+  const axisDate = (t: string) => (multiYear ? `${t.slice(2, 4)}.${Number(t.slice(5, 7))}.${Number(t.slice(8, 10))}` : fmtDate(t));
+  const periodText = spanDays >= 350 && spanDays <= 380 ? "1년간" : spanDays > 62 ? `약 ${Math.round(spanDays / 30.4)}개월간` : `${spanDays}일간`;
+  const ticksX = monthTicks(first.t, last.t, sx, PAD.left, W - PAD.right);
+  // 지수 차트는 제목 앞의 지수 이름을 씁니다 ("코스피 2025-11-20 ~ 2026-11-20" → 코스피)
+  const name = subject === "지수" ? chart.title.replace(/\s*\d{4}-\d{2}-\d{2}.*$/, "").trim() || null : null;
+  const lead = name ? `${name} 지수가` : subjectWithParticle;
+  const tipWidth = multiYear ? 210 : TIP_W;
   const pointXs = points.map((p) => sx(p.t));
   // 화면 좌표 → 뷰박스 좌표. SVG 가 넓은 칸 가운데 놓이면 가로 여백이 생기므로 너비 비율이 아니라 변환 행렬로 바꿉니다 (Codex 리뷰)
   const locate = (clientX: number, clientY: number, svg: SVGSVGElement | null) => {
@@ -80,15 +110,15 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
     setHover(nearestIndex(pointXs, point.x));
   };
   const hovered = hover === null ? null : points[hover] ?? null;
-  const tipText = hovered ? `${longDate(hovered.t)} · ${fmtValue(hovered.v)}` : null;
+  const tipText = hovered ? `${dateY(hovered.t)} · ${fmtValue(hovered.v)}` : null;
   const tipX = hovered ? sx(hovered.t) : 0;
-  const tipLeft = tipX + 12 + TIP_W > W - PAD.right ? tipX - 12 - TIP_W : tipX + 12;
-  const summary = `${chart.title}: ${fmtDate(from.t)} ${fmtValue(from.v)} 에서 ${fmtDate(last.t)} ${fmtValue(last.v)}${change ? ` (${Number(change) >= 0 ? "+" : ""}${change}%)` : ""}${band ? `. ${band.label}: ${fmtValue(band.low)}~${fmtValue(band.high)}` : ""}${events.length ? `. 뉴스 ${events.length}건 표시` : ""}`;
+  const tipLeft = tipX + 12 + tipWidth > W - PAD.right ? tipX - 12 - tipWidth : tipX + 12;
+  const summary = `${chart.title}: ${axisDate(from.t)} ${fmtValue(from.v)} 에서 ${axisDate(last.t)} ${fmtValue(last.v)}${change ? ` (${Number(change) >= 0 ? "+" : ""}${change}%)` : ""}${band ? `. ${band.label}: ${fmtValue(band.low)}~${fmtValue(band.high)}` : ""}${events.length ? `. 뉴스 ${events.length}건 표시` : ""}`;
 
   return (
     <figure className="chart">
       <figcaption>
-        <b>{subject} 변화를 확인해 보세요</b>
+        <b>{name ?? subject}{spanDays >= 300 ? " 1년" : ""} 변화를 확인해 보세요</b>
 
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="chart-svg" onMouseLeave={() => setHover(null)}>
@@ -105,9 +135,11 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
             <text x={PAD.left - 6} y={sy(v) + 4} textAnchor="end">{fmtValue(v)}</text>
           </g>
         ))}
-        <path d={path} className="chart-line" />
+        {ticksX.map((t) => <line key={t} className="chart-month-line" x1={sx(t)} x2={sx(t)} y1={PAD.top} y2={H - PAD.bottom} />)}
+        <path d={path} className={points.length > 120 ? "chart-line chart-line-dense" : "chart-line"} />
         <circle cx={sx(last.t)} cy={sy(last.v)} r={4} className="chart-last" />
-        <text x={Math.min(sx(last.t) + 6, W - PAD.right - 40)} y={sy(last.v) - 8} className="chart-last-label">{fmtValue(last.v)}</text>
+        {/* 마지막 점은 늘 오른쪽 끝이라 라벨을 점 왼쪽 위에 끝 맞춤 (휴대폰에서 글씨가 커지면 "4,870" 이 잘리던 것) */}
+        <text x={sx(last.t) - 8} y={sy(last.v) - 10} textAnchor="end" className="chart-last-label">{fmtValue(last.v)}</text>
         {/* 마우스 · 손가락 위치를 받는 투명 판. 뉴스 점은 이 위에 그려 제목 풍선이 살아 있습니다 */}
         <rect className="chart-hover-target" x={PAD.left} y={PAD.top} width={W - PAD.left - PAD.right} height={H - PAD.top - PAD.bottom} fill="transparent"
           onMouseMove={(event) => locate(event.clientX, event.clientY, event.currentTarget.ownerSVGElement)}
@@ -117,9 +149,9 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
           <g className="chart-hover" aria-hidden="true" pointerEvents="none">
             <line x1={tipX} x2={tipX} y1={PAD.top} y2={H - PAD.bottom} />
             <circle cx={tipX} cy={sy(hovered.v)} r={5} />
-            <g transform={`translate(${tipLeft}, ${PAD.top + 4})`}>
-              <rect width={TIP_W} height={TIP_H} rx={6} />
-              <text x={TIP_W / 2} y={19} textAnchor="middle">{tipText}</text>
+            <g className="chart-tip" transform={`translate(${tipLeft}, ${PAD.top + 4})`}>
+              <rect width={tipWidth} height={TIP_H} rx={6} />
+              <text x={tipWidth / 2} y={19} textAnchor="middle">{tipText}</text>
             </g>
           </g>
         )}
@@ -127,28 +159,29 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
           <g key={`${e.ref}-${e.at}`} className="chart-event">
             <line x1={sx(e.at)} x2={sx(e.at)} y1={PAD.top} y2={H - PAD.bottom} />
             <circle cx={sx(e.at)} cy={PAD.top + 6} r={4}>
-              <title>{`${fmtDate(e.at)} ${e.label}`}</title>
+              <title>{`${axisDate(e.at)} ${e.label}`}</title>
             </circle>
           </g>
         ))}
         <g className="chart-axis">
-          <text x={PAD.left} y={H - 28} textAnchor="start">{fmtDate(first.t)}</text>
+          <text x={PAD.left} y={H - 28} textAnchor="start">{axisDate(first.t)}</text>
+          {ticksX.map((t, index) => <text key={t} x={sx(t)} y={H - 28} textAnchor="middle">{index === 0 || t.slice(0, 4) !== ticksX[index - 1]!.slice(0, 4) ? (t.slice(0, 4) !== first.t.slice(0, 4) ? `${t.slice(2, 4)}년 ` : "") : ""}{Number(t.slice(5, 7))}월</text>)}
           {/* 기간 시작 날짜는 양 끝 라벨과 겹치지 않을 때만 */}
           {band && sx(band.from) - PAD.left > 48 && W - PAD.right - sx(band.from) > 48 && (
-            <text x={sx(band.from)} y={H - 28} textAnchor="middle">{fmtDate(band.from)}</text>
+            <text x={sx(band.from)} y={H - 28} textAnchor="middle">{axisDate(band.from)}</text>
           )}
-          <text x={W - PAD.right} y={H - 28} textAnchor="end">{fmtDate(last.t)}</text>
+          <text x={W - PAD.right} y={H - 28} textAnchor="end">{axisDate(last.t)}</text>
         </g>
       </svg>
       <p className="chart-hover-text" aria-live="polite">{tipText ?? "선 위에 마우스를 올리거나 손가락으로 짚으면 그날 값이 보여요."}</p>
       <div className="chart-summary">
-        <p><strong>{subjectWithParticle} {fmtValue(from.v)}에서 {fmtValue(last.v)}로{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {longDate(from.t)}부터 {longDate(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{longDate(first.t)}부터 {longDate(last.t)}까지 {Math.round(day(last.t) - day(first.t))}일간의 {subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : `${unitLabel} 기준으로 표시했어요.`}</span></p>
+        <p><strong>{lead} {fmtValue(from.v)}에서 {fmtValue(last.v)}{roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}% ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}의 {name ?? subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : `${unitLabel} 기준으로 표시했어요.`}</span></p>
         {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
       {events.length > 0 && (
         <ul className="chart-events">
           {events.map((e) => (
             <li key={`${e.ref}-${e.at}`}>
-              <span aria-hidden="true">＊ </span><span className="chart-event-date">{fmtDate(e.at)}</span> {e.label} 관련 보도가 나온 시점이에요.
+              <span aria-hidden="true">＊ </span><span className="chart-event-date">{axisDate(e.at)}</span> {e.label} 관련 보도가 나온 시점이에요.
 
             </li>
           ))}

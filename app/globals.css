@@ -188,6 +188,10 @@ button.ghost:hover { color: var(--up); }
 /* 11/21 인터랙티브: 짚은 날의 세로선 · 점 · 말풍선 */
 .chart-svg { touch-action: pan-y; }
 .chart-hover-target { cursor: crosshair; }
+/* 11/23 1년 차트: 촘촘한 선은 조금 가늘게, 달 눈금선, 마지막 값 라벨은 선 위에서도 읽히게 흰 테두리 */
+.chart-line-dense { stroke-width: 1.5; }
+.chart-month-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.chart-last-label { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
 .chart-hover line { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart-hover circle { fill: #fff; stroke: var(--accent); stroke-width: 2; }
 .chart-hover rect { fill: #fff; stroke: var(--brand-purple-border); }
