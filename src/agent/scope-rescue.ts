@@ -61,17 +61,35 @@ const PARTICLE = /(?:으로|에서|하고|이랑|랑|도|를|을|은|는|이|가
  * 답하는 방식을 정해 달라는 부탁 ("기준일과 출처도 알려줘", "확인이 어려운 부분은 구분해서 알려줘", "표로 정리해줘").
  * 금융 낱말이 없어도 금융 답의 일부라 범위 밖 부탁이 아닙니다 (11/23 운영: 서영 QA 질문 두 개에 "… 부분은 금융 정보가 아니라 답하지 않았어요" 가 붙음)
  */
-const ANSWER_FORM = /출처|기준일|기준\s*날|날짜|근거|한계|구분|확인(?:이|하기)?\s*어려|확인\s*(?:못|안)|불확실|단위|표로|표\s*형식|짧게|간단히|쉽게|자세히|요약해|정리해|숫자|수치/;
+const ANSWER_FORM = /출처|기준일|기준\s*날|날짜|근거|한계|구분|확인(?:이|하기)?\s*어려|확인\s*(?:못|안)|불확실|단위|표로|표\s*형식|짧게|간단히|쉽게|자세히|요약해|정리해|숫자|수치/g;
+/** 답하는 방식 부탁에 함께 쓰이는 말 (이것만 남으면 답하는 방식만 말한 조각) */
+const FORMAT_FILLER = /^(?:부분|내용|결과|답|답변|설명|같이|함께|따로|각각|어려운|확인|확인이|해서|나눠서|나눠|가능하면|가능한|모두|전부|있는|없는|것|거|링크|주소|원문|예시|예를|핵심|요점|위주|중심|한눈에|목록|문장|말로|말투|한국어|그래프|차트|그림|초보자|초보|입문자|일반인|누구나|학생|직장인|사람|이해|이해하기|알기|보기|읽기|[가-힣]+(?:하게|하기|쉽게))$/;
+/** 방식 낱말을 지운 조각의 내용 낱말 */
+const contentKeys = (clause: string) => keysOf(clause.replace(ANSWER_FORM, " ")).filter((w) => !FORMAT_FILLER.test(w));
+
+/** 조각의 내용 낱말 (조사 · 부탁하는 말 · 흔한 말 제외) */
+const keysOf = (text: string) =>
+  text.split(/\s+/).map((w) => w.replace(/[^가-힣a-zA-Z]/g, "").replace(PARTICLE, "")).filter((w) => w.length >= 2 && !GENERIC.has(w) && !REQUEST_WORD.test(w));
+
+/**
+ * 답하는 방식만 말한 조각인지. 방식 낱말을 지운 뒤 다른 내용 낱말이 남으면 아닙니다
+ * (#154 Codex 리뷰: "저녁 메뉴도 간단히 추천해줘" 는 "간단히" 가 있어도 저녁 메뉴를 부탁한 조각)
+ */
+function answerFormOnly(clause: string): boolean {
+  if (!new RegExp(ANSWER_FORM.source).test(clause)) return false;
+  return contentKeys(clause).length === 0;
+}
 
 export type OffTopic = { parts: string[]; keys: string[] };
 
 export function offTopicParts(question: string): OffTopic | null {
   const clauses = question.split(/[.?!\n]+|그리고|그리구|그런데|근데|또한/).map((c) => c.trim()).filter(Boolean);
   if (clauses.length < 2) return null;
-  const parts = clauses.filter((c) => REQUEST_WORD.test(c) && !FINANCE_WORD.test(c) && !ANSWER_FORM.test(c));
+  const parts = clauses.filter((c) => REQUEST_WORD.test(c) && !FINANCE_WORD.test(c) && !answerFormOnly(c));
   // 금융 조각이 하나도 없으면 질문 전체가 범위 밖이라 분류가 처리합니다
   if (parts.length === 0 || parts.length === clauses.length) return null;
-  const keys = [...new Set(parts.flatMap((p) => p.split(/\s+/)).map((w) => w.replace(/[^가-힣a-zA-Z]/g, "").replace(PARTICLE, "")).filter((w) => w.length >= 2 && !GENERIC.has(w) && !REQUEST_WORD.test(w)))];
+  // 범위 밖 문장을 지울 때 쓰는 낱말에서 방식 낱말(출처 · 간단히 등)은 뺍니다. 금융 근거의 "출처는 한국은행이에요" 까지 지우지 않게 (#155 Codex 리뷰)
+  const keys = [...new Set(parts.flatMap(contentKeys))];
   return keys.length ? { parts, keys } : null;
 }
 
