@@ -77,6 +77,8 @@ describe("관계 질문 찾기 (11/23 공통 틀)", () => {
     expect(relationPlan("독일 물가와 한국 금리 관계")).toEqual({ nodes: [expect.objectContaining({ key: "rate:BOK" })], missing: ["독일 물가"] });
     expect(relationPlan("일본 주가와 금리 관계")).toEqual({ nodes: [expect.objectContaining({ key: "rate:JP" })], missing: ["일본 주가"] });
     expect(keys("글로벌 금리와 코스피 관계")).toEqual(["stock:코스피"]);
+    // 취업자 수 · 고용은 실업률로 바꾸지 않는다
+    expect(relationPlan("취업자 수와 기준금리 관계")).toEqual({ nodes: [expect.objectContaining({ key: "rate:BOK" })], missing: ["취업자 수 · 고용"] });
     // 지수 이름의 숫자는 기간이 아니다
     expect(keys("S&P 500 주가와 금리 관계")).toEqual(["stock:S&P 500", "rate:BOK"]);
   });
@@ -167,6 +169,9 @@ describe("[지표 나란히] · 카드 · 한 줄 요약", () => {
     expect(relationNote([fx, kospi], plan("환율이 오르면 코스피는 어떻게 돼?"))).toContain("코스피와 환율이 반대로 움직이는 때가 많다");
     const sp: Evidence = { ...kospi, id: "E11", tool: "get_us_stock_index", values: { ...kospi.values, index: "S&P 500" } };
     expect(relationNote([fx, sp], plan("미국 S&P 500 ETF에 투자할 때 환율 변동이 수익률에 어떤 영향을 주는지 설명해줘."))).toContain("원화 기준 수익률은 지수 수익률에 환율 변화가 더해진 것에 가깝다");
+    // 해외 지수의 원화 수익률 설명은 원/달러일 때만 (엔화 환율에는 붙이지 않음)
+    const jpy: Evidence = { ...fx, id: "E13", values: { ...fx.values, pair: "JPY(100)/KRW", rate: 838.64, "comparison.rate": 937.3, changePct: -10.53 } };
+    expect(relationNote([jpy, sp], plan("엔화 환율과 S&P 500 수익률 관계"))).not.toContain("환율 변화가 더해진");
     const imports = relationNote([fx], plan("환율과 수입물가의 관계"));
     expect(imports).toContain('질문의 "수입물가"은(는) 머핀이 받는 자료가 아닙니다');
     expect(imports).toContain("수입물가가 오르기 쉽다");

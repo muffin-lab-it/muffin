@@ -120,6 +120,7 @@ const UNAVAILABLE: [RegExp, string][] = [
   [/금값|금\s*(?:가격|시세)/, "금 가격"],
   [/\bGDP\b|성장률/i, "경제성장률"],
   [/임금|월급|연봉/, "임금"],
+  [/취업자|고용|일자리/, "취업자 수 · 고용"],
   [/위안/, "위안화 환율"],
 ];
 /** "금리" 앞에 이 말이 붙으면 정책금리가 아닙니다 (예적금 · 대출 · 채권 금리는 UNAVAILABLE 로) */
@@ -184,7 +185,8 @@ export function relationPlan(question: string): RelationPlan | null {
   }
 
   // 물가 · 실업률: 한국 · 미국만 받습니다. 수입 · 수출 · 생산자 물가는 UNAVAILABLE 로
-  const macro: [RegExp, "cpi" | "jobs"][] = [[/(?<!수입\s*|수출\s*|생산자\s*)물가|인플레|\bCPI\b/gi, "cpi"], [/실업|고용|일자리|취업자/g, "jobs"]];
+  // 실업률만 받습니다. 취업자 수 · 고용은 실업률과 다른 지표라(함께 늘 수도 있음) 실업률로 바꾸지 않고 UNAVAILABLE 로 (#144 Codex 리뷰)
+  const macro: [RegExp, "cpi" | "jobs"][] = [[/(?<!수입\s*|수출\s*|생산자\s*)물가|인플레|\bCPI\b/gi, "cpi"], [/실업/g, "jobs"]];
   for (const [re, kind] of macro) {
     for (const m of question.matchAll(re)) {
       for (const c of fallback(countryBefore(question, m.index))) {
@@ -419,8 +421,10 @@ function generalLines(rows: RelationRow[], missing: string[]): string[] {
   if (fx && has(rows, "rate")) lines.push(`${foreign} 금리가 한국보다 높아질수록 ${money}를 가지려는 수요가 늘어 ${fx.name}이 오르기 쉽다`);
   if (has(rows, "cpi") && has(rows, "rate")) lines.push("물가가 오르면 중앙은행이 금리를 올려 대응하고, 물가가 안정되면 금리를 내리는 일이 많다");
   if (has(rows, "rate") && stocks.length) lines.push("금리가 오르면 기업의 이자 부담과, 미래 이익을 지금 가치로 바꿀 때 쓰는 할인율이 커져 주가에 부담이 되기 쉽고, 기술주 비중이 큰 지수일수록 더 민감한 편이다");
-  if (fx && krStock) lines.push("원화가 약해지면(환율 상승) 외국인 투자자의 환차손 우려로 국내 증시에서 자금이 빠지기 쉬워 코스피와 환율이 반대로 움직이는 때가 많다. 다만 수출 기업 실적에는 도움이 되기도 한다");
-  if (fx && usStock) lines.push("해외 지수를 따르는 상품에 원화로 투자하면(환헤지를 하지 않는 상품) 원화 기준 수익률은 지수 수익률에 환율 변화가 더해진 것에 가깝다. 환율이 오르면 더해지고 내리면 깎인다");
+  // 원화로 본 주가와 환율 설명은 원/달러에만 맞습니다 (지수가 달러로 매겨지고, 외국인 자금도 달러 기준). 엔 · 유로 환율에는 붙이지 않습니다 (#144 Codex 리뷰)
+  const usd = currency === "USD";
+  if (fx && usd && krStock) lines.push("원화가 약해지면(환율 상승) 외국인 투자자의 환차손 우려로 국내 증시에서 자금이 빠지기 쉬워 코스피와 환율이 반대로 움직이는 때가 많다. 다만 수출 기업 실적에는 도움이 되기도 한다");
+  if (fx && usd && usStock) lines.push("해외 지수를 따르는 상품에 원화로 투자하면(환헤지를 하지 않는 상품) 원화 기준 수익률은 지수 수익률에 환율 변화가 더해진 것에 가깝다. 환율이 오르면 더해지고 내리면 깎인다");
   if (has(rows, "cpi") && has(rows, "jobs")) lines.push("경기가 좋아 실업률이 낮아지면 물가가 오르기 쉽다는 설명(필립스 곡선)이 있지만, 늘 들어맞지는 않는다");
   if (has(rows, "jobs") && has(rows, "rate")) lines.push("고용이 약해지면(실업률 상승) 중앙은행이 금리를 내려 경기를 받치려는 일이 많다");
   if (has(rows, "cpi") && fx) lines.push("환율이 오르면 수입품 가격이 올라 시간을 두고 소비자물가에 반영되기 쉽다");
