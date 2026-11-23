@@ -73,7 +73,7 @@ export function plainWords(text: string): string {
  * "이며" 앞이 명사로 끝난다고 확실한 경우만 나눕니다: 숫자 · 영문 · 닫는 괄호, 또는 지표 · 자료 이름에 흔한 끝 글자(률 · 값 · 기준 · 표기 · 목록 …).
  * 꺾이며 · 출렁이며 · 움직이며 같은 동사는 끝 글자가 이 목록에 없어 그대로 둡니다. 모르는 꼴은 바꾸지 않습니다 (#147 Codex 리뷰: 동사 목록 밖이면 명사로 보던 것)
  */
-const NOUN_END = /(?:[0-9A-Za-z)]|률|율|치|값|준|표|기|간|점|료|리|과|용|위|균|록|수|액|량|폭|세|격|가|일|월|날|금|인|향|황|화|장|업|품|국|행|책|계|산|채|권|차|도|대|분|중|문|별|형|식|선|물)$/;
+const NOUN_END = /(?:[0-9A-Za-z)]|률|율|치|값|준|표|기|간|점|료|리|과|용|위|균|록|수|액|량|폭|세|격|가|일|월|날|금|인|향|황|화|장|업|품|국|행|책|계|산|채|권|차|도|대|분|중|문|별|형|식|선|물|해)$/;
 /** 받침이 있으면 "이에요", 없으면 "예요". 숫자 · 영문은 읽는 소리로 ("20이에요", "2예요", "CPI예요", "LPR이에요") */
 const copula = (word: string) => {
   const last = word.replace(/\)+$/, "").at(-1) ?? "";
@@ -91,6 +91,42 @@ export function splitEmyeo(text: string): string {
     if (!NOUN_END.test(word)) return all;
     return `${copula(word)} `;
   });
+}
+
+/** 조회 과정을 말하는 문장: "조회가 실패해 이전 응답을 재사용했으므로 …", "조회 실패로 13시간 전 뉴스 응답을 재사용했어요" */
+const FETCH_FAIL = /조회(?:가|는|에)?\s*실패/;
+/** 저장된 응답을 다시 썼다는 말 (저장된 응답을 쓴 조회에만 맞는 말) */
+const REUSED = /재사용|이전\s*(?:조회\s*)?응답|저장된\s*응답|전에\s*받은\s*(?:같은\s*조회의\s*)?응답|응답을\s*다시\s*(?:썼|사용)/;
+const fetchTalk = (s: string) => FETCH_FAIL.test(s) || REUSED.test(s);
+/** tool 이름 → 그 조회를 가리키는 말 (작성은 tool 이름 대신 "뉴스 조회 · 환율 조회" 처럼 씁니다) */
+const TOOL_WORDS: Record<string, RegExp> = {
+  get_korean_economic_news: /뉴스|기사/,
+  get_fx_krw_rate: /환율/,
+  get_rate_data: /금리/,
+  get_macro_indicators: /물가|실업|CPI|소비자물가/i,
+  get_etf_kr_price: /ETF/i,
+  get_kr_stock_index: /지수|코스피|코스닥/,
+  get_us_stock_index: /지수|S&P|나스닥|다우/i,
+};
+
+/**
+ * 요약 · 주의점에서 조회 과정(실패 · 저장된 응답을 다시 씀)을 말하는 문장을 뺍니다 (11/23 운영: 뉴스 요약 셋째 문장 "다만 조회가 실패해 이전 응답을 재사용했으므로 …").
+ * fallbackTools: 저장된 응답을 쓴 tool. 그 조회는 "확인하지 못한 것" 에 코드가 한 줄 넣으므로(report.ts fallbackGaps) 작성이 쓴 같은 말은 버리고,
+ * 확인하지 못한 것에서도 뺍니다. 다른 조회의 실패(저장된 응답도 없던 것)는 그 말이 유일한 안내라 확인하지 못한 것으로 옮기고 그대로 둡니다 (#151 Codex 리뷰).
+ * 요약이 그 문장뿐이면 그대로 둡니다.
+ */
+export function dropFetchTalk(output: WriterOutput, fallbackTools: readonly string[]): WriterOutput {
+  const covered = (s: string) => fallbackTools.length > 0 && (REUSED.test(s) || fallbackTools.some((t) => TOOL_WORDS[t]?.test(s)));
+  const moved: string[] = [];
+  const sentences = output.summary.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const kept = sentences.filter((s) => !fetchTalk(s));
+  const summary = kept.length > 0 && kept.length < sentences.length ? kept.join(" ") : output.summary;
+  if (summary !== output.summary) moved.push(...sentences.filter(fetchTalk));
+  const caveats = output.caveats.filter((c) => !fetchTalk(c));
+  moved.push(...output.caveats.filter(fetchTalk));
+  const gaps = [...output.dataGaps.filter((g) => !(fetchTalk(g) && covered(g))), ...moved.filter((m) => !covered(m))];
+  if (summary === output.summary && caveats.length === output.caveats.length && gaps.length === output.dataGaps.length && gaps.every((g, i) => g === output.dataGaps[i])) return output;
+  return { ...output, summary, caveats, dataGaps: gaps };
 }
 
 /** 원인을 묻지 않은 질문의 요약에서, 원인을 확인하지 못했다는 말뿐인 문장을 뺍니다 */
@@ -137,14 +173,22 @@ export function dropDecisionDisclaimer(text: string): string {
  * 검증 뒤의 출력을 다듬습니다 (사실은 바꾸지 않음): 한 줄 요약의 부정 꼬리, 묻지 않은 원인 한계, 첫 문장의 한계(→ 확인하지 못한 것),
  * 내부 용어, "~이며" 문장 나누기. 바뀐 것이 없으면 받은 그대로 돌려줍니다. 같은 한계의 되풀이는 이 뒤에 trimRepeats 가 줄입니다.
  */
+/** 기사를 고르거나 뺀 작업 설명 ("경제와 관련 없는 기사도 있어 추렸어요", 11/23 화면 QA). 사용자에게 필요 없는 과정 말이라 주의점 · 확인하지 못한 것에서 뺍니다 */
+const PICK_TALK = /(?:기사|뉴스)[^.!?]*(?:추렸|추려|걸렀|걸러\s*냈|제외했|골랐|골라\s*(?:냈|썼))|관련\s*(?:없는|없어\s*보이는)\s*(?:기사|뉴스)/;
+export function dropPickTalk(lines: string[]): string[] {
+  return lines
+    .map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => s.trim() && !PICK_TALK.test(s)).join(" "))
+    .filter((l) => l.trim().length > 0);
+}
+
 export function trimNegatives(output: WriterOutput, intent: Intent | undefined): WriterOutput {
   const decision = (t: string) => (intent === "decision" ? dropDecisionDisclaimer(t) : t);
   const headline = output.headline ? plainWords(decision(dropInternalPhrases(trimHeadline(output.headline)))) : output.headline;
   const lead = dropLeadingLimit({ summary: output.summary, dataGaps: output.dataGaps });
   const summary = splitEmyeo(plainWords(decision(dropInternalPhrases(dropUnaskedCause(lead.summary, intent, output.why.length > 0)))));
   const tidy = (lines: string[]) => lines.map((l) => splitEmyeo(plainWords(l)));
-  const caveats = tidy(output.caveats);
-  const dataGaps = tidy(lead.dataGaps);
+  const caveats = tidy(dropPickTalk(output.caveats));
+  const dataGaps = tidy(dropPickTalk(lead.dataGaps));
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   return headline === output.headline && summary === output.summary && same(caveats, output.caveats) && same(dataGaps, output.dataGaps)
     ? output

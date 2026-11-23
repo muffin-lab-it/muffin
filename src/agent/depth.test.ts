@@ -128,6 +128,7 @@ it("Easy 비교만 최대 3개를 허용하고 Standard·Deep 개수 규칙은 �
   expect(byDepth.easy).toContain("두 대상의 차이를 묻는 비교 질문");
   expect(byDepth.easy).toContain("최대 3개까지 허용");
   expect(byDepth.standard).toContain("numbers 최대 4개");
-  expect(byDepth.deep).toContain("numbers 4개 이상(장부에 있는 만큼)");
+  expect(byDepth.deep).toContain("numbers 3~5개");
+  expect(byDepth.deep).not.toContain("배경 1문단");
   expect(byDepth.easy).toContain("상승률 순위와 기여도 순위를 혼동하지 않습니다");
 });

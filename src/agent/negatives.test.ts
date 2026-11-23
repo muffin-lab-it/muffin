@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDecisionDisclaimer, dropInternalPhrases, dropLeadingLimit, dropUnaskedCause, plainWords, splitEmyeo, trimHeadline, trimNegatives } from "./negatives";
+import { dropDecisionDisclaimer, dropFetchTalk, dropPickTalk, dropInternalPhrases, dropLeadingLimit, dropUnaskedCause, plainWords, splitEmyeo, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -108,6 +108,7 @@ describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
     for (const t of ["물가 오름세가 꺾이며 부담이 줄어요.", "환율이 출렁이며 불안이 커졌어요.", "자금이 모이며 거래가 늘었어요.", "투자자가 몰리며 거래가 늘었어요."]) expect(splitEmyeo(t)).toBe(t);
     expect(splitEmyeo("기준은 2026-11-20이며 발표일이 아니에요.")).toBe("기준은 2026-11-20이에요. 발표일이 아니에요.");
     expect(splitEmyeo("이 값은 전년 같은 달 대비 상승률이며 전월 대비가 아니에요.")).toBe("이 값은 전년 같은 달 대비 상승률이에요. 전월 대비가 아니에요.");
+    expect(splitEmyeo("리서치센터장들이 꼽은 배경은 견해이며, 인과관계까지 확인된 것은 아니에요.")).toBe("리서치센터장들이 꼽은 배경은 견해예요. 인과관계까지 확인된 것은 아니에요.");
   });
 
   it("trimNegatives 는 주의점 · 확인하지 못한 것에도 내부 용어 풀기와 문장 나누기를 적용한다", () => {
@@ -125,3 +126,54 @@ describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
     expect(out.dataGaps).toEqual(["기사 본문을 확보하지 못해 내용은 정리할 수 없어요."]);
   });
 });
+
+describe("조회 과정 문장 빼기 (11/23 운영 뉴스 질문)", () => {
+  const base = (summary: string, caveats: string[] = [], dataGaps: string[] = []): WriterOutput => ({ summary, numbers: [], why: [], impact: [], caveats, dataGaps, nextTopics: [] });
+  const NEWS = "get_korean_economic_news";
+
+  it("저장된 응답을 쓴 조회는 요약 · 주의점 · 확인하지 못한 것에서 그 말을 뺀다 (코드가 확인하지 못한 것에 한 줄 넣음)", () => {
+    const out = dropFetchTalk(
+      base(
+        "확인된 환율 관련 기사는 연합뉴스의 2026-11-20 보도예요. 기사에 따르면 원/달러 환율은 달러 강세와 위험회피 심리를 배경으로 올랐어요. 다만 조회가 실패해 이전 응답을 재사용했으므로 오늘의 최신 뉴스로 볼 수는 없고, 확인된 기사는 1건이에요.",
+        ["환율 값은 일별 매수·매도 중간값으로, 실시간 매수·매도 호가가 아니에요.", "조회 실패로 13시간 전 뉴스 응답을 재사용했어요. 오늘의 최신 환율 뉴스 여부는 확인되지 않았어요."],
+        ["최신 환율 뉴스를 확인하려면 최신 뉴스 조회 결과가 필요해요.", "뉴스는 이전에 받은 응답을 다시 썼어요."],
+      ),
+      [NEWS],
+    );
+    expect(out.summary).toBe("확인된 환율 관련 기사는 연합뉴스의 2026-11-20 보도예요. 기사에 따르면 원/달러 환율은 달러 강세와 위험회피 심리를 배경으로 올랐어요.");
+    expect(out.caveats).toEqual(["환율 값은 일별 매수·매도 중간값으로, 실시간 매수·매도 호가가 아니에요."]);
+    expect(out.dataGaps).toEqual(["최신 환율 뉴스를 확인하려면 최신 뉴스 조회 결과가 필요해요."]);
+  });
+
+  it("저장된 응답이 덮지 않는 다른 조회의 실패는 확인하지 못한 것으로 옮기고 남긴다 (#151 Codex 리뷰)", () => {
+    // 환율만 저장된 응답을 썼고, 뉴스는 저장된 응답도 없이 실패
+    const out = dropFetchTalk(base("기준금리는 3%예요. 뉴스는 조회가 실패해 확인하지 못했어요.", ["환율은 조회가 실패해 이전 응답을 썼어요."], ["뉴스 조회가 실패했어요."]), ["get_fx_krw_rate"]);
+    expect(out.summary).toBe("기준금리는 3%예요.");
+    expect(out.caveats).toEqual([]);
+    expect(out.dataGaps).toEqual(["뉴스 조회가 실패했어요.", "뉴스는 조회가 실패해 확인하지 못했어요."]);
+    // 저장된 응답을 쓴 조회가 없으면 실패 문장은 모두 확인하지 못한 것으로
+    const none = dropFetchTalk(base("기준금리는 3%예요. 환율은 조회가 실패해 확인하지 못했어요.", ["뉴스 조회가 실패했어요."]), []);
+    expect(none.summary).toBe("기준금리는 3%예요.");
+    expect(none.dataGaps).toEqual(["환율은 조회가 실패해 확인하지 못했어요.", "뉴스 조회가 실패했어요."]);
+  });
+
+  it("요약이 그 문장뿐이거나 조회 과정 말이 없으면 그대로 둔다", () => {
+    const one = base("조회가 실패해 이전 응답을 썼어요.");
+    expect(dropFetchTalk(one, [NEWS])).toBe(one);
+    const clean = base("기준금리는 3%예요. 1년 전보다 0.50%p 올랐어요.", ["정책금리라 시장금리와 달라요."]);
+    expect(dropFetchTalk(clean, [NEWS])).toBe(clean);
+  });
+});
+
+describe("기사 고르기 작업 설명 빼기 (11/23 화면 QA, C3 남은 것)", () => {
+  it("주의점 · 확인하지 못한 것에서 기사를 고르거나 뺐다는 문장만 뺀다", () => {
+    expect(dropPickTalk(["경제와 관련 없는 기사도 있어 추렸어요.", "기사 속 수치는 별도 검증되지 않았어요.", "기사 본문은 보지 않고 제목만 확인했어요. 상품 할인 기사는 제외했어요."])).toEqual([
+      "기사 속 수치는 별도 검증되지 않았어요.",
+      "기사 본문은 보지 않고 제목만 확인했어요.",
+    ]);
+    expect(dropPickTalk(["질문과 관련 없는 뉴스는 근거로 쓰지 않았어요."])).toEqual([]);
+    const plain = ["환율은 일별 매수·매도 중간값이에요."];
+    expect(dropPickTalk(plain)).toEqual(plain);
+  });
+});
+

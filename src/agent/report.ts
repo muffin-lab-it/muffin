@@ -201,6 +201,11 @@ function aligned(texts: string[] | undefined, total: number): string[] | undefin
  * 조회가 실패해 저장된 응답(src/tools/cache.ts)을 쓴 tool 을 "확인하지 못한 것" 에 한 줄씩 넣습니다.
  * 모델이 장부 note 를 빠뜨려도 사용자에게 보이게 코드가 넣는 것이고, 검증 뒤에 붙이므로 검증 대상이 아닙니다. 같은 tool 이 여러 번이면 가장 오래된 나이 하나.
  */
+/** 조회가 실패해 저장된 응답을 쓴 tool 이름 (fallbackGaps 가 한 줄씩 적는 것과 같은 대상) */
+export function fallbackTools(steps: ToolStep[]): string[] {
+  return [...new Set(steps.filter((s) => s.status === "ok" && s.fallbackAgeMs !== undefined).map((s) => s.tool))];
+}
+
 export function fallbackGaps(steps: ToolStep[]): string[] {
   const oldest = new Map<string, number>();
   for (const s of steps) {

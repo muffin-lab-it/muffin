@@ -21,21 +21,23 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
-import { basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
+import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
-import { trimNegatives } from "./negatives";
+import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, macroNewsNote } from "./news-topics";
+import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
+import { deepNote, deepRefs, ensureDeep, withDeepNumbers } from "./deep";
 import { ensureRateReference, ensureRateYear, rateReferenceNote, rateYearNote, withRateReference, yearRates } from "./rate-trend";
 import { addExampleCalc, exampleNote, withExampleNumbers } from "./example-calc";
 import { ensureMoneyValue, moneyValueNote, moneyValueRows } from "./money-value";
 import { ensureRelation, relationHeadline, relationHidden, relationNote, relationRefs, trimRelationRepeats, withRelationNumbers } from "./relation";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
-import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
+import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, fallbackTools, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
 import { isSwingQuestion, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, swingNote, withSwingNumbers, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
-import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
+import { modeFor, type Area, type Chart, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
 import { dropOffTopic, ensureMentioned, mentionedTools, offTopicGap, offTopicNote, offTopicParts, rescueScope, scopeGap, scopeNote } from "./scope-rescue";
 import { trimGapInputs, trimRepeats } from "./trim";
 import { applyVerification, summarizeVerification, verify } from "./verify";
@@ -244,7 +246,11 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 질문에 적힌 가상의 숫자("3%에서 4%로")는 코드가 계산해 계산 항목으로 올립니다 (example-calc.ts)
   const example = addExampleCalc(ctx, question);
   // 나라를 말하지 않은 정책금리 질문이면 미국 정책금리 1년 비교도 참고로 받습니다 (베타 B2, rate-trend.ts). 관계 질문 · 가상의 숫자 질문은 각자 정한 지표만 봅니다
-  const [, rateRef] = await Promise.all([ensureRateYear(ctx, muffinTools, question), relation || example ? Promise.resolve(null) : ensureRateReference(ctx, muffinTools, question)]);
+  const [, rateRef] = await Promise.all([ensureRateYear(ctx, muffinTools, question, depth === "deep"), relation || example ? Promise.resolve(null) : ensureRateReference(ctx, muffinTools, question)]);
+  // Deep Dive 면 질문이 말한 지표(환율 · 지수 · 물가 · 실업률)를 지난 1년으로도 받습니다 (src/agent/deep.ts). 지수 값(30일 공식 종가)을 받은 뒤라 지수 카드 · 차트는 그대로입니다
+  const deep = moneyValue || example ? null : await ensureDeep(ctx, question, depth, muffinTools);
+  // 물가 질문이면 12개월 물가를 받아 달별 전년 같은 달 대비 상승률 선을 그립니다 (src/agent/cpi-trend.ts, 화면 #149)
+  const cpiTrend = relation || moneyValue || example ? null : await ensureCpiTrend(ctx, question, muffinTools);
   // 종목을 정하지 않은 ETF 질문("etf 요즘 뭐가 좋아?")이면 자산군별 대표 ETF 의 수익률을 채웁니다 (src/agent/etf-basket.ts)
   const basket = await ensureEtfBasket(ctx, question, muffinTools);
   // 주제 없는 뉴스 질문("오늘 경제 뉴스")이면 경제 흐름 주제어로 찾은 기사를 장부에 보탭니다 (src/agent/news-topics.ts)
@@ -266,7 +272,14 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 게이트가 받은 일별 환율로 차트 (최근 30일 선 · 평소 폭 띠 · 기간 안의 뉴스 점). 코드가 만든 것이라 검증 대상이 아닙니다
   // 차트: 환율 원인 질문은 평소 폭 띠가 있는 환율 차트, 지수 질문은 비교 기간의 지수 선
   const indexItem = index ? officialIndex(ctx.evidence, index) : undefined;
-  const chart = movement ? fxChart(movement, movementId, ctx.evidence) : indexItem ? indexChart(indexItem, ctx.raw.get(indexItem.id)) : null;
+  // 종목을 정하지 않은 ETF 질문은 대표 ETF 수익률 막대, 물가 질문은 달별 상승률 선 (화면 #149). charts 는 배열이라 해당하는 것을 순서대로 모두 넣습니다
+  const cpiItem = cpiTrend ? ctx.evidence.find((e) => e.id === cpiTrend) : undefined;
+  const charts = [
+    movement ? fxChart(movement, movementId, ctx.evidence) : null,
+    indexItem ? indexChart(indexItem, ctx.raw.get(indexItem.id)) : null,
+    basket ? basketChart(ctx.evidence) : null,
+    cpiItem ? cpiChart(cpiItem, ctx.raw.get(cpiItem.id)) : null,
+  ].filter((c): c is Chart => c !== null);
   emit({ type: "stage", stage: "edit", status: "done" });
 
   // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다. 움직임을 쟀으면 [움직임 크기] 를 덧붙입니다.
@@ -285,6 +298,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     ...(index ? indexRefs(ctx.evidence, index) : []),
     ...yearRates(ctx.evidence).map((e) => e.id),
     ...(rateRef ? [rateRef] : []),
+    ...(deep ? deepRefs(ctx.evidence, deep) : []),
     ...macroNews.map((e) => e.id),
     ...(basket ? basketRows(ctx.evidence).map((r) => r.e.id) : []),
     ...(relation ? relationRefs(ctx.evidence, relation) : []),
@@ -300,15 +314,17 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 관계 질문은 1년 비교에 쓴 항목 말고 같은 지표의 다른 기간 항목(30일 환율 등)도 작성에 보이지 않게 합니다 (카드는 1년, 요약은 30일이 되지 않게, relation.ts).
   // 움직임을 잰 원인 질문은 [움직임 크기] 가 30일 자료를 가리키므로 그대로 둡니다
   const sameIndicator = relation && !movement ? relationHidden(ctx.evidence, relation) : new Set<string>();
-  const hidden = new Set([...reversed, ...sameIndicator]);
+  // 차트용 12개월 물가 항목은 같은 나라 물가 항목이 따로 있으면 작성에게 보이지 않게 합니다 (같은 최신 값이 두 번 보이지 않게, cpi-trend.ts)
+  const trendHidden = cpiTrend ? cpiTrendHidden(ctx.evidence, cpiTrend) : new Set<string>();
+  const hidden = new Set([...reversed, ...sameIndicator, ...trendHidden]);
   // 숨긴 항목은 "정제가 뺀 자료" 목록에도 올리지 않습니다 (작성이 "30일 자료는 쓰지 않았어요" 라고 적지 않게)
-  for (const id of sameIndicator) rescued.add(id);
+  for (const id of [...sameIndicator, ...trendHidden]) rescued.add(id);
   const writerLedger = hidden.size > 0 ? ctx.evidence.filter((e) => !hidden.has(e.id)) : ctx.evidence;
   const writerFactsShown = writerFacts && hidden.size > 0 ? { ...writerFacts, facts: writerFacts.facts.filter((f) => !hidden.has(f.ref)) } : writerFacts;
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -318,6 +334,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
     if (relation) out = withRelationNumbers(out, ctx.evidence, relation);
     if (rateRef) out = withRateReference(out, ctx.evidence, rateRef);
+    if (deep) out = withDeepNumbers(out, ctx.evidence, deep);
     if (basket) out = withBasketNumbers(out, ctx.evidence);
     if (example) out = withExampleNumbers(out, example);
     if (movement && swing) out = withSwingNumbers(out, movement, movementId);
@@ -352,7 +369,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 같은 한계를 주의점 · 확인하지 못한 것에 되풀이한 줄을 줄입니다 (src/agent/trim.ts). 코드가 넣는 줄은 그 뒤에 붙여 줄어들지 않습니다
   // 한 줄 요약 끝의 "…지만 확인되지 않아요" 와, 원인을 묻지 않은 질문의 "원인은 확인할 수 없어요" 문장을 뗍니다 (src/agent/negatives.ts)
   // 관계 질문은 요약에 되풀이된 "상관관계 · 인과관계는 판단할 수 없어요" 와 받지 않는 지표의 한계 문장을 주의점 · 확인하지 못한 것 한 곳으로 모읍니다 (relation.ts)
-  const negTrimmed = trimRepeats(trimNegatives(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, plan.intent));
+  // 요약 · 주의점의 "조회가 실패해 이전 응답을 썼어요" 문장은 뺍니다. 저장된 응답을 썼으면 확인하지 못한 것에 코드가 한 줄 넣습니다 (negatives.ts dropFetchTalk)
+  const negTrimmed = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, fallbackTools(ctx.steps)), plan.intent));
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
@@ -374,7 +392,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
       matches: applied.matches,
       changes: changeDetailsFor(applied, ctx.evidence),
       ...(movement ? { movement: movementSummary(movement) } : {}),
-      ...(chart ? { charts: [chart] } : {}),
+      ...(charts.length > 0 ? { charts } : {}),
     }),
     steps: ctx.steps,
     rewrites: revisions,

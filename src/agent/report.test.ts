@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import v1 from "./fixtures/report.v1.sample.json";
 import v2 from "./fixtures/report.v2.sample.json";
 import { normalizeReport } from "./normalize";
-import { DISCLOSURE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, sourcesFrom, summarizeWhy, whyEmptyNote } from "./report";
+import { DISCLOSURE, assembleReport, fallbackGaps, fallbackTools, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, sourcesFrom, summarizeWhy, whyEmptyNote } from "./report";
 import { reportSchema, writerSchema, type Evidence, type Verification, type WriterOutput } from "./schema";
 
 function evidence(id: string, url: string, asOf = "2026-10-01"): Evidence {
@@ -83,6 +83,10 @@ describe("assembleReport", () => {
     expect("charts" in plain).toBe(false);
     const decision = assembleReport(output, [], skipped, { mode: "decision_facts", notice: "판단은 사용자에게" });
     expect(decision).toMatchObject({ mode: "decision_facts", notice: "판단은 사용자에게" });
+  });
+
+  it("fallbackTools 는 저장된 응답을 쓴 tool 이름만 한 번씩", () => {
+    expect(fallbackTools([{ tool: "get_fx_krw_rate", status: "ok", ms: 10, fallbackAgeMs: 60_000 }, { tool: "get_fx_krw_rate", status: "ok", ms: 10, fallbackAgeMs: 5 }, { tool: "get_rate_data", status: "error", ms: 5, error: "x" }, { tool: "get_korean_economic_news", status: "ok", ms: 3 }])).toEqual(["get_fx_krw_rate"]);
   });
 
   it("fallbackGaps 는 저장된 응답을 쓴 tool 만, tool 마다 한 줄, 가장 오래된 나이로 적는다", () => {
