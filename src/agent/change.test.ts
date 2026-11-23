@@ -213,4 +213,12 @@ describe("changeDetailsFor (검증 결과와 같은 순서)", () => {
     expect(details[1]).toBeUndefined();
     expect(details[2]).toBeUndefined();
   });
+
+  it("1년 전 환율 · 기간 첫 종가 같은 수준 값은 변화 정보를 만들지 않는다 (11/23: 1년 전 환율이 '1,472.46원 상승' 으로 보임)", () => {
+    const fx: Evidence = { id: "E7", tool: "get_fx_krw_rate", label: "환율", values: { pair: "USD/KRW", rate: 1336.65, asOf: "2026-11-23", "comparison.rate": 1472.46, "comparison.asOf": "2025-11-23", changePct: -9.13 }, source: { name: "Frankfurter v2", url: "https://api.frankfurter.dev", asOf: "2026-11-23" } };
+    expect(changeDetailFor({ change: "2025-11-23 1,472.46원 대비" }, fx, { key: "comparison.rate", policy: "exact" })).toBeNull();
+    expect(changeDetailFor({ change: "1,336.65원" }, fx, { key: "rate", policy: "exact" })).toBeNull();
+    expect(changeDetailFor({ change: "1년 -9.13%" }, fx, { key: "changePct", policy: "exact" })).not.toBeNull();
+  });
 });
+

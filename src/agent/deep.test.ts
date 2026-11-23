@@ -80,12 +80,12 @@ describe("Deep Dive 의 긴 기간 비교 (11/23)", () => {
     const out = withDeepNumbers(writer, [fx30, fx], fxPlan);
     expect(out.numbers.map((n) => [n.label, n.value, n.change])).toEqual([
       ["달러당 원화 환율", "1,336.65원", "30일 +0.92%"],
-      ["달러당 원화 환율 1년 변화", "-9.21%", "2025-11-24 1,472.30원 대비"],
+      ["달러당 원화 환율 1년 변화", "-9.21%", "2025-11-24~2026-11-23"],
     ]);
     expect(verify(out, [fx30, fx]).ok).toBe(true);
 
     const idx = withDeepNumbers(output([]), [kospi], deepPlan("요즘 코스피 어때?", "deep")!);
-    expect(idx.numbers[0]).toMatchObject({ label: "코스피 1년 수익률", value: "+21.60%", change: "2025-11-20 4,004.85 대비" });
+    expect(idx.numbers[0]).toMatchObject({ label: "코스피 1년 수익률", value: "+21.60%", change: "2025-11-20~2026-11-20" });
     expect(verify(idx, [kospi]).ok).toBe(true);
 
     // 물가는 1년 전 달의 상승률 카드 (지금 상승률 카드는 작성이 씀)

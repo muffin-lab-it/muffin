@@ -499,7 +499,8 @@ export function yearCard(r: RelationRow): WriterOutput["numbers"][number] {
   const name = node.kind === "fx" ? node.card : node.kind === "rate" ? node.indicator : node.name;
   const label = node.kind === "stock" ? `${name} 1년 수익률` : `${name} 1년 변화`;
   const value = isPrice(node) ? signedPct(r.change) : signedPp(r.change);
-  return { label, value, change: `${from.date} ${fmt(node, from.value)} 대비`, asOf: to.date, ref: to.ref };
+  // 변화 칸에는 비교 기간만 적습니다. "2025-11-23 1,472.46원 대비" 처럼 1년 전 값을 적으면 화면이 그 숫자를 변화량으로 읽어 "1,472.46원 상승" 으로 보였습니다 (11/23 사용자 확인)
+  return { label, value, change: `${from.date}~${to.date}`, asOf: to.date, ref: to.ref };
 }
 
 function cardsOf(r: RelationRow): WriterOutput["numbers"] {
