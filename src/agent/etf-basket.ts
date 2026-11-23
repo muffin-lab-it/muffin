@@ -102,7 +102,7 @@ export function withBasketNumbers(output: WriterOutput, evidence: Evidence[]): W
 /**
  * 대표 ETF 수익률 막대 차트 (11/23 리더 결정: 물가 추이 · ETF 비교 차트 중 ETF 막대만 먼저). 막대 하나가 series 하나이고,
  * 점은 하나(t: 기간 끝 날짜, v: 기간 수익률 %)입니다. ref 가 ETF 마다 달라 막대마다 근거를 가리킬 수 있습니다. 순서는 목록 순서(수익률 순 아님).
- * 화면(ReportChart)이 kind "bar" 를 그리게 된 뒤에 리포트에 넣습니다. 지금 화면은 series[0] 을 날짜 선으로 그려서 먼저 넣으면 깨집니다.
+ * 화면(ReportChart, #149)은 series 가 둘 이상인 막대 차트에서 series 마다 마지막 점을 막대 하나로 그리고, unit "%" 면 오름 · 내림 색을 씁니다.
  */
 export function basketChart(evidence: Evidence[]): Chart | null {
   const rows = basketRows(evidence);

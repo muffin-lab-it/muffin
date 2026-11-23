@@ -77,7 +77,7 @@ describe("종목을 정하지 않은 ETF 질문 (11/21)", () => {
   });
 });
 
-describe("대표 ETF 수익률 막대 차트 (11/23, 화면 준비 뒤 켬)", () => {
+describe("대표 ETF 수익률 막대 차트 (11/23, 화면 #149)", () => {
   it("ETF 하나가 막대 하나(series 하나 · 점 하나)이고, 목록 순서 · ETF 마다의 근거 번호를 쓴다. 둘 미만이면 null", () => {
     const chart = basketChart([bond, kodex, kosdaq])!;
     expect(chart.kind).toBe("bar");

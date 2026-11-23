@@ -21,7 +21,7 @@ import { areaTools, createPlannerAgent, defaultPlan, normalizePlan, planInput, r
 import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
-import { basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
+import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
 import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
@@ -269,7 +269,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 게이트가 받은 일별 환율로 차트 (최근 30일 선 · 평소 폭 띠 · 기간 안의 뉴스 점). 코드가 만든 것이라 검증 대상이 아닙니다
   // 차트: 환율 원인 질문은 평소 폭 띠가 있는 환율 차트, 지수 질문은 비교 기간의 지수 선
   const indexItem = index ? officialIndex(ctx.evidence, index) : undefined;
-  const chart = movement ? fxChart(movement, movementId, ctx.evidence) : indexItem ? indexChart(indexItem, ctx.raw.get(indexItem.id)) : null;
+  // 종목을 정하지 않은 ETF 질문은 대표 ETF 수익률 막대 (화면 #149 가 막대를 그림, etf-basket.ts basketChart)
+  const chart = movement ? fxChart(movement, movementId, ctx.evidence) : indexItem ? indexChart(indexItem, ctx.raw.get(indexItem.id)) : basket ? basketChart(ctx.evidence) : null;
   emit({ type: "stage", stage: "edit", status: "done" });
 
   // ✍️ 작성. tool 없이 사실 목록(없으면 장부 전체)만 봅니다. 움직임을 쟀으면 [움직임 크기] 를 덧붙입니다.
