@@ -22,6 +22,9 @@ function clip(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/** 환율 차트에 찍을 기사 제목의 낱말 */
+const FX_NEWS = /환율|달러|원화|외환|엔화|엔\s*환율|유로|위안|강달러|약달러|\bFX\b/i;
+
 /**
  * 환율 차트. id 는 게이트 장부 항목(C 번호). 뉴스 점은 장부의 기사 중 차트 기간 안에 나온 것(끝은 시차로 하루 여유)만, 오래된 순으로 최대 EVENTS_MAX 개.
  * series 가 비어 있으면(받은 일별 환율이 없음) null
@@ -34,7 +37,8 @@ export function fxChart(m: Movement, id: string, evidence: Evidence[]): Chart | 
   const end = m.period.to;
   const windowDays = Math.max(SERIES_DAYS, m.period.days);
   const events = evidence
-    .filter((e) => e.tool === areaTools.news)
+    // 제목에 환율 낱말이 든 기사만 점으로 찍습니다 (11/23 운영: 환율 차트에 "Walmart Inc (WMT) 주식 움직였습니다" 가 사건 점으로)
+    .filter((e) => e.tool === areaTools.news && FX_NEWS.test(String(e.values.title ?? "")))
     .map((e) => ({ ref: e.id, label: clip(String(e.values.title ?? e.label), LABEL_MAX), at: String(e.values.publishedAt ?? "").slice(0, 10) }))
     .filter((e) => /^\d{4}-\d{2}-\d{2}$/.test(e.at) && e.at >= start && e.at <= end)
     .sort((a, b) => a.at.localeCompare(b.at))

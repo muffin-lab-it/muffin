@@ -7,7 +7,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 });
 
 vi.mock("./supplement", () => ({ ensureOtherPairs: vi.fn(async () => []), ensureCpiCategories: vi.fn(async () => false) }));
-vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNewsNote: vi.fn(() => "") }));
+vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNewsNote: vi.fn(() => ""), localNewsIds: vi.fn(() => new Set()), withoutUncited: vi.fn((e: unknown) => e) }));
 vi.mock("./relation", () => ({ ensureRelation: vi.fn(async () => null), relationNote: vi.fn(() => ""), relationRefs: vi.fn(() => []), relationHidden: vi.fn(() => new Set()), trimRelationRepeats: vi.fn((o: unknown) => o), withRelationNumbers: vi.fn((o: unknown) => o), relationHeadline: vi.fn((h: unknown) => h) }));
 vi.mock("./money-value", () => ({ ensureMoneyValue: vi.fn(async () => false), moneyValueNote: vi.fn(() => ""), moneyValueRows: vi.fn(() => []) }));
 vi.mock("./etf-basket", () => ({ ensureEtfBasket: vi.fn(async () => false), basketChart: vi.fn(() => null), basketNote: vi.fn(() => ""), basketRows: vi.fn(() => []), withBasketNumbers: vi.fn((o: unknown) => o) }));

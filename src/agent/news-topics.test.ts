@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { MACRO_TOPICS, addMacroNews, isGeneralNewsQuestion, macroNewsNote } from "./news-topics";
+import { MACRO_TOPICS, addMacroNews, isGeneralNewsQuestion, isLocalNotice, localNewsIds, macroNewsNote, withoutUncited } from "./news-topics";
 import type { Evidence } from "./schema";
 
 const article = (title: string, url: string) => ({ title, url, publisher: "연합뉴스", publishedAt: "2026-11-20T07:29:21.000Z", source: "yonhap", body: { status: "not_requested" } });
@@ -64,3 +64,29 @@ describe("주제 없는 뉴스 질문의 기사 고르기 (11/21)", () => {
     expect(macroNewsNote([])).toBe("");
   });
 });
+
+describe("지역 행정 · 정당 기사 거르기 (11/23 운영 '오늘 경제 뉴스')", () => {
+  it("의회 · 행정사무감사 · 정당 · 지자체 모집 소식은 거르고, 경제 흐름 기사와 경제 낱말이 든 지자체 소식은 남긴다", () => {
+    for (const t of ['경남 진보당 "RISE 취·창업 실적 부풀려"…도 "가중치 적용"', "용인특례시의회 경제환경위원회, 행정사무감사 4일차 - 경인신문", "원주시, 영구임대주택 예비 입주자 330가구 모집", "원주시, 중장년 재취업 지원…30일 인공지능 활용 교육"]) {
+      expect(isLocalNotice(t), t).toBe(true);
+    }
+    for (const t of ['"코스피 거품이 아닌 수급이 무너진 상태" - 매일일보', "코스피 5%대 급락, 4,600선도 내줘…매도 사이드카", "국고채 금리, 위험회피 속 하락세…3년물 장중 연 3.621%", "서울시, 토지거래허가구역 확대…집값 불안 차단"]) {
+      expect(isLocalNotice(t), t).toBe(false);
+    }
+  });
+
+  it("장부의 지역 기사 번호를 고르고, 본문이 인용하지 않은 것만 리포트 장부에서 뺀다", () => {
+    const item = (id: string, title: string): Evidence => ({ id, tool: "get_korean_economic_news", label: "뉴스", values: { title }, source: { name: "x", url: `https://x/${id}`, asOf: "2026-11-23" } });
+    const evidence = [item("E1-1", "원주시, 영구임대주택 예비 입주자 330가구 모집"), item("E1-2", "용인특례시의회 행정사무감사"), item("E1-12", "코스피 급락")];
+    const ids = localNewsIds(evidence);
+    expect([...ids]).toEqual(["E1-1", "E1-2"]);
+    expect(withoutUncited(evidence, ids, { summary: "코스피가 급락했어요.", why: [] }).map((e) => e.id)).toEqual(["E1-12"]);
+    expect(withoutUncited(evidence, ids, { why: [{ claim: "…", evidence: "E1-2" }] }).map((e) => e.id)).toEqual(["E1-2", "E1-12"]);
+    expect(withoutUncited(evidence, new Set(), {})).toBe(evidence);
+    // 주제 없는 경제 뉴스 질문이면 조사가 따로 받은 기사 중 단신 꼭지 · 경제 낱말이 없는 것도 (코드가 보탠 기사는 그대로)
+    const general = [item("E1-1", "[게시판] 신한은행, '땡겨요'에서 크리스마스 케이크"), item("E1-2", "전북 학교 건물 24% 안전 C등급 이하"), item("E1-3", "한국 경제 내년 3.5% 성장 전망…반도체 수출 호황"), item("E2-1", "코스피 5%대 급락")];
+    expect([...localNewsIds(general, [general[3]!])]).toEqual(["E1-1", "E1-2"]);
+    expect(localNewsIds(general).size).toBe(0);
+  });
+});
+
