@@ -921,6 +921,17 @@ describe("월 단위 지표의 기준일 (11/23 운영 검수)", () => {
     expect(text).toContain("기준일 2026. 10.");
     expect(text).not.toContain("2026. 10. 1.");
   });
+  it("월 단위 장부와 같은 자료 목록도 기준일을 같이 바꿔 '참고 문서' 에 다시 나오지 않는다 (Codex 리뷰)", () => {
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === "E1")!;
+    fx.tool = "get_macro_indicators";
+    fx.source = { ...fx.source, asOf: "2026-10-01" };
+    // 자료 목록의 E1 도 같은 자료(주소 · 이름 · 기준일)로 맞춥니다
+    report.sources = report.sources.map(source => source.id === "E1" ? { ...source, url: fx.source.url, name: fx.source.name, asOf: "2026-10-01" } : source);
+    const $ = render(report);
+    expect($("[data-source-group='참고 문서']")).toHaveLength(0);
+    expect($.text()).not.toContain("2026. 10. 1.");
+  });
   it("일별 자료의 1일은 그대로 날짜로 보여 준다", () => {
     const report = fixture();
     const card = report.numbers.find(n => n.ref === "E1")!;
