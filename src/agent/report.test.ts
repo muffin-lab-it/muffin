@@ -197,6 +197,14 @@ describe("11/10 새 칸: headline · impactTitles · topicReasons · changeDetai
     expect(outOfScopeOutput("물가지수의 기준연도는 무슨 뜻인가요?").nextTopics[0]).toBe("최근 우리나라 물가가 왜 올랐어?");
     expect(outOfScopeOutput("듀레이션 5년 채권 ETF 볼록성은 왜 필요한가요?").nextTopics[0]).toBe("KODEX 200 요즘 어때?");
     expect(outOfScopeOutput("비트코인 얼마야?").summary).not.toMatch(/사세요|매수|매도/);
+    // 이유는 질문에 맞춘다: 다른 자산이면 그 대상을, 뜻 · 계산법이면 개념 질문이라고 (11/23 운영)
+    expect(outOfScopeOutput("비트코인 요즘 어때?").summary).toContain("가상자산은 머핀이 받는 자료가 아니라 조사하지 않았어요.");
+    expect(outOfScopeOutput("비트코인 요즘 어때?").summary).not.toContain("계산 공식");
+    expect(outOfScopeOutput("요즘 아파트 값 어때?").summary).toContain("부동산은");
+    expect(outOfScopeOutput("환율 우대 90%는 무슨 뜻인가요?").summary).toContain("개념 설명 · 상품 조건 · 계산 공식");
+    expect(outOfScopeOutput("오늘 날씨 어때?").summary).toContain("머핀이 받는 자료로 답하기 어려워");
+    // 추천 질문이 1년 비교와 어긋나지 않게 ("왜 그대로야?" 는 1년으로 보면 올랐음)
+    expect(outOfScopeOutput("오늘 날씨 어때?").nextTopics).not.toContain("한국 기준금리는 왜 그대로야?");
   });
 
   it("normalizeReport 는 11/10 전에 저장된 v2 기록에도 출처의 pageUrl 을 채운다", () => {
