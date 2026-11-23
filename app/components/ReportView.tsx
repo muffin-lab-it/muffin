@@ -283,11 +283,11 @@ export function ReportView({
 
           {report.charts && report.charts.length > 0 && (
             <section>
-              <h2>숫자의 변화 추이</h2>
+              <h2>{report.charts.every(c => c.kind === "bar") ? "숫자 한눈에 비교" : "숫자의 변화 추이"}</h2>
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
               ))}
-              <p className="section-guide">날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요.</p>
+              <p className="section-guide">{report.charts.every(c => c.kind === "bar") ? "항목별 값을 나란히 놓고 비교해 보세요." : "날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요."}</p>
             </section>
           )}
         </div>
