@@ -29,7 +29,7 @@ import { addMacroNews, macroNewsNote } from "./news-topics";
 import { ensureRateYear, rateYearNote, yearRates } from "./rate-trend";
 import { addExampleCalc, exampleNote, withExampleNumbers } from "./example-calc";
 import { ensureMoneyValue, moneyValueNote, moneyValueRows } from "./money-value";
-import { ensureFxRate, ensureRateInflation, fxRateNote, fxRateRows, relationHeadline, relationNote, relationRows, withFxRateNumbers, withRelationNumbers } from "./relation";
+import { ensureRelation, relationHeadline, relationHidden, relationNote, relationRefs, trimRelationRepeats, withRelationNumbers } from "./relation";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
@@ -231,13 +231,13 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     // 물가 원인 질문이면 품목군별 등락률 · 기여도를 채웁니다 (src/agent/supplement.ts, 11/19 페르소나 테스트: 물가 "왜" 에 원인 0개)
     await ensureCpiCategories(ctx, question, tools);
   }
+  // 관계 질문("물가와 금리 관계", "환율이 오르면 코스피는?")이면 질문이 말한 지표를 모두 같은 1년으로 받아 나란히 볼 수 있게 합니다 (src/agent/relation.ts).
+  // 지수 값보다 먼저 받아서, 지수가 든 관계 질문은 공식 종가 · 차트도 같은 1년 자료를 씁니다
+  const relation = await ensureRelation(ctx, question, muffinTools);
   // 지수 질문(코스피 · 코스닥 등)이면 공식 종가와, 검산되는 당일 종가(기사 보도)를 장부에 올립니다 (분류가 고르지 않아도 코드가 부름, src/agent/index-quote.ts)
   const index = await ensureIndex(ctx, question);
   // 정책금리의 짧은 기간 변화가 0 이면 1년 전과도 비교할 수 있게 365일로 한 번 더 받습니다 (src/agent/rate-trend.ts)
-  // 물가와 금리의 관계를 묻는 질문이면 1년 전 물가 상승률 · 기준금리를 채워 두 지표를 나란히 볼 수 있게 합니다 (src/agent/relation.ts)
-  await ensureRateInflation(ctx, question, muffinTools);
-  // 환율과 금리의 관계 질문이면 1년 비교 자료를, 돈의 가치 질문이면 물가 · 환율을 채웁니다 (relation.ts · money-value.ts)
-  await ensureFxRate(ctx, question, muffinTools);
+  // 돈의 가치 질문이면 물가 · 환율을 채웁니다 (money-value.ts)
   const moneyValue = await ensureMoneyValue(ctx, question, muffinTools);
   // 질문이 이름을 댄 영역(환율 · 금리 · 물가)을 조사가 건너뛰었으면 기본 입력으로 채웁니다 (scope-rescue.ts)
   const mentioned = await ensureMentioned(ctx, question, muffinTools);
@@ -280,15 +280,12 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   if (plan.intent === "cause") for (const id of cpiRescuedRefs(ctx.evidence, dropped)) rescued.add(id);
   // 지수 값을 가진 항목도 정제가 뺐더라도 [지수 값] 으로 다시 보여 주므로 "쓰지 않은 자료" 에서 뺍니다
   // 코드가 조사 뒤에 채운 항목들. 정제가 뺐더라도 "쓰지 않은 자료" 로 알리지 않고, 작성의 사실 목록에 넣어 인용할 수 있게 합니다 (src/agent/extra-facts.ts)
-  const relation = relationRows(ctx.evidence);
-  const fxRate = fxRateRows(ctx.evidence);
   const ensured = new Set<string>([
     ...(index ? indexRefs(ctx.evidence, index) : []),
     ...yearRates(ctx.evidence).map((e) => e.id),
     ...macroNews.map((e) => e.id),
     ...(basket ? basketRows(ctx.evidence).map((r) => r.e.id) : []),
-    ...(relation ? Object.values(relation).map((e) => e.id) : []),
-    ...(fxRate ? Object.values(fxRate).map((e) => e.id) : []),
+    ...(relation ? relationRefs(ctx.evidence, relation) : []),
     ...(moneyValue ? moneyValueRows(ctx.evidence).map((e) => e.id) : []),
     ...mentioned,
   ]);
@@ -298,11 +295,18 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 방향이 반대라 정제가 거른 계산(edit.ts reversedCalcIds)은 작성에 보이지 않게 합니다. 사실 목록이 비거나 정제가 실패해 작성이 장부 전체를 볼 때도
   // 뒤집힌 부호의 숫자가 되살아나지 않습니다 (#117 Codex 리뷰). 검증은 장부 전체로 그대로 합니다.
   const reversed = reversedCalcIds(ctx.evidence);
-  const writerLedger = reversed.size > 0 ? ctx.evidence.filter((e) => !reversed.has(e.id)) : ctx.evidence;
+  // 관계 질문은 1년 비교에 쓴 항목 말고 같은 지표의 다른 기간 항목(30일 환율 등)도 작성에 보이지 않게 합니다 (카드는 1년, 요약은 30일이 되지 않게, relation.ts).
+  // 움직임을 잰 원인 질문은 [움직임 크기] 가 30일 자료를 가리키므로 그대로 둡니다
+  const sameIndicator = relation && !movement ? relationHidden(ctx.evidence, relation) : new Set<string>();
+  const hidden = new Set([...reversed, ...sameIndicator]);
+  // 숨긴 항목은 "정제가 뺀 자료" 목록에도 올리지 않습니다 (작성이 "30일 자료는 쓰지 않았어요" 라고 적지 않게)
+  for (const id of sameIndicator) rescued.add(id);
+  const writerLedger = hidden.size > 0 ? ctx.evidence.filter((e) => !hidden.has(e.id)) : ctx.evidence;
+  const writerFactsShown = writerFacts && hidden.size > 0 ? { ...writerFacts, facts: writerFacts.facts.filter((f) => !hidden.has(f.ref)) } : writerFacts;
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFacts ? { ...writerFacts, unverified: [] } : writerFacts), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", fxRate ? fxRateNote(ctx.evidence) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -310,9 +314,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 기사 항목을 가리키는 숫자 카드는 뺍니다 (검산되지 않은 기사 숫자가 "확인한 숫자" 자리에 오르지 않게, src/agent/news-numbers.ts)
   const indexed = (o: WriterOutput) => {
     let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
-    if (relation) out = withRelationNumbers(out, ctx.evidence);
+    if (relation) out = withRelationNumbers(out, ctx.evidence, relation);
     if (basket) out = withBasketNumbers(out, ctx.evidence);
-    if (fxRate) out = withFxRateNumbers(out, ctx.evidence);
     if (example) out = withExampleNumbers(out, example);
     if (movement && swing) out = withSwingNumbers(out, movement, movementId);
     return mergeSameCards(dropNewsCards(out, ctx.evidence));
@@ -345,13 +348,15 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 환율 자료를 썼으면 어떤 환율인지(포털 · 은행 앱과 다를 수 있음)를 코드가 "주의점" 에 적습니다
   // 같은 한계를 주의점 · 확인하지 못한 것에 되풀이한 줄을 줄입니다 (src/agent/trim.ts). 코드가 넣는 줄은 그 뒤에 붙여 줄어들지 않습니다
   // 한 줄 요약 끝의 "…지만 확인되지 않아요" 와, 원인을 묻지 않은 질문의 "원인은 확인할 수 없어요" 문장을 뗍니다 (src/agent/negatives.ts)
-  const trimmed = trimNegatives(trimRepeats(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output), plan.intent);
+  // 관계 질문은 요약에 되풀이된 "상관관계 · 인과관계는 판단할 수 없어요" 와 받지 않는 지표의 한계 문장을 주의점 · 확인하지 못한 것 한 곳으로 모읍니다 (relation.ts)
+  const negTrimmed = trimNegatives(trimRepeats(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output), plan.intent);
+  const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
     ...trimmed,
     // 관계 질문의 한 줄은 꼬리를 떼기 전의 원래 문장으로 판단합니다. 뗀 뒤에는 "금리 차이는 환율에 영향을 줄 수 있어요." 처럼 숫자 없는 일반론만 남아
     // 바꿀 조건에 걸리지 않았습니다 (11/22 운영 14번)
-    ...(fxRate || relation ? { headline: relationHeadline(applied.output.headline, ctx.evidence) } : {}),
+    ...(relation ? { headline: relationHeadline(applied.output.headline, ctx.evidence, relation) } : {}),
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
     // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],

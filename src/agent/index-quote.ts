@@ -19,10 +19,10 @@ export const INDEX_TOOL = "get_kr_stock_index";
 export const US_INDEX_TOOL = "get_us_stock_index";
 /** 질문이 물을 수 있는 지수. 국내는 금융위 지수시세정보, 미국은 FRED 에서 받습니다 */
 export type IndexName = KrIndexName | UsIndexName;
-const isUs = (index: IndexName): index is UsIndexName => (US_INDEXES as readonly string[]).includes(index);
+export const isUs = (index: IndexName): index is UsIndexName => (US_INDEXES as readonly string[]).includes(index);
 export const INDEX_TODAY_TOOL = "calc_index_today";
 
-const INDEX_WORDS: [RegExp, IndexName][] = [
+export const INDEX_WORDS: [RegExp, IndexName][] = [
   [/코스피\s*200|KOSPI\s*200/i, "코스피 200"],
   [/코스닥\s*150|KOSDAQ\s*150/i, "코스닥 150"],
   // 뒤에 다른 숫자가 붙은 세부 지수(코스피100 · 코스닥 50)는 종합지수가 아니라 조회하지 않습니다 (#123 Codex 리뷰)
@@ -175,7 +175,7 @@ export function indexRefs(evidence: Evidence[], index: IndexName): string[] {
   return [officialIndex(evidence, index)?.id, todayIndex(evidence, index)?.id].filter((id): id is string => !!id);
 }
 
-const points = (n: number) => n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const points = (n: number) => n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const signed = (n: number, unit: string) => `${n > 0 ? "+" : ""}${n.toFixed(2)}${unit}`;
 
 /** 작성 입력에 붙이는 [지수 값]. 값을 직접 적어 정제가 뺐더라도 작성이 볼 수 있게 합니다 (검증은 장부 전체로 대조) */
