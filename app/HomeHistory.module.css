@@ -93,7 +93,7 @@
 @media(min-width:1450px){.mascot{width:470px;height:370px}.hero{min-height:420px}}
 @media(max-width:1100px){.hero h1{font-size:35px}.mascot{width:360px;height:310px}.areas{gap:8px}.option>span{font-size:15px;gap:4px}.badge{font-size:9px!important}.depths .option small{font-size:14px}}
 @media(max-width:900px){.hero{padding:32px 0 16px;min-height:300px}.mascot{width:310px;height:290px}.hero h1{font-size:32px}.description{font-size:16px}.eyebrow{font-size:15px}.form{padding:24px}.option>span{font-size:14px}.badge{font-size:8px!important}.depths .option small{font-size:13px}}
-@media(max-width:600px){.hero{position:relative;display:block;padding:31px 4px 0}.eyebrow{font-size:14px;margin-bottom:13px}.hero h1{font-size:30px;letter-spacing:-1.5px}.description{font-size:15px;margin:13px 0 0}.mascot{display:block;margin:-4px auto -8px;width:280px;height:220px}.form{padding:18px 16px;border-radius:20px}.search{padding:14px 12px;min-height:62px;gap:10px;border-radius:13px}.search textarea{font-size:15px;line-height:28px;min-height:28px;height:28px}.search svg{width:21px;height:21px}.questionLimit{font-size:12px;margin-bottom:23px}.fieldset legend{font-size:17px}.areas{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.option>span{height:46px;font-size:15px}.hint{font-size:13px;margin:10px 0 20px}.depths{gap:7px}.depths .option>span{height:90px;padding:7px 5px;gap:7px}.depths .option b{font-size:17px}.depths .option small{font-size:12px;line-height:1.5;text-align:center;word-break:keep-all}.submit{font-size:18px;min-height:52px;margin-top:22px;border-radius:14px}}
+@media(max-width:600px){.hero{position:relative;display:block;padding:31px 4px 0}.eyebrow{font-size:14px;margin-bottom:13px}.hero h1{font-size:30px;letter-spacing:-1.5px}.description{font-size:15px;margin:13px 0 0}.mascot{display:block;margin:-4px auto -8px;width:280px;height:220px}.form{padding:18px 16px;border-radius:20px}.search{padding:14px 12px;min-height:62px;gap:10px;border-radius:13px}.search textarea{font-size:15px;line-height:28px;min-height:28px}.search svg{width:21px;height:21px}.questionLimit{font-size:12px;margin-bottom:23px}.fieldset legend{font-size:17px}.areas{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.option>span{height:46px;font-size:15px}.hint{font-size:13px;margin:10px 0 20px}.depths{gap:7px}.depths .option>span{height:90px;padding:7px 5px;gap:7px}.depths .option b{font-size:17px}.depths .option small{font-size:12px;line-height:1.5;text-align:center;word-break:keep-all}.submit{font-size:18px;min-height:52px;margin-top:22px;border-radius:14px}}
 
 /* 5. 홈 하단: 분홍 머핀 아이콘과 설명 방식 버튼 */
 .submit img{flex-shrink:0;width:28px;height:28px}
@@ -113,7 +113,7 @@
 
 /* 7. 홈에서 질문 확인 중인 상태와 지원 범위 안내 */
 .checking{font-size:15px;color:var(--accent);line-height:1.8;margin:0 0 22px}
-.scopeNotice{background:#fff8f7;border:1px solid #f0cfcc;border-radius:14px;padding:20px 22px;margin:0 0 25px}
+.scopeNotice{background:#fff8f7;border:1px solid #f0cfcc;border-radius:14px;padding:20px 22px;margin:0 0 25px;word-break:keep-all;overflow-wrap:anywhere}
 .scopeNotice h2{font-size:19px;color:#c83532;line-height:1.6;margin:0 0 10px}
 .scopeNotice p{font-size:14px;color:#765c60;line-height:1.9;margin:0}
 .fieldset:disabled .option{cursor:wait}
