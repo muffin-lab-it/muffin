@@ -154,3 +154,11 @@
 .questionLimit{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
 .questionCount{font-variant-numeric:tabular-nums;color:#9a93a6;white-space:nowrap}
 .questionCount[data-over="true"]{color:#c83532;font-weight:600}
+
+/* 11/23 디자인 리뷰: '리포트 굽기' 를 질문칸 옆으로. 휴대폰은 질문칸 아래 꽉 찬 버튼 */
+.askRow{display:flex;align-items:stretch;gap:12px}
+.askRow .search{flex:1;min-width:0}
+.askSubmit{width:auto;min-height:78px;margin:0;padding:0 24px;flex:none;border-radius:17px;font-size:19px;gap:10px;white-space:nowrap}
+.askSubmit span{font-size:24px}
+@media(max-width:720px){.askSubmit{padding:0 18px;font-size:17px}}
+@media(max-width:600px){.askRow{flex-direction:column}.askSubmit{width:100%;min-height:56px}}

@@ -62,7 +62,7 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
 
   // ?id=…&speed=… 로 열면 바로 재생. 없는 id 는 목록 위에 알립니다
   const wantedMeta = initialId ? list.find((m) => m.id === initialId) : undefined;
-  const missing = initialId && !wantedMeta ? `없는 녹화입니다: ${initialId}` : null;
+  const missing = initialId && !wantedMeta ? `없는 녹화예요: ${initialId}` : null;
   useEffect(() => {
     if (!wantedMeta) return;
     // 렌더 직후가 아니라 다음 틱에 시작합니다 (effect 안의 동기 setState 를 피함)
@@ -74,10 +74,10 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
     return (
       <>
         <h1>🎞️ 리플레이</h1>
-        <p className="sub">실제로 돌린 실행을 그대로 다시 보여 줍니다. OpenAI 와 데이터 API 를 부르지 않습니다.</p>
+        <p className="sub">실제로 돌린 실행을 그대로 다시 보여 줘요. OpenAI 와 데이터 API 를 부르지 않아요.</p>
         {(missing ?? error) && <div className="error" role="alert">{missing ?? error}</div>}
         {list.length === 0 ? (
-          <p className="muted">녹화가 없습니다. <code>pnpm replay:record --question &quot;…&quot; --area etf</code> 로 녹화하세요.</p>
+          <p className="muted">녹화가 없어요. <code>pnpm replay:record --question &quot;…&quot; --area etf</code> 로 녹화하세요.</p>
         ) : (
           <ul className={styles.list}>
             {list.map((m) => (

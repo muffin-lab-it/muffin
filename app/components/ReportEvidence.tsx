@@ -250,7 +250,7 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
             <dl className="evidence-values evidence-values-all">{fields.map(row)}</dl>
           </PrintOpenDetails>
         </> : <dl className="evidence-values">{fields.map(row)}</dl>
-      ) : <p className="evidence-missing">공개된 원본 값이 없습니다.</p>}
+      ) : <p className="evidence-missing">공개된 원본 값이 없어요.</p>}
       </>}
       {/* 뉴스 tool 의 note 는 모델에게 주는 지시문(본문 상태 · 추정 금지)이라 사용자에게는 위의 본문 상태 줄로 대신합니다 (11/19 페르소나 테스트 14/20 지적) */}
       {noteRest && !isNews && <p className="evidence-note">{noteRest}</p>}
@@ -306,7 +306,7 @@ export function VerificationDetail({ report }: { report: Report }) {
     <div className="verification-detail">
       <h3>검증이 한 일 보기 · 숫자 대조 내역</h3>
       <div className="evidence-content">
-        <p className="report-muted">규칙: 숫자는 tool 이 돌려준 장부 값과 하나하나 대조하고, 장부에 없는 숫자와 투자 권유 표현은 뺍니다. 계산값은 계산 도구의 결과(C 번호)이고, 기사 보도는 기사 제목의 숫자라 공식 데이터는 아닙니다.</p>
+        <p className="report-muted">규칙: 숫자는 자료에서 받은 값과 하나하나 맞춰 보고, 자료에 없는 숫자와 투자 권유 표현은 빼요. 계산값은 계산 도구의 결과(C 번호)이고, 기사 보도는 기사 제목의 숫자라 공식 데이터가 아니에요.</p>
         {report.numbers.length > 0 ? (
           <ol className="verification-list">
             {report.numbers.map((n, i) => (
@@ -316,11 +316,11 @@ export function VerificationDetail({ report }: { report: Report }) {
             ))}
           </ol>
         ) : (
-          <p className="report-muted">숫자 카드가 없습니다.</p>
+          <p className="report-muted">숫자 카드가 없어요.</p>
         )}
         <p>원인 {report.why.length}개: 데이터 인용 {v.why.data} · 보도 기반 {v.why.news} · 근거 부족 {v.why.none}</p>
         <p>
-          다시 쓰기 {v.revisions}회{v.revisionSkipped ? " · 마감이 가까워 다시 쓰지 않고 걸린 항목을 바로 뺐습니다" : ""} · {v.removed.length > 0 ? <ReportSectionLink name="removed" label={`검사 후 제외 ${v.removed.length}개 (주의점과 확인하지 못한 것에서 확인)`} /> : "검사 후 제외 0개"}
+          다시 쓰기 {v.revisions}회{v.revisionSkipped ? " · 마감이 가까워 다시 쓰지 않고 걸린 항목을 바로 뺐어요" : ""} · {v.removed.length > 0 ? <ReportSectionLink name="removed" label={`검사 후 제외 ${v.removed.length}개 (주의점과 확인하지 못한 것에서 확인)`} /> : "검사 후 제외 0개"}
         </p>
       </div>
     </div>
@@ -340,11 +340,11 @@ export function ReportVerification({ report, children }: { report: Report; child
         </>}>
         <div className="verification-body">
       {skipped ? (
-        <p>이 리포트는 검증기를 거치지 않았습니다. 숫자와 원인 설명을 출처에서 직접 확인해 주세요.</p>
+        <p>이 리포트는 검증을 거치지 않았어요. 숫자와 원인 설명은 출처에서 직접 확인해 주세요.</p>
       ) : (
         <>
           <p>숫자 {verification.numbers.total}개 중 값 대조 {verification.numbers.verified}개 · 계산값 {verification.numbers.derived}개 · 기사 보도 {verification.numbers.reported ?? 0}개 · 미검증 {verification.numbers.unverified}개</p>
-          <p className="report-muted">값 대조는 인용한 원본 값과의 일치 검사입니다. 날짜·단위·지표의 의미와 원인 관계 전체의 정확성을 보장하지 않습니다.</p>
+          <p className="report-muted">값 대조는 인용한 숫자가 원본 값과 맞는지 보는 검사예요. 날짜 · 단위 · 지표의 의미나 원인 관계까지 맞다고 보장하지는 않아요.</p>
           <p className="report-muted">권유 표현 패턴 감지 {verification.advice}건 · 수정 {verification.revisions}회 · 제외 항목 {verification.removed.length}개</p>
           <VerificationDetail report={report} />
         </>

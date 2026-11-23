@@ -20,14 +20,14 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
       <header className={styles.head}>
         <p className={styles.eyebrow}>MUFFIN LAB · 심사용 공개 페이지</p>
         <h1>머핀 품질 숫자</h1>
-        <p className="sub">머핀은 숫자를 지어내지 않고, 원인에는 근거를 붙이고, 판단은 사용자에게 맡깁니다. 그 약속을 매주 같은 질문으로 재서 여기에 숫자로 둡니다. 비밀번호 없이 볼 수 있고, 집계 숫자만 있으며 질문 원문은 없습니다. 한 시간마다 갱신됩니다.</p>
+        <p className="sub">머핀은 숫자를 지어내지 않고, 원인에는 근거를 붙이고, 판단은 사용자에게 맡겨요. 그 약속을 매주 같은 질문으로 재서 여기에 숫자로 둬요. 비밀번호 없이 볼 수 있고, 집계 숫자만 있으며 질문 원문은 없어요. 한 시간마다 갱신돼요.</p>
       </header>
 
       <section className={styles.section} aria-labelledby="q-weekly">
         <h2 id="q-weekly">1. 주간 자동 평가</h2>
-        <p className={styles.note}>매주 금요일 아침 GitHub Actions 가 같은 19문항을 실제 모델 · 실제 데이터로 돌리고, 코드가 채점합니다. 기준에 못 미치면 이슈가 자동으로 열립니다.</p>
+        <p className={styles.note}>매주 금요일 아침 GitHub Actions 가 같은 19문항을 실제 모델 · 실제 데이터로 돌리고, 코드가 채점해요. 기준에 못 미치면 이슈가 자동으로 열려요.</p>
         {recent.length === 0 ? (
-          <p className={styles.empty}>아직 기록이 없습니다. 매주 금요일 아침에 자동으로 쌓입니다.</p>
+          <p className={styles.empty}>아직 기록이 없어요. 매주 금요일 아침에 자동으로 쌓여요.</p>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
@@ -70,7 +70,7 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
 
       <section className={styles.section} aria-labelledby="q-baseline">
         <h2 id="q-baseline">2. tool 과 검증이 더한 것 (기준선 비교)</h2>
-        <p className={styles.note}>같은 {f.baselineQuestions}문항을 같은 모델에게 tool · 증거 장부 · 검증 없이 물은 답과 머핀 리포트를 같은 잣대로 쟀습니다 ({f.baselineAsOf} 실측).</p>
+        <p className={styles.note}>같은 {f.baselineQuestions}문항을 같은 모델에게 tool · 증거 장부 · 검증 없이 물은 답과 머핀 리포트를 같은 잣대로 쟀어요 ({f.baselineAsOf} 실측).</p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead><tr><th scope="col">지표</th><th scope="col">tool 없는 같은 모델</th><th scope="col">머핀</th></tr></thead>
@@ -85,9 +85,9 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
 
       <section className={styles.section} aria-labelledby="q-ops">
         <h2 id="q-ops">3. 운영 최근 7일</h2>
-        <p className={styles.note}>배포된 사이트에서 실제로 만들어진 리포트의 집계입니다. 연습 · 재생은 뺍니다.{ops?.truncated ? " 7일치가 한 번에 읽는 상한을 넘어 최신 기록만 집계했습니다." : ""}</p>
+        <p className={styles.note}>배포된 사이트에서 실제로 만들어진 리포트의 집계예요. 연습 · 재생은 빼요.{ops?.truncated ? " 7일치가 한 번에 읽는 상한을 넘어 최신 기록만 집계했어요." : ""}</p>
         {!ops ? (
-          <p className={styles.empty}>실행 기록을 지금 읽지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>
+          <p className={styles.empty}>실행 기록을 지금 읽지 못했어요. 잠시 뒤 다시 열어 주세요.</p>
         ) : (
           <dl className={styles.tiles}>
             <div><dt>리포트</dt><dd>{ops.reports}건</dd></div>
@@ -112,7 +112,7 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
       <section className={styles.section} aria-labelledby="q-try">
         <h2 id="q-try">5. 직접 확인하기</h2>
         <ul className={styles.links}>
-          <li><Link href="/">홈</Link> — 질문을 넣고 리포트를 받습니다. 리포트 위의 &lsquo;검증이 한 일 보기&rsquo; 에서 숫자 대조 내역을 펼칠 수 있습니다.</li>
+          <li><Link href="/">홈</Link> — 질문을 넣고 리포트를 받아요. 리포트 아래 &lsquo;검증이 한 일&rsquo; 을 펼치면 숫자 대조 내역을 볼 수 있어요.</li>
           <li><Link href="/compare">깊이별 비교</Link> — 같은 질문을 Easy · Deep 으로 나란히, 실시간 또는 녹화.</li>
           <li><Link href="/replay">녹화 재생</Link> — 실제 실행을 그대로 다시 봅니다. 모델 호출 없음.</li>
         </ul>
@@ -120,7 +120,7 @@ export function QualityView({ weekly, ops, generatedAt }: { weekly: WeeklyPoint[
       </section>
 
       <footer className={styles.foot}>
-        <p>자료: evals 표(주간 평가) · runs 표(실행 기록 집계) · docs/eval/baseline(기준선) · GitHub muffin-lab-it/muffin. 생성 {kst(generatedAt, true)} (한국 시간). 리포트는 투자 권유가 아니며 모든 화면에 AI 생성 고지가 붙습니다.</p>
+        <p>자료: evals 표(주간 평가) · runs 표(실행 기록 집계) · docs/eval/baseline(기준선) · GitHub muffin-lab-it/muffin. 생성 {kst(generatedAt, true)} (한국 시간). 리포트는 투자 권유가 아니며 모든 화면에 AI 생성 고지가 붙어요.</p>
       </footer>
     </div>
   );
