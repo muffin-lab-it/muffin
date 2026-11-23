@@ -22,7 +22,7 @@ const bodySchema = z.object({
   depth: z.enum(depths).default("standard"),
   area: z.enum(areas).optional(),
 });
-const failureMessage = "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+const failureMessage = "조사 중 오류가 생겼어요. 잠시 후 다시 시도해 주세요.";
 
 /** 리플레이 요청: 녹화된 실행을 같은 이벤트로 다시 보냅니다 (src/lib/replay.ts). OpenAI · tool 을 부르지 않습니다 */
 const replayBodySchema = z.object({
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     const replay = getReplay(parsedReplay.data.replay);
     if (!replay) {
       recordRun({ id, at, mock: true, ok: false, stage: "input", ms: Date.now() - started, error: `unknown replay ${parsedReplay.data.replay}` }, req);
-      return Response.json({ error: "저장된 실행을 찾을 수 없습니다.", id }, { status: 404, headers });
+      return Response.json({ error: "저장된 실행을 찾을 수 없어요.", id }, { status: 404, headers });
     }
     const input = { question: replay.question, depth: replay.depth, ...(replay.area ? { area: replay.area } : {}) };
     // 스트림은 55초에 닫히므로, 요청한 속도로 그 안에 못 끝나면 끝날 만큼 빠르게 돌립니다 (report 없이 error 로 끝나지 않게)
@@ -159,7 +159,7 @@ function streamResponse(req: Request, run: Run, { id, started, at, mock, input, 
       disconnect = () => finish({ ok: false, stage: "agent", error: "client disconnected" }, undefined, true);
       const timer = setTimeout(() => finish(
         { ok: false, stage: "agent", error: "stream deadline exceeded" },
-        { type: "error", message: "조사 시간이 초과되었습니다. 질문 범위를 줄여 다시 시도해 주세요.", id },
+        { type: "error", message: "조사 시간이 초과됐어요. 질문 범위를 줄여 다시 시도해 주세요.", id },
       ), STREAM_TIMEOUT_MS);
       req.signal.addEventListener("abort", abort, { once: true });
       if (req.signal.aborted) {

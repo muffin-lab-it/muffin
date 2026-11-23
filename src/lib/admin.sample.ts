@@ -112,7 +112,7 @@ function rowFor(s: Scenario, i: number, base: Pick<RunRow, "id" | "at" | "input"
   if (s.intent === "out_of_scope") return okRow(s, i, base);
   if (isStale(i)) return { ...base, ok: false, stage: "started", mock: false, ms: 0 };
   if (isTimeout(i)) {
-    return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [55_020, 55_480]), error: "조사 시간이 초과되었습니다. 질문 범위를 줄여 다시 시도해 주세요." };
+    return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [55_020, 55_480]), error: "조사 시간이 초과됐어요. 질문 범위를 줄여 다시 시도해 주세요." };
   }
   if (isModelFail(i)) {
     return { ...base, ok: false, stage: "agent", mock: false, ms: between(i, 8, [31_200, 33_900]), error: "OpenAI 요청 시간 초과 (재시도 1회 후에도 응답 없음)" };

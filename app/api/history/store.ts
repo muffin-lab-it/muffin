@@ -53,7 +53,7 @@ export async function insertReport(row: TablesInsert<"reports">): Promise<Insert
 
   const { data: existing, error: findError } = await db.from("reports").select(`${COLUMNS}, client_id`).eq("id", row.id).maybeSingle();
   if (findError) fail("조회", findError);
-  if (!existing) fail("저장", { message: "같은 id 가 있다고 했지만 찾지 못했습니다" });
+  if (!existing) fail("저장", { message: "같은 id 가 있다고 했지만 찾지 못했어요" });
   // uuid 열은 소문자로 돌아오므로 대소문자를 무시하고 비교합니다 (Codex 리뷰: 대문자 헤더로 같은 id 를 다시 보내면 409 가 나던 것).
   if (existing.client_id.toLowerCase() !== row.client_id.toLowerCase()) return { status: "conflict" };
   return { status: "existing", record: toRecord(existing) };

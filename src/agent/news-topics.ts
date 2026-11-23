@@ -24,6 +24,56 @@ const FETCH_PER_TOPIC = 6;
 const NOT_MACRO = /\[포토\]|\[인사\]|\[부고\]|첫 수출|수출길|특산|농산물|[가-힣]{2,4}산\s|\d+\s*(t|톤)\b|축제|박람회|간담회|협약|MOU|개최|수상|출시|할인|품절|당선|취임/;
 const MAX_ARTICLES = 6;
 
+/**
+ * 경제 흐름 기사가 아닌 지역 행정 · 정당 소식 (11/23 운영 "오늘 경제 뉴스" 의 근거 목록: 경남 진보당 "RISE 취·창업 실적",
+ * 용인특례시의회 행정사무감사, "원주시, 영구임대주택 예비 입주자 모집" · "원주시, 중장년 재취업 지원"). 검색어 없이 받은 뉴스 검색 목록에 섞입니다.
+ * "○○시, …" 로 시작하는 지자체 소식은 금리 · 환율 · 부동산 같은 경제 낱말이 없을 때만 봅니다.
+ */
+const LOCAL_ADMIN = /[시군구도]의회|행정사무감사|입주자\s*모집|임대주택.{0,20}모집|모집\s*공고|교육생\s*모집/;
+/** 이름만으로는 정할 수 없는 말: 정당 이름 · RISE(지역혁신 사업 이름이자 국내 ETF 상표). 경제 낱말이 없을 때만 지역 소식으로 봅니다 (#154 Codex 리뷰: "민주당, 추경 예산 확대 추진", "RISE 국고채3년 금리 하락") */
+const LOCAL_HINT = /진보당|정의당|국민의힘|민주당|\bRISE\b/;
+const LOCAL_GOVT_LEAD = /^[가-힣]{1,6}(?:특례)?(?:시|군|구|도)\s*,/;
+const ECON_WORD = /금리|환율|물가|주가|증시|코스피|코스닥|국고채|국채|채권|ETF|수출|무역|투자|부동산|집값|고용률|실업|경기|성장률|예산|추경|세수|세금|재정/i;
+export function isLocalNotice(title: string): boolean {
+  return LOCAL_ADMIN.test(title) || ((LOCAL_HINT.test(title) || LOCAL_GOVT_LEAD.test(title)) && !ECON_WORD.test(title));
+}
+/** 차트의 사건 점 중 ids 를 가리키는 것을 뺍니다. 점이 하나도 남지 않으면 events 를 지웁니다 */
+export function withoutEvents<C extends { events?: { ref: string }[] }>(charts: C[], ids: Set<string>): C[] {
+  if (ids.size === 0) return charts;
+  return charts.map((c) => {
+    if (!c.events) return c;
+    const events = c.events.filter((e) => !ids.has(e.ref));
+    if (events.length === c.events.length) return c;
+    const rest = { ...c };
+    delete rest.events;
+    return events.length > 0 ? { ...rest, events } : rest;
+  });
+}
+
+/** 리포트 본문(최종 출력 · 차트)이 ids 중 하나를 가리키지 않으면 그 항목을 뺀 장부. 검증은 이미 전체 장부로 끝났습니다 */
+export function withoutUncited<E extends { id: string }>(evidence: E[], ids: Set<string>, output: unknown): E[] {
+  if (ids.size === 0) return evidence;
+  const text = JSON.stringify(output);
+  const cited = (id: string) => new RegExp(`(?<![\\w-])${id.replace(/[-]/g, "\\-")}(?![\\w-])`).test(text);
+  return evidence.filter((e) => !ids.has(e.id) || cited(e.id));
+}
+
+/** 제목에 경제 흐름 낱말이 있는지 (주제 없는 경제 뉴스 질문에서 조사가 따로 받은 기사를 거를 때) */
+const MACRO_TITLE = /경제|경기|성장|금리|환율|물가|주가|증시|코스피|코스닥|수출|수입|무역|투자|부동산|집값|고용|실업|유가|반도체|관세|재정|예산|세수|국채|채권|달러|연준|\bFed\b|한은|GDP|소비|생산/i;
+/** 단신 묶음 · 게시판 꼭지 ("[게시판] 신한은행, … 크리스마스 케이크", "[바이오스냅] …") */
+const BRIEF_TAG = /^\[(?:게시판|바이오스냅|포토|인사|부고|동정|알림)\]/;
+
+/**
+ * 장부에서 작성에게 보이지 않게 할 뉴스 (인용되지 않았으면 리포트의 근거 목록에서도 뺌, muffin.ts).
+ * 늘 지역 행정 · 정당 기사. 주제 없는 경제 뉴스 질문이면(macro: 코드가 주제어로 보탠 기사) 조사가 따로 받은 기사 중 단신 꼭지와
+ * 제목에 경제 흐름 낱말이 없는 것도 (11/23 로컬: "[게시판] 신한은행 … 크리스마스 케이크", "전북 학교 건물 24% 안전 C등급")
+ */
+export function localNewsIds(evidence: Evidence[], macro: readonly Evidence[] = []): Set<string> {
+  const added = new Set(macro.map((e) => e.id));
+  const off = (title: string, id: string) => isLocalNotice(title) || (macro.length > 0 && !added.has(id) && (BRIEF_TAG.test(title) || !MACRO_TITLE.test(title)));
+  return new Set(evidence.filter((e) => e.tool === areaTools.news && off(String(e.values.title ?? ""), e.id)).map((e) => e.id));
+}
+
 const NEWS_WORDS = /뉴스|기사|소식|이슈|헤드라인/;
 /** 질문이 이미 주제를 말했는지. 말했으면 조사가 그 주제로 찾으므로 보태지 않습니다 */
 const TOPIC_WORDS = /환율|달러|엔화|유로|금리|물가|인플레|CPI|코스피|코스닥|증시|주식|ETF|수출|무역|고용|실업|부동산|반도체|유가|원유/i;
@@ -52,7 +102,7 @@ export async function addMacroNews(ctx: ResearchContext, question: string, news:
   // 주제마다 한 건씩 번갈아 골라 한 주제로 쏠리지 않게 합니다
   for (let k = 0; k < PER_TOPIC && picked.length < MAX_ARTICLES; k += 1) {
     for (const r of results) {
-      const article = r?.data.articles.filter((x) => !NOT_MACRO.test(x.title))[k];
+      const article = r?.data.articles.filter((x) => !NOT_MACRO.test(x.title) && !isLocalNotice(x.title))[k];
       if (!article || seen.has(article.url) || picked.length >= MAX_ARTICLES) continue;
       seen.add(article.url);
       picked.push(article);

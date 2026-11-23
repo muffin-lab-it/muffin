@@ -116,7 +116,7 @@ describe("POST /api/report", () => {
     const response = await POST(request({ question: "환율 현황" }));
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body).toEqual({ error: "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", id: "json-test-id" });
+    expect(body).toEqual({ error: "조사 중 오류가 생겼어요. 잠시 후 다시 시도해 주세요.", id: "json-test-id" });
     expect(JSON.stringify(vi.mocked(logRun).mock.calls)).not.toContain(privateMessage);
     expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ error: "provider 429: quota exceeded key=[REDACTED]" }));
     expect(logRun).toHaveBeenCalledTimes(1);
@@ -126,7 +126,7 @@ describe("POST /api/report", () => {
     vi.mocked(research).mockResolvedValue({ ...fixture, steps: [{ tool: "get_fx_krw_rate", status: "error", ms: 2, error: "upstream timeout key=fixture-placeholder-key" }] });
     const response = await POST(request({ question: "fixture-placeholder-key 환율" }));
     const body = await response.json();
-    expect(body.steps[0]).toEqual({ tool: "get_fx_krw_rate", status: "error", ms: 2, error: "데이터를 확인하지 못했습니다." });
+    expect(body.steps[0]).toEqual({ tool: "get_fx_krw_rate", status: "error", ms: 2, error: "데이터를 확인하지 못했어요." });
     const logs = JSON.stringify(vi.mocked(logRun).mock.calls);
     expect(logs).toContain("upstream timeout key=[REDACTED]");
     expect(logs).not.toContain("fixture-placeholder-key");

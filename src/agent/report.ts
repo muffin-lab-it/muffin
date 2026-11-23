@@ -51,12 +51,30 @@ const SCOPE_SUGGESTIONS: { match: RegExp; topics: [string, string][] }[] = [
 ];
 const DEFAULT_SUGGESTIONS: [string, string][] = [
   ["오늘 달러 환율 얼마야?", "1달러당 원화 금액과 기준일을 출처와 함께 보여 줘요"],
-  ["한국 기준금리는 왜 그대로야?", "한국은행 기준금리와 최근 변화를 출처와 함께 보여 줘요"],
+  ["한국 기준금리 1년 동안 어떻게 바뀌었어?", "한국은행 기준금리의 1년 변화를 출처와 함께 보여 줘요"],
   ["KODEX 200 요즘 어때?", "종가 · 순자산가치 · 괴리율을 기준일과 함께 보여 줘요"],
 ];
 
 export function scopeSuggestions(question: string): [string, string][] {
   return SCOPE_SUGGESTIONS.find((s) => s.match.test(question))?.topics ?? DEFAULT_SUGGESTIONS;
+}
+
+/** 머핀이 받지 않는 대상. 범위 밖 안내가 그 대상을 이유로 말합니다 ("비트코인 요즘 어때?" 에 "개념 설명 · 계산 공식" 이라고 하지 않게, 11/23 운영) */
+const OTHER_ASSETS: [RegExp, string][] = [
+  [/비트코인|bitcoin|이더리움|ethereum|암호화폐|가상\s*자산|가상\s*화폐|코인/i, "가상자산"],
+  [/부동산|아파트|집값|전세|월세|분양/, "부동산"],
+  [/선물|옵션|파생/, "선물 · 옵션"],
+  [/금\s*값|금\s*시세|은\s*값|원자재|유가|원유/, "원자재 가격"],
+];
+/** 뜻 · 계산법 · 상품 조건을 묻는 말 */
+const CONCEPT_QUESTION = /뜻|의미|뭐야|뭔가요|무엇인가|개념|공식|계산법|어떻게\s*계산|조건|우대|약관|라면/;
+
+/** 범위 밖 안내의 둘째 문장: 왜 조사하지 않았는지 */
+export function outOfScopeReason(question: string): string {
+  const asset = OTHER_ASSETS.find(([re]) => re.test(question));
+  if (asset) return `${asset[1]}은 머핀이 받는 자료가 아니라 조사하지 않았어요.`;
+  if (CONCEPT_QUESTION.test(question)) return "이 질문은 개념 설명 · 상품 조건 · 계산 공식처럼 데이터로 답하기 어려운 질문이라 조사하지 않았어요.";
+  return "이 질문은 머핀이 받는 자료로 답하기 어려워 조사하지 않았어요.";
 }
 
 /** 범위 밖 질문에 모델 없이 돌려주는 고정 본문. 숫자가 없어 검증은 항상 pass 입니다. 추천 질문은 질문의 영역에 맞춥니다. */
@@ -65,7 +83,7 @@ export function outOfScopeOutput(question: string): WriterOutput {
   return {
     summary:
       "머핀은 환율 · 국내 ETF · 경제 뉴스 · 금리 · 물가 지표의 숫자와 출처가 있는 질문에 답해요. " +
-      "이 질문은 그 데이터로 답하기 어려운 질문(개념 설명 · 상품 조건 · 계산 공식 등)이라 조사하지 않았어요. " +
+      `${outOfScopeReason(question)} ` +
       "아래처럼 숫자를 물어보는 질문으로 바꾸면 출처가 있는 리포트로 답해요.",
     headline: null,
     numbers: [],

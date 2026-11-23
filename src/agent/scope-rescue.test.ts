@@ -35,6 +35,10 @@ describe("금융 질문에 섞인 범위 밖 부탁 (11/22 QA)", () => {
 
   it("금융 낱말 없이 무언가를 해 달라는 조각만 범위 밖으로 본다", () => {
     expect(offTopicParts(q)).toEqual({ parts: ["오늘 저녁 메뉴도 추천해줘"], keys: ["저녁", "메뉴"] });
+    // 답하는 방식을 정해 달라는 부탁은 범위 밖이 아니다 (11/23 운영: 서영 QA 질문)
+    expect(offTopicParts("오늘 미국 달러(USD) 1달러는 원화로 얼마야? 기준일과 출처도 알려줘.")).toBeNull();
+    expect(offTopicParts("최근 원/달러 환율이 움직인 주요 원인을 설명해줘. 확인이 어려운 부분은 구분해서 알려줘.")).toBeNull();
+    expect(offTopicParts("코스피 요즘 어때? 표로 짧게 정리해줘. 그리고 저녁 메뉴도 추천해줘")?.parts).toEqual(["저녁 메뉴도 추천해줘"]);
     expect(offTopicGap(offTopicParts(q)!)).toBe('질문의 "오늘 저녁 메뉴도 추천해줘" 부분은 머핀이 다루는 금융 정보가 아니라 답하지 않았어요.');
     expect(offTopicParts("환율이 이제 내려갔잖아 그럼 앞으로 etf는 뭘 사면 좋을까??? 난 2030 직장인이야")).toBeNull();
     expect(offTopicParts("오늘 저녁 메뉴 추천해줘")).toBeNull();
