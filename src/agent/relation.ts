@@ -148,6 +148,11 @@ function questionCountries(question: string): Country[] {
   return [...found];
 }
 
+/** 질문이 나라 · 지역(해외 · 주요국 포함)을 하나라도 말했는지 (rate-trend.ts 가 참고 금리를 붙일지 정할 때) */
+export function namesCountry(question: string): boolean {
+  return questionCountries(question).length > 0;
+}
+
 /**
  * 관계 질문이면 받을 지표와 받지 않는 것을 돌려줍니다. 아니면 null.
  * 대상: 관계를 묻는 말이 있고, 받을 지표가 둘 이상이거나(금리–코스피), 하나라도 받지 않는 것과 함께 물은 질문(환율–수입물가).
