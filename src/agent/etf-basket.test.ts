@@ -82,7 +82,7 @@ describe("대표 ETF 수익률 막대 차트 (11/23, 화면 #149)", () => {
     const chart = basketChart([bond, kodex, kosdaq])!;
     expect(chart.kind).toBe("bar");
     expect(chart.unit).toBe("%");
-    expect(chart.title).toMatch(/^대표 ETF 30일 수익률 \(\d{4}-\d{2}-\d{2}~\d{4}-\d{2}-\d{2}\)$/);
+    expect(chart.title).toBe("대표 ETF 최근 30일 가격 수익률 (2026-10-20~2026-11-19)");
     expect(chart.series.map((s) => [s.label.split(" (")[0], s.ref, s.points.length])).toEqual([["KODEX 200", "E1", 1], ["KODEX 코스닥150", "E2", 1], ["ACE 국고채10년", "E5", 1]]);
     expect(chart.series[0]!.points[0]!.v).toBeCloseTo(-7.060111);
     expect(basketChart([kodex])).toBeNull();

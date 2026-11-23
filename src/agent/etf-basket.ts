@@ -110,7 +110,7 @@ export function basketChart(evidence: Evidence[]): Chart | null {
   const first = rows[0]!.e.values;
   return {
     kind: "bar",
-    title: `대표 ETF ${BASKET_DAYS}일 수익률 (${first["period.from"]}~${first["period.to"]})`,
+    title: `대표 ETF 최근 ${BASKET_DAYS}일 가격 수익률 (${first["period.from"]}~${first["period.to"]})`,
     unit: "%",
     series: rows.map(({ item, e }) => ({ label: `${item.name} (${item.group})`, ref: e.id, points: [{ t: String(e.values["period.to"]), v: e.values["period.returnPct"] as number }] })),
   };
