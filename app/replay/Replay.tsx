@@ -8,27 +8,17 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Progress } from "@/app/components/Progress";
 import { areaLabels, ReportView } from "@/app/components/ReportView";
-import { labelFor, stageLabels, stages, type MuffinEvent, type Stage } from "@/src/agent/events";
-import { formatAge } from "@/src/lib/age";
+import type { MuffinEvent } from "@/src/agent/events";
 import { streamReport, type ReportResponse } from "@/src/lib/api";
 import { defaultSpeed, recordedLabel, type ReplayMeta } from "@/src/lib/replay-meta";
 import manifest from "@/src/replays/manifest.json";
 import styles from "./replay.module.css";
 
 const depthLabels = { easy: "Easy", standard: "Standard", deep: "Deep Dive" } as const;
-const intentLabels: Record<string, string> = { status: "현황", cause: "원인", compare: "비교", decision: "판단 요청", out_of_scope: "범위 밖" };
 const speeds = [1, 2, 4];
 const list = manifest as ReplayMeta[];
-
-type StageState = "pending" | "active" | "done";
-
-/** 단계 이벤트에서 단계별 상태 */
-function stageStates(events: MuffinEvent[]): Record<Stage, StageState> {
-  const state = Object.fromEntries(stages.map((s) => [s, "pending"])) as Record<Stage, StageState>;
-  for (const e of events) if (e.type === "stage") state[e.stage] = e.status === "done" ? "done" : "active";
-  return state;
-}
 
 export function Replay({ initialId, initialSpeed }: { initialId?: string; initialSpeed?: number }) {
   const [selected, setSelected] = useState<ReplayMeta | null>(null);
@@ -104,62 +94,23 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
     );
   }
 
-  const state = stageStates(events);
-  const plan = events.find((e): e is Extract<MuffinEvent, { type: "plan" }> => e.type === "plan");
-  const steps = events.flatMap((e) => (e.type === "step" ? [e.step] : []));
-  const verify = events.find((e): e is Extract<MuffinEvent, { type: "verify" }> => e.type === "verify");
-
+  // 홈과 같은 진행 화면(2열 · 가로 단계 · 그림 옆 머핀 이야기)을 씁니다. 11/23: 다시 보기만 예전 세로 단계 목록이라 설명서의 재생 링크와 홈 모양이 달랐음.
+  // muffin-home 은 본문 틀을 홈처럼 넓히는 공용 클래스입니다 (globals.css)
   return (
-    <>
+    <div className={`muffin-home ${styles.playing}`} data-done={result ? "true" : undefined}>
       <p className={styles.banner} role="note">
         🎞️ 저장된 실행 다시 보기 · {recordedLabel(selected.recordedAt)} 에 실제로 돌린 것 · {speed}배속 · 지금 데이터가 아니에요
       </p>
-      <div className="report-head">
-        <h1>{result ? "Today's Muffin" : "🧁 Muffin이 리포트를 만들고 있어요…"}</h1>
-        <div className="chips">
-          {selected.area && <span className="chip-static">{areaLabels[selected.area]}</span>}
-          <span className="chip-static">{depthLabels[selected.depth]}</span>
-        </div>
-        <p className="sub">{selected.question}</p>
-      </div>
-
-      <ol className={styles.stages} aria-label="진행 단계">
-        {stages.map((s) => (
-          <li key={s} className={`${styles.stage} ${styles[state[s]]}`}>
-            <span className={styles.stageMark} aria-hidden="true">{state[s] === "done" ? "✓" : state[s] === "active" ? "…" : ""}</span>
-            <span>{stageLabels[s]}</span>
-            {s === "plan" && plan && (
-              <small>
-                {intentLabels[plan.intent] ?? plan.intent}{plan.tools.length ? ` · ${plan.tools.map(labelFor).join(" · ")}` : ""}
-              </small>
-            )}
-            {s === "research" && steps.length > 0 && (
-              <ul className={styles.steps}>
-                {steps.map((st, i) => (
-                  <li key={i}>
-                    {st.status === "ok" ? (st.fallbackAgeMs === undefined ? "✅" : "🟡") : "❌"} {labelFor(st.tool)} · {(st.ms / 1000).toFixed(1)}초
-                    {st.fallbackAgeMs !== undefined ? ` · 저장된 응답(${formatAge(st.fallbackAgeMs)} 전)` : ""}
-                    {st.error ? ` · ${st.error}` : ""}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {s === "verify" && verify && (
-              <small>
-                숫자 {verify.verification.numbers.verified + verify.verification.numbers.derived}/{verify.verification.numbers.total} · 권유 {verify.verification.advice} · 다시 쓰기 {verify.verification.revisions}
-              </small>
-            )}
-          </li>
-        ))}
-      </ol>
-
       {error && <div className="error" role="alert">{error}</div>}
-      {playing && !result && (
-        <div className="progress" role="status" aria-live="polite">
-          <div className="bar" aria-hidden="true"><span /></div>
-        </div>
+      {!result && !error && <Progress question={selected.question} depth={selected.depth} events={events} pending={playing && events.length === 0} />}
+      {result && (
+        <ReportView quickMenu report={result.report} steps={result.steps} area={selected.area} question={selected.question} createdAt={selected.recordedAt} header={<div className="report-head">
+          <div className="chips">
+            {selected.area && <span className="category-chip" data-category={selected.area === "news" ? "뉴스" : areaLabels[selected.area]}>{areaLabels[selected.area]}</span>}
+            <span className="depth-chip" data-depth={selected.depth}>{depthLabels[selected.depth]}</span>
+          </div>
+        </div>} />
       )}
-      {result && <ReportView report={result.report} steps={result.steps} area={selected.area} />}
 
       <div className={styles.actions}>
         <button type="button" onClick={() => void play(selected, speed)} disabled={playing}>↻ 다시 재생</button>
@@ -167,6 +118,6 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
           목록으로
         </Link>
       </div>
-    </>
+    </div>
   );
 }

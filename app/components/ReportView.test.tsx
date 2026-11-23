@@ -866,9 +866,9 @@ describe("#141 뒤 운영 확인 (11/23)", () => {
 
 describe("11/23 재점검", () => {
   it("계산 도구 실패는 자료 확인 메모에 보이지 않는다", () => {
-    const $ = render(fixture(), [{ tool: "calc_metrics", status: "error", ms: 5, error: "데이터를 확인하지 못했습니다." }]);
+    const $ = render(fixture(), [{ tool: "calc_metrics", status: "error", ms: 5, error: "데이터를 확인하지 못했어요." }]);
     expect($(".report-tools")).toHaveLength(0);
-    expect($.text()).not.toContain("데이터를 확인하지 못했습니다");
+    expect($.text()).not.toContain("데이터를 확인하지 못했어요");
   });
 });
 
@@ -952,5 +952,27 @@ describe("계산 방식 이름 (11/23 운영 검수)", () => {
     const text = render(report)(".report-verification").text();
     expect(text).not.toContain("zscore");
     expect(text).toContain("평소 움직임과 비교");
+  });
+});
+
+describe("리포트 목차 퀵메뉴 (11/23)", () => {
+  it("리포트 한 장 화면에서만 있는 영역으로 목차를 만든다", () => {
+    const report = fixture();
+    const $ = load(renderToStaticMarkup(<ReportView report={report} quickMenu />));
+    const labels = $(".quick-menu-list button").map((_, el) => $(el).text()).get();
+    expect(labels[0]).toBe("요약");
+    expect(labels).toContain("숫자");
+    expect(labels).toContain("출처");
+    expect(labels[labels.length - 1]).toBe("검증");
+    for (const key of ["summary", "numbers", "sources", "verify"]) expect($(`[data-quick='${key}']`)).toHaveLength(1);
+    expect($("nav.quick-menu").attr("aria-label")).toBe("리포트 목차");
+  });
+  it("영향 · 차트가 없으면 목차에서 빠지고, 퀵메뉴를 켜지 않으면 그리지 않는다", () => {
+    const report = fixture();
+    report.impact = []; report.impactTitles = []; report.charts = [];
+    const labels = load(renderToStaticMarkup(<ReportView report={report} quickMenu />))(".quick-menu-list button").map((_, el) => load(el)("*").text()).get();
+    expect(labels.join(" ")).not.toContain("영향");
+    expect(labels.join(" ")).not.toContain("차트");
+    expect(load(renderToStaticMarkup(<ReportView report={report} />))("nav.quick-menu")).toHaveLength(0);
   });
 });

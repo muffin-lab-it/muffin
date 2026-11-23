@@ -62,11 +62,11 @@ describe("홈 스트림 연결", () => {
     const { deps, request } = setup();
     deps.streamReport.mockImplementationOnce(async (_, emit) => {
       emit({ type: "stage", stage: "research", status: "start" });
-      emit({ type: "error", message: "조사 시간이 초과되었습니다.", id: "timeout-1" });
+      emit({ type: "error", message: "조사 시간이 초과됐어요.", id: "timeout-1" });
       throw new ApiError("오류", 200, "timeout-1");
     });
     await request.start(input);
-    expect(request.getSnapshot().error).toEqual({ message: "조사 시간이 초과되었습니다.", id: "timeout-1" });
+    expect(request.getSnapshot().error).toEqual({ message: "조사 시간이 초과됐어요.", id: "timeout-1" });
     deps.streamReport.mockImplementationOnce(async () => {
       expect(request.getSnapshot().events).toEqual([]);
       return result;

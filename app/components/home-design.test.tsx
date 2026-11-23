@@ -41,7 +41,7 @@ describe("홈에서 지원 범위와 서버 오류를 구분", () => {
     return load(renderToStaticMarkup(<Home />));
   }
   it("조사 오류 문구를 그대로 보여주고 지원 범위 안내 대신 재시도를 제공한다", async () => {
-    const message = "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    const message = "조사 중 오류가 생겼어요. 잠시 후 다시 시도해 주세요.";
     const $ = await failedHome(message, 500);
     expect($("[role=alert]").text()).toContain(message);
     expect($("[role=alert] button").text()).toBe("다시 시도");

@@ -6,11 +6,9 @@
 .secondary { opacity: 0.75; }
 .linkButton { display: inline-flex; align-items: center; padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: inherit; }
 .banner { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: #fff7e6; color: #7a4b00; font-size: 14px; line-height: 20px; }
-.stages { display: grid; gap: 8px; margin: 16px 0; padding: 0; list-style: none; counter-reset: stage; }
-.stage { display: grid; grid-template-columns: 24px 1fr; gap: 2px 8px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; line-height: 20px; }
-.stage small { grid-column: 2; color: var(--ink-2, #6b7280); font-size: 12px; line-height: 16px; }
-.stageMark { font-weight: 700; text-align: center; }
-.pending { opacity: 0.55; }
-.active { border-color: #f5b041; background: #fffaf0; }
-.done .stageMark { color: #16a34a; }
-.steps { grid-column: 2; margin: 4px 0 0; padding-left: 0; list-style: none; font-size: 13px; line-height: 20px; }
+/* 재생 화면은 홈 진행 화면과 같은 넓은 틀 (11/23) */
+/* 안내 띠 · 버튼을 본문 폭에 맞춤: 진행 화면 1120px, 리포트 1040px */
+.playing { padding-top: 28px; width: 100%; max-width: 1120px; margin-inline: auto; }
+.playing[data-done="true"] { max-width: 1040px; }
+.playing .banner { margin-bottom: 20px; }
+@media (max-width: 600px) { .playing { padding-top: 16px; } }

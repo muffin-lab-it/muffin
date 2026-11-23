@@ -91,7 +91,7 @@ describe("MF-02 진행 화면", () => {
     expect($.text()).not.toContain("private upstream");
   });
   it("시간초과는 현재 단계를 멈추고 요청 ID와 복구 버튼을 표시한다", () => {
-    const $ = render([{ type: "stage", stage: "write", status: "start" }, { type: "error", message: "조사 시간이 초과되었습니다.", id: "request-1" }]);
+    const $ = render([{ type: "stage", stage: "write", status: "start" }, { type: "error", message: "조사 시간이 초과됐어요.", id: "request-1" }]);
     expect($.text()).toContain("request-1");
     expect($("li[data-state=interrupted]").text()).toContain("중단");
     expect($("[aria-current]")).toHaveLength(0);

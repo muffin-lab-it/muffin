@@ -61,7 +61,7 @@ export function ReportSources({ report }: { report: Report }) {
   if (extraSources.length > 0) groups.push("참고 문서");
   const active = scope?.selection && groups.includes(scope.selection) ? scope.selection : groups[0];
   const keys = usedKeysByRef(report);
-  return <section className="source-library" aria-label="정확한 데이터로 보는 금융" id={rootId ?? undefined} tabIndex={-1}>
+  return <section className="source-library" aria-label="정확한 데이터로 보는 금융" id={rootId ?? undefined} tabIndex={-1} data-quick="sources">
     <ReportResponsiveDetails className="report-fold" summary={<h2>출처와 원본 데이터</h2>}>
 
     {groups.length > 1 && <div className="source-chips" role="group" aria-label="자료 주제 선택">
