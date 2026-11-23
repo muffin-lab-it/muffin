@@ -53,6 +53,9 @@ describe("같은 값의 숫자 카드 정리 (11/21)", () => {
     // 같은 값이어도 비교 기준이 다른 변화가 둘이면(전월 대비 · 전년 동월 대비) 둘 다 둔다 (#157 Codex 리뷰)
     const cpiIndex: Evidence = { id: "E1", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.value": 118.2 }, source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2026-11-18" } };
     expect(mergeSameCards(output([card("소비자물가지수 (전월 대비)", "118.2", "전월 대비 +0.2%", "E1"), card("소비자물가지수 (전년 동월 대비)", "118.2", "전년 동월 대비 +2.8%", "E1")]), [cpiIndex]).numbers).toHaveLength(2);
+    // ETF 종가와 순자산가치가 같은 값이어도 다른 지표라 둘 다 둔다 (#157 Codex 리뷰)
+    const etf: Evidence = { id: "E5", tool: "get_etf_kr_price", label: "ETF", values: { name: "KODEX 200", "latest.close": 10000, "latest.nav": 10000 }, source: { name: "금융위", url: "https://www.data.go.kr", asOf: "2026-11-18" } };
+    expect(mergeSameCards(output([card("KODEX 200 종가", "10,000원", "", "E5"), card("KODEX 200 순자산가치", "10,000원", "", "E5")]), [etf]).numbers).toHaveLength(2);
     // 이름이 같으면 3.00% 와 3% 도 같은 값
     expect(mergeSameCards(output([card("한국은행 기준금리", "3.00%", "30일 0%p", "E9"), card("한국은행 기준금리", "3%", "1년 +0.50%p", "E8")])).numbers.map((n) => n.ref)).toEqual(["E8"]);
   });

@@ -22,29 +22,44 @@ function sameValue(value: string): string {
   const m = /^([+-]?)([\d,]*\.?\d+)\s*(.*)$/.exec(value.trim());
   return m ? `${m[1]}${Number(m[2]!.replace(/,/g, ""))}${m[3]!.replace(/\s/g, "")}` : value.replace(/\s/g, "");
 }
-/** 카드가 가리키는 장부 항목의 지표 (금리 · 환율 · 지수 · 물가). 계산 항목이나 지표가 없는 항목은 null */
-function indicatorOf(ref: string | null | undefined, evidence: readonly Evidence[]): string | null {
-  const e = ref ? evidence.find((x) => x.id === ref) : undefined;
-  if (!e || e.lineage) return null;
-  const v = e.values;
-  const name = v.indicator ?? v.pair ?? v.index ?? v.name;
-  // 한 지표 안의 갈래(물가 품목군의 category · code, 나라)도 이름에 넣습니다. 교통과 음식 및 숙박이 같은 값이어도 다른 카드입니다 (#157 Codex 리뷰)
-  const part = [v.country, v.category, v.code].filter((x) => typeof x === "string" || typeof x === "number").join(":");
-  return typeof name === "string" ? `${e.tool}:${name}${part ? `:${part}` : ""}` : null;
+/** 지표마다 "지금 수준" 을 담은 칸. 기간이 다른 항목(30일 · 365일)에도 같은 뜻으로 들어 있습니다 */
+const LEVEL_FIELD: Record<string, string> = {
+  get_rate_data: "rate",
+  get_fx_krw_rate: "rate",
+  get_kr_stock_index: "latest.close",
+  get_us_stock_index: "latest.close",
+  get_macro_indicators: "latest.value",
+};
+const numberOf = (value: string): number | null => {
+  const m = /^[+-]?[\d,]*\.?\d+/.exec(value.trim());
+  return m ? Number(m[0].replace(/,/g, "")) : null;
+};
+/**
+ * 카드 값이 장부 항목의 "지금 수준" 칸과 같으면 그 지표 · 기준일로 된 이름. 아니면 null (이름으로 비교).
+ * 같은 항목에 같은 값을 가진 다른 숫자 칸이 있으면(ETF 종가 = 순자산가치처럼) 어떤 값인지 정할 수 없어 null 입니다 (#157 Codex 리뷰)
+ */
+function levelIdentity(n: WriterOutput["numbers"][number], evidence: readonly Evidence[]): string | null {
+  const e = n.ref ? evidence.find((x) => x.id === n.ref) : undefined;
+  const field = e && !e.lineage ? LEVEL_FIELD[e.tool] : undefined;
+  if (!e || !field) return null;
+  const v = numberOf(n.value);
+  const level = e.values[field];
+  if (v === null || typeof level !== "number" || Math.abs(v - level) > 1e-9) return null;
+  if (Object.entries(e.values).some(([k, x]) => k !== field && typeof x === "number" && Math.abs(x - v) < 1e-9)) return null;
+  const name = e.values.indicator ?? e.values.pair ?? e.values.index;
+  const part = [e.values.country].filter((x) => typeof x === "string").join(":");
+  return typeof name === "string" ? `${e.tool}:${name}${part ? `:${part}` : ""}|${field}|${n.asOf}` : null;
 }
 
 /**
  * 이름과 값이 같은 카드를 하나로. 바뀐 것이 없으면 받은 그대로 돌려줍니다.
- * evidence 를 주면 같은 장부 지표 · 같은 값 · 같은 기준일인 카드도 이름이 달라도 한 무리로 봅니다
+ * evidence 를 주면 같은 지표의 "지금 수준"(금리 · 환율 · 지수 종가 · 물가지수)을 같은 기준일로 보여 주는 카드도 이름이 달라도 한 무리로 봅니다
  * (11/23 녹화 · 로컬 4번 중 2번: "한국 기준금리 3% · 30일 변동 없음" 과 "한국 기준금리 1년 변화 3% · 1년 +0.50%p" 가 함께 나옴). 값은 "3.00%" 와 "3%" 를 같게 봅니다.
  * 한 무리에서 변화가 있는 카드는 남기고 변화 없는 중복만 뺍니다. 변화가 있는 카드가 둘 이상이면(전월 대비 · 전년 동월 대비처럼 비교 기준이 다름) 모두 남깁니다 (#157 Codex 리뷰).
  * 남는 카드는 그 무리가 처음 나온 자리에 둡니다 (1년 카드가 뒤에 있어도 한국 금리 카드가 맨 끝으로 가지 않게).
  */
 export function mergeSameCards(output: WriterOutput, evidence: readonly Evidence[] = []): WriterOutput {
-  const keyOf = (n: WriterOutput["numbers"][number]) => {
-    const indicator = indicatorOf(n.ref, evidence);
-    return indicator ? `${indicator}|${sameValue(n.value)}|${n.asOf}` : key(n);
-  };
+  const keyOf = (n: WriterOutput["numbers"][number]) => levelIdentity(n, evidence) ?? key(n);
   const groups = new Map<string, number[]>();
   output.numbers.forEach((n, i) => groups.set(keyOf(n), [...(groups.get(keyOf(n)) ?? []), i]));
   if (groups.size === output.numbers.length) return output;
