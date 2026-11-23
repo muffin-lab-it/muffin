@@ -230,8 +230,11 @@ export function ReportView({
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>
                   {source && <span className="metric-source">{source.name}</span>}
-                  {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference>}
-                  <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                  {/* '근거 보기' 와 검사 배지는 한 덩어리로 줄을 넘깁니다. 출처 이름이 길면(FRED 전체 이름) 배지만 혼자 다음 줄로 떨어지던 것 (11/23 #147 참고 카드 확인) */}
+                  <span className={styles.metricActions}>
+                    {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference>}
+                    <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
+                  </span>
                 </div>
                 {basis && <small className="metric-basis">{basis}</small>}
               </EvidenceOrigin>
