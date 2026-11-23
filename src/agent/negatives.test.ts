@@ -129,30 +129,38 @@ describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
 
 describe("조회 과정 문장 빼기 (11/23 운영 뉴스 질문)", () => {
   const base = (summary: string, caveats: string[] = [], dataGaps: string[] = []): WriterOutput => ({ summary, numbers: [], why: [], impact: [], caveats, dataGaps, nextTopics: [] });
+  const NEWS = "get_korean_economic_news";
 
-  it("저장된 응답을 썼으면 요약 · 주의점 · 확인하지 못한 것에서 그 말을 뺀다 (코드가 확인하지 못한 것에 한 줄 넣음)", () => {
+  it("저장된 응답을 쓴 조회는 요약 · 주의점 · 확인하지 못한 것에서 그 말을 뺀다 (코드가 확인하지 못한 것에 한 줄 넣음)", () => {
     const out = dropFetchTalk(
       base(
         "확인된 환율 관련 기사는 연합뉴스의 2026-11-20 보도예요. 기사에 따르면 원/달러 환율은 달러 강세와 위험회피 심리를 배경으로 올랐어요. 다만 조회가 실패해 이전 응답을 재사용했으므로 오늘의 최신 뉴스로 볼 수는 없고, 확인된 기사는 1건이에요.",
         ["환율 값은 일별 매수·매도 중간값으로, 실시간 매수·매도 호가가 아니에요.", "조회 실패로 13시간 전 뉴스 응답을 재사용했어요. 오늘의 최신 환율 뉴스 여부는 확인되지 않았어요."],
         ["최신 환율 뉴스를 확인하려면 최신 뉴스 조회 결과가 필요해요.", "뉴스는 이전에 받은 응답을 다시 썼어요."],
       ),
-      true,
+      [NEWS],
     );
     expect(out.summary).toBe("확인된 환율 관련 기사는 연합뉴스의 2026-11-20 보도예요. 기사에 따르면 원/달러 환율은 달러 강세와 위험회피 심리를 배경으로 올랐어요.");
     expect(out.caveats).toEqual(["환율 값은 일별 매수·매도 중간값으로, 실시간 매수·매도 호가가 아니에요."]);
     expect(out.dataGaps).toEqual(["최신 환율 뉴스를 확인하려면 최신 뉴스 조회 결과가 필요해요."]);
   });
 
-  it("저장된 응답 없이 조회가 실패했으면 그 말을 확인하지 못한 것으로 옮긴다. 요약이 그 문장뿐이면 그대로 둔다", () => {
-    const out = dropFetchTalk(base("기준금리는 3%예요. 환율은 조회가 실패해 확인하지 못했어요.", ["뉴스 조회가 실패했어요."]), false);
+  it("저장된 응답이 덮지 않는 다른 조회의 실패는 확인하지 못한 것으로 옮기고 남긴다 (#151 Codex 리뷰)", () => {
+    // 환율만 저장된 응답을 썼고, 뉴스는 저장된 응답도 없이 실패
+    const out = dropFetchTalk(base("기준금리는 3%예요. 뉴스는 조회가 실패해 확인하지 못했어요.", ["환율은 조회가 실패해 이전 응답을 썼어요."], ["뉴스 조회가 실패했어요."]), ["get_fx_krw_rate"]);
     expect(out.summary).toBe("기준금리는 3%예요.");
     expect(out.caveats).toEqual([]);
-    expect(out.dataGaps).toEqual(["환율은 조회가 실패해 확인하지 못했어요.", "뉴스 조회가 실패했어요."]);
+    expect(out.dataGaps).toEqual(["뉴스 조회가 실패했어요.", "뉴스는 조회가 실패해 확인하지 못했어요."]);
+    // 저장된 응답을 쓴 조회가 없으면 실패 문장은 모두 확인하지 못한 것으로
+    const none = dropFetchTalk(base("기준금리는 3%예요. 환율은 조회가 실패해 확인하지 못했어요.", ["뉴스 조회가 실패했어요."]), []);
+    expect(none.summary).toBe("기준금리는 3%예요.");
+    expect(none.dataGaps).toEqual(["환율은 조회가 실패해 확인하지 못했어요.", "뉴스 조회가 실패했어요."]);
+  });
+
+  it("요약이 그 문장뿐이거나 조회 과정 말이 없으면 그대로 둔다", () => {
     const one = base("조회가 실패해 이전 응답을 썼어요.");
-    expect(dropFetchTalk(one, true)).toBe(one);
+    expect(dropFetchTalk(one, [NEWS])).toBe(one);
     const clean = base("기준금리는 3%예요. 1년 전보다 0.50%p 올랐어요.", ["정책금리라 시장금리와 달라요."]);
-    expect(dropFetchTalk(clean, true)).toBe(clean);
+    expect(dropFetchTalk(clean, [NEWS])).toBe(clean);
   });
 });
-

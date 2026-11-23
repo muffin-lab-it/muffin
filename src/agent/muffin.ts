@@ -33,7 +33,7 @@ import { ensureMoneyValue, moneyValueNote, moneyValueRows } from "./money-value"
 import { ensureRelation, relationHeadline, relationHidden, relationNote, relationRefs, trimRelationRepeats, withRelationNumbers } from "./relation";
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
-import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
+import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, fallbackTools, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
 import { isSwingQuestion, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, swingNote, withSwingNumbers, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
@@ -359,7 +359,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 한 줄 요약 끝의 "…지만 확인되지 않아요" 와, 원인을 묻지 않은 질문의 "원인은 확인할 수 없어요" 문장을 뗍니다 (src/agent/negatives.ts)
   // 관계 질문은 요약에 되풀이된 "상관관계 · 인과관계는 판단할 수 없어요" 와 받지 않는 지표의 한계 문장을 주의점 · 확인하지 못한 것 한 곳으로 모읍니다 (relation.ts)
   // 요약 · 주의점의 "조회가 실패해 이전 응답을 썼어요" 문장은 뺍니다. 저장된 응답을 썼으면 확인하지 못한 것에 코드가 한 줄 넣습니다 (negatives.ts dropFetchTalk)
-  const negTrimmed = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, gaps.length > 0), plan.intent));
+  const negTrimmed = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, fallbackTools(ctx.steps)), plan.intent));
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {

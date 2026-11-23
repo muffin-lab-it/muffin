@@ -94,23 +94,38 @@ export function splitEmyeo(text: string): string {
 }
 
 /** 조회 과정을 말하는 문장: "조회가 실패해 이전 응답을 재사용했으므로 …", "조회 실패로 13시간 전 뉴스 응답을 재사용했어요" */
-const FETCH_TALK = /조회(?:가|는|에)?\s*실패|재사용|이전\s*(?:조회\s*)?응답|저장된\s*응답|전에\s*받은\s*(?:같은\s*조회의\s*)?응답|응답을\s*다시\s*(?:썼|사용)/;
+const FETCH_FAIL = /조회(?:가|는|에)?\s*실패/;
+/** 저장된 응답을 다시 썼다는 말 (저장된 응답을 쓴 조회에만 맞는 말) */
+const REUSED = /재사용|이전\s*(?:조회\s*)?응답|저장된\s*응답|전에\s*받은\s*(?:같은\s*조회의\s*)?응답|응답을\s*다시\s*(?:썼|사용)/;
+const fetchTalk = (s: string) => FETCH_FAIL.test(s) || REUSED.test(s);
+/** tool 이름 → 그 조회를 가리키는 말 (작성은 tool 이름 대신 "뉴스 조회 · 환율 조회" 처럼 씁니다) */
+const TOOL_WORDS: Record<string, RegExp> = {
+  get_korean_economic_news: /뉴스|기사/,
+  get_fx_krw_rate: /환율/,
+  get_rate_data: /금리/,
+  get_macro_indicators: /물가|실업|CPI|소비자물가/i,
+  get_etf_kr_price: /ETF/i,
+  get_kr_stock_index: /지수|코스피|코스닥/,
+  get_us_stock_index: /지수|S&P|나스닥|다우/i,
+};
 
 /**
  * 요약 · 주의점에서 조회 과정(실패 · 저장된 응답을 다시 씀)을 말하는 문장을 뺍니다 (11/23 운영: 뉴스 요약 셋째 문장 "다만 조회가 실패해 이전 응답을 재사용했으므로 …").
- * 저장된 응답을 썼으면(fallback) "확인하지 못한 것" 에 코드가 한 줄 넣으므로(report.ts fallbackGaps) 작성이 쓴 같은 말은 확인하지 못한 것에서도 뺍니다.
- * 저장된 응답 없이 조회가 실패한 경우는 그 말이 유일한 안내라 확인하지 못한 것으로 옮깁니다. 요약이 그 문장뿐이면 그대로 둡니다.
+ * fallbackTools: 저장된 응답을 쓴 tool. 그 조회는 "확인하지 못한 것" 에 코드가 한 줄 넣으므로(report.ts fallbackGaps) 작성이 쓴 같은 말은 버리고,
+ * 확인하지 못한 것에서도 뺍니다. 다른 조회의 실패(저장된 응답도 없던 것)는 그 말이 유일한 안내라 확인하지 못한 것으로 옮기고 그대로 둡니다 (#151 Codex 리뷰).
+ * 요약이 그 문장뿐이면 그대로 둡니다.
  */
-export function dropFetchTalk(output: WriterOutput, fallback: boolean): WriterOutput {
+export function dropFetchTalk(output: WriterOutput, fallbackTools: readonly string[]): WriterOutput {
+  const covered = (s: string) => fallbackTools.length > 0 && (REUSED.test(s) || fallbackTools.some((t) => TOOL_WORDS[t]?.test(s)));
   const moved: string[] = [];
   const sentences = output.summary.split(/(?<=[.!?])\s+/).filter(Boolean);
-  const kept = sentences.filter((s) => !FETCH_TALK.test(s));
+  const kept = sentences.filter((s) => !fetchTalk(s));
   const summary = kept.length > 0 && kept.length < sentences.length ? kept.join(" ") : output.summary;
-  if (summary !== output.summary) moved.push(...sentences.filter((s) => FETCH_TALK.test(s)));
-  const caveats = output.caveats.filter((c) => !FETCH_TALK.test(c));
-  moved.push(...output.caveats.filter((c) => FETCH_TALK.test(c)));
-  const gaps = fallback ? output.dataGaps.filter((g) => !FETCH_TALK.test(g)) : [...output.dataGaps, ...moved];
-  if (summary === output.summary && caveats.length === output.caveats.length && gaps.length === output.dataGaps.length) return output;
+  if (summary !== output.summary) moved.push(...sentences.filter(fetchTalk));
+  const caveats = output.caveats.filter((c) => !fetchTalk(c));
+  moved.push(...output.caveats.filter(fetchTalk));
+  const gaps = [...output.dataGaps.filter((g) => !(fetchTalk(g) && covered(g))), ...moved.filter((m) => !covered(m))];
+  if (summary === output.summary && caveats.length === output.caveats.length && gaps.length === output.dataGaps.length && gaps.every((g, i) => g === output.dataGaps[i])) return output;
   return { ...output, summary, caveats, dataGaps: gaps };
 }
 
