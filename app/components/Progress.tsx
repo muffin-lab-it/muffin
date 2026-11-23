@@ -23,7 +23,7 @@ export type ProgressError = { message: string; id?: string; status?: number; kin
 export type ProgressProps = {
   question: string;
   depth?: Depth;
-  /** 제목 옆 장식. 기본 이모지를 브랜드 이미지로 교체할 수 있습니다. */
+  /** 제목 옆 장식. 기본은 상단 로고와 같은 머핀 그림(/icon.svg)입니다. */
   titleIcon?: ReactNode;
   /** 한 요청의 이벤트만 전달합니다. 재시도 시 부모에서 초기화합니다. */
   events: readonly MuffinEvent[];
@@ -80,7 +80,10 @@ const depthCopy: Record<Depth, string> = {
   deep: "근거와 배경을 더 자세히 살펴 정리해 드릴게요.",
 };
 
-export function Progress({ question, depth, titleIcon = "🧁", events, error: connectionError, onRetry, onEditQuestion, onReturnHome, pending = false }: ProgressProps) {
+/** 상단 로고와 같은 머핀 그림 (11/23 사용자: 진행 화면의 🧁 이모지와 로고 머핀을 통일) */
+const brandMuffin = <Image src="/icon.svg" alt="" width={36} height={36} />;
+
+export function Progress({ question, depth, titleIcon = brandMuffin, events, error: connectionError, onRetry, onEditQuestion, onReturnHome, pending = false }: ProgressProps) {
   const state = progressFromEvents(events);
   const shown = splitAreaPrefix(question); // 여러 영역을 고른 질문의 "관심 영역: …" 머리말은 떼어 따로 (11/20 외부 G1)
   const error = connectionError ?? state.error;
@@ -173,7 +176,7 @@ export function Progress({ question, depth, titleIcon = "🧁", events, error: c
       <div className={styles.side}>
       <Image className={styles.mascot} src={stageImages[imageIndex]} width={200} height={200} sizes="(max-width: 720px) 160px, 200px" alt="" aria-hidden="true" />
       <aside className={styles.tip} aria-label="머핀 이야기" data-section="story">
-        <div className={styles.storyHeading}><span aria-hidden="true">🧁</span><h2>머핀 이야기</h2></div>
+        <div className={styles.storyHeading}><span className={styles.storyIcon} aria-hidden="true"><Image src="/icon.svg" alt="" width={20} height={20} /></span><h2>머핀 이야기</h2></div>
         <p className={styles.story} aria-live="polite">{story}</p>
         {(state.plan || state.steps.length > 0 || verification) && <div className={styles.storyData}>
 
