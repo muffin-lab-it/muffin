@@ -20,6 +20,8 @@ const NOT_PERIOD_KEY = /baseline/i;
  * 0.23% 가 baselineDailyAvgMovePct 와 맞아, 키 이름의 daily 때문에 "직전 거래일과 비교해 0.23% 상승" 으로 그려졌습니다
  */
 const NOT_CHANGE_KEY = /baseline|typical|avg|average|times|zscore/i;
+/** 변화가 아니라 어느 시점의 수준을 담은 키 (1년 전 환율 comparison.rate, 기간 첫 종가 closeFrom, 지금 값 rate · latest.close 등). 변화 정보를 만들지 않습니다 (11/23: 1년 전 환율이 "1,472.46원 상승" 으로 보임) */
+const LEVEL_KEY = /(?:^|\.)(?:rate|value|close|nav|index|level)$|comparisonRate$|From$/i;
 /** 날짜가 없을 때 비교 일수를 알려 주는 키 (유의성 게이트 periodDays, 금리 tool requestedDays) */
 const DAYS_KEY = /^(periodDays|requestedDays|days)$/;
 
@@ -58,7 +60,7 @@ const UNIT_TEXT: Record<string, string> = { pp: "%p", pct: "%", bp: "bp", ratio:
  * 날짜가 없고 periodDays · requestedDays 가 있으면 그 일수로 "N일 전과 비교" 를 적습니다 (유의성 게이트의 변동 폭 카드).
  */
 export function changeDetailFor(n: Pick<WriterOutput["numbers"][number], "change">, entry: Evidence, hit: { key: string; policy: MatchPolicy }): ChangeDetail | null {
-  if (NOT_CHANGE_KEY.test(hit.key)) return null;
+  if (NOT_CHANGE_KEY.test(hit.key) || LEVEL_KEY.test(hit.key)) return null;
   const parsed = extractNumbers(n.change).filter(isDataNumber)[0];
   if (!parsed) return null;
   const candidate = numericCandidates(entry).find((c) => c.key === hit.key && matchValue(parsed, [c])?.policy === hit.policy);
