@@ -62,7 +62,7 @@ export function addExampleCalc(ctx: ResearchContext, question: string): Evidence
     label: "가상 예시 계산 · 질문에 적힌 두 값",
     values,
     source: { name: "질문에 적힌 숫자로 계산", url: "", asOf: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()) },
-    note: `질문에 적힌 ${ex.from}${ex.unit} 와 ${ex.to}${ex.unit} 로 계산한 값입니다. 실제 시장 값이 아닙니다. 차이 = ${ex.to} − ${ex.from}, 비율 변화 = (${ex.to} ÷ ${ex.from} − 1) × 100.`,
+    note: `질문에 적힌 ${ex.from}${ex.unit} 와 ${ex.to}${ex.unit} 로 계산한 값이에요. 실제 시장 값이 아니에요. 차이 = ${ex.to} − ${ex.from}, 비율 변화 = (${ex.to} ÷ ${ex.from} − 1) × 100.`,
     lineage: { op: "example", inputs: [] },
   };
   ctx.addEvidence([entry]);

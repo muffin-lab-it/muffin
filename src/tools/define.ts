@@ -218,7 +218,7 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         const stale = cached.result as ToolResult<D>;
         result = {
           ...stale,
-          note: `${stale.note ? `${stale.note} ` : ""}이번 조회는 실패해 ${age} 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서는 값과 기사를 이 기준일 · 발행 시각과 함께 쓰고 "오늘 · 지금 · 최신" 이라고 쓰지 않습니다. 조회 실패 · 응답을 다시 쓴 일은 요약 · 주의점에 쓰지 않습니다 (확인하지 못한 것에 코드가 한 줄 적습니다).`,
+          note: `${stale.note ? `${stale.note} ` : ""}이번 조회는 실패해 ${age} 전에 받은 같은 조회의 응답을 다시 썼어요. 기준일은 출처에 적힌 날 그대로예요.`,
         };
       }
       if (!ctx) return result;

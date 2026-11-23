@@ -408,9 +408,9 @@ describe("defineTool 폴백 (마지막 성공 응답)", () => {
     const out = await invoke(t, ctx, { q: "x" });
     const text = JSON.stringify(out);
     expect(text).toContain('"v":1');
-    expect(text).toContain("전에 받은 같은 조회의 응답을 다시 썼습니다");
+    expect(text).toContain("전에 받은 같은 조회의 응답을 다시 썼어요");
     expect(text).toContain("주말은 직전 영업일 값");
-    expect(ctx.evidence[0]?.note).toContain("요약 · 주의점에 쓰지 않습니다");
+    expect(ctx.evidence[0]?.note).toContain("기준일은 출처에 적힌 날 그대로예요");
     expect(ctx.sources).toEqual([source]);
     expect(ctx.steps).toMatchObject([{ tool: "flaky_tool", status: "ok", fallbackAgeMs: expect.any(Number) }]);
   });

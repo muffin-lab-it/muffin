@@ -446,8 +446,8 @@ export function movementEvidence(m: Movement, id: string): Evidence {
     source: { name: `${m.baseline.sourceName} (${m.baseline.from} ~ ${m.period.to})`, url: m.baseline.url, asOf: m.period.to },
     note:
       `직전 ${BASELINE_DAYS}일(${m.baseline.from}~${m.baseline.to}) 하루 변화 ${m.baseline.changes}개의 표준편차 × √(이번 기간 관측 수) = 평소 폭 ±${m.typicalPct.toFixed(2)}%. ` +
-      `이번 변화 ${signedPct(m.movePct)} 는 평소 폭의 ${times(m.zScore)}배입니다` +
-      (m.daily ? `. 하루 단위로는 이번 기간 하루 평균 ${m.daily.avgPct.toFixed(2)}% 움직여 직전 ${BASELINE_DAYS}일 평균 ${m.daily.baselineAvgPct.toFixed(2)}% 의 ${m.daily.ratio.toFixed(2)}배입니다 (하루 변화의 절댓값 평균)` : ""),
+      `이번 변화 ${signedPct(m.movePct)} 는 평소 폭의 ${times(m.zScore)}배예요` +
+      (m.daily ? `. 하루 단위로는 이번 기간 하루 평균 ${m.daily.avgPct.toFixed(2)}% 움직여 직전 ${BASELINE_DAYS}일 평균 ${m.daily.baselineAvgPct.toFixed(2)}% 의 ${m.daily.ratio.toFixed(2)}배예요 (하루 변화의 절댓값 평균)` : ""),
     lineage: { op: "zscore", inputs: [m.ref] },
   };
 }

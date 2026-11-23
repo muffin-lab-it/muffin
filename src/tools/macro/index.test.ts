@@ -109,7 +109,7 @@ describe("실제 응답 fixture 기반 조회", () => {
       expect(result.source).toMatchObject({
         asOf: "2025-09-01"
       });
-      expect(result.note).toContain("발표일·조회일이 아닙니다");
+      expect(result.note).toContain("발표일이나 조회일이 아니에요");
       expect(calls).toHaveBeenCalledTimes(1);
       expect(calls.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
       const url = new URL(calls.mock.calls[0][0]);
@@ -249,7 +249,7 @@ describe("최신 관측 월·기간·결측", () => {
       change: null
     });
     expect(result.data.latest.previousMonth.change).not.toBeNull();
-    expect(result.note).toContain("0으로 해석하지");
+    expect(result.note).toContain("그 비교는 비워 뒀어요");
   });
 
   it("명시한 미공표 월을 이전 달로 대체하지 않는다", async () => {

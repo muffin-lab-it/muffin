@@ -566,7 +566,7 @@ describe("Rate Tool — BIS 주요국 정책금리", () => {
     expect(result.data).toMatchObject({ asOf: "2026-10-08", comparisonDate: "2026-09-08", daysSinceLatest, stale });
     if (stale) {
       expect(result.note).toContain(
-        `경고: 최신 관측일(2026-10-08)이 오늘(${now.slice(0, 10)}) 기준 ${daysSinceLatest}일 전입니다.`,
+        `최신 관측일(2026-10-08)이 오늘(${now.slice(0, 10)})보다 ${daysSinceLatest}일 앞서요.`,
       );
     } else {
       expect(result.note).not.toContain("경고");

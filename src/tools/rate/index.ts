@@ -92,9 +92,8 @@ const BIS_API_BASE = "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.
 const BIS_REQUIRED_COLUMNS = ["FREQ", "REF_AREA", "TIME_PERIOD", "OBS_VALUE", "OBS_STATUS"] as const;
 
 const COMPARISON_NOTE =
-  "변동폭은 최신 관측일로부터 요청 기간(requestedDays)만큼 이전 날짜의 값과 비교한 차이이며, " +
-  "그날 값이 없으면 직전 관측일 값을 사용합니다. " +
-  "최신 관측일은 발표 시차로 오늘보다 이전일 수 있습니다.";
+  "변화는 최신 관측일과, 비교 기간만큼 앞선 날(그날 값이 없으면 바로 앞 관측일)의 값을 비교했어요. " +
+  "발표 시차 때문에 최신 관측일이 오늘보다 앞설 수 있어요.";
 
 // 한국 현재 날짜를 YYYY-MM-DD 형식으로 반환합니다.
 function koreanToday(): string {
@@ -295,8 +294,8 @@ export async function execute({ series, days }: Input): Promise<ToolResult> {
       asOf: data.asOf,
     },
     note:
-      "기준금리는 정책금리로, 시장금리의 일별 변동과는 다릅니다. " +
-      "ECOS 단위 '연%'를 '%'로 표기합니다. " +
+      "기준금리는 정책금리라 매일 움직이는 시장금리와 달라요. " +
+      "한국은행 자료의 단위 '연%' 를 '%' 로 적었어요. " +
       COMPARISON_NOTE,
   };
 }
@@ -358,8 +357,10 @@ async function executeFred(series: "DGS10" | "DFF", days: Days): Promise<ToolRes
       asOf: data.asOf,
     },
     note:
-      "DGS10은 미국 국채 10년물 시장금리, DFF는 미국 실효 연방기금금리입니다. " +
-      "주말·미국 공휴일 등 값이 없는 날('.')은 제외합니다. " +
+      (series === "DGS10"
+        ? "미국 국채 10년물 금리는 매일 움직이는 시장금리예요. "
+        : "미국 실효 연방기금금리는 은행끼리 하루 동안 빌려주는 실제 금리의 평균이에요. 연준이 정하는 목표 범위와는 달라요. ") +
+      "주말 · 미국 공휴일처럼 값이 없는 날은 뺐어요. " +
       COMPARISON_NOTE,
   };
 }
@@ -438,14 +439,14 @@ async function executeBis(country: BisCountry, days: Days): Promise<ToolResult> 
   const stale = daysSinceLatest > BIS_STALE_AFTER_DAYS;
 
   const notes = [
-    "국가마다 정책금리 지표의 정의가 다르므로(예: 중국은 1년 LPR) data.definition 을 함께 확인해야 합니다.",
-    "BIS 관측값 중 OBS_STATUS가 A(정상)인 값만 사용하며, 주말·휴일 결측(NaN, 상태 M)은 제외합니다.",
+    "나라마다 정책금리로 쓰는 지표가 달라요 (예: 중국은 1년 만기 LPR).",
+    "국제결제은행(BIS) 자료에서 정상으로 표시된 값만 쓰고, 주말 · 휴일처럼 값이 없는 날은 뺐어요.",
     COMPARISON_NOTE,
   ];
   if (stale) {
     notes.unshift(
-      `경고: 최신 관측일(${data.asOf})이 오늘(${today}) 기준 ${daysSinceLatest}일 전입니다. ` +
-        "그 이후의 정책금리 변경이 반영되지 않았을 수 있습니다.",
+      `최신 관측일(${data.asOf})이 오늘(${today})보다 ${daysSinceLatest}일 앞서요. ` +
+        "그 뒤에 정책금리가 바뀌었다면 반영되지 않았을 수 있어요.",
     );
   }
 
@@ -481,8 +482,8 @@ export const rateTool = defineTool({
     "사용: 한국 기준금리(BOK), 미국 국채 10년물(DGS10)·실효 연방기금금리(DFF), " +
     "일본·영국·캐나다·호주·스위스·중국·브라질 정책금리(BIS)를 조회하거나 비교·분석할 때. " +
     "불가: 미래 금리 예측, 실시간 호가·거래 금리, 위 목록 외 국가, 10년물 외 만기의 국채금리. " +
-    "국가별 정책금리 정의가 서로 다르므로 data.definition을 확인하고 같은 지표로 간주하지 말 것. " +
-    "data.stale이 true면 최신 관측일이 오래된 값이다.",
+    "국가별 정책금리 정의가 서로 다르므로 data.definition을 확인하고 같은 지표로 간주하지 말 것 (BIS 는 OBS_STATUS 가 A 인 값만, 결측일 제외). " +
+    "data.stale이 true면 최신 관측일이 오래된 값이다. 변동폭은 최신 관측일과 requestedDays 만큼 앞선 날(없으면 직전 관측일)의 차이다.",
   parameters,
   execute,
 });

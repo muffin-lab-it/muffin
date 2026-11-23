@@ -66,7 +66,7 @@ export async function addMacroNews(ctx: ResearchContext, question: string, news:
     label: `${labelFor(areaTools.news)} · ${article.publisher}`,
     values: { title: article.title, publisher: article.publisher, publishedAt: article.publishedAt, body: "not_requested" },
     source: { name: article.publisher, url: article.url, asOf: article.publishedAt.slice(0, 10) },
-    note: "경제 흐름 주제어(증시 · 환율 · 금리 · 물가 · 수출)로 제목을 찾은 기사입니다. 제목만 확인했고 본문은 받지 않았습니다.",
+    note: "경제 흐름 주제어(증시 · 환율 · 금리 · 물가 · 수출)로 제목을 찾은 기사예요. 제목만 확인했고 본문은 받지 않았어요.",
   }));
   ctx.addEvidence(entries);
   ctx.addStep({ tool: areaTools.news, status: "ok", ms: Date.now() - started });

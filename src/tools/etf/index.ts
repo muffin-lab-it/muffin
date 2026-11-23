@@ -262,9 +262,9 @@ function toResult(allRows: EtfRow[], days: number): ToolResult<EtfData> {
     },
     source: { name: SOURCE_NAME, url: SOURCE_URL, asOf: latestDate },
     note:
-      "T+1 공개 데이터라 최신값은 직전 영업일 종가 기준입니다(다음 영업일 오후 1시 이후 갱신). " +
-      "기간 수익률은 분배금을 뺀 가격 기준입니다. 괴리율 = (종가 - NAV) / NAV × 100. 금액 단위는 원입니다. " +
-      "해외 지수를 추종하는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지가 없으면 추적 차이에 환율 변동이 섞입니다.",
+      "다음 영업일 오후 1시 이후에 공개되는 자료라 최신 값은 직전 영업일 종가예요. " +
+      "기간 수익률은 분배금을 뺀 가격 기준이에요. 괴리율은 종가가 순자산가치(NAV)보다 얼마나 높거나 낮은지 나타낸 비율이에요. 금액 단위는 원이에요. " +
+      "해외 지수를 따르는 ETF 는 기초지수가 현지 통화 기준이라, 환헤지를 하지 않으면 추적 차이에 환율 변화가 섞여요.",
   };
 }
 
@@ -339,7 +339,7 @@ export const etfTool = defineTool({
   description:
     "국내 상장 ETF 의 최신 시세(종가·등락률·NAV·괴리율·순자산·기초지수)와 최근 N일 수익률·고저·기초지수 대비 추적 차이를 조회한다. " +
     '특정 ETF 가 요즘 어떤지, 기초지수를 잘 따라가는지 알고 싶을 때 사용. 예: query "KODEX 200", days 30. ' +
-    "미국 등 해외 거래소에 상장된 ETF(SPY, QQQ 등)와 보유종목은 제공하지 않음.",
+    "미국 등 해외 거래소에 상장된 ETF(SPY, QQQ 등)와 보유종목은 제공하지 않음. 괴리율 = (종가 - NAV) / NAV × 100, 최신 값은 T+1 공개 직전 영업일 종가.",
   parameters,
   execute,
   evidence: evidenceOf,

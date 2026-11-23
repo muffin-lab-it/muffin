@@ -142,7 +142,7 @@ export async function addTodayClose(ctx: ResearchContext, index: KrIndexName, ne
         label: `당일 종가 (기사 보도 · 공식 전일 종가로 검산) · ${article.publisher}`,
         values: { index, date, close: today.close, change: today.change, changePct: today.changePct, prevClose, prevDate },
         source: { name: article.publisher, url: article.url, asOf: date },
-        note: `기사에 실린 값입니다. 공식 전일 종가(${prevDate}) ${prevClose} 에 기사의 변화폭 ${today.change} 을 더하면 기사의 종가 ${today.close} 와 맞습니다. 공식 자료는 다음 영업일에 공개됩니다.`,
+        note: `기사에 실린 값이에요. 공식 전일 종가(${prevDate}) ${prevClose} 에 기사의 변화폭 ${today.change} 을 더하면 기사의 종가 ${today.close} 와 맞아요. 공식 자료는 다음 영업일에 공개돼요.`,
         lineage: { op: "prevClose+change", inputs: [official.id] },
       };
       ctx.addEvidence([entry]);

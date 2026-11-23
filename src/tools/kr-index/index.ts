@@ -77,7 +77,7 @@ export function toResult(index: KrIndexName, days: number, rows: ReturnType<type
       series: rows.filter((r) => r.date >= from.date).map((r) => ({ date: r.date, close: r.close })),
     },
     source: { name: SOURCE_NAME, url: SOURCE_URL, asOf: latest.date },
-    note: "다음 영업일에 공개되는 자료라 최신 값은 직전 영업일 종가입니다. 장중 · 당일 값은 들어 있지 않습니다. 지수 값의 단위는 포인트입니다.",
+    note: "다음 영업일에 공개되는 자료라 최신 값은 직전 영업일 종가예요. 장중 · 당일 값은 들어 있지 않아요. 지수 값의 단위는 포인트예요.",
   };
 }
 
