@@ -2,7 +2,7 @@ import { PrintOpenDetails, ReportResponsiveDetails } from "./ReportResponsiveDet
 /// <reference types="next/image-types/global" />
 import { fallbackReportTopics, supportedReportTopics } from "@/src/lib/report-topics";
 import type { ReactNode } from "react";
-import { reportChange } from "./reportChange";
+import { reportChange, trustedChangeDetail } from "./reportChange";
 import Image from "next/image";
 import resultMuffin from "../result-muffin.png";
 import { labelFor } from "@/src/agent/events";
@@ -87,13 +87,23 @@ export function subRows(subs: { n: NumberItem; index: number }[], mainAsOf: stri
   const squash = (text: string) => text.replace(/\s+/g, "");
   return subs.map(({ n, index }) => {
     const change = n.change && !/^이번\s*주$/.test(n.change.trim()) ? reportChange(n.change, n.changeDetail) : null;
-    const period = n.changeDetail?.from && n.changeDetail.to ? `비교 기간 ${formatDateKo(n.changeDetail.from)} → ${formatDateKo(n.changeDetail.to)}` : change?.text;
+    const detail = trustedChangeDetail(n.changeDetail);
+    const period = detail?.from && detail.to ? `비교 기간 ${formatDateKo(detail.from)} → ${formatDateKo(detail.to)}` : change?.text;
     const parts = [
       period && !squash(n.label).includes(squash(period)) ? period : null,
       n.asOf && n.asOf !== mainAsOf ? `기준일 ${formatDateKo(n.asOf)}` : null,
     ].filter((part): part is string => !!part);
     return { index, label: n.label, value: n.value, check: skipped ? "unverified" as const : n.check, detail: parts.join(" · ") };
   });
+}
+
+/** 카드 값이 부호 있는 변화량이고 changeDetail 과 같은 숫자 · 단위면 true (11/23 운영: "+0.87%" 아래에 "30일 전과 비교해 0.87% 상승") */
+export function repeatsValue(value: string, detail?: { value: number; unit: string }): boolean {
+  if (!detail || !valueTone(value)) return false;
+  const m = /^([+−-]?)([\d,]+(?:\.\d+)?)\s*(%p|%|bp|원)?$/.exec(value.trim());
+  if (!m) return false;
+  const number = Number(m[2]!.replaceAll(",", "")) * (m[1] === "-" || m[1] === "−" ? -1 : 1);
+  return (!m[3] || m[3] === detail.unit) && Math.abs(number - detail.value) < 1e-9;
 }
 
 /** 원인 문장의 근거 링크. 뉴스는 기사로 바로 새 창, 데이터는 아래 출처 칸으로 (11/20 QA 3: "원본 보기" 가 기사인 줄 알았는데 아래로 내려가 두 번 눌러야 했음). */
@@ -150,7 +160,9 @@ export function ReportView({
   const newsEntries = report.evidence.filter(isNewsEvidence);
   const cards = groupNumbers(report.numbers);
   // 도구 표는 리포트에서 빼고(11/20 QA 7 · 하니 5, 전체 표는 /admin) 저장본 · 실패 · 호출 생략만 주의점 옆에 메모로 남깁니다
-  const toolNotes = (steps ?? []).filter(step => step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open");
+  // 백엔드가 "확인하지 못한 것" 에 이미 적은 tool(저장된 응답 사용 줄, src/agent/report.ts)은 메모에서 뺍니다 (11/23 운영: 같은 말이 두 번)
+  const mentioned = (tool: string) => [...report.caveats, ...report.dataGaps].some(line => line.startsWith(`${labelFor(tool)}:`));
+  const toolNotes = (steps ?? []).filter(step => (step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open") && !mentioned(step.tool));
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
@@ -192,6 +204,7 @@ export function ReportView({
             const change = n.change && !/^이번\s*주$/.test(n.change.trim())
               ? reportChange(n.change, n.changeDetail)
               : null;
+            const detail = trustedChangeDetail(n.changeDetail);
             const entry = report.evidence.find(item => item.id === n.ref);
             const source = entry?.source;
             const basis = entry ? fxBasisNote(entry.tool, entry.source.name) ?? etfBasisNote(entry) : null;
@@ -203,8 +216,8 @@ export function ReportView({
               <EvidenceOrigin name={origin} className="num" data-kind={check} key={i}>
                 <div className="metric-label"><small>{n.label}</small></div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`} valueKey={valueKey} origin={origin}><b className={tone ?? undefined}>{n.value}</b></EvidenceReference>
-                {change && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
-                {n.changeDetail?.from && n.changeDetail.to && <small className="metric-period">비교 기간 {formatDateKo(n.changeDetail.from)} → {formatDateKo(n.changeDetail.to)}</small>}
+                {change && !repeatsValue(n.value, detail) && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
+                {detail?.from && detail.to && <small className="metric-period">비교 기간 {formatDateKo(detail.from)} → {formatDateKo(detail.to)}</small>}
                 {card.subs.length > 0 && (() => {
                   const rows = subRows(card.subs, n.asOf, report.verification.status === "skipped");
                   const shared = rows.length >= 2 && rows.every(row => row.detail && row.detail === rows[0]!.detail) ? rows[0]!.detail : null;

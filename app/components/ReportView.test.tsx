@@ -839,3 +839,28 @@ describe("문장 속 날짜 표기 (11/22)", () => {
     expect($(".evidence-values dd").map((_, el) => $(el).text()).get()).toContain("2026-11-20");
   });
 });
+
+describe("#141 뒤 운영 확인 (11/23)", () => {
+  it("평소 하루 움직임 카드에 '직전 거래일과 비교해 상승' 을 그리지 않는다", () => {
+    const report = fixture();
+    report.numbers = [{ ...report.numbers[0]!, label: "하루 평균 움직임 (최근 30일)", value: "0.17%", change: "평소(직전 90일 0.23%)의 0.74배", changeDetail: { key: "baselineDailyAvgMovePct", value: 0.23, unit: "%", to: "2026-11-06", days: 30, basis: "직전 거래일과 비교" } }];
+    const $ = render(report);
+    expect($(".num i").text()).toBe("평소(직전 90일 0.23%)의 0.74배");
+    expect($(".num i").attr("class")).toBe("flat");
+    expect($(".num").text()).not.toContain("직전 거래일과 비교");
+  });
+  it("카드 값이 곧 변화량이면 변화 줄을 다시 쓰지 않고 비교 기간만", () => {
+    const report = fixture();
+    report.numbers = [{ ...report.numbers[0]!, label: "USD/KRW 30일 변화", value: "+0.87%", change: "30일 +0.87%", changeDetail: { key: "changePct", value: 0.87, unit: "%", from: "2026-10-23", to: "2026-11-22", days: 30, basis: "30일 전과 비교" } }];
+    const $ = render(report);
+    expect($(".num i")).toHaveLength(0);
+    expect($(".num .metric-period").text()).toContain("비교 기간 2026. 10. 23. → 2026. 11. 22.");
+  });
+  it("백엔드가 이미 적은 저장 응답 줄은 메모에 다시 쓰지 않는다", () => {
+    const report = fixture();
+    report.dataGaps = ["경제 뉴스 확인: 조회가 실패해 3시간 전에 받은 응답을 썼어요 (데이터 기준일은 출처 그대로)"];
+    const $ = render(report, [{ tool: "get_korean_economic_news", status: "ok", ms: 30, fallbackAgeMs: 3 * 3_600_000 }]);
+    expect($(".report-tools")).toHaveLength(0);
+    expect($.text().match(/경제 뉴스 확인:/g)).toHaveLength(1);
+  });
+});
