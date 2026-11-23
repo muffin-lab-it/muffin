@@ -29,11 +29,13 @@ const MAX_ARTICLES = 6;
  * 용인특례시의회 행정사무감사, "원주시, 영구임대주택 예비 입주자 모집" · "원주시, 중장년 재취업 지원"). 검색어 없이 받은 뉴스 검색 목록에 섞입니다.
  * "○○시, …" 로 시작하는 지자체 소식은 금리 · 환율 · 부동산 같은 경제 낱말이 없을 때만 봅니다.
  */
-const LOCAL_ADMIN = /[시군구도]의회|행정사무감사|진보당|정의당|국민의힘|민주당|입주자\s*모집|임대주택|모집\s*공고|교육생\s*모집|\bRISE\b/;
+const LOCAL_ADMIN = /[시군구도]의회|행정사무감사|입주자\s*모집|임대주택.{0,20}모집|모집\s*공고|교육생\s*모집/;
+/** 이름만으로는 정할 수 없는 말: 정당 이름 · RISE(지역혁신 사업 이름이자 국내 ETF 상표). 경제 낱말이 없을 때만 지역 소식으로 봅니다 (#154 Codex 리뷰: "민주당, 추경 예산 확대 추진", "RISE 국고채3년 금리 하락") */
+const LOCAL_HINT = /진보당|정의당|국민의힘|민주당|\bRISE\b/;
 const LOCAL_GOVT_LEAD = /^[가-힣]{1,6}(?:특례)?(?:시|군|구|도)\s*,/;
-const ECON_WORD = /금리|환율|물가|주가|증시|코스피|코스닥|수출|무역|투자|부동산|집값|고용률|실업|경기|성장률|예산|세수/;
+const ECON_WORD = /금리|환율|물가|주가|증시|코스피|코스닥|국고채|국채|채권|ETF|수출|무역|투자|부동산|집값|고용률|실업|경기|성장률|예산|추경|세수|세금|재정/i;
 export function isLocalNotice(title: string): boolean {
-  return LOCAL_ADMIN.test(title) || (LOCAL_GOVT_LEAD.test(title) && !ECON_WORD.test(title));
+  return LOCAL_ADMIN.test(title) || ((LOCAL_HINT.test(title) || LOCAL_GOVT_LEAD.test(title)) && !ECON_WORD.test(title));
 }
 /** 리포트 본문(최종 출력)이 ids 중 하나를 인용하지 않았으면 그 항목을 뺀 장부. 검증은 이미 전체 장부로 끝났습니다 */
 export function withoutUncited<E extends { id: string }>(evidence: E[], ids: Set<string>, output: unknown): E[] {
