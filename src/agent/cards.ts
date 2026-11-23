@@ -28,7 +28,9 @@ function indicatorOf(ref: string | null | undefined, evidence: readonly Evidence
   if (!e || e.lineage) return null;
   const v = e.values;
   const name = v.indicator ?? v.pair ?? v.index ?? v.name;
-  return typeof name === "string" ? `${e.tool}:${name}${typeof v.country === "string" ? `:${v.country}` : ""}` : null;
+  // 한 지표 안의 갈래(물가 품목군의 category · code, 나라)도 이름에 넣습니다. 교통과 음식 및 숙박이 같은 값이어도 다른 카드입니다 (#157 Codex 리뷰)
+  const part = [v.country, v.category, v.code].filter((x) => typeof x === "string" || typeof x === "number").join(":");
+  return typeof name === "string" ? `${e.tool}:${name}${part ? `:${part}` : ""}` : null;
 }
 
 /**

@@ -46,6 +46,10 @@ describe("같은 값의 숫자 카드 정리 (11/21)", () => {
     expect(mergeSameCards(output([card("한국 기준금리", "3%", "30일 0%p", "E1"), card("한국 기준금리 1년 변화", "3%", "1년 +0.50%p", "E4")])).numbers).toHaveLength(2);
     // 값이 다르면(1년 변화 +0.50%p 를 값으로 쓴 카드) 둘 다 둔다
     expect(mergeSameCards(output([card("한국은행 기준금리", "3%", "30일 0%p", "E1"), card("한국은행 기준금리 1년 변화", "+0.50%p", "1년", "E4")]), evidence).numbers).toHaveLength(2);
+    // 물가 품목군은 같은 지표 이름이라도 품목군이 다르면 다른 카드 (#157 Codex 리뷰)
+    const category = (id: string, name: string, code: string): Evidence => ({ id, tool: "get_macro_indicators", label: "품목군", values: { indicator: "cpi_categories", category: name, code, contributionPp: 0.2 }, source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2026-11-18" } });
+    const cats = [category("E3-2", "교통", "7"), category("E3-3", "음식 및 숙박", "11")];
+    expect(mergeSameCards(output([card("교통 기여도", "0.2%p", "", "E3-2"), card("음식 및 숙박 기여도", "0.2%p", "", "E3-3")]), cats).numbers).toHaveLength(2);
     // 이름이 같으면 3.00% 와 3% 도 같은 값
     expect(mergeSameCards(output([card("한국은행 기준금리", "3.00%", "30일 0%p", "E9"), card("한국은행 기준금리", "3%", "1년 +0.50%p", "E8")])).numbers.map((n) => n.ref)).toEqual(["E8"]);
   });
