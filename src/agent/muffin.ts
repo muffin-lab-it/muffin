@@ -26,6 +26,7 @@ import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialInde
 import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, macroNewsNote } from "./news-topics";
+import { deepNote, deepRefs, ensureDeep, withDeepNumbers } from "./deep";
 import { ensureRateReference, ensureRateYear, rateReferenceNote, rateYearNote, withRateReference, yearRates } from "./rate-trend";
 import { addExampleCalc, exampleNote, withExampleNumbers } from "./example-calc";
 import { ensureMoneyValue, moneyValueNote, moneyValueRows } from "./money-value";
@@ -244,7 +245,9 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 질문에 적힌 가상의 숫자("3%에서 4%로")는 코드가 계산해 계산 항목으로 올립니다 (example-calc.ts)
   const example = addExampleCalc(ctx, question);
   // 나라를 말하지 않은 정책금리 질문이면 미국 정책금리 1년 비교도 참고로 받습니다 (베타 B2, rate-trend.ts). 관계 질문 · 가상의 숫자 질문은 각자 정한 지표만 봅니다
-  const [, rateRef] = await Promise.all([ensureRateYear(ctx, muffinTools, question), relation || example ? Promise.resolve(null) : ensureRateReference(ctx, muffinTools, question)]);
+  const [, rateRef] = await Promise.all([ensureRateYear(ctx, muffinTools, question, depth === "deep"), relation || example ? Promise.resolve(null) : ensureRateReference(ctx, muffinTools, question)]);
+  // Deep Dive 면 질문이 말한 지표(환율 · 지수 · 물가 · 실업률)를 지난 1년으로도 받습니다 (src/agent/deep.ts). 지수 값(30일 공식 종가)을 받은 뒤라 지수 카드 · 차트는 그대로입니다
+  const deep = moneyValue || example ? null : await ensureDeep(ctx, question, depth, muffinTools);
   // 종목을 정하지 않은 ETF 질문("etf 요즘 뭐가 좋아?")이면 자산군별 대표 ETF 의 수익률을 채웁니다 (src/agent/etf-basket.ts)
   const basket = await ensureEtfBasket(ctx, question, muffinTools);
   // 주제 없는 뉴스 질문("오늘 경제 뉴스")이면 경제 흐름 주제어로 찾은 기사를 장부에 보탭니다 (src/agent/news-topics.ts)
@@ -285,6 +288,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     ...(index ? indexRefs(ctx.evidence, index) : []),
     ...yearRates(ctx.evidence).map((e) => e.id),
     ...(rateRef ? [rateRef] : []),
+    ...(deep ? deepRefs(ctx.evidence, deep) : []),
     ...macroNews.map((e) => e.id),
     ...(basket ? basketRows(ctx.evidence).map((r) => r.e.id) : []),
     ...(relation ? relationRefs(ctx.evidence, relation) : []),
@@ -308,7 +312,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
@@ -318,6 +322,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
     if (relation) out = withRelationNumbers(out, ctx.evidence, relation);
     if (rateRef) out = withRateReference(out, ctx.evidence, rateRef);
+    if (deep) out = withDeepNumbers(out, ctx.evidence, deep);
     if (basket) out = withBasketNumbers(out, ctx.evidence);
     if (example) out = withExampleNumbers(out, example);
     if (movement && swing) out = withSwingNumbers(out, movement, movementId);

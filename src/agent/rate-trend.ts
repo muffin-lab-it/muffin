@@ -37,12 +37,15 @@ export function flatPolicyRates(evidence: Evidence[], any = false): string[] {
   return [...new Set(flat)].filter((indicator) => !long.has(indicator));
 }
 
-/** 변화가 0 인 정책금리(추세를 묻는 질문이면 전부)를 365일로 한 번 더 받습니다. 금리 tool 이 없거나 대상이 없으면 부르지 않고, 실패해도 리포트는 이어집니다 (error step 만 남음) */
-export async function ensureRateYear(ctx: ResearchContext, tools: readonly InvokableTool[], question = ""): Promise<string[]> {
+/**
+ * 변화가 0 인 정책금리(추세를 묻는 질문이거나 Deep Dive 면 전부)를 365일로 한 번 더 받습니다. 금리 tool 이 없거나 대상이 없으면 부르지 않고,
+ * 실패해도 리포트는 이어집니다 (error step 만 남음). always: Deep Dive (짧은 기간과 1년 비교를 함께 보여 줌, src/agent/deep.ts)
+ */
+export async function ensureRateYear(ctx: ResearchContext, tools: readonly InvokableTool[], question = "", always = false): Promise<string[]> {
   const rate = tools.find((t) => t.name === areaTools.rate);
   // 금리를 묻는 질문일 때만 합니다. 환율 원인 질문이 보조로 받은 금리까지 1년 비교를 붙이면 질문과 무관한 조회 · 안내가 늘어납니다 (11/21 재실행에서 확인)
   if (!isRateQuestion(question)) return [];
-  const targets = rate ? flatPolicyRates(ctx.evidence, isTrendQuestion(question)) : [];
+  const targets = rate ? flatPolicyRates(ctx.evidence, always || isTrendQuestion(question)) : [];
   if (!rate || targets.length === 0) return [];
   const rc = new RunContext(ctx);
   await Promise.all(targets.map((indicator) => rate.invoke(rc, JSON.stringify({ series: POLICY_SERIES[indicator], days: LONG_DAYS })).catch(() => undefined)));

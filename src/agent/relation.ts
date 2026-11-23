@@ -158,7 +158,19 @@ export function namesCountry(question: string): boolean {
  * 대상: 관계를 묻는 말이 있고, 받을 지표가 둘 이상이거나(금리–코스피), 하나라도 받지 않는 것과 함께 물은 질문(환율–수입물가).
  */
 export function relationPlan(question: string): RelationPlan | null {
-  if (!RELATION.test(question) || OTHER_PERIOD.test(question) || NOT_SERIES.test(question)) return null;
+  if (!RELATION.test(question)) return null;
+  const found = questionNodes(question);
+  if (!found) return null;
+  const { nodes, missing } = found;
+  return nodes.length >= 2 || (nodes.length === 1 && missing.length > 0) ? found : null;
+}
+
+/**
+ * 질문이 말한 지표(최대 4개)와 머핀이 받지 않는 것. 관계를 묻지 않아도 찾습니다 (Deep Dive 의 1년 비교, src/agent/deep.ts).
+ * 기간을 정한 질문("오늘 · 한 달 · 2024년"), 현물 지표로 답할 수 없는 질문(선물 · 가상의 숫자)은 null.
+ */
+export function questionNodes(question: string): RelationPlan | null {
+  if (OTHER_PERIOD.test(question) || NOT_SERIES.test(question)) return null;
   const all = questionCountries(question);
   const fallback = (kinds: Country[] | null): Country[] => kinds ?? (all.length === 1 ? all : ["KR"]);
   const mentions: Mention[] = [];
@@ -225,8 +237,7 @@ export function relationPlan(question: string): RelationPlan | null {
     for (const series of [foreign, "BOK" as const]) if (series && !nodes.some((n) => n.key === `rate:${series}`)) nodes.push(rateNode(series));
     if (!foreign && !missing.includes("유럽 정책금리")) missing.push("유럽 정책금리");
   }
-  const kept = nodes.slice(0, 4);
-  return kept.length >= 2 || (kept.length === 1 && missing.length > 0) ? { nodes: kept, missing: [...new Set(missing)] } : null;
+  return { nodes: nodes.slice(0, 4), missing: [...new Set(missing)] };
 }
 
 // ── 장부에서 1년 비교 항목 찾기 ──────────────────────────────────────────────
@@ -340,6 +351,12 @@ export function relationRefs(evidence: Evidence[], plan: RelationPlan): string[]
 export async function ensureRelation(ctx: ResearchContext, question: string, tools: readonly InvokableTool[], indexTools: { kr: InvokableTool; us: InvokableTool } = { kr: krIndexTool as unknown as InvokableTool, us: usIndexTool as unknown as InvokableTool }): Promise<RelationPlan | null> {
   const plan = relationPlan(question);
   if (!plan) return null;
+  await ensureRows(ctx, plan, tools, indexTools);
+  return plan;
+}
+
+/** 지표마다 1년 비교 자료 중 장부에 없는 것을 받습니다 (관계 질문 · Deep Dive 공용). 실패해도 throw 하지 않습니다 */
+export async function ensureRows(ctx: ResearchContext, plan: RelationPlan, tools: readonly InvokableTool[], indexTools: { kr: InvokableTool; us: InvokableTool } = { kr: krIndexTool as unknown as InvokableTool, us: usIndexTool as unknown as InvokableTool }): Promise<void> {
   const tool = (name: string) => tools.find((t) => t.name === name);
   const rc = new RunContext(ctx);
   const call = (t: InvokableTool | undefined, args: object) => (t ? t.invoke(rc, JSON.stringify(args)).catch(() => undefined) : undefined);
@@ -368,7 +385,6 @@ export async function ensureRelation(ctx: ResearchContext, question: string, too
       }
     }),
   );
-  return plan;
 }
 
 // ── 작성 안내 · 카드 · 한 줄 요약 ─────────────────────────────────────────────
@@ -387,7 +403,7 @@ function fmt(n: RelationNode, v: number): string {
 const flat = (r: RelationRow) => Math.abs(r.change) < 0.005;
 const up = (r: RelationRow) => r.change > 0;
 
-function rowLine(r: RelationRow): string {
+export function rowLine(r: RelationRow): string {
   const { node, from, to } = r;
   const refs = from.ref === to.ref ? `${from.date} ${fmt(node, from.value)} → ${to.date} ${fmt(node, to.value)} (ref ${to.ref})` : `${from.date} ${fmt(node, from.value)} (ref ${from.ref}) → ${to.date} ${fmt(node, to.value)} (ref ${to.ref})`;
   const change = isPrice(node) ? `, 1년 변화 ${signedPct(r.change)}` : node.kind === "cpi" ? "" : `, 1년 ${pp(r.change)}`;
@@ -470,6 +486,20 @@ export function relationNote(evidence: Evidence[], plan: RelationPlan): string {
   }
   lines.push(`두 시점을 비교한 것이라 통계적 상관관계나 인과관계를 뜻하지 않는다는 점은 주의점에 한 번만 쓰고, 요약 · 확인하지 못한 것에서 되풀이하지 않습니다. 숫자 카드는 코드가 넣으므로 이 지표들의 카드는 쓰지 않아도 됩니다.`);
   return lines.join("\n");
+}
+
+const signedPp = (d: number) => `${d > 0 ? "+" : d < 0 ? "-" : ""}${Math.abs(d).toFixed(2)}%p`;
+/**
+ * Deep Dive 의 1년 비교 카드 한 장 (src/agent/deep.ts). 작성의 카드(지금 값 · 짧은 기간 변화)와 겹치지 않게 1년 변화만 씁니다.
+ * 물가 상승률은 1년 전 달의 상승률 카드입니다 (지금 상승률 카드는 작성이 씁니다).
+ */
+export function yearCard(r: RelationRow): WriterOutput["numbers"][number] {
+  const { node, from, to } = r;
+  if (node.kind === "cpi") return { label: `${node.name} (1년 전, ${from.date})`, value: fmt(node, from.value), change: "", asOf: from.date, ref: from.ref };
+  const name = node.kind === "fx" ? node.card : node.kind === "rate" ? node.indicator : node.name;
+  const label = node.kind === "stock" ? `${name} 1년 수익률` : `${name} 1년 변화`;
+  const value = isPrice(node) ? signedPct(r.change) : signedPp(r.change);
+  return { label, value, change: `${from.date} ${fmt(node, from.value)} 대비`, asOf: to.date, ref: to.ref };
 }
 
 function cardsOf(r: RelationRow): WriterOutput["numbers"] {
