@@ -954,3 +954,25 @@ describe("계산 방식 이름 (11/23 운영 검수)", () => {
     expect(text).toContain("평소 움직임과 비교");
   });
 });
+
+describe("리포트 목차 퀵메뉴 (11/23)", () => {
+  it("리포트 한 장 화면에서만 있는 영역으로 목차를 만든다", () => {
+    const report = fixture();
+    const $ = load(renderToStaticMarkup(<ReportView report={report} quickMenu />));
+    const labels = $(".quick-menu-list button").map((_, el) => $(el).text()).get();
+    expect(labels[0]).toBe("요약");
+    expect(labels).toContain("숫자");
+    expect(labels).toContain("출처");
+    expect(labels[labels.length - 1]).toBe("검증");
+    for (const key of ["summary", "numbers", "sources", "verify"]) expect($(`[data-quick='${key}']`)).toHaveLength(1);
+    expect($("nav.quick-menu").attr("aria-label")).toBe("리포트 목차");
+  });
+  it("영향 · 차트가 없으면 목차에서 빠지고, 퀵메뉴를 켜지 않으면 그리지 않는다", () => {
+    const report = fixture();
+    report.impact = []; report.impactTitles = []; report.charts = [];
+    const labels = load(renderToStaticMarkup(<ReportView report={report} quickMenu />))(".quick-menu-list button").map((_, el) => load(el)("*").text()).get();
+    expect(labels.join(" ")).not.toContain("영향");
+    expect(labels.join(" ")).not.toContain("차트");
+    expect(load(renderToStaticMarkup(<ReportView report={report} />))("nav.quick-menu")).toHaveLength(0);
+  });
+});

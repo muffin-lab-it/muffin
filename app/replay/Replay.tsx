@@ -104,7 +104,7 @@ export function Replay({ initialId, initialSpeed }: { initialId?: string; initia
       {error && <div className="error" role="alert">{error}</div>}
       {!result && !error && <Progress question={selected.question} depth={selected.depth} events={events} pending={playing && events.length === 0} />}
       {result && (
-        <ReportView report={result.report} steps={result.steps} area={selected.area} question={selected.question} createdAt={selected.recordedAt} header={<div className="report-head">
+        <ReportView quickMenu report={result.report} steps={result.steps} area={selected.area} question={selected.question} createdAt={selected.recordedAt} header={<div className="report-head">
           <div className="chips">
             {selected.area && <span className="category-chip" data-category={selected.area === "news" ? "뉴스" : areaLabels[selected.area]}>{areaLabels[selected.area]}</span>}
             <span className="depth-chip" data-depth={selected.depth}>{depthLabels[selected.depth]}</span>

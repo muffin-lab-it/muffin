@@ -22,17 +22,18 @@ function subscribe(onChange: () => void) {
  */
 export function ScrollTopButton() {
   const visible = useSyncExternalStore(subscribe, () => showsScrollTop(window.scrollY, window.innerHeight), () => false);
-  const toTop = () => {
+  // 키보드로 누른 경우(event.detail 0)에만 첫 제목에 초점 테두리를 보입니다
+  const toTop = (viaKeyboard: boolean) => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
     // 키보드로 쓰는 사람이 맨 위에서 이어 읽도록 첫 제목에 초점을 옮깁니다
     const target = document.querySelector<HTMLElement>("main h1, main h2") ?? document.querySelector<HTMLElement>("main");
     if (!target) return;
     if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
-    target.focus({ preventScroll: true });
+    target.focus({ preventScroll: true, focusVisible: viaKeyboard } as FocusOptions);
   };
   return (
-    <button type="button" className="scroll-top" data-visible={visible ? "true" : undefined} aria-label="맨 위로 가기" title="맨 위로" onClick={toTop}>
+    <button type="button" className="scroll-top" data-visible={visible ? "true" : undefined} aria-label="맨 위로 가기" title="맨 위로" onClick={(event) => toTop(event.detail === 0)}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
       <span aria-hidden="true">맨 위로</span>
     </button>

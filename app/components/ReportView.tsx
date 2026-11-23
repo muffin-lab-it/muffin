@@ -16,6 +16,7 @@ import styles from "./ReportView.module.css";
 import type { ToolStep } from "@/src/agent/context";
 import type { Area, Evidence, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
+import { ReportQuickMenu, type QuickItem } from "./ReportQuickMenu";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 import { etfBasisNote, formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
@@ -56,6 +57,8 @@ type ReportViewProps = {
   steps?: ToolStep[];
   area?: Area;
   question?: string;
+  /** 리포트 한 장만 보는 화면(리포트 페이지 · 다시 보기)에서 따라다니는 목차를 붙입니다. 깊이별 비교처럼 여러 장이 나란하면 끕니다 */
+  quickMenu?: boolean;
 };
 
 type NumberItem = Report["numbers"][number];
@@ -135,6 +138,7 @@ export function ReportView({
   header,
   actions,
   createdAt,
+  quickMenu = false,
 }: ReportViewProps) {
   // 모델이 쓴 문장 속 "2026-10" · "2026-11-20" 을 "2026년 10월" · "2026년 11월 20일" 로 (11/22 운영). 원본 데이터 표는 그대로
   const report = prettyReport(rawReport);
@@ -167,8 +171,19 @@ export function ReportView({
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
+  // 따라다니는 목차에 넣을 영역: 아래에서 실제로 그리는 영역만 (11/23 사용자 결정: 탭 대신 퀵메뉴)
+  const quickItems: QuickItem[] = [
+    { key: "summary", label: "요약" },
+    ...(report.numbers.length > 0 ? [{ key: "numbers", label: "숫자" }] : newsEntries.length > 0 ? [{ key: "numbers", label: "기사" }] : []),
+    ...(report.why.length > 0 || whyNote ? [{ key: "story", label: "이야기" }] : []),
+    ...(report.impact.length > 0 ? [{ key: "impact", label: "영향" }] : []),
+    ...(report.charts && report.charts.length > 0 ? [{ key: "chart", label: "차트" }] : []),
+    ...(report.evidence.length > 0 || report.sources.length > 0 ? [{ key: "sources", label: "출처" }] : []),
+    { key: "verify", label: "검증" },
+  ];
   return (
     <div className={styles.reportContainer}>
+    {quickMenu && <ReportQuickMenu items={quickItems} />}
     <ReportEvidenceScope>
     <ReportDisplay className={`report ${styles.report}`}>
       <header className="report-brand-header"><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1></div>{actions && <div className="report-actions">{actions}</div>}</header>
@@ -182,7 +197,7 @@ export function ReportView({
       )}
       {!questionText && metaLine}
       {!questionText && questionNotice}
-      <section className={styles.hero}>
+      <section className={styles.hero} data-quick="summary">
         <div className={styles.heroCopy}>
           <h2>갓 구운 한입 요약</h2>
           {headline && <h3 className={styles.headlinePlaceholder}>{headline}</h3>}
@@ -196,7 +211,7 @@ export function ReportView({
       </section>
 
       {report.numbers.length > 0 ? (
-      <section className={styles.metrics}>
+      <section className={styles.metrics} data-quick="numbers">
         <div className="metrics-heading"><h2>오늘의 숫자</h2></div>
         <div className="numbers" data-count={cards.length}>
           {cards.map(card => {
@@ -247,7 +262,7 @@ export function ReportView({
       </section>
       ) : newsEntries.length > 0 ? (
       /* 기사로만 만든 리포트는 숫자 칸 대신 확인한 기사 수를 보여 줍니다 (11/20 QA 12) */
-      <section className={styles.metrics}>
+      <section className={styles.metrics} data-quick="numbers">
         <div className="metrics-heading"><h2>확인한 기사</h2></div>
         <p className="news-count">{newsCountLine(newsEntries)}</p>
         <p className="section-guide">숫자 자료 없이 기사로 만든 리포트예요. 기사 원문은 아래 출처에서 바로 열 수 있어요.</p>
@@ -261,7 +276,7 @@ export function ReportView({
       <div className={styles.columns}>
         <div className={styles.story}>
           {/* 원인을 묻지 않은 질문은 원인이 없어도 빈 칸 안내를 띄우지 않고 칸을 숨깁니다 (11/20 QA) */}
-          {(report.why.length > 0 || whyNote) && <section className={styles.why}>
+          {(report.why.length > 0 || whyNote) && <section className={styles.why} data-quick="story">
             <h2>숫자 너머의 이야기</h2>
             {report.why.length === 0 ? (
               <p className="why-note">{whyNote}</p>
@@ -280,14 +295,14 @@ export function ReportView({
           </section>}
       {headline && <p className={styles.summaryBody}>{report.summary}</p>}
 
-          {report.impact.length > 0 && <section>
+          {report.impact.length > 0 && <section data-quick="impact">
             <h2>내 생활에 미치는 영향</h2>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
             <p className="section-guide">내 소비와 자산에 해당하는 카드에서 어떤 영향을 받을 수 있는지 살펴보세요.</p>
           </section>}
 
           {report.charts && report.charts.length > 0 && (
-            <section>
+            <section data-quick="chart">
               <h2>{report.charts.every(c => c.kind === "bar") ? "숫자 한눈에 비교" : "숫자의 변화 추이"}</h2>
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
