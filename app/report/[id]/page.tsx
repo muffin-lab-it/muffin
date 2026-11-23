@@ -41,7 +41,7 @@ export default function ReportPage() {
     return (
       <>
         <h1>리포트를 찾을 수 없어요</h1>
-        <p className="sub">이 브라우저의 보관함에 없는 리포트입니다. <Link href="/">홈에서 새로 만들기</Link></p>
+        <p className="sub">이 브라우저의 보관함에 없는 리포트예요. <Link href="/">홈에서 새로 만들기</Link></p>
       </>
     );
   }

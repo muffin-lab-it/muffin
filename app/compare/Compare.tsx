@@ -61,7 +61,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
 
   // ?question=… 으로 열면 그 질문의 녹화를 바로 재생
   const wanted = initialQuestion ? groups.find((g) => g.question === initialQuestion.trim()) : undefined;
-  const missing = initialQuestion && !wanted ? `녹화가 없는 질문입니다: ${initialQuestion}` : null;
+  const missing = initialQuestion && !wanted ? `녹화가 없는 질문이에요: ${initialQuestion}` : null;
   useEffect(() => {
     if (!wanted) return;
     const timer = setTimeout(() => playGroup(wanted, initialSpeed || 4), 0);
@@ -76,7 +76,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
         {missing && <div className="error" role="alert">{missing}</div>}
         <h2 className={styles.h2}>녹화에서 보기</h2>
         {groups.length === 0 ? (
-          <p className="muted">같은 질문을 두 깊이 이상 녹화한 것이 없습니다. <code>pnpm replay:record --depth easy</code> 와 <code>--depth deep</code> 으로 녹화하세요.</p>
+          <p className="muted">같은 질문을 두 깊이 이상 녹화한 것이 없어요. <code>pnpm replay:record --depth easy</code> 와 <code>--depth deep</code> 으로 녹화하세요.</p>
         ) : (
           <ul className={styles.list}>
             {groups.map((g) => (
@@ -185,7 +185,7 @@ export function Compare({ initialQuestion, initialSpeed }: { initialQuestion?: s
               ))}
             </tbody>
           </table>
-          <p className="muted">글자 수는 요약 · 원인 · 영향 · 주의점의 합입니다. 응답 시간은 녹화면 그때 걸린 시간, 실시간이면 지금 걸린 시간입니다. 비용은 모델별 토큰에 단가(USD/100만 토큰)를 곱한 추정값이고, 녹화는 11/15 이후 녹화분부터 보입니다.</p>
+          <p className="muted">글자 수는 요약 · 원인 · 영향 · 주의점을 합한 거예요. 응답 시간은 녹화면 그때 걸린 시간, 실시간이면 지금 걸린 시간이에요. 비용은 모델별 토큰에 단가(USD/100만 토큰)를 곱한 추정값이고, 녹화는 11/15 이후 녹화분부터 보여요.</p>
         </section>
       )}
 

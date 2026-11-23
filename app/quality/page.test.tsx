@@ -21,7 +21,7 @@ describe("/quality 페이지 데이터 연결", () => {
   it("예시 데이터(DB 없음)는 운영 실적으로 내보내지 않는다 (Codex 리뷰)", async () => {
     vi.mocked(loadRuns).mockResolvedValue({ source: "sample", reason: "no-db", rows: [run, run] } as never);
     const html = renderToStaticMarkup(await QualityPage());
-    expect(html).toContain("실행 기록을 지금 읽지 못했습니다");
+    expect(html).toContain("실행 기록을 지금 읽지 못했어요");
     expect(html).not.toContain("2건");
   });
 
@@ -38,14 +38,14 @@ describe("/quality 페이지 데이터 연결", () => {
 
   it("7일치가 상한을 넘어 잘렸으면 그렇다고 밝힌다", async () => {
     vi.mocked(loadRuns).mockResolvedValue({ source: "runs", rows: [run], truncated: true } as never);
-    expect(renderToStaticMarkup(await QualityPage())).toContain("최신 기록만 집계했습니다");
+    expect(renderToStaticMarkup(await QualityPage())).toContain("최신 기록만 집계했어요");
   });
 
   it("조회가 실패해도 고정 숫자와 안내는 그린다", async () => {
     vi.mocked(loadRuns).mockRejectedValue(new Error("db down"));
     vi.mocked(loadEvals).mockRejectedValue(new Error("db down"));
     const html = renderToStaticMarkup(await QualityPage());
-    expect(html).toContain("아직 기록이 없습니다");
+    expect(html).toContain("아직 기록이 없어요");
     expect(html).toContain("561.5일 전");
     expect(html).not.toContain("db down");
   });

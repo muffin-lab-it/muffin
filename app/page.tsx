@@ -12,7 +12,7 @@ import type { Area, Depth } from "@/src/agent/schema";
 import { formatWait } from "@/src/lib/age";
 import { Progress } from "./components/Progress";
 import { ReportView } from "./components/ReportView";
-import { buildHomeInput, QUESTION_MAX, questionAllowance, toggleHomeArea } from "./components/home-form";
+import { areaHint, buildHomeInput, QUESTION_MAX, questionAllowance, toggleHomeArea } from "./components/home-form";
 import { createHomeReport, showsHomeProgress } from "./components/home-report";
 
 const areaOptions: { value: Area; label: string }[] = [
@@ -44,6 +44,7 @@ function HomeForm() {
   const suggestedArea = areaOptions.find(item => item.value === params.get("area"))?.value;
   const [selectedAreas, setSelectedAreas] = useState<Area[]>(suggestedArea ? [suggestedArea] : []);
   const [formError, setFormError] = useState<string | null>(null);
+  const [allPicked, setAllPicked] = useState(false);
   const [depth, setDepth] = useState<Depth>("easy");
   const [editedQuestion, setQuestion] = useState<string>();
   const question = editedQuestion ?? params.get("question")?.slice(0, 500) ?? "";
@@ -129,8 +130,11 @@ function HomeForm() {
       <form onSubmit={onSubmit} className={styles.form} aria-busy={busy}>
         <div className={styles.formContent}>
           <label htmlFor="question" className={styles.srOnly}>궁금한 금융 질문</label>
+          <div className={styles.askRow}>
           <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
             <textarea ref={questionField} id="question" required readOnly={busy} maxLength={500} aria-describedby="question-limit" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault(); }} value={question} onChange={(e) => { setQuestion(e.target.value); setFormError(null); if (state.phase === "unsupported" || state.phase === "error") request.edit(); }} placeholder="예: 요즘 환율 왜 올라?" />
+          </div>
+          <button className={`${styles.submit} ${styles.askSubmit}`} data-checking={checking ? "true" : undefined} type="submit" disabled={busy || coolingDown || question.trim().length === 0}>{!checking && <Image src="/icon.svg" width={28} height={28} alt="" />}{checking ? "질문 살펴보는 중…" : coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "Muffin 리포트 굽기"}<span aria-hidden="true">›</span></button>
           </div>
           <small id="question-limit" className={styles.questionLimit}><span>궁금한 금융 이야기를 자유롭게 물어보세요.</span><span className={styles.questionCount} data-over={over > 0 ? "true" : undefined}>{over > 0 ? `${over}자 줄여 주세요 · ` : ""}{question.length} / {allowance}자</span></small>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
@@ -138,16 +142,15 @@ function HomeForm() {
           {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${formatWait(state.retrySeconds)} 후 다시 시도` : "다시 시도"}</button>}</div>}
           <fieldset className={styles.fieldset} disabled={busy} aria-describedby="area-hint"><legend>관심 영역</legend>
             <div className={styles.areas}>
-              <label className={styles.option}><input type="checkbox" name="area" checked={selectedAreas.length === 0} onChange={() => { setSelectedAreas([]); setFormError(null); }} /><span>Auto 머핀 <small className={styles.badge}>추천</small></span></label>
-              {areaOptions.map(o => <label className={styles.option} key={o.value}><input type="checkbox" name="area" value={o.value} checked={selectedAreas.includes(o.value)} onChange={() => { setSelectedAreas(previous => toggleHomeArea(previous, o.value)); setFormError(null); }} /><span>{o.label}</span></label>)}
+              <label className={styles.option}><input type="checkbox" name="area" checked={selectedAreas.length === 0} onChange={() => { setSelectedAreas([]); setAllPicked(false); setFormError(null); }} /><span>Auto 머핀 <small className={styles.badge}>추천</small></span></label>
+              {areaOptions.map(o => <label className={styles.option} key={o.value}><input type="checkbox" name="area" value={o.value} checked={selectedAreas.includes(o.value)} onChange={() => { const next = toggleHomeArea(selectedAreas, o.value); setAllPicked(next.length === 0 && !selectedAreas.includes(o.value)); setSelectedAreas(next); setFormError(null); }} /><span>{o.label}</span></label>)}
             </div>
-            <p id="area-hint" className={styles.hint}>{selectedAreas.length === 0 ? "AI가 질문에 맞는 최적의 주제를 선택해요." : "선택한 관심 영역을 중심으로 리포트를 만들어요."}</p>
+            <p id="area-hint" className={styles.hint} aria-live="polite">{areaHint(selectedAreas, allPicked)}</p>
           </fieldset>
           <fieldset className={styles.fieldset} disabled={busy}><legend className={styles.srOnly}>설명 방식</legend><div className={styles.depths}>
             {depthOptions.map(o => <label className={styles.option} key={o.value}><input type="radio" name="depth" value={o.value} checked={depth === o.value} onChange={() => setDepth(o.value)} /><span><b>{o.label}</b><small>{o.hint}</small><small className={styles.depthTime}>{o.time}</small></span></label>)}
           </div><p className={styles.depthHelp}><Link href="/compare">같은 질문을 깊이별로 비교해 보기 →</Link></p></fieldset>
           {formError && <p className={styles.formError} role="alert">{formError}</p>}
-          <button className={styles.submit} data-checking={checking ? "true" : undefined} type="submit" disabled={busy || coolingDown || question.trim().length === 0}>{!checking && <Image src="/icon.svg" width={28} height={28} alt="" />}{checking ? "질문 살펴보는 중…" : coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "Muffin 리포트 굽기"}<span aria-hidden="true">›</span></button>
           <p className={styles.aiDisclosure}>Muffin은 생성형 AI로 여러 자료를 바탕으로 리포트를 작성해요. 투자 권유가 아닌 참고용 정보이며, 내용에 오류가 있을 수 있어요. 출처와 기준일을 함께 확인해 주세요.</p>
         </div>
       </form>

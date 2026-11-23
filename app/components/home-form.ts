@@ -3,9 +3,23 @@ import type { ReportRequest } from "@/src/lib/api";
 
 const areaNames: Record<Area, string> = { fx: "환율", etf: "ETF", news: "경제뉴스", rate: "금리", macro: "물가" };
 
-/** Empty selection means Auto; removing the last explicit area returns to Auto. */
+const ALL_AREAS = Object.keys(areaNames) as Area[];
+
+/**
+ * Empty selection means Auto; removing the last explicit area returns to Auto.
+ * 다섯 영역을 모두 고르면 Auto 와 같아서 Auto 로 돌립니다 (11/20 외부 1번: "전부 고르면 Auto 와 뭐가 다르지?").
+ */
 export function toggleHomeArea(selected: readonly Area[], area: Area): Area[] {
-  return selected.includes(area) ? selected.filter(value => value !== area) : [...selected, area];
+  const next = selected.includes(area) ? selected.filter(value => value !== area) : [...selected, area];
+  return new Set(next).size >= ALL_AREAS.length ? [] : next;
+}
+
+/** 관심 영역 아래 안내. 고른 수에 따라 무엇이 달라지는지 알려 줍니다 */
+export function areaHint(selected: readonly Area[], allPicked: boolean): string {
+  if (allPicked) return "다섯 영역을 모두 고르면 Auto 머핀과 같아서 Auto 로 바꿨어요. 머핀이 질문을 보고 알맞은 영역을 골라요.";
+  if (selected.length === 0) return "Auto 머핀은 질문을 보고 알맞은 영역의 자료를 골라요.";
+  if (selected.length === 1) return `${areaNames[selected[0]!]} 자료를 중심으로 리포트를 만들어요.`;
+  return `${selected.map(value => areaNames[value]).join(" · ")} 자료를 함께 살펴보고 질문에 맞는 것을 골라 써요.`;
 }
 
 /** Keep the existing single-area API. Multi-area context is explicitly part of the question. */
