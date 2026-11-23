@@ -72,6 +72,11 @@ describe("관계 질문 찾기 (11/23 공통 틀)", () => {
     expect(keys("금리가 3%에서 4%가 되면 대출 이자는 어떻게 돼?")).toBeNull();
     expect(keys("실질금리가 오를 때 채권 듀레이션은 수익률에 어떤 영향을 주나요?")).toBeNull();
     expect(keys("환율이 내 해외주식에 영향 있어?")).toBeNull();
+    // 받지 않는 나라를 한국 자료로 바꾸지 않는다 (#144 Codex 리뷰)
+    expect(keys("독일 물가와 금리 관계")).toBeNull();
+    expect(relationPlan("독일 물가와 한국 금리 관계")).toEqual({ nodes: [expect.objectContaining({ key: "rate:BOK" })], missing: ["독일 물가"] });
+    expect(relationPlan("일본 주가와 금리 관계")).toEqual({ nodes: [expect.objectContaining({ key: "rate:JP" })], missing: ["일본 주가"] });
+    expect(keys("글로벌 금리와 코스피 관계")).toEqual(["stock:코스피"]);
     // 지수 이름의 숫자는 기간이 아니다
     expect(keys("S&P 500 주가와 금리 관계")).toEqual(["stock:S&P 500", "rate:BOK"]);
   });

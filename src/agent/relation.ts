@@ -27,7 +27,8 @@ import type { InvokableTool } from "./supplement";
 type Kind = "fx" | "rate" | "cpi" | "jobs" | "stock";
 type Currency = "USD" | "JPY" | "EUR";
 type RateSeries = "BOK" | "DFF" | "DGS10" | "JP" | "GB" | "CA" | "AU" | "CH" | "CN" | "BR";
-type Country = "KR" | "US" | "JP" | "GB" | "CA" | "AU" | "CH" | "CN" | "BR" | "EU";
+/** KR · US 와 금리 tool 이 받는 나라(BIS), 그리고 받지 않는 나라(DE 등 · WORLD "해외"). 받지 않는 나라를 말하면 한국 자료로 바꾸지 않고 missing 에 둡니다 (#144 Codex 리뷰) */
+type Country = "KR" | "US" | "JP" | "GB" | "CA" | "AU" | "CH" | "CN" | "BR" | "EU" | "DE" | "FR" | "IT" | "ES" | "IN" | "TW" | "VN" | "RU" | "MX" | "SG" | "HK" | "WORLD";
 
 /** 관계 질문이 말한 지표 하나. key 는 같은 지표를 두 번 넣지 않는 데 씁니다 ("rate:BOK") */
 export type RelationNode =
@@ -66,7 +67,10 @@ const macroNode = (kind: "cpi" | "jobs", country: "KR" | "US"): RelationNode => 
 });
 const stockNode = (index: IndexName): RelationNode => ({ kind: "stock", key: `stock:${index}`, name: index, index });
 
-const COUNTRY_NAME: Record<Country, string> = { KR: "한국", US: "미국", JP: "일본", GB: "영국", CA: "캐나다", AU: "호주", CH: "스위스", CN: "중국", BR: "브라질", EU: "유럽" };
+const COUNTRY_NAME: Record<Country, string> = {
+  KR: "한국", US: "미국", JP: "일본", GB: "영국", CA: "캐나다", AU: "호주", CH: "스위스", CN: "중국", BR: "브라질", EU: "유럽",
+  DE: "독일", FR: "프랑스", IT: "이탈리아", ES: "스페인", IN: "인도", TW: "대만", VN: "베트남", RU: "러시아", MX: "멕시코", SG: "싱가포르", HK: "홍콩", WORLD: "해외",
+};
 const COUNTRY_WORDS: [RegExp, Country[]][] = [
   [/한\s*[·-]?\s*미/g, ["KR", "US"]],
   [/한국|국내|우리나라|한은|한국은행/g, ["KR"]],
@@ -79,6 +83,18 @@ const COUNTRY_WORDS: [RegExp, Country[]][] = [
   [/중국/g, ["CN"]],
   [/브라질/g, ["BR"]],
   [/유럽|유로존|\bECB\b/gi, ["EU"]],
+  [/독일/g, ["DE"]],
+  [/프랑스/g, ["FR"]],
+  [/이탈리아/g, ["IT"]],
+  [/스페인/g, ["ES"]],
+  [/인도(?!네시아)/g, ["IN"]],
+  [/대만/g, ["TW"]],
+  [/베트남/g, ["VN"]],
+  [/러시아/g, ["RU"]],
+  [/멕시코/g, ["MX"]],
+  [/싱가포르/g, ["SG"]],
+  [/홍콩/g, ["HK"]],
+  [/해외|글로벌|세계|각국|주요국/g, ["WORLD"]],
 ];
 const POLICY_RATE: Partial<Record<Country, RateSeries>> = { KR: "BOK", US: "DFF", JP: "JP", GB: "GB", CA: "CA", AU: "AU", CH: "CH", CN: "CN", BR: "BR" };
 /** 통화 → 상대국 정책금리. 유로 지역 정책금리는 금리 tool 에 없습니다 */
@@ -178,12 +194,17 @@ export function relationPlan(question: string): RelationPlan | null {
     }
   }
 
-  // 주가지수: 지수 이름이 없으면 "주가 · 증시 · 주식" 을 나라에 따라 코스피 또는 S&P 500 으로
+  // 주가지수: 지수 이름이 없으면 "주가 · 증시 · 주식" 을 한국은 코스피, 미국은 S&P 500 으로. 다른 나라 증시는 코스피로 바꾸지 않고 missing (#144 Codex 리뷰)
   const indexHits = INDEX_WORDS.map(([re, index]) => ({ at: question.search(re), index })).filter((h) => h.at >= 0);
   for (const h of indexHits) add(h.at, stockNode(h.index));
   // "해외 주식" 은 어느 지수인지 정할 수 없어 받지 않습니다
   if (indexHits.length === 0) {
-    for (const m of named(/주가|증시|주식/g)) if (!/(?:해외|외국)\s*$/.test(question.slice(0, m.index))) add(m.index, stockNode(fallback(countryBefore(question, m.index))[0] === "US" ? "S&P 500" : "코스피"));
+    for (const m of named(/주가|증시|주식/g)) {
+      if (/(?:해외|외국)\s*$/.test(question.slice(0, m.index))) continue;
+      const c = fallback(countryBefore(question, m.index))[0]!;
+      if (c === "KR" || c === "US") add(m.index, stockNode(c === "US" ? "S&P 500" : "코스피"));
+      else add(m.index, null, `${COUNTRY_NAME[c]} 주가`);
+    }
   }
 
   for (const [re, label] of UNAVAILABLE) if (re.test(question) && !missing.includes(label)) missing.push(label);
