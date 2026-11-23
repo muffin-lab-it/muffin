@@ -70,6 +70,13 @@ export function ReportSources({ report }: { report: Report }) {
     {groups.length === 0 && <p className="report-muted">연결된 자료가 없어요.</p>}
     {groups.map(group => <div className="source-panel" key={group} data-source-group={group} hidden={active !== group}>
       <div className="source-panel-heading"><h3>{group}</h3></div>
+      {(() => {
+        // 제목만 확인한 기사 안내는 뉴스 묶음 위에 한 번 (11/23 운영 검수: 기사마다 같은 문장이 되풀이됨)
+        const news = shown.filter(entry => evidenceCategory(entry) === group && /news/i.test(entry.tool));
+        const titleOnly = news.filter(entry => entry.values.body === "unavailable" || entry.values.body === "not_requested").length;
+        if (titleOnly === 0) return null;
+        return <p className="report-muted news-title-note">{titleOnly === news.length ? `기사 ${news.length}건 모두` : `기사 ${news.length}건 중 ${titleOnly}건은`} 제목만 확인해 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 검증된 사실과 구분해 주세요.</p>;
+      })()}
       {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {formatDateKo(source.asOf) || "미제공"}</li>)}</ul> : <div className="source-data-grid">
         {shown.filter(entry => evidenceCategory(entry) === group).map(entry => {
           // 같은 장부를 가리키는 숫자가 여럿이면 첫 숫자만 크게, 나머지는 작은 줄로 (11/22 운영 확인: 숫자 넷이 큰 글씨로 세로로 쌓였음)
@@ -78,7 +85,7 @@ export function ReportSources({ report }: { report: Report }) {
           return <div key={entry.id} className="source-data-item">
           {first && <div className="source-number"><span className="source-number-label">{first.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{first.value}</strong>{first.change && <small>{reportChange(first.change, first.changeDetail).text}</small>}</div>}
           {rest.length > 0 && <ul className="source-number-subs">{rest.map((number, index) => <li key={index}><span>{number.label}</span><b>{number.value}</b>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</li>)}</ul>}
-          <EvidenceRecord entry={entry} evidence={report.evidence} usedKeys={keys.get(entry.id) ?? []} displayedValue={first?.value} displayedLabel={first?.label} hideHeading={!!first} />
+          <EvidenceRecord inList entry={entry} evidence={report.evidence} usedKeys={keys.get(entry.id) ?? []} displayedValue={first?.value} displayedLabel={first?.label} hideHeading={!!first} />
         </div>;
         })}
       </div>}

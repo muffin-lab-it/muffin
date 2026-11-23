@@ -871,3 +871,39 @@ describe("11/23 재점검", () => {
     expect($.text()).not.toContain("데이터를 확인하지 못했습니다");
   });
 });
+
+describe("11/23 운영 브라우저 검수", () => {
+  it("계산식의 장부 키를 화면 라벨로 바꾸고, 환산 키도 한글로 보여 준다", () => {
+    const report = fixture();
+    const calc = report.evidence.find(entry => entry.id === "C1")!;
+    calc.note = "E1.change -3.77 × 100 ÷ 100 = -3.77원. 장부 값에 사용자가 말한 금액을 곱한 결과";
+    calc.values = { scaled: -3.77, from: -3.77, amount: 100, unit: "원" };
+    const record = render(report)(`.evidence-record[data-evidence-id='C1']`);
+    expect(record.find(".evidence-formula").text()).toContain("E1 변화량 -3.77 × 100 ÷ 100 = -3.77원");
+    expect(record.text()).not.toContain("E1.change");
+    expect(record.text()).toContain("환산 결과");
+    expect(record.text()).toContain("환산할 금액");
+    expect(record.find(".evidence-note").text()).toBe("장부 값에 사용자가 말한 금액을 곱한 결과");
+  });
+
+  it("출처 이름의 ISO 기간을 리포트 문장처럼 한국어로 보여 준다", () => {
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === "E1")!;
+    fx.source = { ...fx.source, name: "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)" };
+    report.sources = report.sources.map(source => source.url === fx.source.url ? { ...source, name: fx.source.name } : source);
+    const $ = render(report);
+    expect($(".metric-source").first().text()).toBe("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)");
+    expect($.text()).not.toContain("2026-07-27");
+  });
+
+  it("제목만 확인한 기사 안내는 뉴스 묶음 위에 한 번만 나온다", () => {
+    const report = fixture();
+    for (const entry of report.evidence.filter(e => e.id.startsWith("E4-"))) entry.values.body = "not_requested";
+    const $ = render(report);
+    const panel = $("[data-source-group='뉴스']");
+    expect(panel.find(".news-title-note")).toHaveLength(1);
+    expect(panel.find(".news-title-note").text()).toContain("기사 2건 모두 제목만 확인해");
+    expect(panel.text()).not.toContain("제목만 확인한 기사라");
+    expect(panel.text()).not.toContain("본문 미요청");
+  });
+});

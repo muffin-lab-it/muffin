@@ -110,10 +110,10 @@ describe("막대 차트 · 비율 선 차트 (11/23)", () => {
     const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
     expect($(".chart-svg")).toHaveLength(0);
     expect($(".bar-rows li")).toHaveLength(3);
-    expect($(".bar-value").map((_, el) => $(el).text()).get()).toEqual(["−15.06%", "+2.71%", "−21.1%"]);
+    expect($(".bar-value").map((_, el) => $(el).text()).get()).toEqual(["-15.06%", "+2.71%", "-21.10%"]); // 카드와 같은 꼴 (11/23 운영 검수)
     expect($(".bar-fill").eq(1).attr("class")).toContain("tone-up");
     expect($(".bar-fill").eq(0).attr("class")).toContain("tone-down");
-    expect($(".chart-summary").text()).toContain("가장 높은 것은 ACE 국고채10년 (국내 국채) +2.71%, 가장 낮은 것은 KODEX 코스닥150 (국내 코스닥) −21.1%예요.");
+    expect($(".chart-summary").text()).toContain("가장 높은 것은 ACE 국고채10년 (국내 국채) +2.71%, 가장 낮은 것은 KODEX 코스닥150 (국내 코스닥) -21.10%예요.");
     expect($(".chart-summary").text()).toContain("2026년 11월 20일 기준이에요.");
   });
   it("비율(%) 선 차트는 %p 로 변화를 말하고 월별 점은 '2026년 10월'", () => {
@@ -129,5 +129,14 @@ describe("막대 차트 · 비율 선 차트 (11/23)", () => {
     expect(axis[0]).toBe("25.11");
     expect(axis[axis.length - 1]).toBe("26.10");
     expect($(".chart-grid text").first().text()).toMatch(/%$/);
+  });
+});
+
+describe("11/23 운영 검수", () => {
+  it("막대 차트 제목의 ISO 기간을 한국어로 보여 준다", () => {
+    const etf = (label: string, v: number) => ({ label, ref: "E1", points: [{ t: "2026-11-20", v }] });
+    const chart = { kind: "bar" as const, title: "대표 ETF 최근 30일 가격 수익률 (2026-10-21~2026-11-20)", unit: "%", series: [etf("A", 1), etf("B", -2)] };
+    const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
+    expect($("figcaption").text()).toBe("대표 ETF 최근 30일 가격 수익률 (2026년 10월 21일~11월 20일)");
   });
 });

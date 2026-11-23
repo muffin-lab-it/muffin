@@ -97,7 +97,7 @@ function HomeForm() {
     setFormError(null);
     const input = buildHomeInput(question, depth, selectedAreas);
     if (input.question.length > QUESTION_MAX) {
-      setFormError("선택한 관심 영역을 함께 보내려면 질문을 조금 줄여주세요.");
+      setFormError("선택한 관심 영역을 함께 보내려면 질문을 조금 줄여 주세요.");
       questionField.current?.focus();
       return;
     }

@@ -6,6 +6,7 @@
  * 11/21 사용자 요청: 선 위에 마우스를 올리거나 손가락으로 짚으면 가장 가까운 날의 날짜 · 값을 보여 줍니다 (값은 장부 그대로).
  */
 import { useState } from "react";
+import { prettyDates } from "./format";
 import type { Chart, Evidence } from "@/src/agent/schema";
 
 
@@ -63,7 +64,8 @@ const TIP_H = 28;
 const normT = (t: string) => (/^\d{4}-\d{2}$/.test(t) ? `${t}-01` : t);
 /** 값이 비율(%)인 차트: 변화는 %p 차이로 말하고 눈금 · 값에 % 를 붙입니다 */
 export const isRateUnit = (unit: string | undefined) => (unit ?? "").trim() === "%";
-const signed = (v: number, suffix: string) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${suffix}`;
+// 카드 값과 같은 꼴로: 부호는 "-", 소수 둘째 자리까지 ("-21.10%"). 11/23 운영 검수: 카드 "-21.10%" · 막대 "−21.1%" 로 달랐음
+const signed = (v: number, suffix: string) => `${v > 0 ? "+" : v < 0 ? "-" : ""}${Math.abs(v).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
 
 /**
  * 막대 차트 (11/23 백엔드 요청: 대표 ETF 비교 등). 시리즈가 여럿이면 시리즈마다 막대 하나(마지막 점의 값),
@@ -87,7 +89,7 @@ export function BarChart({ chart }: { chart: Chart }) {
   const tone = (v: number) => (v > 0 ? "tone-up" : v < 0 ? "tone-down" : "tone-flat");
   return (
     <figure className="chart chart-bar">
-      <figcaption><b>{chart.title}</b></figcaption>
+      <figcaption><b>{prettyDates(chart.title)}</b></figcaption>
       <ul className="bar-rows">
         {bars.map((b) => {
           const left = b.v >= 0 ? zero : ((b.v - min) / span) * 100;

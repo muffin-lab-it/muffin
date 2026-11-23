@@ -54,14 +54,14 @@ export function EvidenceReference({ evidenceId, evidence, label = "자료 출처
   );
 }
 
-export function EvidenceRecord({ entry, evidence, displayedValue, displayedLabel, hideHeading = false, usedKeys }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean; usedKeys?: string[] }) {
+export function EvidenceRecord({ entry, evidence, displayedValue, displayedLabel, hideHeading = false, usedKeys, inList = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean; usedKeys?: string[]; inList?: boolean }) {
   const id = useEvidenceTarget(entry.id);
   const scope = useEvidenceSelection();
   // 근거 보기로 내려왔을 때만 돌아가기 버튼 (11/21 QA 2 · 외부 F8)
   const arrived = !!scope?.origin && scope.target === entry.id;
   return <div className="evidence-record" data-evidence-id={entry.id} id={id ?? undefined} tabIndex={-1}>
     {arrived && <button type="button" className="evidence-return" onClick={() => scope?.returnToOrigin()}>↩ 읽던 곳으로 돌아가기</button>}
-    <EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} displayedLabel={displayedLabel} hideHeading={hideHeading} usedKeys={usedKeys} />
+    <EvidenceContent entry={entry} evidence={evidence} displayedValue={displayedValue} displayedLabel={displayedLabel} hideHeading={hideHeading} usedKeys={usedKeys}  inList={inList} />
   </div>;
 }
 
@@ -77,7 +77,7 @@ function EvidenceInputLink({ evidenceId, evidence }: { evidenceId: string; evide
 
 // tool 이 돌려준 키 이름을 사람이 읽는 라벨로. 없는 키는 원래 이름 그대로 (dt 의 title 에는 항상 원래 키를 남깁니다)
 const valueLabels: Record<string, string> = {
-  op: "계산 방식", result: "결과", unit: "단위", a: "입력 값 1", b: "입력 값 2",
+  op: "계산 방식", result: "결과", unit: "단위", a: "입력 값 1", b: "입력 값 2", scaled: "환산 결과", amount: "환산할 금액",
   rate: "값", value: "값", pair: "통화", date: "자료 날짜", asOf: "자료 날짜", title: "기사 제목", formula: "계산식",
   comparisonRate: "비교 값", comparisonAsOf: "비교 날짜", change: "변화량", changePct: "변화율 (%)", changePp: "변화 (%p)",
   comparisonDate: "비교 날짜", "comparison.rate": "비교 값", "comparison.asOf": "비교 날짜", changeBp: "변화 (bp)", requestedDays: "요청 기간 (일)", observationCount: "관측 수",
@@ -162,7 +162,7 @@ export function newsDate(value: unknown, now: number | null = null) {
   return { label: shownDate, dateTime: value, relative };
 }
 
-function NewsEvidence({ entry }: { entry: Evidence }) {
+function NewsEvidence({ entry, inList = false }: { entry: Evidence; inList?: boolean }) {
   // 서버와 hydration의 첫 화면은 절대 날짜만 같게 표시하고, 마운트 이후 상대 날짜를 더합니다.
   const now = useSyncExternalStore(subscribeClock, clockNow, serverClock);
   const date = newsDate(entry.values.publishedAt ?? entry.source.asOf, now);
@@ -173,7 +173,8 @@ function NewsEvidence({ entry }: { entry: Evidence }) {
   let relay = false;
   try { relay = new URL(url).hostname === "news.google.com"; } catch { /* SourceLink가 잘못된 URL을 차단합니다. */ }
   const body = entry.values.body;
-  const status = body === "unavailable" ? "제목만 확인" : body === "available" ? "본문 확보" : body === "not_requested" ? "본문 미요청" : "본문 확보 여부 미확인";
+  // 본문을 못 받은 것(unavailable)과 요청하지 않은 것(not_requested)은 읽는 사람에게 같은 뜻이라 둘 다 '제목만 확인' (11/23 운영 검수: '본문 미요청' 이 내부 말로 보임)
+  const status = body === "unavailable" || body === "not_requested" ? "제목만 확인" : body === "available" ? "본문 확보" : "본문 확보 여부 미확인";
   return <>
     <p className="evidence-title">{title}</p>
     <div className="evidence-meta">
@@ -183,7 +184,8 @@ function NewsEvidence({ entry }: { entry: Evidence }) {
       <span>{status}</span>
     </div>
     {/* 기사마다 같은 안내 문단이 반복되던 것을 빼고(11/20 QA 13), 제목만 확인한 기사에만 한 줄 둡니다 */}
-    {(body === "unavailable" || body === "not_requested") && <p className="report-muted">제목만 확인한 기사라 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>}
+    {/* 출처 목록에서는 뉴스 묶음 위에 한 번만 둡니다 (11/23 운영 검수: 기사 11건에 같은 문장이 11번) */}
+    {!inList && (body === "unavailable" || body === "not_requested") && <p className="report-muted">제목만 확인한 기사라 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>}
   </>;
 }
 
@@ -206,10 +208,11 @@ export function primaryKeys(values: Evidence["values"], usedKeys: string[] = [])
 export function formulaOf(entry: Pick<Evidence, "lineage" | "note">): string | null {
   if (!entry.lineage || !entry.note) return null;
   const first = entry.note.split(/\.\s+/)[0]?.trim();
-  return first && first.includes("=") ? first : null;
+  // 식 속 장부 키("E1.change")는 화면 라벨로 ("E1 변화량"). 11/23 운영 검수: "계산식 E1.change -3.77 × 100 ÷ 100" 이 그대로 보임
+  return first && first.includes("=") ? first.replace(/\b([EC]\d+(?:-\d+)?)\.([A-Za-z][\w.]*)/g, (_all, ref: string, key: string) => `${ref} ${keyLabel(key)}`) : null;
 }
 
-function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hideHeading = false, usedKeys = [] }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean; usedKeys?: string[] }) {
+function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hideHeading = false, usedKeys = [], inList = false }: { entry: Evidence; evidence: Evidence[]; displayedValue?: string; displayedLabel?: string; hideHeading?: boolean; usedKeys?: string[]; inList?: boolean }) {
   // A single raw value adds no context when its formatted equivalent is already above.
   // Keep differing values, calculations and multi-field records visible.
   const fields = Object.entries(entry.values);
@@ -220,7 +223,9 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
     && Number.parseFloat(formatted) === fields[0][1];
   const isNews = /news/i.test(entry.tool);
   const formula = formulaOf(entry);
-  const noteRest = formula && entry.note ? entry.note.slice(formula.length).replace(/^\.\s*/, "") : entry.note;
+  // 계산식은 화면 라벨로 바꿔 길이가 달라지므로, 나머지 설명은 note 의 원래 첫 문장 뒤에서 자릅니다
+  const rawFirst = entry.note?.split(/\.\s+/)[0]?.trim() ?? "";
+  const noteRest = formula && entry.note ? entry.note.slice(entry.note.indexOf(rawFirst) + rawFirst.length).replace(/^\.\s*/, "") : entry.note;
   const row = ([key, value]: [string, string | number]) => (
     <div key={key} data-key={key}><dt title={key}>{valueLabels[key] ?? key}</dt><dd>{key === "op" ? operationLabels[String(value)] ?? String(value) : formatEvidenceValue(key, value)}</dd></div>
   );
@@ -229,7 +234,7 @@ function EvidenceContent({ entry, evidence, displayedValue, displayedLabel, hide
   return (
     <div className="evidence-content">
       {!hideHeading && <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span>}
-      {isNews ? <NewsEvidence entry={entry} /> : <>
+      {isNews ? <NewsEvidence entry={entry} inList={inList} /> : <>
       {(!hideHeading || displayedLabel !== entry.label) && <p className="evidence-title">{entry.label.replace(new RegExp(" · " + entry.source.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"), "")}</p>}
       <div className="evidence-meta">
         <span aria-hidden="true">{entry.lineage ? "🧮" : isNews ? "📰" : "📊"}</span>

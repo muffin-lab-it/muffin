@@ -43,6 +43,8 @@ export function prettyReport<R extends {
   caveats: string[]; dataGaps: string[];
   numbers: { label: string; change: string }[];
   verification: { removed: string[] };
+  evidence?: { label: string; source: { name: string } }[];
+  sources?: { name: string }[];
 }>(report: R): R {
   const p = prettyDates;
   return {
@@ -57,6 +59,10 @@ export function prettyReport<R extends {
     dataGaps: report.dataGaps.map(p),
     numbers: report.numbers.map(n => ({ ...n, label: p(n.label), change: p(n.change) })),
     verification: { ...report.verification, removed: report.verification.removed.map(p) },
+    // 출처 이름 · 장부 라벨의 기간도 (11/23 운영 검수: 계산 카드 아래 "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)" 이 휴대폰에서 날짜 중간에 줄바꿈).
+    // 자료 목록(sources)도 같이 바꿔야 출처 묶음이 이름으로 장부와 짝을 맞춥니다
+    ...(report.evidence ? { evidence: report.evidence.map(e => ({ ...e, label: p(e.label), source: { ...e.source, name: p(e.source.name) } })) as R["evidence"] } : {}),
+    ...(report.sources ? { sources: report.sources.map(s => ({ ...s, name: p(s.name) })) as R["sources"] } : {}),
   };
 }
 

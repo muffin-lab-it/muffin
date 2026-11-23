@@ -65,10 +65,12 @@ describe("뉴스 원본 정보 (정적 렌더링)", () => {
     expect(renderEntry(entry).text()).not.toContain("제목만 확인");
   });
 
-  it("본문 미요청은 수집 실패와 구분한다", () => {
+  it("본문을 요청하지 않은 기사도 읽는 사람 말로 '제목만 확인' 으로 보인다 (11/23 운영 검수)", () => {
     const entry = news();
     entry.values.body = "not_requested";
-    expect(renderEntry(entry).text()).toContain("본문 미요청");
+    const text = renderEntry(entry).text();
+    expect(text).toContain("제목만 확인");
+    expect(text).not.toContain("본문 미요청");
   });
 
   it("Google 중계 링크를 원문으로 부르지 않고 pageUrl을 우선한다", () => {
