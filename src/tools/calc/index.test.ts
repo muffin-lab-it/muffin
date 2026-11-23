@@ -288,6 +288,9 @@ describe("scale: 단위당 값을 사용자가 말한 금액으로 환산 (11/19
     expect(r.data.formula).toBe("E4.change -3.2 × 100000 ÷ 100 = -3200원");
     expect(r.lineage).toEqual({ op: "scale", inputs: ["E4"] });
     expect(r.note).toContain("수수료");
+    // 금액이 단위 배수와 같으면(100엔당 값에 100엔) "× 100 ÷ 100" 을 적지 않는다 (11/23 운영)
+    const same = await execute({ ...input, amount: 100, label: "100엔 원화 차이" } as never, ctx);
+    expect(same.data.formula).toBe("E4.change -3.2 = -3.2원");
     await invoke(ctx, input);
     const c1 = ctx.evidence.find((e) => e.id === "C1")!;
     expect(c1.values).toEqual({ scaled: -3200, from: -3.2, amount: 100000, unit: "원" });

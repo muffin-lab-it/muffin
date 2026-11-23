@@ -147,7 +147,8 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     }
     const value = scale(a.value, input.amount, per);
     const unit = "원";
-    const formula = `${input.a.ref}.${input.a.key} ${a.value} × ${input.amount} ÷ ${per} = ${value}${unit}`;
+    // 금액이 단위 배수와 같으면(100엔당 값에 100엔) "× 100 ÷ 100" 이 서로 지워지므로 적지 않습니다 (11/23 운영: "E1.change -3.77 × 100 ÷ 100 = -3.77원")
+    const formula = input.amount === per ? `${input.a.ref}.${input.a.key} ${a.value} = ${value}${unit}` : `${input.a.ref}.${input.a.key} ${a.value} × ${input.amount} ÷ ${per} = ${value}${unit}`;
     return {
       data: { op: input.op, label: input.label, value, unit, a: { ...input.a, value: a.value, unit: ua }, amount: input.amount, per, formula },
       source: { name: input.label, url: "", asOf: a.evidence.source.asOf },
