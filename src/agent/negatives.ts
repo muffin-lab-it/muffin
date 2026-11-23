@@ -93,6 +93,27 @@ export function splitEmyeo(text: string): string {
   });
 }
 
+/** 조회 과정을 말하는 문장: "조회가 실패해 이전 응답을 재사용했으므로 …", "조회 실패로 13시간 전 뉴스 응답을 재사용했어요" */
+const FETCH_TALK = /조회(?:가|는|에)?\s*실패|재사용|이전\s*(?:조회\s*)?응답|저장된\s*응답|전에\s*받은\s*(?:같은\s*조회의\s*)?응답|응답을\s*다시\s*(?:썼|사용)/;
+
+/**
+ * 요약 · 주의점에서 조회 과정(실패 · 저장된 응답을 다시 씀)을 말하는 문장을 뺍니다 (11/23 운영: 뉴스 요약 셋째 문장 "다만 조회가 실패해 이전 응답을 재사용했으므로 …").
+ * 저장된 응답을 썼으면(fallback) "확인하지 못한 것" 에 코드가 한 줄 넣으므로(report.ts fallbackGaps) 작성이 쓴 같은 말은 확인하지 못한 것에서도 뺍니다.
+ * 저장된 응답 없이 조회가 실패한 경우는 그 말이 유일한 안내라 확인하지 못한 것으로 옮깁니다. 요약이 그 문장뿐이면 그대로 둡니다.
+ */
+export function dropFetchTalk(output: WriterOutput, fallback: boolean): WriterOutput {
+  const moved: string[] = [];
+  const sentences = output.summary.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const kept = sentences.filter((s) => !FETCH_TALK.test(s));
+  const summary = kept.length > 0 && kept.length < sentences.length ? kept.join(" ") : output.summary;
+  if (summary !== output.summary) moved.push(...sentences.filter((s) => FETCH_TALK.test(s)));
+  const caveats = output.caveats.filter((c) => !FETCH_TALK.test(c));
+  moved.push(...output.caveats.filter((c) => FETCH_TALK.test(c)));
+  const gaps = fallback ? output.dataGaps.filter((g) => !FETCH_TALK.test(g)) : [...output.dataGaps, ...moved];
+  if (summary === output.summary && caveats.length === output.caveats.length && gaps.length === output.dataGaps.length) return output;
+  return { ...output, summary, caveats, dataGaps: gaps };
+}
+
 /** 원인을 묻지 않은 질문의 요약에서, 원인을 확인하지 못했다는 말뿐인 문장을 뺍니다 */
 export function dropUnaskedCause(summary: string, intent: Intent | undefined, hasWhy = false): string {
   // 원인 질문이라도 원인 칸에 보도 · 데이터 근거를 적었으면, 요약의 "원인은 단정하기 어려워요" 문장은 그 근거를 가립니다 (한계는 주의점에 있음)

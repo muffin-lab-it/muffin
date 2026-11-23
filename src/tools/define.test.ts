@@ -410,7 +410,7 @@ describe("defineTool 폴백 (마지막 성공 응답)", () => {
     expect(text).toContain('"v":1');
     expect(text).toContain("전에 받은 같은 조회의 응답을 다시 썼습니다");
     expect(text).toContain("주말은 직전 영업일 값");
-    expect(ctx.evidence[0]?.note).toContain("전 조회 값");
+    expect(ctx.evidence[0]?.note).toContain("요약 · 주의점에 쓰지 않습니다");
     expect(ctx.sources).toEqual([source]);
     expect(ctx.steps).toMatchObject([{ tool: "flaky_tool", status: "ok", fallbackAgeMs: expect.any(Number) }]);
   });
