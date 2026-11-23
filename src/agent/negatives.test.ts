@@ -81,6 +81,15 @@ describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
     expect(dropLeadingLimit(kept)).toBe(kept);
     const one = { summary: "자료가 없어 확인할 수 없어요.", dataGaps: [] };
     expect(dropLeadingLimit(one)).toBe(one);
+    // 확인된 내용과 한계가 한 문장에 같이 들었으면 앞 구절은 첫 문장으로 남기고 한계 구절만 내린다 (#147 Codex 리뷰)
+    const mixed = dropLeadingLimit({ summary: "뉴스 제목은 연준의 금리 동결을 전하지만 기사 본문은 확인하지 못했어요. 시장 반응은 더 지켜봐야 해요.", dataGaps: [] });
+    expect(mixed.summary).toBe("뉴스 제목은 연준의 금리 동결을 전해요. 시장 반응은 더 지켜봐야 해요.");
+    expect(mixed.dataGaps).toEqual(["기사 본문은 확인하지 못했어요."]);
+    // 어미를 바꿀 수 없거나 다른 이음으로 섞인 문장은 그대로 둔다
+    for (const summary of ["제목은 동결을 전하는 기사가 많은데 본문은 확인하지 못했어요. 시장 반응은 더 지켜봐야 해요.", "연준은 동결을 발표했고 그 이유는 확인되지 않았어요. 시장 반응은 더 지켜봐야 해요."]) {
+      const same = { summary, dataGaps: [] };
+      expect(dropLeadingLimit(same)).toBe(same);
+    }
   });
 
   it("C3: 수집 과정 · 영어 용어를 풀어 쓴다", () => {
@@ -95,6 +104,10 @@ describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
     expect(splitEmyeo("뉴스 기사는 제목만 확인했으며 본문은 확보하지 못했어요.")).toBe("뉴스 기사는 제목만 확인했어요. 본문은 확보하지 못했어요.");
     expect(splitEmyeo("비교 대상은 자산군별로 미리 정한 대표 ETF 목록이며, 과거 수익률이 앞으로의 수익률을 뜻하지는 않아요.")).toBe("비교 대상은 자산군별로 미리 정한 대표 ETF 목록이에요. 과거 수익률이 앞으로의 수익률을 뜻하지는 않아요.");
     for (const t of ["환율이 크게 움직이며 불안이 커졌어요.", "물가가 높게 보이며 부담이 커요.", "금리가 오르며 대출 이자가 늘어요."]) expect(splitEmyeo(t)).toBe(t);
+    // 동사 목록 밖의 동사도 그대로 둔다: 명사로 확실한 끝 글자만 나눈다 (#147 Codex 리뷰)
+    for (const t of ["물가 오름세가 꺾이며 부담이 줄어요.", "환율이 출렁이며 불안이 커졌어요.", "자금이 모이며 거래가 늘었어요.", "투자자가 몰리며 거래가 늘었어요."]) expect(splitEmyeo(t)).toBe(t);
+    expect(splitEmyeo("기준은 2026-11-20이며 발표일이 아니에요.")).toBe("기준은 2026-11-20이에요. 발표일이 아니에요.");
+    expect(splitEmyeo("이 값은 전년 같은 달 대비 상승률이며 전월 대비가 아니에요.")).toBe("이 값은 전년 같은 달 대비 상승률이에요. 전월 대비가 아니에요.");
   });
 
   it("trimNegatives 는 주의점 · 확인하지 못한 것에도 내부 용어 풀기와 문장 나누기를 적용한다", () => {

@@ -33,6 +33,8 @@ export function trimHeadline(headline: string): string {
 /** 요약 첫 문장이 될 수 없는 한계 문장: NEGATIVE 와 "정리할 수 없어요 · 답할 수 없어요" 꼴 */
 const LEAD_LIMIT = new RegExp(`${NEGATIVE.source}|(?:정리|설명|답|말|요약)할\\s*수\\s*(?:는|도)?\\s*없`);
 const HAS_VALUE = /\d[\d,]*(?:\.\d+)?\s*(?:%|원|포인트|bp|건|개)/;
+/** 확인된 내용이 함께 들었을 수 있는 이음 ("…했고 · …이며 · …는데") */
+const MIXED = /지만|으나|[는은인]데|이며|으며|했고|됐고|였고|이고|하고/;
 
 /**
  * 요약의 첫 문장이 한계만 말하면("기사 본문을 확보하지 못해 오늘 환율 관련 뉴스의 내용과 맥락은 정리할 수 없어요", 11/23 운영) 확인하지 못한 것으로 내립니다.
@@ -41,7 +43,16 @@ const HAS_VALUE = /\d[\d,]*(?:\.\d+)?\s*(?:%|원|포인트|bp|건|개)/;
 export function dropLeadingLimit(output: Pick<WriterOutput, "summary" | "dataGaps">): Pick<WriterOutput, "summary" | "dataGaps"> {
   const m = /^([^.!?]*[.!?])\s+(\S[\s\S]*)$/.exec(output.summary.trim());
   if (!m || !LEAD_LIMIT.test(m[1]!) || HAS_VALUE.test(m[1]!)) return output;
-  return { summary: m[2]!, dataGaps: [...output.dataGaps, m[1]!] };
+  const first = m[1]!;
+  // 확인된 내용과 한계가 한 문장에 같이 들었으면("뉴스 제목은 금리 동결을 전하지만 기사 본문은 확인하지 못했어요") 앞 구절을 첫 문장으로 남기고
+  // 한계 구절만 내립니다. 어미를 안전하게 바꿀 수 없거나 다른 꼴로 섞인 문장은 그대로 둡니다 (#147 Codex 리뷰)
+  const split = /^(.+?)(?:지만|으나),?\s+(.+)$/.exec(first);
+  if (split && !LEAD_LIMIT.test(split[1]!) && LEAD_LIMIT.test(split[2]!)) {
+    const head = politeEnd(split[1]!.trim());
+    return head ? { summary: `${head} ${m[2]!}`, dataGaps: [...output.dataGaps, split[2]!] } : output;
+  }
+  if (MIXED.test(first)) return output;
+  return { summary: m[2]!, dataGaps: [...output.dataGaps, first] };
 }
 
 /**
@@ -58,21 +69,26 @@ export function plainWords(text: string): string {
     .trim();
 }
 
-/** "이며" 앞이 동사 줄기인 경우(보이며 · 움직이며)는 문장을 나누지 않습니다 */
-const VERB_STEM = /(?:보|움직|줄|높|늘|쌓|쓰|놓|붙|섞|먹|기울|녹|끓|죽|속|밝히|드러|여)$/;
-/** 받침이 있으면 "이에요", 없으면 "예요" */
+/**
+ * "이며" 앞이 명사로 끝난다고 확실한 경우만 나눕니다: 숫자 · 영문 · 닫는 괄호, 또는 지표 · 자료 이름에 흔한 끝 글자(률 · 값 · 기준 · 표기 · 목록 …).
+ * 꺾이며 · 출렁이며 · 움직이며 같은 동사는 끝 글자가 이 목록에 없어 그대로 둡니다. 모르는 꼴은 바꾸지 않습니다 (#147 Codex 리뷰: 동사 목록 밖이면 명사로 보던 것)
+ */
+const NOUN_END = /(?:[0-9A-Za-z)]|률|율|치|값|준|표|기|간|점|료|리|과|용|위|균|록|수|액|량|폭|세|격|가|일|월|날|금|인|향|황|화|장|업|품|국|행|책|계|산|채|권|차|도|대|분|중|문|별|형|식|선|물)$/;
+/** 받침이 있으면 "이에요", 없으면 "예요". 숫자 · 영문은 읽는 소리로 ("20이에요", "2예요", "CPI예요", "LPR이에요") */
 const copula = (word: string) => {
-  const code = word.charCodeAt(word.length - 1) - 0xac00;
-  return code >= 0 && code <= 11171 && code % 28 !== 0 ? `${word}이에요.` : `${word}예요.`;
+  const last = word.replace(/\)+$/, "").at(-1) ?? "";
+  const code = last.charCodeAt(0) - 0xac00;
+  const batchim = code >= 0 && code <= 11171 ? code % 28 !== 0 : /[0136789LMNR]/i.test(last);
+  return batchim ? `${word}이에요.` : `${word}예요.`;
 };
 /**
  * "A이며 B예요" · "A했으며 B예요" 를 두 문장으로 나눕니다 (베타 D2: "~이며 ~해요 이런 말투 다 티 나요", 11/23 운영 주의점 12개 중 6개).
- * 명사 + 이며 → "명사이에요/예요.", 과거형 + 으며 → "했어요." 만 바꾸고 나머지는 그대로 둡니다.
+ * 명사 + 이며 → "명사이에요/예요.", 과거형 + 으며 → "했어요." 만 바꾸고 나머지(동사 + 이며, 모르는 꼴)는 그대로 둡니다.
  */
 export function splitEmyeo(text: string): string {
   return text.replace(/([가-힣A-Za-z0-9)]+)(이며|으며),?\s+/g, (all, word: string, suffix: string) => {
     if (suffix === "으며") return endsPast(word) ? `${word}어요. ` : all;
-    if (!/[가-힣A-Za-z0-9)]$/.test(word) || VERB_STEM.test(word)) return all;
+    if (!NOUN_END.test(word)) return all;
     return `${copula(word)} `;
   });
 }
