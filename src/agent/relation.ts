@@ -574,8 +574,22 @@ export function trimRelationRepeats(output: WriterOutput, plan: RelationPlan): W
     }
     return kept.join(" ");
   });
+  // 생활 영향에도 같은 한계 문장이 한 줄씩 들어갑니다 (11/23 운영: 관계 질문 18건 중 2건 "그 움직임만으로 원인을 설명할 수는 없어요", 베타 A7).
+  // 문장 단위로 빼고, 한 칸이 통째로 한계뿐이면 그 칸과 같은 자리의 제목을 함께 뺍니다 (impactTitles 는 impact 와 개수가 같아야 함)
+  const impactCuts = output.impact.map((item) => {
+    const kept = item.split(/(?<=[.!?])\s+/).filter(Boolean).map((s) => cutLimit(s, causal)).filter((t): t is string => Boolean(t));
+    return kept.join(" ");
+  });
+  const impactChanged = impactCuts.some((t, i) => t !== output.impact[i]);
+  if (impactChanged && !caveats.some(causal)) caveats = [...caveats, CAUSAL_CAVEAT];
+  const keepIdx = impactCuts.map((t, i) => (t.trim() ? i : -1)).filter((i) => i >= 0);
+  const impact = impactChanged ? keepIdx.map((i) => impactCuts[i]!) : output.impact;
+  const titles = output.impactTitles;
+  const impactTitles = impactChanged && titles && titles.length === output.impact.length ? keepIdx.map((i) => titles[i]!) : titles;
   // 날짜 뒤에 붙은 "년" 을 뗍니다 ("2025-11-17년 0.50%", 11/23 점검 8번)
   const summary = paragraphs.filter(Boolean).join("\n\n").replace(/(\d{4}-\d{2}-\d{2})년/g, "$1");
   if (!summary.trim()) return output;
-  return summary === output.summary && caveats === output.caveats && dataGaps === output.dataGaps ? output : { ...output, summary, caveats, dataGaps };
+  return summary === output.summary && caveats === output.caveats && dataGaps === output.dataGaps && !impactChanged
+    ? output
+    : { ...output, summary, caveats, dataGaps, impact, ...(impactTitles !== undefined ? { impactTitles } : {}) };
 }
