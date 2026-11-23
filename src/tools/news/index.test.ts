@@ -399,6 +399,22 @@ describe("News Tool", () => {
     expect(result.note).toContain("뉴스 검색 결과를 대신 받았어요");
   });
 
+  it("tool 제한 시간이 1초도 안 남았으면 대신 검색을 부르지 않는다 (#157 Codex 리뷰)", async () => {
+    const searched: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (req: string | URL) => {
+      const url = new URL(String(req));
+      if (url.pathname === "/feed/economy") return new Response(syntheticFeed(2, "hankyung"));
+      if (url.hostname === "news.google.com") { searched.push("google"); return new Response(syntheticFeed(2, "google")); }
+      return new Response("hk_premium_only: 'y'");
+    }));
+    const start = Date.now();
+    let calls = 0;
+    const now = vi.spyOn(Date, "now").mockImplementation(() => (calls++ === 0 ? start : start + 9_500));
+    await expect(execute({ ...input, sources: ["hankyung"], query: "합성 경제", content: "body", limit: 3 })).rejects.toThrow("기사 본문을 확보하지 못했습니다");
+    expect(searched).toEqual([]);
+    now.mockRestore();
+  });
+
   it("검색어의 낱말이 모두 든 제목을 찾는다 (순서 · 띄어쓰기 달라도)", async () => {
     const { titleMatches } = await import("./index");
     expect(titleMatches("소비자물가 2.8% 상승…석유류 올라", "소비자물가 상승")).toBe(true);

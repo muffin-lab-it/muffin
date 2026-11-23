@@ -34,6 +34,10 @@ export type NewsData = {
 const RSS_TIMEOUT_MS = 3_000;
 const BODY_TIMEOUT_MS = 2_500;
 const TOTAL_BUDGET_MS = 8_500;
+/** tool 전체 제한 (defineTool timeoutMs). 대신 부르는 뉴스 검색은 이 안에서 끝나야 결과가 버려지지 않습니다 */
+const TOOL_TIMEOUT_MS = 10_000;
+/** 대신 검색을 시작하려면 남아 있어야 하는 시간. 이보다 적으면 부르지 않고 지금처럼 실패합니다 (#157 Codex 리뷰) */
+const SEARCH_MIN_MS = 1_000;
 const MAX_CONCURRENT_BODIES = 4;
 const MAX_CANDIDATES = 60;
 const MAX_FAILED_SAMPLES = 10;
@@ -56,17 +60,20 @@ const EMPTY_FEED = /RSS 기사 항목이 없습니다|유효한 RSS 기사 항�
  * 직접 피드를 대신할 같은 검색어의 뉴스 검색. 검색 결과가 비었으면 빈 목록, 검색 서비스가 실패하면(시간 초과 · 503 등) 그 오류를 그대로 던집니다.
  * 장애를 0건으로 바꾸면 defineTool 의 재시도가 돌지 않고, 조사 단계가 그 검색어를 결과 없음으로 기억해 다시 찾지 않습니다 (#157 Codex 리뷰)
  */
-async function searchInstead(query: string): Promise<Article[]> {
+async function searchInstead(query: string, startedAt: number): Promise<Article[]> {
+  // tool 전체 제한 안에서 끝나도록 남은 시간(여유 0.3초)만 씁니다. 모자라면 부르지 않습니다
+  const remaining = startedAt + TOOL_TIMEOUT_MS - 300 - Date.now();
+  if (remaining < SEARCH_MIN_MS) return [];
   try {
-    return await fetchSource("google", query);
+    return await fetchSource("google", query, Math.min(RSS_TIMEOUT_MS, remaining));
   } catch (err) {
     if (err instanceof Error && EMPTY_FEED.test(err.message)) return [];
     throw err;
   }
 }
 
-async function fetchSource(id: NewsSourceId, query: string | null): Promise<Article[]> {
-  const xml = await fetchText(newsSources[id].url(query), { timeoutMs: RSS_TIMEOUT_MS });
+async function fetchSource(id: NewsSourceId, query: string | null, timeoutMs = RSS_TIMEOUT_MS): Promise<Article[]> {
+  const xml = await fetchText(newsSources[id].url(query), { timeoutMs });
   const feed = parseRss(xml);
   if (feed.items.length === 0) throw new Error("RSS 기사 항목이 없습니다.");
   const articles = normalizeArticles(feed, id);
@@ -120,7 +127,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
   // (11/23 녹화: 물가 원인 질문의 뉴스 호출이 0.5초 만에 "조건에 맞는 뉴스 기사가 없습니다" 로 실패, 3번 중 2번 · 운영 기록의 뉴스 실패 대부분이 이 경우)
   let searchFallback = false;
   if (query && !selected.includes("google") && deduplicate(articles).length === 0) {
-    const searched = await searchInstead(query);
+    const searched = await searchInstead(query, startedAt);
     if (searched.length > 0) {
       articles.push(...searched);
       searchFallback = true;
@@ -171,7 +178,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
     // 검색어가 있는데 본문을 하나도 못 받았고 뉴스 검색 결과도 없으면, 같은 검색어로 뉴스 검색 제목을 받아 제목 근거로 씁니다
     // (11/23 로컬: 물가 원인 질문에서 검색어에 맞는 기사 2건이 모두 한국경제 유료 기사라 실패하고 5시간 전 저장 응답을 씀)
     if (detailed.length === 0 && query && !selected.includes("google") && !articles.some((article) => article.source === "google")) {
-      const searched = await searchInstead(query);
+      const searched = await searchInstead(query, startedAt);
       if (searched.length > 0) {
         articles.push(...searched);
         searchFallback = true;
@@ -250,5 +257,5 @@ export const newsTool = defineTool({
     publishedAt: article.publishedAt,
     body: article.body.status,
   })),
-  timeoutMs: 10_000,
+  timeoutMs: TOOL_TIMEOUT_MS,
 });
