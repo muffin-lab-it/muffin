@@ -907,3 +907,24 @@ describe("11/23 운영 브라우저 검수", () => {
     expect(panel.text()).not.toContain("본문 미요청");
   });
 });
+
+describe("월 단위 지표의 기준일 (11/23 운영 검수)", () => {
+  it("물가 · 고용 지표 카드의 '매달 1일' 기준일은 달로 보여 준다", () => {
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === "E1")!;
+    fx.tool = "get_macro_indicators";
+    fx.source = { ...fx.source, asOf: "2026-10-01" };
+    const card = report.numbers.find(n => n.ref === "E1")!;
+    card.asOf = "2026-10-01";
+    const $ = render(report);
+    const text = $(".numbers").text();
+    expect(text).toContain("기준일 2026. 10.");
+    expect(text).not.toContain("2026. 10. 1.");
+  });
+  it("일별 자료의 1일은 그대로 날짜로 보여 준다", () => {
+    const report = fixture();
+    const card = report.numbers.find(n => n.ref === "E1")!;
+    card.asOf = "2026-10-01";
+    expect(render(report)(".numbers").text()).toContain("기준일 2026. 10. 1.");
+  });
+});
