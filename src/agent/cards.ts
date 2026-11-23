@@ -35,24 +35,26 @@ function indicatorOf(ref: string | null | undefined, evidence: readonly Evidence
 
 /**
  * 이름과 값이 같은 카드를 하나로. 바뀐 것이 없으면 받은 그대로 돌려줍니다.
- * evidence 를 주면 같은 장부 지표 · 같은 값 · 같은 기준일인 카드도 이름이 달라도 하나로 봅니다
+ * evidence 를 주면 같은 장부 지표 · 같은 값 · 같은 기준일인 카드도 이름이 달라도 한 무리로 봅니다
  * (11/23 녹화 · 로컬 4번 중 2번: "한국 기준금리 3% · 30일 변동 없음" 과 "한국 기준금리 1년 변화 3% · 1년 +0.50%p" 가 함께 나옴). 값은 "3.00%" 와 "3%" 를 같게 봅니다.
+ * 한 무리에서 변화가 있는 카드는 남기고 변화 없는 중복만 뺍니다. 변화가 있는 카드가 둘 이상이면(전월 대비 · 전년 동월 대비처럼 비교 기준이 다름) 모두 남깁니다 (#157 Codex 리뷰).
+ * 남는 카드는 그 무리가 처음 나온 자리에 둡니다 (1년 카드가 뒤에 있어도 한국 금리 카드가 맨 끝으로 가지 않게).
  */
 export function mergeSameCards(output: WriterOutput, evidence: readonly Evidence[] = []): WriterOutput {
-  const best = new Map<string, number>();
-  output.numbers.forEach((n, i) => {
-    const indicator = indicatorOf(n.ref, evidence);
-    const k = indicator ? `${indicator}|${sameValue(n.value)}|${n.asOf}` : key(n);
-    const at = best.get(k);
-    if (at === undefined || (isFlat(output.numbers[at]!.change) && !isFlat(n.change))) best.set(k, i);
-  });
-  if (best.size === output.numbers.length) return output;
-  // 남길 카드는 같은 무리에서 처음 나온 자리에 둡니다 (1년 카드가 뒤에 있어도 한국 금리 카드가 맨 끝으로 가지 않게)
-  const first = new Map<string, number>();
-  const keyAt = output.numbers.map((n) => {
+  const keyOf = (n: WriterOutput["numbers"][number]) => {
     const indicator = indicatorOf(n.ref, evidence);
     return indicator ? `${indicator}|${sameValue(n.value)}|${n.asOf}` : key(n);
-  });
-  keyAt.forEach((k, i) => { if (!first.has(k)) first.set(k, i); });
-  return { ...output, numbers: [...best].sort((a, b) => first.get(a[0])! - first.get(b[0])!).map(([, i]) => output.numbers[i]!) };
+  };
+  const groups = new Map<string, number[]>();
+  output.numbers.forEach((n, i) => groups.set(keyOf(n), [...(groups.get(keyOf(n)) ?? []), i]));
+  if (groups.size === output.numbers.length) return output;
+  const kept: number[] = [];
+  for (const members of groups.values()) {
+    const changed = members.filter((i) => !isFlat(output.numbers[i]!.change));
+    // 변화 칸까지 같은 카드는 하나만
+    const distinct = changed.filter((i, k) => changed.findIndex((j) => output.numbers[j]!.change.replace(/\s/g, "") === output.numbers[i]!.change.replace(/\s/g, "")) === k);
+    kept.push(...(distinct.length > 0 ? distinct : [members[0]!]));
+  }
+  if (kept.length === output.numbers.length) return output;
+  return { ...output, numbers: kept.map((i) => output.numbers[i]!) };
 }

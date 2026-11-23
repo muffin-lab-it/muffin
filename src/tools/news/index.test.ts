@@ -361,6 +361,13 @@ describe("News Tool", () => {
     await expect(execute({ ...input, sources: ["yonhap"], query: "없는 검색어" })).rejects.toThrow("조건에 맞는 뉴스 기사");
   });
 
+  it("대신 부른 뉴스 검색이 장애로 실패하면 0건으로 바꾸지 않고 그 오류를 던진다 (#157 Codex 리뷰)", async () => {
+    mockFeeds({ google: new Response("Unavailable", { status: 503 }) });
+    const err = await execute({ ...input, sources: ["yonhap"], query: "없는 검색어" }).catch((e: Error) => e);
+    expect(String(err)).toContain("503");
+    expect(String(err)).not.toContain("조건에 맞는 뉴스 기사");
+  });
+
   it("직접 피드에 검색어와 맞는 기사가 없으면 같은 검색어로 뉴스 검색 결과를 받고 메모에 적는다 (11/23 녹화: 물가 원인 뉴스 0.5초 실패)", async () => {
     const calls = mockFeeds();
     const result = await execute({ ...input, sources: ["yonhap", "hankyung"], query: "없는 검색어" });

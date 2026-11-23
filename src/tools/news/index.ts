@@ -49,6 +49,22 @@ export function titleMatches(title: string, query: string): boolean {
   return query.toLocaleLowerCase("ko-KR").split(/\s+/).filter(Boolean).every((w) => t.includes(w));
 }
 
+/** 뉴스 검색 결과가 정말 비었다는 오류 (검색 서비스 장애와 구분) */
+const EMPTY_FEED = /RSS 기사 항목이 없습니다|유효한 RSS 기사 항목이 없습니다/;
+
+/**
+ * 직접 피드를 대신할 같은 검색어의 뉴스 검색. 검색 결과가 비었으면 빈 목록, 검색 서비스가 실패하면(시간 초과 · 503 등) 그 오류를 그대로 던집니다.
+ * 장애를 0건으로 바꾸면 defineTool 의 재시도가 돌지 않고, 조사 단계가 그 검색어를 결과 없음으로 기억해 다시 찾지 않습니다 (#157 Codex 리뷰)
+ */
+async function searchInstead(query: string): Promise<Article[]> {
+  try {
+    return await fetchSource("google", query);
+  } catch (err) {
+    if (err instanceof Error && EMPTY_FEED.test(err.message)) return [];
+    throw err;
+  }
+}
+
 async function fetchSource(id: NewsSourceId, query: string | null): Promise<Article[]> {
   const xml = await fetchText(newsSources[id].url(query), { timeoutMs: RSS_TIMEOUT_MS });
   const feed = parseRss(xml);
@@ -104,7 +120,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
   // (11/23 녹화: 물가 원인 질문의 뉴스 호출이 0.5초 만에 "조건에 맞는 뉴스 기사가 없습니다" 로 실패, 3번 중 2번 · 운영 기록의 뉴스 실패 대부분이 이 경우)
   let searchFallback = false;
   if (query && !selected.includes("google") && deduplicate(articles).length === 0) {
-    const searched = await fetchSource("google", query).catch(() => [] as Article[]);
+    const searched = await searchInstead(query);
     if (searched.length > 0) {
       articles.push(...searched);
       searchFallback = true;
@@ -155,7 +171,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
     // 검색어가 있는데 본문을 하나도 못 받았고 뉴스 검색 결과도 없으면, 같은 검색어로 뉴스 검색 제목을 받아 제목 근거로 씁니다
     // (11/23 로컬: 물가 원인 질문에서 검색어에 맞는 기사 2건이 모두 한국경제 유료 기사라 실패하고 5시간 전 저장 응답을 씀)
     if (detailed.length === 0 && query && !selected.includes("google") && !articles.some((article) => article.source === "google")) {
-      const searched = await fetchSource("google", query).catch(() => [] as Article[]);
+      const searched = await searchInstead(query);
       if (searched.length > 0) {
         articles.push(...searched);
         searchFallback = true;
