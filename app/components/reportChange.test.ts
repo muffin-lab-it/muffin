@@ -32,3 +32,11 @@ describe("백엔드가 basis 에 365일을 적어도 1년으로 (11/22)", () => 
     expect(reportChange("366일 +0.5%p").text).toBe("1년 전보다 0.5%p 상승");
   });
 });
+
+describe("기준값을 가리키는 changeDetail (11/23 운영)", () => {
+  it("평소 · 기준 구간 값은 변화로 그리지 않고 모델 문장을 그대로", () => {
+    const detail = { key: "baselineDailyAvgMovePct", value: 0.23, unit: "%", to: "2026-11-06", days: 30, basis: "직전 거래일과 비교" };
+    expect(reportChange("평소(직전 90일 0.23%)의 0.74배", detail)).toEqual({ text: "평소(직전 90일 0.23%)의 0.74배", direction: "flat" });
+    expect(reportChange("30일 +0.87%", { key: "changePct", value: 0.87, unit: "%", basis: "30일 전과 비교", days: 30 }).text).toBe("30일 전과 비교해 0.87% 상승");
+  });
+});
