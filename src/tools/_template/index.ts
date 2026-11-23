@@ -48,7 +48,7 @@ export async function execute({ base, quote }: Input): Promise<ToolResult<Data>>
       url: "https://frankfurter.dev",
       asOf: json.date,
     },
-    note: "ECB 고시 환율. 주말·공휴일은 직전 영업일 값입니다.",
+    note: "유럽중앙은행이 고시한 환율이에요. 주말 · 공휴일은 직전 영업일 값이에요.",
   };
 }
 

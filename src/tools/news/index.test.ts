@@ -104,27 +104,20 @@ describe("News Tool", () => {
       failureCounts: source === "google" ? { original_url_unresolved: 2 } : {},
     });
     if (content === "list") {
-      expect(note).toMatch(/^기사 본문은 보지 않고 제목·발행일·링크만 확인했습니다\./);
-      expect(note).not.toContain("건의 기사 본문을 확보했습니다");
+      expect(note).toMatch(/^기사 본문은 보지 않고 제목 · 발행일 · 링크만 확인했어요\./);
+      expect(note).not.toContain("본문을 받으려 했고");
+    } else if (collected > 0) {
+      expect(note?.startsWith(`기사 ${data.requestedCount}건의 본문을 받으려 했고 ${data.collectedCount}건을 받았어요.`)).toBe(true);
+      expect(note).not.toMatch(/링크만 확인|제목만|제목 목록만|본문 일부 추출/);
     } else {
-      expect(note).toContain(`본문 목표 충족 상태(bodyStatus): ${data.bodyStatus}.`);
-      expect(note).toContain(`반환 기사 목록 ${data.count}건의 수량 충족 상태(resultStatus): ${data.resultStatus}.`);
-      if (collected > 0) {
-        expect(note?.startsWith(`본문 확보 목표 ${data.requestedCount}건 중 ${data.collectedCount}건의 기사 본문을 확보했습니다.`)).toBe(true);
-        expect(note).toContain(`목표 대비 ${data.missingCount}건 부족합니다.`);
-        expect(note).not.toMatch(/링크만 확인|제목만|제목 목록만|본문 일부 추출/);
-      } else {
-        expect(note).toMatch(/^본문은 확보하지 못했고 기사 제목 목록만 확인했습니다\./);
-        expect(note).toContain(`본문은 0건이라 기사 제목 목록 ${data.count}건만 대신 반환했습니다.`);
-        expect(note).toContain(`본문 확보 목표 ${data.requestedCount}건 대비 ${data.missingCount}건 부족합니다.`);
-        expect(note).toContain("제목에 없는 원인·인과관계를 추정하지 마세요");
-        expect(data.articles.every((article) => !("text" in article.body))).toBe(true);
-      }
+      expect(note).toMatch(new RegExp(`^본문은 받지 못해 기사 제목 ${data.count}건만 확인했어요\\.`));
+      expect(data.articles.every((article) => !("text" in article.body))).toBe(true);
     }
-    expect(note).toContain("반환 기사별 body.status를 참조하세요.");
-    expect(note).toContain("기사 속 수치는 별도 검증이 필요합니다.");
-    expect(note).toContain("본문 확보와 원인·인과관계 입증은 별개입니다.");
-    expect(note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있습니다");
+    // note 는 원본 보기에도 보이는 사람 말: 해요체, 키 이름 · 모델용 지시 없이 (11/23)
+    expect(note).not.toMatch(/bodyStatus|resultStatus|body\.status|습니다|마세요/);
+    expect(note).toContain("기사 속 수치는 따로 검증하지 않았어요.");
+    expect(note).toContain("본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요.");
+    expect(note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있어요");
     expect(result.source).toHaveLength(data.count);
     expect(context.evidence).toHaveLength(data.count);
     expect(context.sources).toHaveLength(data.count);
@@ -164,7 +157,7 @@ describe("News Tool", () => {
         publishedAt: article.publishedAt,
         body: content === "list" ? "not_requested" : "available",
       });
-      expect(context.evidence[i].note).toContain("기사 속 수치는 별도 검증이 필요합니다.");
+      expect(context.evidence[i].note).toContain("기사 속 수치는 따로 검증하지 않았어요.");
     });
     if (content === "body" && count < limit) {
       expect(result.data.failureCounts).toEqual({ original_url_unresolved: 1 });
@@ -359,7 +352,7 @@ describe("News Tool", () => {
     const result = await execute(input);
     expect(result.data.failedSources).toEqual([{ source: "yonhap", error: expect.stringContaining("503") }]);
     expect(result.data.articles.every((article) => article.source !== "yonhap")).toBe(true);
-    expect(result.note).toContain("조회 실패 소스: yonhap");
+    expect(result.note).toContain("이번에 기사를 받지 못한 곳: 연합뉴스.");
     expect(result.source).toHaveLength(result.data.count);
   });
 
@@ -479,9 +472,8 @@ describe("News Tool", () => {
     expect(fallback.data.articles.map(({ title, url, publisher, publishedAt }) => ({ title, url, publisher, publishedAt })))
       .toEqual(result.data.articles.map(({ title, url, publisher, publishedAt }) => ({ title, url, publisher, publishedAt })));
     expect(fallback.data.articles.every(({ body }) => body.status === "unavailable" && body.reason === "original_url_unresolved" && !("text" in body))).toBe(true);
-    expect(fallback.note).toContain("본문은 0건");
-    expect(fallback.note).toContain("제목에 없는 원인·인과관계를 추정하지 마세요");
-    expect(fallback.note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있습니다");
+    expect(fallback.note).toContain("본문은 받지 못해 기사 제목");
+    expect(fallback.note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있어요");
   });
 
   it.each([1, 2, 10])("제목 fallback %i건과 본문 0건을 구분하고 Source·Evidence 순서를 유지한다", async (limit) => {
@@ -504,7 +496,7 @@ describe("News Tool", () => {
       expect(context.evidence[i]).toMatchObject({ id, source, values: {
         title: article.title, publisher: article.publisher, publishedAt: article.publishedAt, body: "unavailable",
       } });
-      expect(context.evidence[i].note).toContain("본문은 0건");
+      expect(context.evidence[i].note).toContain("본문은 받지 못해 기사 제목");
     });
     expect(calls).toHaveLength(1);
     expect(calls[0].hostname).toBe("news.google.com");
@@ -615,7 +607,7 @@ describe("News Tool", () => {
     const { data, note } = await execute({ ...input, query: "없는 직접 제목", content: "body", limit: 3 });
     expect(data).toMatchObject({ count: 2, collectedCount: 0, missingCount: 3, failedCount: 2, resultStatus: "partial" });
     expect(data.failedSources).toEqual([{ source: "yonhap", error: expect.stringContaining("503") }]);
-    expect(note).toContain("조회 실패 소스: yonhap");
+    expect(note).toContain("이번에 기사를 받지 못한 곳: 연합뉴스.");
   });
 
   it("모든 RSS가 실패하면 제목 fallback도 만들지 않는다", async () => {

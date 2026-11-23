@@ -90,7 +90,7 @@ describe("get_etf_kr_price", () => {
       url: "https://www.data.go.kr/data/15094806/openapi.do",
       asOf: "2026-10-12",
     });
-    expect(result.note).toContain("T+1");
+    expect(result.note).toContain("직전 영업일 종가예요");
 
     expect(calls).toHaveLength(1);
     expect(calls[0].pathname).toBe("/1160100/GetSecuritiesProductInfoService_V2/getETFPriceInfo_V2");

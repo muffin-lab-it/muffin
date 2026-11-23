@@ -120,7 +120,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
       offset += batch.length;
       results.forEach((result, i) => {
         const body: BodyResult = result.status === "available" && bodyCharacters + result.text.length > MAX_TOTAL_BODY_CHARS
-          ? { status: "unavailable", reason: "output_limit", detail: "한 번의 Tool 응답 본문 크기 제한을 넘습니다." }
+          ? { status: "unavailable", reason: "output_limit", detail: "한 번에 돌려줄 수 있는 본문 크기를 넘어 이 기사는 본문을 싣지 않았어요." }
           : result;
         if (body.status === "available") {
           detailed.push({ ...batch[i], body });
@@ -174,27 +174,29 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
       failedArticles, resultStatus, stopReason, bodyStatus, failedSources,
     },
     source,
+    // note 는 원본 보기에도 보이는 사람 말입니다 (해요체, 키 이름 없이). bodyStatus · resultStatus 확인 같은 모델용 지시는 description 에 있습니다 (11/23)
     note: [
       content === "list"
-        ? "기사 본문은 보지 않고 제목·발행일·링크만 확인했습니다."
+        ? "기사 본문은 보지 않고 제목 · 발행일 · 링크만 확인했어요."
         : titleFallback
-          ? "본문은 확보하지 못했고 기사 제목 목록만 확인했습니다."
-          : `본문 확보 목표 ${limit}건 중 ${collectedCount}건의 기사 본문을 확보했습니다. 목표 대비 ${Math.max(0, limit - collectedCount)}건 부족합니다.`,
-      content === "body" ? `본문 목표 충족 상태(bodyStatus): ${bodyStatus}. 반환 기사 목록 ${detailed.length}건의 수량 충족 상태(resultStatus): ${resultStatus}.` : "",
-      titleFallback ? `본문은 0건이라 기사 제목 목록 ${detailed.length}건만 대신 반환했습니다. 본문 확보 목표 ${limit}건 대비 ${limit}건 부족합니다. 제목에 직접 드러난 사실만 근거로 사용하고, 본문을 읽은 것처럼 설명하거나 제목에 없는 원인·인과관계를 추정하지 마세요. 제목은 독립 검증된 경제 통계나 인과관계가 아닙니다.` : "",
-      "반환 기사별 body.status를 참조하세요. 기사 속 수치는 별도 검증이 필요합니다. 본문 확보와 원인·인과관계 입증은 별개입니다.",
-      "일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있습니다.",
-      failedSources.length ? `조회 실패 소스: ${failedSources.map(({ source }) => source).join(", ")}` : "",
+          ? `본문은 받지 못해 기사 제목 ${detailed.length}건만 확인했어요.`
+          : `기사 ${limit}건의 본문을 받으려 했고 ${collectedCount}건을 받았어요.`,
+      "기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요.",
+      "일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요.",
+      failedSources.length ? `이번에 기사를 받지 못한 곳: ${failedSources.map(({ source }) => SOURCE_LABEL[source]).join(", ")}.` : "",
     ].filter(Boolean).join(" "),
   };
 }
+
+/** 원본 보기에 보이는 출처 이름 */
+const SOURCE_LABEL: Record<NewsSourceId, string> = { yonhap: "연합뉴스", hankyung: "한국경제", google: "뉴스 검색" };
 
 export const newsTool = defineTool({
   name: "get_korean_economic_news",
   description:
     "연합뉴스·한국경제 RSS에서 국내 경제 뉴스 목록을 조회하고 공개 기사 본문 추출을 시도한다. Google News는 목록·검색 결과만 제공하며 검색어가 없으면 '경제'로 검색한다. limit은 최대 10건, 보통 5건을 요청한다. " +
     "content=body면 limit 건의 본문 확보를 목표로 후속 후보를 확인한다. resultStatus, missingCount, failureCounts를 반드시 확인한다. Google News 원문 미확정, 유료 기사, 추출 실패는 본문으로 사용하지 않는다. " +
-    "본문이 0건이고 선택한 Google RSS 목록이 있으면 제목 근거로만 반환한다. collectedCount는 본문 확보 수이며 제목 fallback은 포함하지 않는다. 제목에 없는 원인을 추정하거나 인과관계를 검증했다고 표현하지 않는다. " +
+    "본문이 0건이고 선택한 Google RSS 목록이 있으면 제목 근거로만 반환한다(bodyStatus · resultStatus 로 확인). 그때는 제목에 직접 드러난 사실만 근거로 쓰고, 본문을 읽은 것처럼 설명하지 않는다. collectedCount는 본문 확보 수이며 제목 fallback은 포함하지 않는다. 기사마다 body.status 로 본문 확보 여부를 확인한다. 기사 속 수치는 검증된 통계가 아니다. 제목에 없는 원인을 추정하거나 인과관계를 검증했다고 표현하지 않는다. " +
     "국내 경제 이슈의 최근 보도나 검색어를 찾을 때 사용한다. 사실 검증, 해외 뉴스와 투자 권유는 제공하지 않는다.",
   parameters,
   execute,

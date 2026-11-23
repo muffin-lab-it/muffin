@@ -64,7 +64,7 @@ export function toResult(index: UsIndexName, days: number, rows: ReturnType<type
       series: rows.filter((r) => r.date >= from.date),
     },
     source: { name: SOURCE_NAME, url: `https://fred.stlouisfed.org/series/${SERIES[index]}`, asOf: latest.date },
-    note: "FRED 에 하루 이틀 늦게 올라오는 일별 종가입니다. 장중 · 당일 값은 들어 있지 않습니다. 지수 값의 단위는 포인트이고, 전일 대비는 직전 거래일 종가와 비교해 계산했습니다.",
+    note: "FRED 에 하루 이틀 늦게 올라오는 일별 종가예요. 장중 · 당일 값은 들어 있지 않아요. 지수 값의 단위는 포인트이고, 전일 대비는 직전 거래일 종가와 비교했어요.",
   };
 }
 

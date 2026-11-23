@@ -300,3 +300,10 @@ it.each(["easy", "standard", "deep"] as const)("%s 작성에 비교 입력·답 
   expect(text).toContain("여행 전체 경비의 증감을 단정하지 않습니다");
   expect(text).toContain('label에 "전월 대비" · "전년 동월 대비"');
 });
+
+describe("저장된 응답을 쓴 항목 (11/23 tool 메모 정리)", () => {
+  it("note 의 '응답을 다시 썼어요' 항목은 기준일과 함께 쓰고, 조회 과정은 요약 · 주의점에 쓰지 않게 한다", () => {
+    expect(writingRules).toContain("응답을 다시 썼어요");
+    expect(writingRules).toContain("summary · caveats 에 쓰지 않습니다");
+  });
+});

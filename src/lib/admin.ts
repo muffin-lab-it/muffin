@@ -244,7 +244,7 @@ export function summarizeRuns(rows: RunRow[], now = new Date(), range: RangeKey 
       // 회로가 열려 건너뛴 호출은 외부를 부르지 않았으므로 "마지막 실패" 시각을 옮기지 않습니다 (언제 실제로 실패했는지가 남게)
       if ((step.status === "error" || fallback) && step.breaker !== "open" && (!t.lastFailAt || r.at > t.lastFailAt)) {
         t.lastFailAt = r.at;
-        t.lastFail = step.status === "error" ? (step.error ?? "실패") : `조회 실패 · ${formatAge(step.fallbackAgeMs ?? 0)} 전 저장 응답 사용`;
+        t.lastFail = step.status === "error" ? (step.error ?? "실패") : `조회 실패 · ${formatAge(step.fallbackAgeMs ?? 0)} 전 저장 응답 사용${step.error ? ` (${step.error})` : ""}`;
       }
       toolCalls.set(step.tool, t);
     }

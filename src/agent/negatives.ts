@@ -73,7 +73,7 @@ export function plainWords(text: string): string {
  * "이며" 앞이 명사로 끝난다고 확실한 경우만 나눕니다: 숫자 · 영문 · 닫는 괄호, 또는 지표 · 자료 이름에 흔한 끝 글자(률 · 값 · 기준 · 표기 · 목록 …).
  * 꺾이며 · 출렁이며 · 움직이며 같은 동사는 끝 글자가 이 목록에 없어 그대로 둡니다. 모르는 꼴은 바꾸지 않습니다 (#147 Codex 리뷰: 동사 목록 밖이면 명사로 보던 것)
  */
-const NOUN_END = /(?:[0-9A-Za-z)]|률|율|치|값|준|표|기|간|점|료|리|과|용|위|균|록|수|액|량|폭|세|격|가|일|월|날|금|인|향|황|화|장|업|품|국|행|책|계|산|채|권|차|도|대|분|중|문|별|형|식|선|물|해)$/;
+const NOUN_END = /(?:[0-9A-Za-z)]|률|율|치|값|준|표|기|간|점|료|리|과|용|위|균|록|수|액|량|폭|세|격|가|일|월|날|금|인|향|황|화|장|업|품|국|행|책|계|산|채|권|차|도|대|분|중|문|별|형|식|선|물|해|전)$/;
 /** 받침이 있으면 "이에요", 없으면 "예요". 숫자 · 영문은 읽는 소리로 ("20이에요", "2예요", "CPI예요", "LPR이에요") */
 const copula = (word: string) => {
   const last = word.replace(/\)+$/, "").at(-1) ?? "";
@@ -87,7 +87,11 @@ const copula = (word: string) => {
  */
 export function splitEmyeo(text: string): string {
   return text.replace(/([가-힣A-Za-z0-9)]+)(이며|으며),?\s+/g, (all, word: string, suffix: string) => {
-    if (suffix === "으며") return endsPast(word) ? `${word}어요. ` : all;
+    // 과거형("했으며")과 흔한 끝("않으며 · 없으며 · 있으며 · 같으며 · 많으며")만 해요체로 끝맺습니다 (11/23 운영 "뜻하지 않으며")
+    if (suffix === "으며") {
+      const end = politeEnd(word);
+      return end ? `${end} ` : all;
+    }
     if (!NOUN_END.test(word)) return all;
     return `${copula(word)} `;
   });

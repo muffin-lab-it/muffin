@@ -151,7 +151,7 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     return {
       data: { op: input.op, label: input.label, value, unit, a: { ...input.a, value: a.value, unit: ua }, amount: input.amount, per, formula },
       source: { name: input.label, url: "", asOf: a.evidence.source.asOf },
-      note: `${formula}. 장부 값에 사용자가 말한 금액을 곱한 결과이며 환전 수수료 · 우대율은 포함하지 않습니다`,
+      note: `${formula}. 받은 자료의 값에 질문의 금액을 곱한 결과예요. 환전 수수료 · 우대율은 들어 있지 않아요`,
       lineage: { op: input.op, inputs: [input.a.ref] },
     };
   }
@@ -200,7 +200,7 @@ export async function execute(input: Input, ctx?: ResearchContext): Promise<Tool
     data: { op: input.op, label: input.label, value, unit, a: { ...input.a, value: a.value, unit: ua }, b: { ...input.b, value: b.value, unit: ub }, formula },
     // 출처 이름이 장부 라벨("계산 · 한미 기준금리 차이")이 됩니다. url 이 없어 출처 목록에는 들어가지 않습니다.
     source: { name: input.label, url: "", asOf: laterAsOf(a.evidence, b.evidence) },
-    note: `${formula}. 장부 값으로 계산한 결과이며 출처 링크는 없습니다`,
+    note: `${formula}. 받은 자료의 값으로 계산한 결과예요. 출처 링크는 없어요`,
     lineage: { op: input.op, inputs },
   };
 }

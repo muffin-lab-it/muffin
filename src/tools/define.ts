@@ -161,6 +161,8 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
       const started = Date.now();
       let result: ToolResult<D>;
       let fallbackAgeMs: number | undefined;
+      // 저장된 응답을 썼을 때도 왜 실패했는지 실행 기록(runs)에 남깁니다. 화면 응답에서는 route.ts 가 일반 문구로 바꿉니다 (11/23: 뉴스가 0.3초 만에 실패해 저장된 응답을 쓴 일이 세 번, 원인이 기록에 없었음)
+      let fallbackError: string | undefined;
       // 회로 차단기: 연속 실패한 tool 은 호출을 건너뛰거나(open) 짧게 한 번만 찔러 봅니다(half_open). 계산 tool 은 외부 호출이 없어 해당 없음
       const gate = cacheable ? breakerBefore(spec.name) : { skip: false as const, probe: false };
       const breaker: "open" | "half_open" | undefined = gate.skip ? "open" : gate.probe ? "half_open" : undefined;
@@ -214,11 +216,12 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
         }
         // 마지막 성공 응답으로 폴백. 모델과 장부에 그 사실을 적어 리포트가 "지금 값" 처럼 말하지 않게 합니다.
         fallbackAgeMs = cached.ageMs;
+        fallbackError = message;
         const age = formatAge(cached.ageMs);
         const stale = cached.result as ToolResult<D>;
         result = {
           ...stale,
-          note: `${stale.note ? `${stale.note} ` : ""}이번 조회는 실패해 ${age} 전에 받은 같은 조회의 응답을 다시 썼습니다. 데이터 기준일은 출처의 asOf 그대로입니다. 리포트에서는 값과 기사를 이 기준일 · 발행 시각과 함께 쓰고 "오늘 · 지금 · 최신" 이라고 쓰지 않습니다. 조회 실패 · 응답을 다시 쓴 일은 요약 · 주의점에 쓰지 않습니다 (확인하지 못한 것에 코드가 한 줄 적습니다).`,
+          note: `${stale.note ? `${stale.note} ` : ""}이번 조회는 실패해 ${age} 전에 받은 같은 조회의 응답을 다시 썼어요. 기준일은 출처에 적힌 날 그대로예요.`,
         };
       }
       if (!ctx) return result;
@@ -242,7 +245,7 @@ export function defineTool<P extends z.ZodObject, D = unknown>(
       }));
       ctx.addEvidence(entries);
       for (const e of entries) ctx.raw.set(e.id, got.data);
-      ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started, ...(fallbackAgeMs !== undefined ? { fallbackAgeMs } : {}), ...(breaker ? { breaker } : {}) });
+      ctx.addStep({ tool: spec.name, status: "ok", ms: Date.now() - started, ...(fallbackAgeMs !== undefined ? { fallbackAgeMs, error: fallbackError } : {}), ...(breaker ? { breaker } : {}) });
       // 목록이면 인용할 수 있는 번호 목록(ids: E3-1 …)만 돌려줍니다. 호출 번호(E3)는 장부에 없어서 모델에게 보여 주지 않습니다.
       return listed ? { ids: withIds.map((s) => s.id), ...got, source: withIds } : { id, ...got, source: withIds[0] };
     },
