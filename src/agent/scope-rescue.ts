@@ -63,7 +63,9 @@ const PARTICLE = /(?:으로|에서|하고|이랑|랑|도|를|을|은|는|이|가
  */
 const ANSWER_FORM = /출처|기준일|기준\s*날|날짜|근거|한계|구분|확인(?:이|하기)?\s*어려|확인\s*(?:못|안)|불확실|단위|표로|표\s*형식|짧게|간단히|쉽게|자세히|요약해|정리해|숫자|수치/g;
 /** 답하는 방식 부탁에 함께 쓰이는 말 (이것만 남으면 답하는 방식만 말한 조각) */
-const FORMAT_FILLER = /^(?:부분|내용|결과|답|답변|설명|같이|함께|따로|각각|어려운|확인|확인이|해서|나눠서|나눠|가능하면|가능한|모두|전부|있는|없는|것|거)$/;
+const FORMAT_FILLER = /^(?:부분|내용|결과|답|답변|설명|같이|함께|따로|각각|어려운|확인|확인이|해서|나눠서|나눠|가능하면|가능한|모두|전부|있는|없는|것|거|링크|주소|원문|예시|예를|핵심|요점|위주|중심|한눈에|목록|문장|말로|말투|한국어|그래프|차트|그림|초보자|초보|입문자|일반인|누구나|학생|직장인|사람|이해|이해하기|알기|보기|읽기|[가-힣]+(?:하게|하기|쉽게))$/;
+/** 방식 낱말을 지운 조각의 내용 낱말 */
+const contentKeys = (clause: string) => keysOf(clause.replace(ANSWER_FORM, " ")).filter((w) => !FORMAT_FILLER.test(w));
 
 /** 조각의 내용 낱말 (조사 · 부탁하는 말 · 흔한 말 제외) */
 const keysOf = (text: string) =>
@@ -75,7 +77,7 @@ const keysOf = (text: string) =>
  */
 function answerFormOnly(clause: string): boolean {
   if (!new RegExp(ANSWER_FORM.source).test(clause)) return false;
-  return keysOf(clause.replace(ANSWER_FORM, " ")).every((w) => FORMAT_FILLER.test(w));
+  return contentKeys(clause).length === 0;
 }
 
 export type OffTopic = { parts: string[]; keys: string[] };
@@ -86,7 +88,8 @@ export function offTopicParts(question: string): OffTopic | null {
   const parts = clauses.filter((c) => REQUEST_WORD.test(c) && !FINANCE_WORD.test(c) && !answerFormOnly(c));
   // 금융 조각이 하나도 없으면 질문 전체가 범위 밖이라 분류가 처리합니다
   if (parts.length === 0 || parts.length === clauses.length) return null;
-  const keys = [...new Set(parts.flatMap(keysOf))];
+  // 범위 밖 문장을 지울 때 쓰는 낱말에서 방식 낱말(출처 · 간단히 등)은 뺍니다. 금융 근거의 "출처는 한국은행이에요" 까지 지우지 않게 (#155 Codex 리뷰)
+  const keys = [...new Set(parts.flatMap(contentKeys))];
   return keys.length ? { parts, keys } : null;
 }
 

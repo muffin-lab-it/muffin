@@ -40,8 +40,13 @@ describe("금융 질문에 섞인 범위 밖 부탁 (11/22 QA)", () => {
     expect(offTopicParts("최근 원/달러 환율이 움직인 주요 원인을 설명해줘. 확인이 어려운 부분은 구분해서 알려줘.")).toBeNull();
     expect(offTopicParts("코스피 요즘 어때? 표로 짧게 정리해줘. 그리고 저녁 메뉴도 추천해줘")?.parts).toEqual(["저녁 메뉴도 추천해줘"]);
     // 방식 낱말이 있어도 다른 내용을 부탁한 조각은 범위 밖 (#154 Codex 리뷰)
-    expect(offTopicParts("오늘 환율 알려줘. 그리고 저녁 메뉴도 간단히 추천해줘")).toEqual({ parts: ["저녁 메뉴도 간단히 추천해줘"], keys: ["저녁", "메뉴", "간단히"] });
-    expect(offTopicParts("금리 알려줘. 그리고 영화 출처도 알려줘")?.parts).toEqual(["영화 출처도 알려줘"]);
+    expect(offTopicParts("오늘 환율 알려줘. 그리고 저녁 메뉴도 간단히 추천해줘")).toEqual({ parts: ["저녁 메뉴도 간단히 추천해줘"], keys: ["저녁", "메뉴"] });
+    // 지울 낱말에서 방식 낱말은 뺀다: "출처는 한국은행이에요" 같은 금융 근거를 지우지 않게 (#155 Codex 리뷰)
+    expect(offTopicParts("금리 알려줘. 그리고 영화 출처도 알려줘")).toEqual({ parts: ["영화 출처도 알려줘"], keys: ["영화"] });
+    // 방식을 꾸미는 말(링크 · 초보자 · 이해하기)은 범위 밖 내용이 아니다 (#155 Codex 리뷰)
+    expect(offTopicParts("환율 알려줘. 출처 링크도 알려줘.")).toBeNull();
+    expect(offTopicParts("환율 알려줘. 초보자도 이해하기 쉽게 설명해줘.")).toBeNull();
+    expect(offTopicParts("환율 알려줘. 그리고 부모님 선물 간단히 추천해줘")?.keys).toEqual(["부모님", "선물"]);
     expect(offTopicGap(offTopicParts(q)!)).toBe('질문의 "오늘 저녁 메뉴도 추천해줘" 부분은 머핀이 다루는 금융 정보가 아니라 답하지 않았어요.');
     expect(offTopicParts("환율이 이제 내려갔잖아 그럼 앞으로 etf는 뭘 사면 좋을까??? 난 2030 직장인이야")).toBeNull();
     expect(offTopicParts("오늘 저녁 메뉴 추천해줘")).toBeNull();
