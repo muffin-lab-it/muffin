@@ -866,9 +866,9 @@ describe("#141 뒤 운영 확인 (11/23)", () => {
 
 describe("11/23 재점검", () => {
   it("계산 도구 실패는 자료 확인 메모에 보이지 않는다", () => {
-    const $ = render(fixture(), [{ tool: "calc_metrics", status: "error", ms: 5, error: "데이터를 확인하지 못했습니다." }]);
+    const $ = render(fixture(), [{ tool: "calc_metrics", status: "error", ms: 5, error: "데이터를 확인하지 못했어요." }]);
     expect($(".report-tools")).toHaveLength(0);
-    expect($.text()).not.toContain("데이터를 확인하지 못했습니다");
+    expect($.text()).not.toContain("데이터를 확인하지 못했어요");
   });
 });
 

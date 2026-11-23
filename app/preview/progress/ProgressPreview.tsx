@@ -27,7 +27,7 @@ export function ProgressPreview() {
     return () => clearTimeout(timer);
   }, [remaining]);
   const errors: Partial<Record<Scenario, ProgressError>> = {
-    failure: { message: "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." },
+    failure: { message: "조사 중 오류가 생겼어요. 잠시 후 다시 시도해 주세요." },
     network: { kind: "network", message: "인터넷 연결을 확인한 후 다시 시도해 주세요." },
     empty: { message: "리포트를 끝까지 받지 못했어요. 다시 시도해 주세요." },
     input: { status: 400, message: "질문과 선택한 설정을 확인해 주세요." },
@@ -47,7 +47,7 @@ export function ProgressPreview() {
       if (i === 0 && step > 0) events.push({ type: "plan", mode: "research", intent: "cause", tools: ["get_macro_indicators", "get_korean_economic_news"] });
     }
     if (scenario === "partial") events.push({ type: "step", step: { tool: "get_macro_indicators", status: "error", ms: 1200 } });
-    if (scenario === "timeout") events.push({ type: "error", message: "조사 시간이 초과되었습니다. 질문 범위를 줄여 다시 시도해 주세요.", id: "preview-only" });
+    if (scenario === "timeout") events.push({ type: "error", message: "조사 시간이 초과됐어요. 질문 범위를 줄여 다시 시도해 주세요.", id: "preview-only" });
   }
 
   if (scenario === "save") events.push({ type: "report", report, steps: [], rewrites: 0, id: "preview-saved-report" });
