@@ -35,7 +35,7 @@ import { ensureRelation, relationHeadline, relationHidden, relationNote, relatio
 import { ensureCpiCategories, ensureOtherPairs } from "./supplement";
 import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, fallbackTools, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
-import { isSwingQuestion, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, swingNote, withSwingNumbers, type MovementResult } from "./movement";
+import { dedupeNormalRange, isSwingQuestion, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, swingNote, withSwingNumbers, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Chart, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
 import { dropOffTopic, ensureMentioned, mentionedTools, offTopicGap, offTopicNote, offTopicParts, rescueScope, scopeGap, scopeNote } from "./scope-rescue";
@@ -375,6 +375,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {
     ...trimmed,
+    // 원인 질문의 평소 범위 답이 요약에 "평소 범위 안" 을 두 번 쓰면 뒤의 것을 줄입니다 (movement.ts dedupeNormalRange)
+    ...(movement ? { summary: dedupeNormalRange(trimmed.summary) } : {}),
     // 관계 질문의 한 줄은 꼬리를 떼기 전의 원래 문장으로 판단합니다. 뗀 뒤에는 "금리 차이는 환율에 영향을 줄 수 있어요." 처럼 숫자 없는 일반론만 남아
     // 바꿀 조건에 걸리지 않았습니다 (11/22 운영 14번)
     ...(relation ? { headline: relationHeadline(applied.output.headline, ctx.evidence, relation) } : {}),

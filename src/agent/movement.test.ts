@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { muffinTools } from "../tools";
 import { stdev } from "../tools/calc/metrics";
-import { dailySwing, isSwingQuestion, swingNote, causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, pickTarget, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
+import { dailySwing, dedupeNormalRange, isSwingQuestion, swingNote, causeMap, currencyOf, ECB_90D_URL, isFxQuestion, judge, levelOf, measureMovement, missingPairs, pickTarget, movementEvidence, movementNote, movementNotice, movementSummary, parseEcbDaily, rescuedRefs, seriesUrl, type Movement } from "./movement";
 import type { Evidence, WriterOutput } from "./schema";
 import { verify } from "./verify";
 
@@ -430,3 +430,15 @@ describe("하루 단위 출렁임 (11/23)", () => {
     for (const q of ["환율 왜 올랐어?", "오늘 달러 환율 얼마야?", "최근 한 달 환율 얼마나 변했어?"]) expect(isSwingQuestion(q)).toBe(false);
   });
 });
+
+describe("평소 범위 문장 겹침 줄이기 (11/23 운영 Deep)", () => {
+  it("요약에 '평소 범위 안' 이 두 번이면 뒤의 '평소 범위 안의 움직임이라,' 만 뗀다", () => {
+    expect(dedupeNormalRange("원·달러 환율은 최근 30일 0.92% 올랐지만 평소 범위 안의 움직임이에요. 평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생겨요. 1년 전보다는 9.22% 내렸어요.")).toBe(
+      "원·달러 환율은 최근 30일 0.92% 올랐지만 평소 범위 안의 움직임이에요. 이 정도는 뚜렷한 원인 없이도 생겨요. 1년 전보다는 9.22% 내렸어요.",
+    );
+    const once = "원·달러 환율은 0.92% 올랐어요. 평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생겨요.";
+    expect(dedupeNormalRange(once)).toBe(once);
+    expect(dedupeNormalRange("환율은 0.92% 올랐어요.")).toBe("환율은 0.92% 올랐어요.");
+  });
+});
+

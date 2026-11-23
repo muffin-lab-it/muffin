@@ -87,7 +87,11 @@ const copula = (word: string) => {
  */
 export function splitEmyeo(text: string): string {
   return text.replace(/([가-힣A-Za-z0-9)]+)(이며|으며),?\s+/g, (all, word: string, suffix: string) => {
-    if (suffix === "으며") return endsPast(word) ? `${word}어요. ` : all;
+    // 과거형("했으며")과 흔한 끝("않으며 · 없으며 · 있으며 · 같으며 · 많으며")만 해요체로 끝맺습니다 (11/23 운영 "뜻하지 않으며")
+    if (suffix === "으며") {
+      const end = politeEnd(word);
+      return end ? `${end} ` : all;
+    }
     if (!NOUN_END.test(word)) return all;
     return `${copula(word)} `;
   });

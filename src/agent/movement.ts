@@ -566,6 +566,18 @@ export function rescuedRefs(m: Movement, evidence: Evidence[], dropped: Set<stri
 }
 
 /**
+ * 요약에 "평소 범위 안" 이 두 번 나오면 뒤의 것을 줄입니다 (11/23 운영 Deep: "…평소 범위 안의 움직임이에요. 평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생겨요.").
+ * 지시문이 그 문장을 쓰라고 해서 작성이 앞 문장의 말과 겹치게 씁니다. 뜻은 바꾸지 않고 "이 정도는 …" 만 남깁니다.
+ */
+export function dedupeNormalRange(summary: string): string {
+  const first = summary.indexOf("평소 범위 안");
+  if (first < 0) return summary;
+  const head = summary.slice(0, first + "평소 범위 안".length);
+  const tail = summary.slice(head.length).replace(/평소\s*범위\s*안의\s*움직임이라,?\s*(이\s*정도는)/, "$1");
+  return head + tail;
+}
+
+/**
  * 작성 입력 끝에 붙는 [움직임 크기] (muffin.ts). 실제 방향과 크기를 먼저 알리고, 평소 범위면 원인을 단정하지 않게,
  * 크면 원인 지도의 후보마다 장부 근거를 보게 합니다.
  * shown 은 작성이 [증거 장부] 에서 이미 보는 id 입니다 (null 이면 장부 전체). 게이트의 C 번호 항목과 후보의 근거 중
@@ -587,7 +599,7 @@ export function movementNote(m: Movement, calcId: string, evidence: Evidence[], 
     lines.push(
       "- 이 정도 움직임은 뚜렷한 원인 없이도 생깁니다. why 에는 장부 근거가 있는 요인만 쓰고, 그 요인이 이번 변화를 일으켰다고 단정하지 않습니다. 근거가 없으면 why 를 비웁니다.",
       // 11/21: "평소 범위 안에서 움직였고, 원인은 자료만으로 확인되지 않습니다" 처럼 끝이 실패로 읽히던 것. 원인을 못 찾은 것이 아니라 찾을 만큼의 움직임이 아닌 것입니다
-      "- 원인을 묻는 질문에는 이렇게 답합니다: \"평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생겨요.\" headline 은 방향 · 크기 뒤에 이 뜻으로 끝내고, summary 에도 이 문장을 한 번 씁니다.",
+      "- 원인을 묻는 질문에는 이렇게 답합니다: \"평소 범위 안의 움직임이라, 이 정도는 뚜렷한 원인 없이도 생겨요.\" headline 은 방향 · 크기 뒤에 이 뜻으로 끝내고, summary 에도 이 뜻을 한 번 씁니다. summary 의 앞 문장에 \"평소 범위 안\" 을 이미 썼으면 \"이 정도는 뚜렷한 원인 없이도 생겨요.\" 만 씁니다 (같은 말을 두 번 쓰지 않음).",
       "- headline · summary · dataGaps 에 \"원인은 확인되지 않았다 · 단정하기 어렵다 · 특정하기 어렵다\" 는 문장을 쓰지 않습니다. 원인을 못 찾은 것이 아니라, 원인을 따로 찾을 만큼의 움직임이 아닌 것입니다.",
       "- 본문을 확보한 기사(body 가 available)가 최근 움직임의 배경을 설명하면, why 에 basis \"news\" 로 \"○○ 보도에 따르면\" 이라고 밝혀 씁니다. 그 배경이 이번 기간 변화 전체의 원인이라고 단정하지 않습니다.",
     );
