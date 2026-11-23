@@ -240,3 +240,13 @@ button.ghost:hover { color: var(--up); }
 @media print { .chart-bar .bar-track, .chart-bar .bar-fill, .chart-bar .bar-zero { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 /* 날짜처럼 중간에서 끊기면 안 되는 짧은 덩어리 */
 .nowrap { white-space: nowrap; }
+
+/* 11/23 오른쪽 아래를 따라다니는 '맨 위로' 버튼 (ScrollTopButton). 내려가면 나타나고 인쇄에는 없음 */
+.scroll-top { position: fixed; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 8px); bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 8px); z-index: 40; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 56px; height: 56px; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: var(--brand-purple-strong); color: #fff; box-shadow: 0 6px 18px rgba(98, 57, 160, .3); cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease, visibility .2s; }
+.scroll-top[data-visible="true"] { opacity: 1; visibility: visible; transform: none; }
+.scroll-top:hover { background: #6d28d9; }
+.scroll-top svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.scroll-top span { font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 0; }
+@media (max-width: 600px) { .scroll-top { width: 48px; height: 48px; } .scroll-top span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .scroll-top { transition: none; } }
+@media print { .scroll-top { display: none !important; } }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ScrollTopButton } from "./components/ScrollTopButton";
 import { Sidebar } from "./components/Sidebar";
 import "./globals.css";
 
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Sidebar />
           <main>{children}</main>
         </div>
+        <ScrollTopButton />
       </body>
     </html>
   );
