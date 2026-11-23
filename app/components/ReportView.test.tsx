@@ -928,3 +928,18 @@ describe("월 단위 지표의 기준일 (11/23 운영 검수)", () => {
     expect(render(report)(".numbers").text()).toContain("기준일 2026. 10. 1.");
   });
 });
+
+describe("계산 방식 이름 (11/23 운영 검수)", () => {
+  it("검증 상세와 원본 표의 계산 방식을 한글로 보여 준다", () => {
+    expect(formatEvidenceValue("op", "scale")).toBe("금액 환산");
+    expect(formatEvidenceValue("op", "zscore")).toBe("평소 움직임과 비교");
+    const report = fixture();
+    const c2 = report.evidence.find(entry => entry.id === "C2")!;
+    report.numbers.push({ label: "평소 30일 변동 폭", value: "±1.63%", change: "", asOf: "2026-11-23", ref: "C2", check: "derived" } as Report["numbers"][number]);
+    expect(c2.lineage?.op).toBeDefined();
+    c2.lineage = { ...c2.lineage!, op: "zscore" };
+    const text = render(report)(".report-verification").text();
+    expect(text).not.toContain("zscore");
+    expect(text).toContain("평소 움직임과 비교");
+  });
+});

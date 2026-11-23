@@ -110,12 +110,15 @@ function formatCompactWon(value: number): string {
 }
 /** 원본 값 표시. 소수가 긴 값(-0.2169840746809312)은 소수 넷째 자리까지, 큰 정수는 천 단위 쉼표. 연도 · 월 · 코드처럼 보이는 정수는 그대로 둡니다. */
 export function formatEvidenceValue(key: string, value: unknown): string {
+  // 계산 방식(op)은 화면 이름으로 ("scale" → "금액 환산")
+  if (key === "op" && typeof value === "string") return operationLabels[value] ?? value;
   if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
   if (/tradeValue|netAssets|marketCap/i.test(key) && Math.abs(value) >= 1e8) return formatCompactWon(value);
   if (Number.isInteger(value)) return Math.abs(value) >= 1000 && !/year|month|date|code|id$/i.test(key) ? value.toLocaleString("ko-KR") : String(value);
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 4 });
 }
-const operationLabels: Record<string, string> = { spread: "차이", diff: "차이", pct_change: "변화율", pp_diff: "%p 차이" };
+// 11/23 운영 검수: 검증 상세에 "계산값 (zscore ← E3)" 처럼 계산 방식이 영문으로 보임
+const operationLabels: Record<string, string> = { spread: "차이", diff: "차이", pct_change: "변화율", pp_diff: "%p 차이", zscore: "평소 움직임과 비교", scale: "금액 환산", example: "가상 예시 계산", "prevClose+change": "전일 종가 + 변화" };
 
 let displayTime: number | null = null;
 let clockInterval: number | undefined;
