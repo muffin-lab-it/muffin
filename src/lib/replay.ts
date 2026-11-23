@@ -93,7 +93,7 @@ export function listReplays(): ReplayMeta[] {
 
 /** 외부 서비스 오류 문구(주소 · 인증 헤더가 섞일 수 있음)를 지웁니다. 스트림 라우트와 녹화가 같은 규칙을 씁니다 */
 export function publicStep(step: ToolStep): ToolStep {
-  return step.error ? { ...step, error: "데이터를 확인하지 못했습니다." } : step;
+  return step.error ? { ...step, error: "데이터를 확인하지 못했어요." } : step;
 }
 
 /** 리포트 상단 안내. 녹화 시각을 밝혀 "지금 값" 처럼 보이지 않게 */

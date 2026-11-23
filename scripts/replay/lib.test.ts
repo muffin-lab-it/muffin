@@ -25,8 +25,8 @@ describe("녹화 만들기", () => {
   it("report · error 이벤트는 빼고, step 의 외부 오류 문구는 지우고, 형식을 검사한다", () => {
     const r = buildReplay(captured, result, { id: "fx-test", question: "환율이 왜 올랐나요?", depth: "standard", area: "fx", recordedAt: "2026-11-04T12:30:00.000Z", ms: 20_000 });
     expect(r.events.map((e) => e.type)).toEqual(["stage", "plan", "step"]);
-    expect(r.events[2]).toEqual({ t: 8_900, type: "step", step: { tool: "get_fx_krw_rate", status: "error", ms: 8_000, error: "데이터를 확인하지 못했습니다." } });
-    expect(r.steps[0]?.error).toBe("데이터를 확인하지 못했습니다.");
+    expect(r.events[2]).toEqual({ t: 8_900, type: "step", step: { tool: "get_fx_krw_rate", status: "error", ms: 8_000, error: "데이터를 확인하지 못했어요." } });
+    expect(r.steps[0]?.error).toBe("데이터를 확인하지 못했어요.");
     expect(JSON.stringify(r)).not.toContain("SECRET");
     expect(r).toMatchObject({ version: 1, id: "fx-test", model: "gpt-6-luna", ms: 20_000, rewrites: 1 });
     expect(recordable(r)).toEqual({ ok: true });

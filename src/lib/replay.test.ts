@@ -59,7 +59,7 @@ describe("리플레이", () => {
     expect(replayedReport(plain).notice).toBe(replayNotice(r));
     const decision: Replay = { ...r, report: { ...r.report, notice: "투자 판단을 대신하지 않습니다." } };
     expect(replayedReport(decision).notice).toBe(`${replayNotice(r)} 투자 판단을 대신하지 않습니다.`);
-    expect(publicStep({ tool: "t", status: "error", ms: 1, error: "HTTP 503 https://x?key=SECRET" })).toEqual({ tool: "t", status: "error", ms: 1, error: "데이터를 확인하지 못했습니다." });
+    expect(publicStep({ tool: "t", status: "error", ms: 1, error: "HTTP 503 https://x?key=SECRET" })).toEqual({ tool: "t", status: "error", ms: 1, error: "데이터를 확인하지 못했어요." });
   });
 
   it("원래 간격을 속도로 나눠 기다리고(상한 있음), t 를 뗀 이벤트를 순서대로 넘기며, 중단되면 멈춘다", async () => {

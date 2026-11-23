@@ -250,7 +250,7 @@ describe("POST /api/report/stream", () => {
     const missing = await POST(request({ replay: "nope-nope" }));
     expect(missing.status).toBe(404);
     expect((await POST(request({ replay: "constructor" }))).status).toBe(404);
-    expect(await missing.json()).toEqual({ error: "저장된 실행을 찾을 수 없습니다.", id: "test-request-id" });
+    expect(await missing.json()).toEqual({ error: "저장된 실행을 찾을 수 없어요.", id: "test-request-id" });
     const bad = await POST(request({ replay: "fixture-replay", speed: 99 }));
     expect(bad.status).toBe(400);
     expect(logRun).toHaveBeenCalledWith(expect.objectContaining({ ok: false, stage: "input", mock: true }));

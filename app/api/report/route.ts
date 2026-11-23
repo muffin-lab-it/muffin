@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   try {
     // MUFFIN_MOCK=1 이면 샘플 리포트. 프론트 개발용.
     const result = mock ? await mockResearch(parsed.data) : await research(parsed.data);
-    const steps = result.steps.map((step) => step.error ? { ...step, error: "데이터를 확인하지 못했습니다." } : step);
+    const steps = result.steps.map((step) => step.error ? { ...step, error: "데이터를 확인하지 못했어요." } : step);
     recordRun({
       id,
       at,
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ report: result.report, steps, rewrites: result.rewrites, id, ...(result.usage ? { usage: result.usage } : {}), ...(cost ? { cost } : {}) });
   } catch (err) {
     const diagnostic = clip(redactSecrets(err instanceof Error ? err.message : String(err)), 500);
-    const message = "조사 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    const message = "조사 중 오류가 생겼어요. 잠시 후 다시 시도해 주세요.";
     recordRun({ id, at, ok: false, stage: "agent", mock, input, ms: ms(), error: diagnostic }, req);
     return NextResponse.json({ error: message, id }, { status: 500 });
   }
