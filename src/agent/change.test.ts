@@ -160,6 +160,22 @@ describe("changeDetailFor (코드가 장부에서 풀어 쓰는 변화량)", () 
     });
   });
 
+  it("평소 폭 · 하루 평균 움직임 · 배수 같은 기준값 키에 맞은 change 는 변화가 아니라 만들지 않는다. 가장 크게 움직인 날은 직전 거래일과 비교 (11/23 #143 화면 보고)", () => {
+    const swing: Evidence = {
+      id: "C1",
+      tool: "calc_movement",
+      label: "평소 움직임과 비교 · USD/KRW 30일 변화의 크기",
+      values: { movePct: 0.87, typicalMovePct: 1.64, timesTypical: 0.53, periodDays: 30, dailyAvgMovePct: 0.17, baselineDailyAvgMovePct: 0.23, dailyTimesTypical: 0.74, maxDailyChangePct: 0.68, maxDailyDate: "2026-11-05" },
+      source: { name: "Frankfurter v2 일별 환율", url: "https://api.frankfurter.dev/v2/rates", asOf: "2026-11-22" },
+      lineage: { op: "zscore", inputs: ["E1"] },
+    };
+    expect(changeDetailFor({ change: "평소(직전 90일 0.23%)의 0.74배" }, swing, { key: "baselineDailyAvgMovePct", policy: "exact" })).toBeNull();
+    expect(changeDetailFor({ change: "평소 1.64%" }, swing, { key: "typicalMovePct", policy: "exact" })).toBeNull();
+    expect(changeDetailFor({ change: "0.17%" }, swing, { key: "dailyAvgMovePct", policy: "exact" })).toBeNull();
+    expect(changeDetailFor({ change: "+0.68%" }, swing, { key: "maxDailyChangePct", policy: "exact" })).toMatchObject({ key: "maxDailyChangePct", value: 0.68, basis: "직전 거래일과 비교" });
+    expect(changeDetailFor({ change: "30일 +0.87%" }, swing, { key: "movePct", policy: "exact" })).toMatchObject({ key: "movePct", basis: "30일 전과 비교" });
+  });
+
   it("change 에 숫자가 없거나 맞은 키가 장부에 없으면 만들지 않는다", () => {
     expect(changeDetailFor({ change: "" }, fx, { key: "changePct", policy: "exact" })).toBeNull();
     expect(changeDetailFor({ change: "이번 주" }, fx, { key: "changePct", policy: "exact" })).toBeNull();

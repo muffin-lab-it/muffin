@@ -14,6 +14,12 @@ const COMPACT_DATE = /^(\d{4})(0[1-9]|1[0-2])(\d{2})?$/;
 const DATE_KEY = /date|month|asof|period|day|from$|to$/i;
 /** 평소 폭 계산 구간(baselineStart · baselineEnd)은 변화의 비교 기간이 아니므로 날짜 후보에서 뺍니다 */
 const NOT_PERIOD_KEY = /baseline/i;
+/**
+ * 변화가 아니라 수준 · 기준값인 키: 평소 폭(typicalMovePct), 하루 평균 움직임(dailyAvgMovePct · baselineDailyAvgMovePct), 배수(timesTypical).
+ * 이 키에 맞은 change 칸은 비교 시점이 없는 설명이라 changeDetail 을 만들지 않습니다. 11/23 화면 보고(#143): "평소(직전 90일 0.23%)의 0.74배" 의
+ * 0.23% 가 baselineDailyAvgMovePct 와 맞아, 키 이름의 daily 때문에 "직전 거래일과 비교해 0.23% 상승" 으로 그려졌습니다
+ */
+const NOT_CHANGE_KEY = /baseline|typical|avg|average|times|zscore/i;
 /** 날짜가 없을 때 비교 일수를 알려 주는 키 (유의성 게이트 periodDays, 금리 tool requestedDays) */
 const DAYS_KEY = /^(periodDays|requestedDays|days)$/;
 
@@ -52,6 +58,7 @@ const UNIT_TEXT: Record<string, string> = { pp: "%p", pct: "%", bp: "bp", ratio:
  * 날짜가 없고 periodDays · requestedDays 가 있으면 그 일수로 "N일 전과 비교" 를 적습니다 (유의성 게이트의 변동 폭 카드).
  */
 export function changeDetailFor(n: Pick<WriterOutput["numbers"][number], "change">, entry: Evidence, hit: { key: string; policy: MatchPolicy }): ChangeDetail | null {
+  if (NOT_CHANGE_KEY.test(hit.key)) return null;
   const parsed = extractNumbers(n.change).filter(isDataNumber)[0];
   if (!parsed) return null;
   const candidate = numericCandidates(entry).find((c) => c.key === hit.key && matchValue(parsed, [c])?.policy === hit.policy);
