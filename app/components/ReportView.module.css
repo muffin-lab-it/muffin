@@ -696,3 +696,8 @@
 .report :global(.source-number-subs) small { font-size:13px; color:#7c7287; }
 /* 숫자 링크는 숫자 위에서만 반응 (카드 너비 전체가 링크라 빈 곳에 마우스를 대도 숫자가 보라색이 되던 것) */
 .report .metrics :global(.metric-value-link) { display:inline-block; }
+/* 11/23 1년 차트 휴대폰: 차트 안 말풍선은 글씨가 너무 작아 숨기고, 차트 아래 줄(같은 날짜 · 값)로 읽습니다 */
+@container report (max-width:560px) {
+  .report :global(.chart-tip) { display:none; }
+  .report :global(.chart-hover-text) { font-size:14px; font-weight:600; color:#3d344b; }
+}

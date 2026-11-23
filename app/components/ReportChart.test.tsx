@@ -65,3 +65,40 @@ describe("차트 조사와 지수 주제 (11/22)", () => {
     expect(text).not.toContain("지표이");
   });
 });
+
+describe("1년 차트 (11/23 백엔드 #144 관계 질문)", () => {
+  const yearChart = () => {
+    const points = [] as { t: string; v: number }[];
+    for (let i = 0; i <= 365; i += 2) {
+      const t = new Date(Date.UTC(2025, 10, 20) + i * 86_400_000).toISOString().slice(0, 10);
+      points.push({ t, v: 4005 + i * 2.37 });
+    }
+    points.push({ t: "2026-11-20", v: 4869.96 });
+    return { kind: "line" as const, title: "코스피 2025-11-20 ~ 2026-11-20", unit: "지수(포인트)", series: [{ label: "코스피", ref: "E1", points }] };
+  };
+  it("양 끝에 연도를 붙이고 가운데 달 눈금을 둔다", () => {
+    const $ = load(renderToStaticMarkup(<ReportChart chart={yearChart()} evidence={[]} />));
+    const axis = $(".chart-axis text").map((_, el) => $(el).text()).get();
+    expect(axis[0]).toBe("25.11.20");
+    expect(axis[axis.length - 1]).toBe("26.11.20");
+    expect(axis.length).toBeGreaterThanOrEqual(4);
+    expect(axis.some(label => /^26년 \d+월$/.test(label))).toBe(true);
+    expect($(".chart-month-line").length).toBe(axis.length - 2);
+    expect($(".chart-line").attr("class")).toContain("chart-line-dense");
+  });
+  it("설명은 연도 · 1년간 · 지수 이름, 숫자 뒤 조사는 소리에 맞춰", () => {
+    const text = load(renderToStaticMarkup(<ReportChart chart={yearChart()} evidence={[]} />)).text();
+    expect(text).toContain("코스피 1년 변화를 확인해 보세요");
+    expect(text).toContain("코스피 지수가 4,005에서 4,870으로");
+    expect(text).toContain("2025년 11월 20일부터 2026년 11월 20일까지 1년간의 코스피 변화 그래프예요");
+  });
+  it("숫자 뒤 로 · 으로", async () => {
+    const { roParticle } = await import("./ReportChart");
+    expect(roParticle("4,870")).toBe("으로");
+    expect(roParticle("1,336")).toBe("으로");
+    expect(roParticle("836.49")).toBe("로");
+    expect(roParticle("5,138")).toBe("로");
+    expect(roParticle("1,337")).toBe("로");
+    expect(roParticle("1,333")).toBe("으로");
+  });
+});
