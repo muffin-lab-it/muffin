@@ -10,14 +10,21 @@ import { parseRss } from "./rss";
 import { normalizeArticles } from "./sources";
 import type { Article } from "./sources";
 
-type FeedKey = "yonhap" | "hankyung" | "google";
+type FeedKey = "yonhap" | "hankyung" | "google" | "bok";
 const TEST_NOW = Date.UTC(2026, 9, 18, 12);
 const DAY_MS = 24 * 60 * 60 * 1_000;
+
+/** 한국은행 보도자료 RSS 모양 (11/24 실제 피드처럼 설명 HTML 이 한 번 더 이스케이프돼 CDATA 안에 있음) */
+const bokFeed = `<rss><channel><title>한국은행 보도자료</title>
+<item><title>2026년 11월 소비자동향조사 결과</title><link><![CDATA[https://www.bok.or.kr/portal/bbs/B0000501/view.do?nttId=11066918&menuNo=200690]]></link><pubDate>Tue, 17 Oct 2026 06:00:00 +0900</pubDate><description><![CDATA[&lt;p&gt;&lt;span style=&quot;font-size: 11pt;&quot;&gt;${"소비자들의 경제상황에 대한 심리를 종합적으로 나타내는 소비자심리지수는 전월보다 하락하였다. ".repeat(4)}&lt;/span&gt;&lt;/p&gt;]]></description></item>
+<item><title>2026년 10월 생산자물가지수(잠정)</title><link><![CDATA[https://www.bok.or.kr/portal/bbs/B0000502/view.do?nttId=11066826&menuNo=200690]]></link><pubDate>Mon, 16 Oct 2026 06:00:00 +0900</pubDate><description><![CDATA[&lt;p&gt;*자세한 내용은 첨부파일을 참조하시길 바랍니다.&lt;/p&gt;]]></description></item>
+</channel></rss>`;
 
 const feeds: Record<FeedKey, string> = {
   yonhap: fixture.yonhap,
   hankyung: fixture.hankyung,
   google: fixture.google,
+  bok: bokFeed,
 };
 
 function mockFeeds(overrides: Partial<Record<FeedKey, string | Response | Error>> = {}) {
@@ -28,7 +35,7 @@ function mockFeeds(overrides: Partial<Record<FeedKey, string | Response | Error>
     if (url.pathname.startsWith("/view/")) return new Response(fixture.yonhapHtml);
     if (url.pathname.startsWith("/article/")) return new Response(fixture.hankyungHtml);
     const id: FeedKey = url.hostname === "www.yna.co.kr" ? "yonhap"
-      : url.hostname === "www.hankyung.com" ? "hankyung" : "google";
+      : url.hostname === "www.hankyung.com" ? "hankyung" : url.hostname === "www.bok.or.kr" ? "bok" : "google";
     const value = overrides[id] ?? feeds[id];
     if (value instanceof Error) throw value;
     if (init?.signal?.aborted) throw init.signal.reason;
@@ -117,7 +124,9 @@ describe("News Tool", () => {
     expect(note).not.toMatch(/bodyStatus|resultStatus|body\.status|습니다|마세요/);
     expect(note).toContain("기사 속 수치는 따로 검증하지 않았어요.");
     expect(note).toContain("본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요.");
-    expect(note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있어요");
+    // 뉴스 검색(Google) 기사가 있을 때만 링크 안내를 붙인다 (11/24)
+    if (source === "google") expect(note).toContain("뉴스 검색 서비스를 거쳐 열릴 수 있어요");
+    else expect(note).not.toContain("뉴스 검색 서비스");
     expect(result.source).toHaveLength(data.count);
     expect(context.evidence).toHaveLength(data.count);
     expect(context.sources).toHaveLength(data.count);
@@ -418,8 +427,39 @@ describe("News Tool", () => {
   it("검색어의 낱말이 모두 든 제목을 찾는다 (순서 · 띄어쓰기 달라도)", async () => {
     const { titleMatches } = await import("./index");
     expect(titleMatches("소비자물가 2.8% 상승…석유류 올라", "소비자물가 상승")).toBe(true);
-    expect(titleMatches("소비자물가 2.8% 상승", "물가 원인")).toBe(false);
     expect(titleMatches("Fed 금리 동결", "fed 동결")).toBe(true);
+    // / · 가운뎃점 · 줄표 · 따옴표는 무시하고 질문어(원인 · 최근 …)는 뺀다 (11/24)
+    expect(titleMatches("원/달러 환율 1,350원대…위험회피 확산", "원달러 환율 원인")).toBe(true);
+    expect(titleMatches("원·달러 환율 급등", "원/달러 환율")).toBe(true);
+    expect(titleMatches("\"코스피\" 급등", "최근 코스피 흐름")).toBe(true);
+    expect(titleMatches("코스피 급등", "환율 원인")).toBe(false);
+    // 설명(연합뉴스 · 한국은행)에 있어도 맞는다
+    expect(titleMatches("증시 마감", "원달러 환율", "원/달러 환율은 3원 올랐다")).toBe(true);
+    // 질문어뿐이면 그대로 본다 (모든 기사가 통과하지 않게)
+    expect(titleMatches("코스피 급등", "최근 원인")).toBe(false);
+  });
+
+  it("직접 피드 제목 '원/달러 환율 …' 이 검색어 '원달러 환율 원인' 으로 걸린다 (11/24, 뉴스 거름망 넓히기)", async () => {
+    const yonhap = `<rss><channel><item><title>원/달러 환율 1,350원대…위험회피 확산</title><link>https://www.yna.co.kr/view/AKR20261018000100002</link><pubDate>${new Date(Date.UTC(2026, 9, 18, 3)).toUTCString()}</pubDate><description>환율 설명</description></item></channel></rss>`;
+    const calls = mockFeeds({ yonhap });
+    const result = await execute({ ...input, sources: ["yonhap"], query: "원달러 환율 원인" });
+    expect(result.data.articles.map((a) => a.title)).toEqual(["원/달러 환율 1,350원대…위험회피 확산"]);
+    expect(calls.some((url) => url.hostname === "news.google.com")).toBe(false);
+  });
+
+  it("한국은행 보도자료(bok): 링크는 menuNo 그대로, 설명이 길면 본문 · 짧으면 제목만, 메모에 가공 표시 (11/24)", async () => {
+    const calls = mockFeeds();
+    const result = await execute({ ...input, sources: ["bok"], query: null, content: "body", limit: 2 });
+    expect(calls.some((url) => url.hostname === "www.bok.or.kr" && url.pathname.endsWith("news.rss"))).toBe(true);
+    // 기사 페이지는 읽지 않는다
+    expect(calls.filter((url) => url.pathname.endsWith("view.do"))).toHaveLength(0);
+    const [first] = result.data.articles;
+    expect(first).toMatchObject({ publisher: "한국은행", source: "bok", url: "https://www.bok.or.kr/portal/bbs/B0000501/view.do?nttId=11066918&menuNo=200690" });
+    expect(first!.body).toMatchObject({ status: "available" });
+    expect((first!.body as { text: string }).text).toMatch(/^소비자들의 경제상황에 대한 심리를/);
+    expect((first!.body as { text: string }).text).not.toMatch(/<|&lt;|font-size/);
+    expect(result.data.failureCounts).toEqual({ attachment_only: 1 });
+    expect(result.note).toContain("한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요.");
   });
 
   it("연합뉴스·한국경제 본문을 분리 추출하고 광고·구독 영역을 제외한다", () => {
