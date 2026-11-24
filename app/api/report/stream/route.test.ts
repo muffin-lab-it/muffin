@@ -246,6 +246,21 @@ describe("POST /api/report/stream", () => {
     expect(seen.at(-1)?.type).toBe("report");
   });
 
+  it("리플레이는 호출 제한에 세지 않는다. 실제 조사 요청은 그대로 센다 (11/24: 깊이별 비교 · 설명서 재생 링크를 둘러보면 '요청이 많아요')", async () => {
+    vi.stubEnv("RATE_LIMIT_10M", "1");
+    const client = { "X-Muffin-Client": "8b6f1c2e-4d3a-4f5b-9c7d-1e2f3a4b5c6d" };
+    for (let i = 0; i < 3; i += 1) {
+      const replayed = await POST(request({ replay: "fixture-replay", speed: 10 }, undefined, client));
+      expect(replayed.status).toBe(200);
+      await replayed.text();
+    }
+    const first = await POST(request(validInput, undefined, client));
+    expect(first.status).toBe(200);
+    await first.text();
+    const second = await POST(request(validInput, undefined, client));
+    expect(second.status).toBe(429);
+  });
+
   it("리플레이: 없는 녹화는 404, 속도 범위 밖은 400 (스트림을 열지 않음)", async () => {
     const missing = await POST(request({ replay: "nope-nope" }));
     expect(missing.status).toBe(404);

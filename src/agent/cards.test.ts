@@ -60,6 +60,10 @@ describe("같은 값의 숫자 카드 정리 (11/21)", () => {
     const cpiYoy: Evidence = { id: "E1", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.value": 120.73, "latest.previousMonth.change": 0.249107, "latest.previousYear.change": 2.818941 }, source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2026-10-01" } };
     const dup = mergeSameCards(output([card("소비자물가지수 총지수", "120.73", "", "E1"), card("전년 동월 대비 물가 변화", "2.82%", "2025-10 대비 상승", "E1"), card("전월 대비 물가 변화", "0.25%", "", "E1"), card("전년 동월 대비 상승률", "2.82%", "최근 3개월 낮아짐", "E1")]), [cpiYoy]);
     expect(dup.numbers.map((n) => n.label)).toEqual(["소비자물가지수 총지수", "전년 동월 대비 물가 변화", "전월 대비 물가 변화"]);
+    // 달 단위 기준일 "2025-10-01" 과 "2025-10" 은 같은 날 (11/24 운영 Deep: 작성 카드와 1년 전 카드가 두 장)
+    const before: Evidence = { id: "E2", tool: "get_macro_indicators", label: "물가", values: { indicator: "cpi", country: "KR", "latest.value": 117.42, "latest.previousYear.change": 2.38033 }, source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2025-10-01" } };
+    const twice = mergeSameCards(output([{ ...card("한국 소비자물가 상승률·전년 동월 대비", "2.38%", "", "E2"), asOf: "2025-10-01" }, { ...card("물가 상승률 (1년 전, 2025-10)", "2.38%", "", "E2"), asOf: "2025-10" }]), [before]);
+    expect(twice.numbers).toHaveLength(1);
     // 이름이 같으면 3.00% 와 3% 도 같은 값
     expect(mergeSameCards(output([card("한국은행 기준금리", "3.00%", "30일 0%p", "E9"), card("한국은행 기준금리", "3%", "1년 +0.50%p", "E8")])).numbers.map((n) => n.ref)).toEqual(["E8"]);
   });
