@@ -460,6 +460,20 @@ describe("News Tool", () => {
     expect((first!.body as { text: string }).text).not.toMatch(/<|&lt;|font-size/);
     expect(result.data.failureCounts).toEqual({ attachment_only: 1 });
     expect(result.note).toContain("한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요.");
+    // 설명은 결과에 싣지 않는다 (본문 길이 제한 우회 방지, #163 Codex 리뷰)
+    expect(result.data.articles.every((a) => !("description" in a))).toBe(true);
+  });
+
+  it("한국은행 자료가 모두 첨부파일뿐이면 그 제목을 근거로 돌려주고 뉴스 검색으로 바꾸지 않는다 (#163 Codex 리뷰)", async () => {
+    const onlyShort = bokFeed.replace(/소비자들의 경제상황[^&]*/g, "자세한 내용은 붙임 참고.");
+    const calls = mockFeeds({ bok: onlyShort });
+    const result = await execute({ ...input, sources: ["bok"], query: "물가", content: "body", limit: 3 });
+    expect(calls.some((url) => url.hostname === "news.google.com")).toBe(false);
+    expect(result.data.collectedCount).toBe(0);
+    expect(result.data.articles.map((a) => [a.source, a.body.status])).toEqual([["bok", "unavailable"]]);
+    expect(result.note).toContain("본문은 받지 못해 기사 제목 1건만 확인했어요.");
+    const nullQuery = await execute({ ...input, sources: ["bok"], query: null, content: "body", limit: 3 });
+    expect(nullQuery.data.articles).toHaveLength(2);
   });
 
   it("연합뉴스·한국경제 본문을 분리 추출하고 광고·구독 영역을 제외한다", () => {

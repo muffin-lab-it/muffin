@@ -115,6 +115,13 @@ function deduplicate(articles: Article[]): Article[] {
   return out;
 }
 
+/** 돌려줄 기사에서 설명(description)을 뺍니다. 설명은 거름망 · 한국은행 본문에만 쓰고, 결과에 실으면 본문 길이 제한을 우회해 모델 입력이 길어집니다 (#163 Codex 리뷰) */
+function publicArticle(article: Article): Article {
+  const rest = { ...article };
+  delete rest.description;
+  return rest;
+}
+
 /** Agent 없이도 실행합니다. 부분 실패는 결과에 명시하고, 전부 실패하거나 기사가 없으면 throw 합니다. */
 export async function execute(input: Input): Promise<ToolResult<NewsData>> {
   const { sources, query, limit, content } = parameters.parse(input);
@@ -147,13 +154,14 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
   const detailed: NewsData["articles"] = [];
   const failureCounts: Record<string, number> = {};
   const failedArticles: NewsData["failedArticles"] = [];
+  const titleOnly: NewsData["articles"] = [];
   let inspectedCount = 0;
   let failedCount = 0;
   let bodyCharacters = 0;
   let stopReason: NewsData["stopReason"] = "feed_exhausted";
 
   if (content === "list") {
-    detailed.push(...ranked.slice(0, limit).map((article) => ({ ...article, body: { status: "not_requested" as const } })));
+    detailed.push(...ranked.slice(0, limit).map((article) => ({ ...publicArticle(article), body: { status: "not_requested" as const } })));
     if (detailed.length === limit) stopReason = "target_reached";
   } else {
     // Google 링크는 원문 URL이 미확정입니다. 본문을 제공할 수 있는 직접 피드를 먼저 확인합니다.
@@ -172,11 +180,13 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
           ? { status: "unavailable", reason: "output_limit", detail: "한 번에 돌려줄 수 있는 본문 크기를 넘어 이 기사는 본문을 싣지 않았어요." }
           : result;
         if (body.status === "available") {
-          detailed.push({ ...batch[i], body });
+          detailed.push({ ...publicArticle(batch[i]), body });
           bodyCharacters += body.text.length;
         } else {
           failedCount += 1;
           failureCounts[body.reason] = (failureCounts[body.reason] ?? 0) + 1;
+          // 한국은행 자료는 본문이 첨부파일뿐이어도 공식 자료라 제목 근거로 남깁니다 (#163 Codex 리뷰)
+          if (body.reason === "attachment_only") titleOnly.push({ ...publicArticle(batch[i]), body });
           if (failedArticles.length < MAX_FAILED_SAMPLES) failedArticles.push({ url: batch[i].url, source: batch[i].source, reason: body.reason });
         }
       });
@@ -186,6 +196,8 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
     detailed.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     // 검색어가 있는데 본문을 하나도 못 받았고 뉴스 검색 결과도 없으면, 같은 검색어로 뉴스 검색 제목을 받아 제목 근거로 씁니다
     // (11/23 로컬: 물가 원인 질문에서 검색어에 맞는 기사 2건이 모두 한국경제 유료 기사라 실패하고 5시간 전 저장 응답을 씀)
+    // 본문을 하나도 못 받았으면 첨부파일뿐인 한국은행 자료를 먼저 제목 근거로 씁니다 (뉴스 검색 제목으로 바꾸지 않음, #163 Codex 리뷰)
+    if (detailed.length === 0 && titleOnly.length > 0) detailed.push(...titleOnly.slice(0, limit));
     if (detailed.length === 0 && query && !selected.includes("google") && !articles.some((article) => article.source === "google")) {
       const searched = await searchInstead(query, startedAt);
       if (searched.length > 0) {
