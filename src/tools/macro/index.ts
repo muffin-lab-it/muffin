@@ -630,5 +630,18 @@ export const macroTool = defineTool({
         previousMonthIndex: c.previousMonthIndex, momPct: c.momPct, momContributionPp: c.momContributionPp,
       })),
     ]
-    : pickPrimitives(data),
+    : { ...pickPrimitives(data), ...trendValues(data as MacroData) },
 });
+
+/**
+ * 최신 달 앞의 달별 전년 같은 달 대비 변화 (observations.YYYYMM.previousYear.change). 키 이름에 change 가 있어 검증이 changeUnit 으로
+ * 물가는 %, 실업률은 %p 로 맞춰 봅니다. 최신 달은 latest.* 에 이미 있습니다.
+ * 11/23: 조사 단계는 달별 값을 보고 작성이 "2026-08 3.09%" 를 썼는데 장부에는 최신 달만 있어 검증에 걸렸습니다 (물가 질문 34건 중 2건 다시 쓰기)
+ */
+export function trendValues(data: MacroData): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of (data.observations ?? []).slice(0, -1)) {
+    if (typeof p.previousYear?.change === "number") out[`observations.${p.month}.previousYear.change`] = p.previousYear.change;
+  }
+  return out;
+}

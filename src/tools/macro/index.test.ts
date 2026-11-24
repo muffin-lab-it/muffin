@@ -487,6 +487,22 @@ describe("입력·응답 검증과 인증정보 보호", () => {
     }]);
     expect(context.sources).toHaveLength(1);
   });
+
+  it("장부에는 최신 달 앞의 달별 전년 같은 달 대비 변화도 올라가고, 검증이 그 값을 % 로 받는다 (11/23: '2026-08 3.09%' 가 검증에 걸림)", async () => {
+    mockApi(krBody());
+    const context = new ResearchContext();
+    await macroTool.invoke(new RunContext(context), JSON.stringify(krInput));
+    const values = context.evidence[0]!.values;
+    const trend = Object.keys(values).filter((k) => /^observations\.\d{6}\.previousYear\.change$/.test(k));
+    const latest = String(values["latest.month"]);
+    expect(trend.length).toBeGreaterThan(0);
+    expect(trend.every((k) => !k.includes(latest))).toBe(true);
+    const [key] = trend;
+    const value = values[key!] as number;
+    const card = { label: "전년 같은 달 대비", value: `${value.toFixed(2)}%`, change: "", asOf: "2026-10-01", ref: context.evidence[0]!.id };
+    const { verify } = await import("../../agent/verify");
+    expect(verify({ summary: "", numbers: [card], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] }, context.evidence).ok).toBe(true);
+  });
 });
 
 describe("cpi_categories: 지출목적별 품목군 (fixture 기반)", () => {
