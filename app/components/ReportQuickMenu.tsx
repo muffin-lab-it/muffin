@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { scrollToTop } from "./ScrollTopButton";
 
 export type QuickItem = { key: string; label: string };
 
@@ -34,8 +35,10 @@ function currentKey(keys: string): string {
 }
 
 /**
- * 리포트 목차 퀵메뉴 (11/23 사용자 결정: 리포트가 아래로 길어 탭 대신 따라다니는 목차). '맨 위로' 버튼 위에 붙습니다.
- * 넓은 화면은 늘 펼치고, 좁은 화면 · 휴대폰은 '목차' 버튼으로 엽니다. 휴대폰에서 접힌 출처는 펼친 뒤 이동합니다. 인쇄(PDF)에는 나오지 않습니다.
+ * 리포트 목차 퀵메뉴 (11/23 사용자 결정: 리포트가 아래로 길어 탭 대신 따라다니는 목차).
+ * 1280px 이상은 본문 바로 오른쪽에 붙어 세로 가운데를 따라다니고, 목록 아래에 '맨 위로' 가 있습니다(따로 떠 있는 '맨 위로' 버튼은 숨김).
+ * 그보다 좁은 화면 · 휴대폰은 둥근 아이콘을 누르면 펼쳐집니다. 휴대폰에서 접힌 출처는 펼친 뒤 이동합니다. 인쇄(PDF)에는 나오지 않습니다.
+ * 11/23 사용자: 넓은 화면에서 오른쪽 끝에 붙어 본문과 동떨어져 보임 · 크기를 키우자.
  */
 export function ReportQuickMenu({ items }: { items: QuickItem[] }) {
   const keys = items.map(item => item.key).join(",");
@@ -74,17 +77,22 @@ export function ReportQuickMenu({ items }: { items: QuickItem[] }) {
   if (items.length < 2) return null;
   return (
     <nav ref={navRef} className="quick-menu" aria-label="리포트 목차" data-open={open ? "true" : undefined}>
-      <button ref={toggleRef} type="button" className="quick-menu-toggle" aria-expanded={open} aria-controls="report-quick-menu" onClick={() => setOpen(value => !value)}>
+      <button ref={toggleRef} type="button" className="quick-menu-toggle" aria-expanded={open} aria-controls="report-quick-menu" aria-label="리포트 목차 열기" onClick={() => setOpen(value => !value)}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9" /></svg>
-        <span>목차</span>
       </button>
-      <ul id="report-quick-menu" className="quick-menu-list">
-        {items.map(item => (
-          <li key={item.key}>
-            <button type="button" aria-current={active === item.key ? "true" : undefined} onClick={(event) => go(item.key, event.detail === 0)}>{item.label}</button>
-          </li>
-        ))}
-      </ul>
+      <div id="report-quick-menu" className="quick-menu-panel">
+        <p className="quick-menu-title" aria-hidden="true">목차</p>
+        <ul className="quick-menu-list">
+          {items.map(item => (
+            <li key={item.key}>
+              <button type="button" aria-current={active === item.key ? "true" : undefined} onClick={(event) => go(item.key, event.detail === 0)}>{item.label}</button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" className="quick-menu-top" onClick={(event) => scrollToTop(event.detail === 0)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" /></svg>맨 위로
+        </button>
+      </div>
     </nav>
   );
 }
