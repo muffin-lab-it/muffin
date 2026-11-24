@@ -27,6 +27,7 @@ import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
+import { todayLine } from "./today";
 import { deepNote, deepRefs, ensureDeep, withDeepNumbers } from "./deep";
 import { ensureRateReference, ensureRateYear, rateReferenceNote, rateYearNote, withRateReference, yearRates } from "./rate-trend";
 import { addExampleCalc, exampleNote, withExampleNumbers } from "./example-calc";
@@ -221,7 +222,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   emit({ type: "stage", stage: "research", status: "start" });
   const tools = muffinTools.filter((t) => plan.tools.includes(t.name));
   const researchCtx = new RunContext(ctx);
-  const notes = await runResearch(tuned(createResearcherAgent(depth, hintAreaFor(area, plan.tools), tools), "research", depth), question, researchCtx);
+  // 조사 · 작성은 오늘 날짜를 입력 맨 앞 한 줄로 받습니다 (뉴스 질문에 "현재 날짜 정보가 없어 …" 가 들어가던 것, src/agent/today.ts)
+  const notes = await runResearch(tuned(createResearcherAgent(depth, hintAreaFor(area, plan.tools), tools), "research", depth), `${todayLine()}\n\n${question}`, researchCtx);
   addUsage(researchCtx, "research");
   // 환율 원인 질문이면 원인 지도가 필요로 하는 같은 기간 다른 통화 환율을 코드가 채웁니다 (조사가 받아 오지 않은 통화만, src/agent/supplement.ts).
   // 잴 대상은 보강 전에 한 번만 고릅니다. 보강으로 통화가 늘어난 뒤 다시 고르면 대상이 바뀔 수 있습니다 (유로만 있던 장부에 달러가 더해지면 달러로)
@@ -326,7 +328,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [todayLine(), writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
