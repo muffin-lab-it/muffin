@@ -52,16 +52,43 @@ function levelIdentity(n: WriterOutput["numbers"][number], evidence: readonly Ev
 }
 
 /**
+ * 카드 값이 장부 항목의 숫자 칸 하나에만 맞으면(카드에 적힌 소수 자리로 반올림해 비교) 그 항목 · 칸 · 기준일로 된 이름. 둘 이상 맞거나 없으면 null.
+ * 같은 항목의 같은 값을 이름만 달리 쓴 카드를 찾습니다 (11/23 운영: "전년 동월 대비 물가 변화 2.82%" 와 "전년 동월 대비 상승률 2.82%").
+ * 종가 = 순자산가치처럼 두 칸에 맞는 값은 어떤 값인지 정할 수 없어 null 입니다.
+ */
+function fieldIdentity(n: WriterOutput["numbers"][number], evidence: readonly Evidence[]): string | null {
+  const e = n.ref ? evidence.find((x) => x.id === n.ref) : undefined;
+  const v = numberOf(n.value);
+  if (!e || v === null) return null;
+  const decimals = /\.(\d+)/.exec(n.value)?.[1]?.length ?? 0;
+  const same = (x: number) => Number(x.toFixed(decimals)) === v || Number(Math.abs(x).toFixed(decimals)) === Math.abs(v);
+  const hits = Object.entries(e.values).filter(([, x]) => typeof x === "number" && same(x));
+  return hits.length === 1 ? `${e.id}|${hits[0]![0]}|${n.asOf}` : null;
+}
+
+/**
  * 이름과 값이 같은 카드를 하나로. 바뀐 것이 없으면 받은 그대로 돌려줍니다.
  * evidence 를 주면 같은 지표의 "지금 수준"(금리 · 환율 · 지수 종가 · 물가지수)을 같은 기준일로 보여 주는 카드도 이름이 달라도 한 무리로 봅니다
  * (11/23 녹화 · 로컬 4번 중 2번: "한국 기준금리 3% · 30일 변동 없음" 과 "한국 기준금리 1년 변화 3% · 1년 +0.50%p" 가 함께 나옴). 값은 "3.00%" 와 "3%" 를 같게 봅니다.
+ * 같은 장부 항목의 숫자 칸 하나에만 맞는 같은 값의 카드도 한 무리입니다 (물가 "전년 동월 대비 물가 변화 2.82%" · "전년 동월 대비 상승률 2.82%").
  * 한 무리에서 변화가 있는 카드는 남기고 변화 없는 중복만 뺍니다. 변화가 있는 카드가 둘 이상이면(전월 대비 · 전년 동월 대비처럼 비교 기준이 다름) 모두 남깁니다 (#157 Codex 리뷰).
  * 남는 카드는 그 무리가 처음 나온 자리에 둡니다 (1년 카드가 뒤에 있어도 한국 금리 카드가 맨 끝으로 가지 않게).
  */
 export function mergeSameCards(output: WriterOutput, evidence: readonly Evidence[] = []): WriterOutput {
-  const keyOf = (n: WriterOutput["numbers"][number]) => levelIdentity(n, evidence) ?? key(n);
-  const groups = new Map<string, number[]>();
-  output.numbers.forEach((n, i) => groups.set(keyOf(n), [...(groups.get(keyOf(n)) ?? []), i]));
+  // 이름 · 지금 수준 값 · 같은 항목의 같은 칸 중 하나라도 같으면 한 무리입니다 (서로 이어 붙임)
+  const parent = output.numbers.map((_, i) => i);
+  const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i]!)));
+  const firstOf = new Map<string, number>();
+  output.numbers.forEach((n, i) => {
+    for (const k of [`label:${key(n)}`, levelIdentity(n, evidence), fieldIdentity(n, evidence)]) {
+      if (!k) continue;
+      const at = firstOf.get(k);
+      if (at === undefined) firstOf.set(k, i);
+      else parent[root(i)] = root(at);
+    }
+  });
+  const groups = new Map<number, number[]>();
+  output.numbers.forEach((_, i) => groups.set(root(i), [...(groups.get(root(i)) ?? []), i]));
   if (groups.size === output.numbers.length) return output;
   const kept: number[] = [];
   for (const members of groups.values()) {

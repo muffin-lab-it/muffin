@@ -179,9 +179,11 @@ export function dropDecisionDisclaimer(text: string): string {
  */
 /** 기사를 고르거나 뺀 작업 설명 ("경제와 관련 없는 기사도 있어 추렸어요", 11/23 화면 QA). 사용자에게 필요 없는 과정 말이라 주의점 · 확인하지 못한 것에서 뺍니다 */
 const PICK_TALK = /(?:기사|뉴스)[^.!?]*(?:추렸|추려|걸렀|걸러\s*냈|제외했|골랐|골라\s*(?:냈|썼))|관련\s*(?:없는|없어\s*보이는)\s*(?:기사|뉴스)/;
+/** 오늘 날짜를 모른다는 말 (작성 입력에 오늘 날짜를 주므로 맞지 않는 말, src/agent/today.ts) */
+const DATE_TALK = /(?:현재|오늘)\s*날짜\s*(?:정보가?\s*없|를\s*(?:알|확인)|와의\s*대응)|날짜\s*정보가?\s*없/;
 export function dropPickTalk(lines: string[]): string[] {
   return lines
-    .map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => s.trim() && !PICK_TALK.test(s)).join(" "))
+    .map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => s.trim() && !PICK_TALK.test(s) && !DATE_TALK.test(s)).join(" "))
     .filter((l) => l.trim().length > 0);
 }
 
