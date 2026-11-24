@@ -129,7 +129,7 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
   const percent = state.complete ? 100 : Math.round(finished / applicable.length * 100);
 
   return (
-    <section className={styles.root} aria-label="리포트 생성 진행">
+    <section className={styles.root} aria-label="리포트 생성 진행" data-layout="progress">
       <div className={styles.titleRow}><span className={styles.titleIcon} aria-hidden="true">{titleIcon}</span><h1 className={styles.title} data-tone={timeout || (!error && !state.complete && scope) ? "attention" : undefined} aria-live="polite">{title}</h1></div>
       {/* PC 는 왼쪽에 질문 · 단계, 오른쪽에 그림 · 머핀 이야기 (11/21 하니 1 · 서영 4 · 외부 F15). 휴대폰은 세로 */}
       <div className={styles.layout}>
