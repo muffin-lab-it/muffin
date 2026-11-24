@@ -8,7 +8,7 @@
  */
 import type { Intent, WriterOutput } from "./schema";
 
-export const NEGATIVE = /(확인되지\s*않|확인할\s*수\s*(?:는|도)?\s*없|확인하지\s*못|단정할\s*수\s*(?:는|도)?\s*없|판단할\s*수\s*(?:는|도)?\s*없|알\s*수\s*(?:는|도)?\s*없|알기\s*어려|특정하기\s*어려|확인하기\s*어려|단정하기\s*어려|판단하기\s*어려|말하기\s*어려)/;
+export const NEGATIVE = /(확인되지\s*않|확인할\s*수\s*(?:는|도)?\s*없|확인하지\s*못|단정할\s*수\s*(?:는|도)?\s*없|판단할\s*수\s*(?:는|도)?\s*없|알\s*수\s*(?:는|도)?\s*없|알기\s*어려|특정하기\s*어려|확인하기\s*어려|단정하기\s*어려|판단하기\s*어려|말하기\s*어려|설명하기\s*어려)/;
 /** 마지막 글자의 받침이 ㅆ 인지 (과거형 "했 · 았 · 었 · 였") */
 export const endsPast = (text: string) => {
   const code = text.charCodeAt(text.length - 1) - 0xac00;

@@ -27,6 +27,7 @@ import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
+import { ensureRateStatement, rateStatementNote } from "./rate-cause";
 import { todayLine } from "./today";
 import { deepNote, deepRefs, ensureDeep, withDeepNumbers } from "./deep";
 import { ensureRateReference, ensureRateYear, rateReferenceNote, rateYearNote, withRateReference, yearRates } from "./rate-trend";
@@ -230,7 +231,10 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 출렁임을 묻는 질문("요즘 환율 변동 심해?")은 원인 질문이 아니어도 일별 환율을 받아 하루 변동 폭을 잽니다 (movement.ts dailySwing)
   const swing = isSwingQuestion(question);
   const fxTarget = plan.intent === "cause" || swing ? pickTarget(ctx.evidence, question, area) : undefined;
+  // 한국 기준금리 원인 질문이면 한국은행 통화정책방향을 코드가 받습니다 (조사의 검색어에 따라 빠지던 것, src/agent/rate-cause.ts)
+  let rateStatement: string | null = null;
   if (plan.intent === "cause") {
+    rateStatement = await ensureRateStatement(ctx, question, plan.intent, muffinTools);
     await ensureOtherPairs(ctx, question, area, tools, fxTarget);
     // 물가 원인 질문이면 품목군별 등락률 · 기여도를 채웁니다 (src/agent/supplement.ts, 11/19 페르소나 테스트: 물가 "왜" 에 원인 0개)
     await ensureCpiCategories(ctx, question, tools);
@@ -300,6 +304,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     ...(index ? indexRefs(ctx.evidence, index) : []),
     ...yearRates(ctx.evidence).map((e) => e.id),
     ...(rateRef ? [rateRef] : []),
+    ...(rateStatement ? [rateStatement] : []),
     ...(deep ? deepRefs(ctx.evidence, deep) : []),
     ...macroNews.map((e) => e.id),
     ...(basket ? basketRows(ctx.evidence).map((r) => r.e.id) : []),
@@ -328,7 +333,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [todayLine(), writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [todayLine(), writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), rateStatementNote(ctx.evidence, rateStatement, ctx.raw), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);

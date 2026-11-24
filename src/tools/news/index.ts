@@ -63,8 +63,10 @@ export function titleMatches(title: string, query: string, description = ""): bo
   const hay = squash(`${title} ${description}`);
   const words = query.split(/\s+/).map(squash).filter(Boolean);
   const kept = words.filter((w) => !QUESTION_WORDS.has(w));
-  return (kept.length > 0 ? kept : words).every((w) => hay.includes(w));
+  return (kept.length > 0 ? kept : words).every((w) => (SAME_WORDS[w] ?? [w]).some((v) => hay.includes(v)));
 }
+/** 같은 일을 다르게 쓰는 말. 한국은행은 기준금리 "동결" 을 "유지" 라고 씁니다 (11/24 운영: "기준금리 동결" 로 통화정책방향이 걸리지 않음) */
+const SAME_WORDS: Record<string, string[]> = { 동결: ["동결", "유지"] };
 
 /** 뉴스 검색 결과가 정말 비었다는 오류 (검색 서비스 장애와 구분) */
 const EMPTY_FEED = /RSS 기사 항목이 없습니다|유효한 RSS 기사 항목이 없습니다/;
