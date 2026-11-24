@@ -726,7 +726,7 @@
 .report :global(.metrics-heading) h2, .report .story h2, .report :global(.responsive-details > summary) h2 { font-size:21px; }
 .report .headlinePlaceholder { font-size:26px; }
 /* 출처 카드로 옮긴 검사 배지 · 기준 안내 */
-.report :global(.source-number) :global(.report-badge) { margin-left:8px; vertical-align:middle; }
+.report :global(.source-number) :global(.report-badge) { justify-self:start; align-self:flex-start; width:fit-content; margin:4px 0 2px; } /* 출처 카드 안 작은 배지 (카드 폭으로 늘어나지 않게) */
 .report :global(.source-number-subs) :global(.report-badge) { margin-left:2px; }
 .report :global(.evidence-basis) { margin:6px 0 10px; font-size:14px; line-height:1.6; color:#6f6680; }
 /* PC 에서도 접어 둔 출처와 원본 데이터: 한 줄 + '펼치기' */
