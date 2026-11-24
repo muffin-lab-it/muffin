@@ -67,21 +67,8 @@ export async function POST(req: Request) {
     console.warn(`report/stream origin denied (${id}): ${clip(req.headers.get("origin") ?? req.headers.get("referer") ?? "(none)", 200)}`);
     return Response.json({ error: ORIGIN_DENIED_MESSAGE, id }, { status: 403, headers });
   }
-  // v1은 서버 인스턴스 안에서만 세며, 출처 검사 직후·바디를 읽기 전에 제한합니다.
-  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwardedFor || req.headers.get("x-real-ip") || "unknown";
-  const rate = await checkLimit({
-    clientId: readClientId(req.headers),
-    ipHash: hashIp(ip, process.env.RATE_LIMIT_SALT ?? ""),
-  });
-  if (!rate.ok) {
-    recordRun({ id, at, mock, ok: false, stage: "limited", ms: Date.now() - started, error: "rate limit exceeded" }, req);
-    return Response.json(
-      { error: retryAfterMessage(rate.retryAfterSec), id, retryAfterSec: rate.retryAfterSec },
-      { status: 429, headers: { ...headers, "Retry-After": String(rate.retryAfterSec) } },
-    );
-  }
-  // 바디는 16KB 까지만 읽습니다. 넘으면 413, JSON 이 아니면 null → 아래 입력 검사가 400
+  // 바디는 16KB 까지만 읽습니다. 넘으면 413, JSON 이 아니면 null → 아래 입력 검사가 400.
+  // 녹화 재생인지 알아야 호출 제한을 셀지 정할 수 있어, 제한 검사보다 먼저 읽습니다 (16KB 상한은 그대로)
   let raw: unknown = null;
   try {
     raw = await readJsonLimited(req, BODY_LIMIT.report);
@@ -92,7 +79,8 @@ export async function POST(req: Request) {
     }
   }
 
-  // 리플레이: { replay: id, speed? }. 녹화된 실행을 다시 보내므로 키가 없어도 되고, 로그에는 mock 으로 남겨 운영 통계에서 뺍니다
+  // 리플레이: { replay: id, speed? }. 녹화된 실행을 다시 보내므로 키가 없어도 되고, 로그에는 mock 으로 남겨 운영 통계에서 뺍니다.
+  // OpenAI · tool 을 부르지 않으므로 호출 제한에 세지 않습니다
   if (raw && typeof raw === "object" && "replay" in raw) {
     const parsedReplay = replayBodySchema.safeParse(raw);
     if (!parsedReplay.success) {
@@ -115,6 +103,21 @@ export async function POST(req: Request) {
     return streamResponse(req, run, { id, started, at, mock: true, input, headers });
   }
 
+  // 호출 제한은 실제 조사(OpenAI · tool 을 부르는 요청)만 셉니다. v1은 서버 인스턴스 안에서만 셉니다.
+  // 녹화 재생은 위에서 먼저 처리해 세지 않습니다 (11/24: 깊이별 비교가 한 번에 녹화를 2~3개 재생해 심사위원이 둘러보면 금방 "요청이 많아요" 가 뜸)
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwardedFor || req.headers.get("x-real-ip") || "unknown";
+  const rate = await checkLimit({
+    clientId: readClientId(req.headers),
+    ipHash: hashIp(ip, process.env.RATE_LIMIT_SALT ?? ""),
+  });
+  if (!rate.ok) {
+    recordRun({ id, at, mock, ok: false, stage: "limited", ms: Date.now() - started, error: "rate limit exceeded" }, req);
+    return Response.json(
+      { error: retryAfterMessage(rate.retryAfterSec), id, retryAfterSec: rate.retryAfterSec },
+      { status: 429, headers: { ...headers, "Retry-After": String(rate.retryAfterSec) } },
+    );
+  }
   const parsed = bodySchema.safeParse(raw);
   if (!parsed.success) {
     recordRun({ id, at, mock, ok: false, stage: "input", ms: Date.now() - started, error: "invalid body" }, req);
