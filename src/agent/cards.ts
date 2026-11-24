@@ -7,7 +7,7 @@
 import type { Evidence, WriterOutput } from "./schema";
 
 // 괄호 안의 구분(한국 · 미국, 공식 자료 · 기사 보도)도 이름의 일부라 지우지 않습니다. 기준일이 다르면 다른 카드입니다: 1년 전 값과 지금 값이 우연히 같아도(둘 다 2.50%) 두 시점 비교가 사라지면 안 됩니다 (#128 Codex 리뷰)
-const key = (n: WriterOutput["numbers"][number]) => `${n.label.replace(/\s/g, "")}|${sameValue(n.value)}|${n.asOf}`;
+const key = (n: WriterOutput["numbers"][number]) => `${n.label.replace(/\s/g, "")}|${sameValue(n.value)}|${sameAsOf(n.asOf)}`;
 /** 변화 칸이 "변화 없음" 인지: 비었거나, 변동 없음이거나, 숫자가 전부 0 */
 export function isFlat(change: string): boolean {
   if (!change.trim() || /변동\s*없|변화\s*없|그대로|동일/.test(change)) return true;
@@ -16,6 +16,9 @@ export function isFlat(change: string): boolean {
   // 숫자가 없으면(기간만 적은 경우) 변화를 말한 것이 아닙니다
   return nums.every((x) => Number(x) === 0);
 }
+
+/** 달 단위 기준일은 "2025-10" 과 "2025-10-01" 을 같게 봅니다 (월별 자료의 기준일은 그 달 1일로 적기도, 달로만 적기도 함) */
+const sameAsOf = (asOf: string) => (/^\d{4}-\d{2}(?:-01)?$/.test(asOf) ? asOf.slice(0, 7) : asOf);
 
 /** 값을 숫자로 맞춥니다: "3.00%" 와 "3%", "1,337.98원" 과 "1337.98 원" 은 같은 값입니다 */
 function sameValue(value: string): string {
@@ -48,7 +51,7 @@ function levelIdentity(n: WriterOutput["numbers"][number], evidence: readonly Ev
   if (Object.entries(e.values).some(([k, x]) => k !== field && typeof x === "number" && Math.abs(x - v) < 1e-9)) return null;
   const name = e.values.indicator ?? e.values.pair ?? e.values.index;
   const part = [e.values.country].filter((x) => typeof x === "string").join(":");
-  return typeof name === "string" ? `${e.tool}:${name}${part ? `:${part}` : ""}|${field}|${n.asOf}` : null;
+  return typeof name === "string" ? `${e.tool}:${name}${part ? `:${part}` : ""}|${field}|${sameAsOf(n.asOf)}` : null;
 }
 
 /**
@@ -63,7 +66,7 @@ function fieldIdentity(n: WriterOutput["numbers"][number], evidence: readonly Ev
   const decimals = /\.(\d+)/.exec(n.value)?.[1]?.length ?? 0;
   const same = (x: number) => Number(x.toFixed(decimals)) === v || Number(Math.abs(x).toFixed(decimals)) === Math.abs(v);
   const hits = Object.entries(e.values).filter(([, x]) => typeof x === "number" && same(x));
-  return hits.length === 1 ? `${e.id}|${hits[0]![0]}|${n.asOf}` : null;
+  return hits.length === 1 ? `${e.id}|${hits[0]![0]}|${sameAsOf(n.asOf)}` : null;
 }
 
 /**
