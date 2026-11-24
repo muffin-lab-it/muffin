@@ -1,6 +1,6 @@
 import { field, type RssFeed } from "./rss";
 
-export const sourceIds = ["yonhap", "hankyung", "google", "bok"] as const;
+export const sourceIds = ["yonhap", "hankyung", "google", "bok", "policy"] as const;
 export type NewsSourceId = (typeof sourceIds)[number];
 
 export type Article = {
@@ -19,12 +19,14 @@ const articlePaths: Record<NewsSourceId, RegExp> = {
   google: /^\/rss\/articles\/[A-Za-z0-9_-]+$/,
   // 한국은행 보도자료 게시판 (B0000501 · B0000502 · P000055 등). 주소의 menuNo 를 떼면 404 라 그대로 씁니다
   bok: /^\/portal\/bbs\/[BP]\d{6,7}\/view\.do$/,
+  policy: /^\/news\/policyNewsView\.do$/,
 };
 const articleHosts: Record<NewsSourceId, string> = {
   yonhap: "www.yna.co.kr",
   hankyung: "www.hankyung.com",
   google: "news.google.com",
   bok: "www.bok.or.kr",
+  policy: "www.korea.kr",
 };
 
 export function isAllowedArticleUrl(url: URL, source: NewsSourceId): boolean {
@@ -108,6 +110,8 @@ export const newsSources: Record<NewsSourceId, NewsSource> = {
     parse: google,
   },
   bok: { name: "한국은행 보도자료", url: () => BOK_URL, parse: bok },
+  // 정책브리핑은 RSS 가 아니라 키가 필요한 XML API 라 policy.ts 가 따로 받습니다 (url · parse 는 쓰지 않음)
+  policy: { name: "정책브리핑 정책뉴스", url: () => "https://apis.data.go.kr/1371000/policyNewsService2/policyNewsList2", parse: () => [] },
 };
 
 /** 날짜·URL이 불완전한 항목은 제외합니다. 피드 전체가 무효면 호출자가 실패시킵니다. */

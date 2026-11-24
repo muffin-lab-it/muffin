@@ -64,8 +64,9 @@ const extractors: Partial<Record<Article["source"], Extractor>> = {
 export const BOK_MIN_BODY_CHARS = 200;
 
 export async function fetchArticleBody(article: Article, timeoutMs = 2_500): Promise<BodyResult> {
-  // 한국은행 보도자료는 페이지를 읽지 않고 RSS 설명을 본문으로 씁니다 (11/24 실측: 100건 중 8건이 300자 이상, 59건은 "붙임 참고" 한 줄)
-  if (article.source === "bok") {
+  // 한국은행 보도자료 · 정책브리핑은 페이지를 읽지 않고 받은 설명(RSS description · API DataContents)을 본문으로 씁니다
+  // (11/24 실측: 한국은행은 100건 중 8건이 300자 이상 · 59건은 "붙임 참고" 한 줄, 정책브리핑은 전부 300자 이상 · 평균 1,900자)
+  if (article.source === "bok" || article.source === "policy") {
     const text = article.description ?? "";
     return text.length >= BOK_MIN_BODY_CHARS
       ? { status: "available", text: text.slice(0, MAX_BODY_CHARS) }

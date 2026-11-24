@@ -4,6 +4,7 @@ import { defineTool } from "../define";
 import type { Source, ToolResult } from "../types";
 import { fetchArticleBody, type BodyResult } from "./body";
 import { parseRss } from "./rss";
+import { fetchPolicyNews, isEconomicPolicy } from "./policy";
 import { newsSources, normalizeArticles, sourceIds, titleKey, type Article, type NewsSourceId } from "./sources";
 
 export const parameters = z.object({
@@ -44,6 +45,9 @@ const MAX_FAILED_SAMPLES = 10;
 const MAX_TOTAL_BODY_CHARS = 80_000;
 const TITLE_FALLBACK_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
 
+/** 거름망이 보는 설명 앞부분. 한국은행 · 정책브리핑 설명은 본문 전체라, 지나가듯 나온 낱말로 걸리지 않게 앞부분(부제 · 첫 문단)만 봅니다 */
+const MATCH_DESCRIPTION_CHARS = 400;
+
 /** 비교 전에 지우는 글자: 공백 · / · 가운뎃점 · 줄표 · 따옴표 ("원/달러" 와 "원달러", "원·달러" 를 같게) */
 const NOISE = /[\s/·・‧\-–—'"‘’“”`]/g;
 const squash = (text: string) => text.toLocaleLowerCase("ko-KR").replace(NOISE, "");
@@ -82,12 +86,17 @@ async function searchInstead(query: string, startedAt: number): Promise<Article[
 }
 
 async function fetchSource(id: NewsSourceId, query: string | null, timeoutMs = RSS_TIMEOUT_MS): Promise<Article[]> {
+  if (id === "policy") {
+    // 정책브리핑: 최근 8일 정책뉴스. 검색어가 없으면 경제 부처 · 경제 낱말 기사만 (김장철 원산지 점검 같은 일반 정책 제외)
+    const articles = await fetchPolicyNews(timeoutMs);
+    return query ? articles.filter((article) => titleMatches(article.title, query, article.description?.slice(0, MATCH_DESCRIPTION_CHARS))) : articles.filter(isEconomicPolicy);
+  }
   const xml = await fetchText(newsSources[id].url(query), { timeoutMs });
   const feed = parseRss(xml);
   if (feed.items.length === 0) throw new Error("RSS 기사 항목이 없습니다.");
   const articles = normalizeArticles(feed, id);
   if (articles.length === 0) throw new Error("유효한 RSS 기사 항목이 없습니다.");
-  return id !== "google" && query ? articles.filter((article) => titleMatches(article.title, query, article.description)) : articles;
+  return id !== "google" && query ? articles.filter((article) => titleMatches(article.title, query, article.description?.slice(0, MATCH_DESCRIPTION_CHARS))) : articles;
 }
 
 function deduplicate(articles: Article[]): Article[] {
@@ -254,6 +263,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
       "기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요.",
       searchFallback ? "연합뉴스 · 한국경제 피드에서 쓸 기사를 찾지 못해 같은 검색어의 뉴스 검색 결과를 대신 받았어요." : "",
       detailed.some((article) => article.source === "bok") ? "한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요." : "",
+      detailed.some((article) => article.source === "policy") ? "정책브리핑 기사는 공공누리 1유형 자료로, 출처(정책브리핑 · 부처)를 밝혀 본문을 글자만 남겨 옮겼어요." : "",
       detailed.some((article) => article.source === "google") ? "일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요." : "",
       failedSources.length ? `이번에 기사를 받지 못한 곳: ${failedSources.map(({ source }) => SOURCE_LABEL[source]).join(", ")}.` : "",
     ].filter(Boolean).join(" "),
@@ -261,7 +271,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
 }
 
 /** 원본 보기에 보이는 출처 이름 */
-const SOURCE_LABEL: Record<NewsSourceId, string> = { yonhap: "연합뉴스", hankyung: "한국경제", google: "뉴스 검색", bok: "한국은행" };
+const SOURCE_LABEL: Record<NewsSourceId, string> = { yonhap: "연합뉴스", hankyung: "한국경제", google: "뉴스 검색", bok: "한국은행", policy: "정책브리핑" };
 
 export const newsTool = defineTool({
   name: "get_korean_economic_news",
@@ -270,7 +280,7 @@ export const newsTool = defineTool({
     "content=body면 limit 건의 본문 확보를 목표로 후속 후보를 확인한다. resultStatus, missingCount, failureCounts를 반드시 확인한다. Google News 원문 미확정, 유료 기사, 추출 실패는 본문으로 사용하지 않는다. " +
     "본문이 0건이고 선택한 Google RSS 목록이 있으면 제목 근거로만 반환한다(bodyStatus · resultStatus 로 확인). 그때는 제목에 직접 드러난 사실만 근거로 쓰고, 본문을 읽은 것처럼 설명하지 않는다. collectedCount는 본문 확보 수이며 제목 fallback은 포함하지 않는다. 기사마다 body.status 로 본문 확보 여부를 확인한다. 기사 속 수치는 검증된 통계가 아니다. 제목에 없는 원인을 추정하거나 인과관계를 검증했다고 표현하지 않는다. " +
     "연합뉴스 · 한국경제 · 한국은행(bok)은 검색어의 낱말이 모두 든 제목(연합뉴스 · 한국은행은 설명 포함)을 고른다. 띄어쓰기 · / · 가운뎃점 · 줄표 · 따옴표는 무시하고, 질문어(원인 · 이유 · 배경 · 전망 · 영향 · 상승 · 하락 · 최근 · 요즘 · 왜 · 동향 · 흐름)는 뺀다. 맞는 기사가 없으면 같은 검색어의 Google News 검색 결과를 대신 돌려준다. " +
-    "bok 은 한국은행 보도자료(석 달 치)로, 본문은 RSS 설명이고 짧은 것은 제목만이다. " +
+    "bok 은 한국은행 보도자료(석 달 치)로, 본문은 RSS 설명이고 짧은 것은 제목만이다. policy 는 정책브리핑 정책뉴스(최근 8일, 부처 보도)로 본문이 함께 온다. 검색어가 없으면 경제 부처 · 경제 낱말 기사만 남긴다. " +
     "국내 경제 이슈의 최근 보도나 검색어를 찾을 때 사용한다. 사실 검증, 해외 뉴스와 투자 권유는 제공하지 않는다.",
   parameters,
   execute,
