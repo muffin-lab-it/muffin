@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
-import { formatDateKo, sourceLinkLabel } from "./format";
+import { formatDateKo, sourceLinkLabel, titleWithoutPublisher } from "./format";
 import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceSelection, useEvidenceTarget } from "./ReportEvidenceScope";
@@ -170,8 +170,8 @@ function NewsEvidence({ entry, inList = false }: { entry: Evidence; inList?: boo
   const now = useSyncExternalStore(subscribeClock, clockNow, serverClock);
   const date = newsDate(entry.values.publishedAt ?? entry.source.asOf, now);
   const text = (value: string | number | undefined) => typeof value === "string" && value.trim() ? value : undefined;
-  const title = text(entry.values.title) ?? entry.label;
   const publisher = text(entry.values.publisher) ?? entry.source.name;
+  const title = titleWithoutPublisher(text(entry.values.title) ?? entry.label, publisher);
   const url = entry.source.pageUrl ?? entry.source.url;
   let relay = false;
   try { relay = new URL(url).hostname === "news.google.com"; } catch { /* SourceLink가 잘못된 URL을 차단합니다. */ }

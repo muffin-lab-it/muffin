@@ -132,3 +132,11 @@ export function newsCountLine(entries: Evidence[]): string {
 }
 
 export { publisherOf };
+
+/** 기사 제목 끝의 " - 언론사" 는 언론사를 따로 보일 때 뗍니다 (Google News 제목 꼴. 11/24: 제목과 언론사가 두 번 보임) */
+export function titleWithoutPublisher(title: string, publisher?: string): string {
+  if (!publisher) return title;
+  const escaped = publisher.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const stripped = title.replace(new RegExp(`\\s+[-–—|]\\s+${escaped}\\s*$`), "").trim();
+  return stripped.length > 0 ? stripped : title;
+}

@@ -193,7 +193,9 @@ describe("계산 입력과 기존 검증 정보 (정적 계약)", () => {
     const report = reportSchema.parse(structuredClone(sample.report));
     report.numbers.push({ ...report.numbers[0], check: "unverified" });
     const $ = load(renderToStaticMarkup(<ReportView report={report} />));
-    for (const check of ["verified", "derived", "reported", "unverified"]) expect($(`.num .check-${check}`).length).toBeGreaterThan(0);
+    // 11/24 가독성: 검사 배지는 숫자 카드가 아니라 출처 카드(근거 보기)에 있다
+    for (const check of ["verified", "derived", "reported", "unverified"]) expect($(`.source-library .check-${check}`).length).toBeGreaterThan(0);
+    expect($(".num .report-badge")).toHaveLength(0);
     for (const basis of ["data", "news", "none"]) expect($(`.basis-${basis}`).length).toBeGreaterThan(0);
     expect($(".verification-detail").text()).toContain("보도일 뿐 공식 데이터로 확인한 것이 아님");
   });
@@ -203,8 +205,9 @@ describe("계산 입력과 기존 검증 정보 (정적 계약)", () => {
     report.verification.status = "skipped";
     for (const r of [report, normalizeReport(legacy.report)]) {
       const $ = load(renderToStaticMarkup(<ReportView report={r} />));
-      expect($(".num .check-unverified")).toHaveLength(r.numbers.length);
-      expect($(".num .check-reported, .num .check-derived, .num .check-verified")).toHaveLength(0);
+      expect($(".check-reported, .check-derived, .check-verified")).toHaveLength(0);
+      if (r === report) expect($(".source-library .check-unverified").length).toBeGreaterThan(0);
+      expect($(".report-verification").first().text()).toContain("검사 미실행");
     }
   });
 });

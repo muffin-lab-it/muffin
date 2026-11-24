@@ -93,7 +93,7 @@ describe("리포트 증거 표시 계약", () => {
   it("v1 저장 기록 정규화 후 미검증과 원본 부재가 표시된다", () => {
     const report = normalizeReport(legacy.report);
     const $ = render(report);
-    expect($(".check-unverified").text()).toContain("원문 미대조");
+    expect($(".report-verification").first().text()).toContain("검사 미실행"); // 11/24: 카드 배지 대신 검증 상자가 알림
     expect($(".check-verified, .check-derived, .num .evidence-detail, .verification-detail")).toHaveLength(0);
     expect($(".num .evidence-missing")).toHaveLength(report.numbers.length);
   });
@@ -114,7 +114,7 @@ describe("읽기 중심 리포트", () => {
     expect($(".report").text()).not.toContain("핵심을 한 문장으로 정리할 자리예요.");
     expect($(".report").text()).toContain(fixture().summary);
     expect($(".source-library").parents("aside")).toHaveLength(0);
-    expect($(".num details, .chart details, .reason-detail")).toHaveLength(0);
+    expect($(".num details, .chart details:not(.chart-news), .reason-detail")).toHaveLength(0);
   });
 
   it("여러 리포트의 출처 링크가 각자의 자료 패널에만 연결된다", () => {
@@ -203,7 +203,10 @@ describe("최근 흐름 차트", () => {
     expect($("figure.chart svg").attr("aria-label")).toContain("USD/KRW 최근 30일");
     expect($(".chart-summary").text()).toContain("평소 폭 ±1.57%");
     expect($(".chart-summary").text()).toContain("환율이 1,365에서 1,392로 2.00% 올랐어요");
-    expect($(".chart-events li").text()).toContain("한은 기준금리 동결");
+    // 11/24: 차트 아래 기사는 접힌 목록에 기사 원본의 전체 제목으로 (차트 데이터의 잘린 제목 대신)
+    expect($(".chart-news > summary").text()).toContain("이 기간 관련 기사 1건");
+    expect($(".chart-events li").text()).toContain("한은, 기준금리 3.00%로 동결");
+    expect($(".chart-events li").text()).not.toContain("관련 보도가 나온 시점이에요");
   });
 
   it("charts 가 없으면 차트 구역이 없다", () => {
@@ -229,7 +232,8 @@ describe("간결한 검사 안내", () => {
     expect($(".verification-toggle details")).toHaveLength(0);
     expect($(".verification-detail").text()).toContain('"값" 항목과 표기 반올림과 일치');
     expect($(".verification-detail").text()).toContain("다시 쓰기");
-    expect($(".num .report-badge")).toHaveLength(report.numbers.length);
+    expect($(".num .report-badge")).toHaveLength(0); // 11/24: 검사 배지는 출처 카드로
+    expect($(".source-library [class*='check-']").length).toBeGreaterThan(0);
   });
 
   it("계산 입력이 자신을 가리켜도 범위 밖 단독 렌더링이 재귀하지 않는다", () => {
@@ -260,7 +264,8 @@ describe("읽는 목적에 맞는 근거 탐색", () => {
     expect($(".reason-evidence")).toHaveLength(report.why.length);
     expect($(".reason-evidence h3").first().text()).toBe(report.why[0].claim);
     expect($(".num").text()).not.toContain("이 숫자의 출처 보기");
-    expect($(".report-help-dialog").text()).toContain("숫자나 '출처로 이동' 링크를 누르면");
+    expect($(".report-help-dialog").text()).toContain("숫자의 '근거 보기' 나 '출처로 이동' 을 누르면");
+    expect($(".section-guide")).toHaveLength(0); // 11/24: 영역마다 붙던 안내 문장은 읽는 법으로
     expect($(".source-chips button").length).toBeGreaterThan(0);
   });
 
@@ -494,7 +499,9 @@ describe("답과 숫자 우선 배치", () => {
     expect(text.indexOf(report.numbers[0].value)).toBeLessThan(text.indexOf(report.summary));
     expect($(".numbers").parent().find(".report-help-button").text()).toContain("리포트 읽는 법");
     expect($(".report-mode-toggle")).toHaveLength(0);
-    expect($(".source-library > details.responsive-details[open]")).toHaveLength(1);
+    // 11/24 가독성: 출처와 원본 데이터는 PC 에서도 접어 두고 한 줄 요약을 보인다
+    expect($(".source-library > details.responsive-details").attr("open")).toBeUndefined();
+    expect($(".source-library > details > summary").text()).toContain("자료");
     expect($(".source-library .evidence-record").length).toBeGreaterThan(0);
     expect($("a[href^='/?question=']").first().parents("details").attr("open")).toBeDefined();
     expect($(".report-created-at").text()).toContain("작성일");
@@ -606,7 +613,7 @@ describe("11/21 QA 1묶음", () => {
   it("환율 카드 아래 고시 기준 한 줄, 변화율 본값은 색, 날짜는 점 표기 (서영 1-1 · 외부 F10 · F13)", () => {
     const report = fixture();
     const $ = render(report);
-    expect($(".num").first().find(".metric-basis").text()).toContain("유럽중앙은행 고시 기준");
+    expect($(".source-library .evidence-basis").first().text()).toContain("유럽중앙은행 고시 기준"); // 11/24: 카드에서 출처 카드로
     expect($(".num").first().text()).toMatch(/기준일 \d{4}\. \d{1,2}\. \d{1,2}\./);
     report.numbers[0].value = "+2.82%";
     expect(render(report)(".num").first().find("b").attr("class")).toContain("tone-up");
@@ -755,7 +762,7 @@ describe("11/21 QA 최종리포트 화면 항목", () => {
     report.evidence = [{ ...base, id: "E1", tool: "get_etf_kr_price", label: "국내 ETF 시세 확인", values: { name: "KODEX 200", baseIndex: "코스피 200", "latest.close": 80630 } }];
     report.numbers = [{ ...report.numbers[0]!, label: "KODEX 200 종가", value: "80,630원", ref: "E1" }];
     report.why = [];
-    expect(render(report)(".num .metric-basis").text()).toBe("코스피 200 지수를 따라가는 국내 상장 ETF");
+    expect(render(report)(".source-library .evidence-basis").text()).toBe("코스피 200 지수를 따라가는 국내 상장 ETF"); // 11/24: 카드에서 출처 카드로
   });
 });
 
@@ -892,7 +899,9 @@ describe("11/23 운영 브라우저 검수", () => {
     fx.source = { ...fx.source, name: "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)" };
     report.sources = report.sources.map(source => source.url === fx.source.url ? { ...source, name: fx.source.name } : source);
     const $ = render(report);
-    expect($(".metric-source").first().text()).toBe("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)");
+    // 11/24: 카드에는 짧은 이름, 전체 이름(날짜 포함)은 title · 출처 카드에
+    expect($(".metric-source").first().attr("title")).toBe("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)");
+    expect($(".source-library").text()).toContain("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)");
     expect($.text()).not.toContain("2026-07-27");
   });
 
@@ -974,5 +983,32 @@ describe("리포트 목차 퀵메뉴 (11/23)", () => {
     expect(labels.join(" ")).not.toContain("영향");
     expect(labels.join(" ")).not.toContain("차트");
     expect(load(renderToStaticMarkup(<ReportView report={report} />))("nav.quick-menu")).toHaveLength(0);
+  });
+});
+
+describe("숫자 카드의 짧은 출처 이름 (11/24 가독성)", () => {
+  it("끝의 괄호 설명만 떼고, 전체 이름은 title 로 남긴다", async () => {
+    const { shortSourceName } = await import("./ReportView");
+    expect(shortSourceName("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)")).toBe("Frankfurter v2 일별 환율");
+    expect(shortSourceName("한국은행 경제통계시스템(ECOS)")).toBe("한국은행 경제통계시스템");
+    expect(shortSourceName("Frankfurter v2")).toBe("Frankfurter v2");
+    expect(shortSourceName("(공공데이터)")).toBe("(공공데이터)");
+    const report = fixture();
+    const fx = report.evidence.find(entry => entry.id === report.numbers[0].ref)!;
+    fx.source = { ...fx.source, name: "Frankfurter v2 일별 환율 (2026-07-27 ~ 2026-11-23)" };
+    const source = render(report)(".num .metric-source").first();
+    expect(source.text()).toBe("Frankfurter v2 일별 환율");
+    expect(source.attr("title")).toContain("2026년 7월 27일");
+  });
+});
+
+describe("기사 제목 끝의 언론사 (11/24)", () => {
+  it("언론사를 따로 보일 때 제목 끝의 ' - 언론사' 만 뗀다", async () => {
+    const { titleWithoutPublisher } = await import("./format");
+    expect(titleWithoutPublisher("코스피 급락에도 원화는 강세 - Chosunbiz", "Chosunbiz")).toBe("코스피 급락에도 원화는 강세");
+    expect(titleWithoutPublisher("한투증권 \"주가 하락에 외인 매도 둔화\" - 연합뉴스", "연합뉴스")).toBe("한투증권 \"주가 하락에 외인 매도 둔화\"");
+    expect(titleWithoutPublisher("연합뉴스 - 연합뉴스", "연합뉴스")).toBe("연합뉴스");
+    expect(titleWithoutPublisher("환율 1,350원 돌파 - 2주 만", "연합뉴스")).toBe("환율 1,350원 돌파 - 2주 만");
+    expect(titleWithoutPublisher("제목 - Chosunbiz")).toBe("제목 - Chosunbiz");
   });
 });

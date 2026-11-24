@@ -19,7 +19,7 @@ import { ReportChart } from "./ReportChart";
 import { ReportQuickMenu, type QuickItem } from "./ReportQuickMenu";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
-import { etfBasisNote, formatDateKo, fxBasisNote, isNewsEvidence, newsCountLine, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
+import { formatDateKo, isNewsEvidence, newsCountLine, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
 import { usedEvidenceIds } from "./ReportSources";
 import { evidenceCategory } from "./reportCategory";
 import { splitAreaPrefix } from "./home-form";
@@ -62,6 +62,12 @@ type ReportViewProps = {
 };
 
 type NumberItem = Report["numbers"][number];
+
+/** 숫자 카드용 짧은 출처 이름: 끝의 괄호 설명을 뗍니다 ("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)" → "Frankfurter v2 일별 환율") */
+export function shortSourceName(name: string): string {
+  const short = name.replace(/\s*\([^()]*\)\s*$/, "").trim();
+  return short.length >= 2 ? short : name;
+}
 const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" } as const;
 /** 비교값 · 변화량 · 수익률처럼 본값에 딸린 숫자인지 (11/21 하니 4: 현재 값 · 비교 값 · 변동폭이 카드 셋으로 나뉘어 같은 숫자가 반복됨) */
 export function isSubValue(number: Pick<NumberItem, "label" | "value">): boolean {
@@ -221,9 +227,9 @@ export function ReportView({
               ? reportChange(n.change, n.changeDetail)
               : null;
             const detail = trustedChangeDetail(n.changeDetail);
+            const showsChange = !!change && !repeatsValue(n.value, detail);
             const entry = report.evidence.find(item => item.id === n.ref);
             const source = entry?.source;
-            const basis = entry ? fxBasisNote(entry.tool, entry.source.name) ?? etfBasisNote(entry) : null;
             const check = report.verification.status === "skipped" ? "unverified" : n.check;
             const tone = valueTone(n.value);
             const valueKey = n.match?.key.replace(/#text$/, "");
@@ -232,32 +238,28 @@ export function ReportView({
               <EvidenceOrigin name={origin} className="num" data-kind={check} key={i}>
                 <div className="metric-label"><small>{n.label}</small></div>
                 <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} ${n.value}의 원본 데이터 보기`} valueKey={valueKey} origin={origin}><b className={tone ?? undefined}>{n.value}</b></EvidenceReference>
-                {change && !repeatsValue(n.value, detail) && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
-                {/* 날짜 하나는 한 줄에 (11/23 녹화 확인: 카드 네 장일 때 '2026. 11.' 과 '23.' 이 갈라짐). 줄은 화살표 앞뒤에서만 바뀝니다 */}
-                {detail?.from && detail.to && <small className="metric-period">비교 기간 <span className="nowrap">{formatDateKo(detail.from)}</span> → <span className="nowrap">{formatDateKo(detail.to)}</span></small>}
+                {showsChange && <i className={change.direction}><span aria-hidden="true">{change.direction === "up" ? "↑ " : change.direction === "down" ? "↓ " : ""}</span>{change.text}</i>}
+                {/* 11/24 가독성: 카드는 값 · 변화 · 기준일과 출처 · 근거 보기만. 검사 배지 · 기준 안내는 근거 보기(출처 카드)에서 봅니다.
+                    비교 기간은 값이 곧 변화량이라 변화 줄을 숨긴 카드에만 남깁니다 (그래야 무엇과 비교한 값인지 남음) */}
+                {!showsChange && detail?.from && detail.to && <small className="metric-period">비교 기간 <span className="nowrap">{formatDateKo(detail.from)}</span> → <span className="nowrap">{formatDateKo(detail.to)}</span></small>}
                 {card.subs.length > 0 && (() => {
                   const rows = subRows(card.subs, n.asOf, report.verification.status === "skipped");
                   const shared = rows.length >= 2 && rows.every(row => row.detail && row.detail === rows[0]!.detail) ? rows[0]!.detail : null;
                   return <>
-                    <ul className="num-subs">{rows.map(row => <li key={row.index}><span className="num-sub-label">{row.label}</span><b className={valueTone(row.value) ?? undefined}>{row.value}</b><span className={`report-badge check-${row.check}`}>{checkLabels[row.check]}</span>{!shared && row.detail && <small className="num-sub-detail">{row.detail}</small>}</li>)}</ul>
+                    <ul className="num-subs">{rows.map(row => <li key={row.index}><span className="num-sub-label">{row.label}</span><b className={valueTone(row.value) ?? undefined}>{row.value}</b>{!shared && row.detail && <small className="num-sub-detail">{row.detail}</small>}</li>)}</ul>
                     {shared && <small className="num-subs-shared">{shared}</small>}
                   </>;
                 })()}
                 <div className={styles.metricMeta}>
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>
-                  {source && <span className="metric-source">{source.name}</span>}
-                  {/* '근거 보기' 와 검사 배지는 한 덩어리로 줄을 넘깁니다. 출처 이름이 길면(FRED 전체 이름) 배지만 혼자 다음 줄로 떨어지던 것 (11/23 #147 참고 카드 확인) */}
-                  <span className={styles.metricActions}>
-                    {source && <EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference>}
-                    <span className={`report-badge check-${check}`}>{checkLabels[check]}</span>
-                  </span>
+                  {/* 카드에는 출처 이름 끝의 괄호 설명을 떼고 짧게 (전체 이름은 근거 보기에). 11/24 가독성: 카드마다 출처 줄이 두세 줄로 접혔음 */}
+                  {source && <span className="metric-source" title={source.name}>{shortSourceName(source.name)}</span>}
+                  {source && <span className={styles.metricActions}><EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기 · ${checkLabels[check]}`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference></span>}
                 </div>
-                {basis && <small className="metric-basis">{basis}</small>}
               </EvidenceOrigin>
             );
           })}
         </div>
-        <p className="section-guide">질문과 관련된 수치를 변화량·기준일과 함께 비교해 보세요.</p>
         <div className={styles.reportToolbar}><ReportHelp /></div>
       </section>
       ) : newsEntries.length > 0 ? (
@@ -265,7 +267,7 @@ export function ReportView({
       <section className={styles.metrics} data-quick="numbers">
         <div className="metrics-heading"><h2>확인한 기사</h2></div>
         <p className="news-count">{newsCountLine(newsEntries)}</p>
-        <p className="section-guide">숫자 자료 없이 기사로 만든 리포트예요. 기사 원문은 아래 출처에서 바로 열 수 있어요.</p>
+        <p className="report-muted news-only-note">숫자 자료 없이 기사로 만든 리포트예요. 기사 원문은 아래 출처에서 바로 열 수 있어요.</p>
         <div className={styles.reportToolbar}><ReportHelp /></div>
       </section>
       ) : (
@@ -298,7 +300,6 @@ export function ReportView({
           {report.impact.length > 0 && <section data-quick="impact">
             <h2>내 생활에 미치는 영향</h2>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
-            <p className="section-guide">내 소비와 자산에 해당하는 카드에서 어떤 영향을 받을 수 있는지 살펴보세요.</p>
           </section>}
 
           {report.charts && report.charts.length > 0 && (
@@ -307,7 +308,6 @@ export function ReportView({
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
               ))}
-              <p className="section-guide">{report.charts.every(c => c.kind === "bar") ? "항목별 값을 나란히 놓고 비교해 보세요." : "날짜에 따른 수치의 흐름을 보고, 아래 요약에서 얼마나 달라졌는지 확인해 보세요."}</p>
             </section>
           )}
         </div>
@@ -345,7 +345,6 @@ export function ReportView({
       {nextTopics.length > 0 && <section className={styles.nextTopics}>
         <ReportResponsiveDetails className="report-fold" summary={<h2>이어서 알아볼까요?</h2>}>
         <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action"><em>머핀랩과 더 알아보기</em><span aria-hidden="true">→</span></span></Link>)}</div>
-        <p className="section-guide">머핀랩이 추천하는 연관 지식이에요. 주제를 고르면 질문이 채워져요.</p>
         </ReportResponsiveDetails>
       </section>}
       {/* 추천이 있든 없든 이어서 물어볼 길을 항상 둡니다 (11/21 QA 최종리포트 마무리 문구 제안, Codex 리뷰: 추천이 비면 링크도 사라지던 것) */}

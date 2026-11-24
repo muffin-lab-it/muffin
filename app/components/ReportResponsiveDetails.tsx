@@ -21,8 +21,11 @@ export function PrintOpenDetails({ summary, children, className = "", label }: {
   </details>;
 }
 
-/** Only phone viewports collapse supporting content; narrow desktop columns stay expanded. */
-export function ReportResponsiveDetails({ summary, children, className = "", label }: { summary: ReactNode; children: ReactNode; className?: string; label?: string }) {
+/**
+ * Only phone viewports collapse supporting content; narrow desktop columns stay expanded.
+ * collapsed 면 PC 에서도 접어 둡니다 (11/24 가독성: 출처와 원본 데이터가 PC 리포트 길이의 20~38%). 근거 보기 · 목차로 가면 열립니다.
+ */
+export function ReportResponsiveDetails({ summary, children, className = "", label, collapsed = false }: { summary: ReactNode; children: ReactNode; className?: string; label?: string; collapsed?: boolean }) {
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 600px)");
@@ -30,9 +33,10 @@ export function ReportResponsiveDetails({ summary, children, className = "", lab
       if (!ref.current) return;
       let linkedTarget: HTMLElement | null = null;
       try { linkedTarget = document.getElementById(decodeURIComponent(window.location.hash.slice(1))); } catch { /* Ignore malformed hashes. */ }
-      ref.current.open = !media.matches || (linkedTarget !== null && ref.current.contains(linkedTarget));
+      const linked = linkedTarget !== null && ref.current.contains(linkedTarget);
+      ref.current.open = collapsed ? linked : !media.matches || linked;
       const heading = ref.current.querySelector("summary");
-      if (heading) heading.tabIndex = media.matches ? 0 : -1;
+      if (heading) heading.tabIndex = collapsed || media.matches ? 0 : -1;
     };
     sync();
     media.addEventListener("change", sync);
@@ -46,9 +50,9 @@ export function ReportResponsiveDetails({ summary, children, className = "", lab
       window.removeEventListener("beforeprint", beforePrint);
       window.removeEventListener("afterprint", afterPrint);
     };
-  }, []);
-  return <details ref={ref} open className={`responsive-details ${className}`} aria-label={label}>
-    <summary onClick={event => { if (!window.matchMedia("(max-width: 600px)").matches) event.preventDefault(); }}>{summary}</summary>
+  }, [collapsed]);
+  return <details ref={ref} open={!collapsed} data-collapsed={collapsed ? "true" : undefined} className={`responsive-details ${className}`} aria-label={label}>
+    <summary onClick={event => { if (!collapsed && !window.matchMedia("(max-width: 600px)").matches) event.preventDefault(); }}>{summary}</summary>
     {children}
   </details>;
 }

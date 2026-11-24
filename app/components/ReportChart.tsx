@@ -6,7 +6,8 @@
  * 11/21 사용자 요청: 선 위에 마우스를 올리거나 손가락으로 짚으면 가장 가까운 날의 날짜 · 값을 보여 줍니다 (값은 장부 그대로).
  */
 import { useState } from "react";
-import { prettyDates } from "./format";
+import { prettyDates, titleWithoutPublisher } from "./format";
+import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Chart, Evidence } from "@/src/agent/schema";
 
 
@@ -116,7 +117,21 @@ export function BarChart({ chart }: { chart: Chart }) {
   );
 }
 
-export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
+/**
+ * 차트 사건 점이 가리키는 기사. 차트에는 28자로 자른 제목만 있어 같은 리포트의 기사 원본에서 전체 제목 · 언론사 · 주소를 찾습니다
+ * (11/24 사용자: 차트 아래 기사 제목이 '…' 로 갑자기 끊겨 이상함)
+ */
+export function chartArticle(event: { ref: string; label: string }, evidence: Evidence[]): { title: string; publisher?: string; url?: string } {
+  const entry = evidence.find((item) => item.id === event.ref);
+  const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : undefined);
+  const publisher = text(entry?.values.publisher) ?? text(entry?.source.name);
+  const title = titleWithoutPublisher(text(entry?.values.title) ?? event.label, publisher);
+  const href = entry?.source.pageUrl ?? entry?.source.url;
+  const url = href && /^https?:\/\//.test(href) ? href : undefined;
+  return { title, publisher, url };
+}
+
+export function ReportChart({ chart, evidence = [] }: { chart: Chart; evidence?: Evidence[] }) {
   const [hover, setHover] = useState<number | null>(null);
   if (chart.kind === "bar") return <BarChart chart={chart} />;
   const series = chart.series[0];
@@ -225,7 +240,7 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
           <g key={`${e.ref}-${e.at}`} className="chart-event">
             <line x1={sx(e.at)} x2={sx(e.at)} y1={PAD.top} y2={H - PAD.bottom} />
             <circle cx={sx(e.at)} cy={PAD.top + 6} r={4}>
-              <title>{`${axisDate(e.at)} ${e.label}`}</title>
+              <title>{`${axisDate(e.at)} ${chartArticle(e, evidence).title}`}</title>
             </circle>
           </g>
         ))}
@@ -243,15 +258,24 @@ export function ReportChart({ chart }: { chart: Chart; evidence: Evidence[] }) {
       <div className="chart-summary">
         <p><strong>{lead} {valueText(from.v)}에서 {valueText(last.v)}{rate ? "로" : roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}${changeUnit} ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}의 {name ?? subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : rate ? "단위는 %예요." : `${unitLabel} 기준으로 표시했어요.`}</span></p>
         {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
+      {/* 차트 위 빨간 점의 기사. 접어 두고, 펼치면 전체 제목을 기사 링크로 (11/24: '…' 로 끊긴 제목 목록 대신) */}
       {events.length > 0 && (
-        <ul className="chart-events">
-          {events.map((e) => (
-            <li key={`${e.ref}-${e.at}`}>
-              <span aria-hidden="true">＊ </span><span className="chart-event-date">{axisDate(e.at)}</span> {e.label} 관련 보도가 나온 시점이에요.
-
-            </li>
-          ))}
-        </ul>
+        <PrintOpenDetails className="chart-news" summary={<><span className="chart-news-dot" aria-hidden="true" />이 기간 관련 기사 {events.length}건</>}>
+          <ul className="chart-events">
+            {events.map((e) => {
+              const article = chartArticle(e, evidence);
+              return (
+                <li key={`${e.ref}-${e.at}`}>
+                  <span className="chart-event-date">{axisDate(e.at)}</span>
+                  <span className="chart-event-title">
+                    {article.url ? <a href={article.url} target="_blank" rel="noopener noreferrer">{article.title} <span aria-hidden="true">↗</span></a> : article.title}
+                    {article.publisher && <small>{article.publisher}</small>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </PrintOpenDetails>
       )}
 
       </div>
