@@ -494,6 +494,10 @@ describe("입력·응답 검증과 인증정보 보호", () => {
     await macroTool.invoke(new RunContext(context), JSON.stringify(krInput));
     const values = context.evidence[0]!.values;
     const trend = Object.keys(values).filter((k) => /^observations\.\d{6}\.previousYear\.change$/.test(k));
+    // 달별 값도 함께 (11/24: 실업률 "2026-08 2.7%" 가 2025-10 값과 우연히 맞아 통과하던 것)
+    const levels = Object.keys(values).filter((k) => /^observations\.\d{6}\.value$/.test(k));
+    expect(levels.length).toBe(trend.length);
+    expect(levels.every((k) => typeof values[k] === "number")).toBe(true);
     const latest = String(values["latest.month"]);
     expect(trend.length).toBeGreaterThan(0);
     expect(trend.every((k) => !k.includes(latest))).toBe(true);

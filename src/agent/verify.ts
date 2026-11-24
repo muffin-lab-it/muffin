@@ -429,6 +429,14 @@ export function verifyNumbers(numbers: WriterOutput["numbers"], evidence: Eviden
     // 같은 정책으로 맞은 후보를 고릅니다 ("13.6원 오른 14원" 의 14원 카드는 정확히 맞은 14 이지 반올림으로도 맞는 13.6 이 아님).
     const hitValue = (hit: { key: string; policy: MatchPolicy }) =>
       candidates.find((c) => c.key === hit.key && matchValue(valueNumbers[0]!, [c])?.policy === hit.policy)!.value;
+    // 값이 같은 칸이 여럿이면 카드 기준일의 달이 이름에 든 칸(observations.202608.value)을 고릅니다
+    // (11/24 운영: 실업률 "2026-08 2.7%" 카드가 같은 숫자인 2025-10 값 칸에 맞아 근거 보기가 엉뚱한 줄을 가리킴)
+    const month = n.asOf.replace(/-/g, "").slice(0, 6);
+    if (/^\d{6}$/.test(month) && !m.key.includes(month)) {
+      const same = hitValue(m);
+      const fit = matchValue(valueNumbers[0]!, candidates.filter((c) => c.key.includes(month) && nearlyEqual(c.value, same)));
+      if (fit) m = fit;
+    }
     const conflict = roleConflict(m.key, n.asOf, e);
     if (conflict) {
       // 최신 값과 비교 시점 값이 같으면(기준금리 3% → 3%) 같은 숫자가 두 키에 있습니다. 먼저 맞은 키의 역할이 asOf 와 어긋나도
