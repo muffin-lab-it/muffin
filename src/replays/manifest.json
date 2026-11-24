@@ -1,5 +1,14 @@
 [
   {
+    "id": "fx-cause-deep",
+    "recordedAt": "2026-11-24T00:27:46.572Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "deep",
+    "area": "fx",
+    "model": "gpt-6-sol",
+    "ms": 50692
+  },
+  {
     "id": "macro-cause",
     "recordedAt": "2026-11-23T07:10:15.411Z",
     "question": "최근 소비자물가 상승 원인은 뭐야?",
@@ -24,15 +33,6 @@
     "area": "macro",
     "model": "gpt-6-sol",
     "ms": 48571
-  },
-  {
-    "id": "fx-cause-deep",
-    "recordedAt": "2026-11-23T07:03:46.666Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "deep",
-    "area": "fx",
-    "model": "gpt-6-sol",
-    "ms": 38035
   },
   {
     "id": "fx-cause-easy",
