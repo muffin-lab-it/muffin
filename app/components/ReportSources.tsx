@@ -6,7 +6,9 @@ import { reportChange } from "./reportChange";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { EvidenceRecord, SourceLink } from "./ReportEvidence";
 import { useEvidenceSelection, useEvidenceTarget } from "./ReportEvidenceScope";
-import { formatDateKo } from "./format";
+import { etfBasisNote, formatDateKo, fxBasisNote } from "./format";
+
+const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" } as const;
 
 /** 리포트가 실제로 참조한 장부 번호: 숫자 카드 · 원인 · 차트와, 그 계산에 들어간 입력까지 (11/21 QA 4: 안 쓴 자료가 첫 탭에 오던 것) */
 export function usedEvidenceIds(report: Report): Set<string> {
@@ -62,7 +64,8 @@ export function ReportSources({ report }: { report: Report }) {
   const active = scope?.selection && groups.includes(scope.selection) ? scope.selection : groups[0];
   const keys = usedKeysByRef(report);
   return <section className="source-library" aria-label="정확한 데이터로 보는 금융" id={rootId ?? undefined} tabIndex={-1} data-quick="sources">
-    <ReportResponsiveDetails className="report-fold" summary={<h2>출처와 원본 데이터</h2>}>
+    {/* PC 에서도 접어 둡니다. 근거 보기 · 출처로 이동 · 목차를 누르면 펼쳐집니다 (11/24 가독성) */}
+    <ReportResponsiveDetails collapsed className="report-fold source-fold" summary={<><h2>출처와 원본 데이터</h2><span className="fold-hint">자료 {shown.length}개 · 원본 값과 검사 결과</span></>}>
 
     {groups.length > 1 && <div className="source-chips" role="group" aria-label="자료 주제 선택">
       {groups.map(group => <button type="button" key={group} aria-pressed={active === group} onClick={() => scope?.select(group)}>{group}</button>)}
@@ -82,9 +85,13 @@ export function ReportSources({ report }: { report: Report }) {
           // 같은 장부를 가리키는 숫자가 여럿이면 첫 숫자만 크게, 나머지는 작은 줄로 (11/22 운영 확인: 숫자 넷이 큰 글씨로 세로로 쌓였음)
           const nums = report.numbers.filter(number => number.ref === entry.id);
           const [first, ...rest] = nums;
+          // 숫자 카드에서 옮겨 온 것 (11/24 가독성): 검사 결과 배지와 환율 · ETF 기준 안내
+          const checkOf = (number: Report["numbers"][number]) => report.verification.status === "skipped" ? "unverified" : number.check;
+          const basis = fxBasisNote(entry.tool, entry.source.name) ?? etfBasisNote(entry);
           return <div key={entry.id} className="source-data-item">
-          {first && <div className="source-number"><span className="source-number-label">{first.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{first.value}</strong>{first.change && <small>{reportChange(first.change, first.changeDetail).text}</small>}</div>}
-          {rest.length > 0 && <ul className="source-number-subs">{rest.map((number, index) => <li key={index}><span>{number.label}</span><b>{number.value}</b>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</li>)}</ul>}
+          {first && <div className="source-number"><span className="source-number-label">{first.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{first.value}</strong><span className={`report-badge check-${checkOf(first)}`}>{checkLabels[checkOf(first)]}</span>{first.change && <small>{reportChange(first.change, first.changeDetail).text}</small>}</div>}
+          {rest.length > 0 && <ul className="source-number-subs">{rest.map((number, index) => <li key={index}><span>{number.label}</span><b>{number.value}</b><span className={`report-badge check-${checkOf(number)}`}>{checkLabels[checkOf(number)]}</span>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</li>)}</ul>}
+          {basis && <p className="evidence-basis">{basis}</p>}
           <EvidenceRecord inList entry={entry} evidence={report.evidence} usedKeys={keys.get(entry.id) ?? []} displayedValue={first?.value} displayedLabel={first?.label} hideHeading={!!first} />
         </div>;
         })}
@@ -94,7 +101,6 @@ export function ReportSources({ report }: { report: Report }) {
     {folded.length > 0 && <PrintOpenDetails className="source-unused" summary={`조회했지만 리포트에 쓰지 않은 자료 ${folded.length}개 · ${folded.slice(0, 5).map(entry => `${evidenceCategory(entry)} ${entry.id}`).join(", ")}${folded.length > 5 ? ` 외 ${folded.length - 5}개` : ""}`}>
       <div className="source-data-grid">{folded.map(entry => <div key={entry.id} className="source-data-item"><EvidenceRecord entry={entry} evidence={report.evidence} usedKeys={[]} /></div>)}</div>
     </PrintOpenDetails>}
-    <p className="section-guide">{groups.length > 1 ? "주제를 고른 뒤, 리포트에 쓰인 수치의 출처와 기준일을 확인해 보세요." : "리포트에 쓰인 수치의 출처와 기준일을 확인해 보세요."} 비교에 사용한 자료도 아래에서 함께 볼 수 있어요.</p>
 
     </ReportResponsiveDetails>
   </section>;

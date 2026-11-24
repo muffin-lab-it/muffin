@@ -703,3 +703,61 @@
   .report :global(.chart-tip) { display:none; }
   .report :global(.chart-hover-text) { font-size:14px; font-weight:600; color:#3d344b; }
 }
+
+/* ───────── 11/24 가독성 (사용자: 자료가 많고 글자가 작아 읽기 어려움) ─────────
+   본문 PC 17px · 휴대폰 16px, 카드 · 표 15px, 가장 작은 글자 13px. 숫자 카드는 값 · 변화 · 기준일과 출처 · 근거 보기만 */
+.report { font-size:17px; }
+.report .summaryBody, .report :global(.impact-card) p, .report :global(.reason-evidence) p { font-size:17px; line-height:1.8; }
+.report :global(.reason-evidence h3) { font-size:19px; line-height:1.65; }
+.report :global(.impact-card) h3 { font-size:19px; }
+.report :global(.reference-toggle .verification-body li), .report :global(.evidence-note), .report :global(.report-muted), .report :global(.why-note) { font-size:16px; line-height:1.75; }
+.report .metrics :global(.num) small, .report .metrics :global(.num) i { font-size:15px; }
+.report :global(.num-subs) li { font-size:15px; }
+.report .metrics :global(.num .num-subs) b { font-size:17px; }
+.report :global(.num-sub-detail), .report :global(.num-subs-shared) { font-size:14px; }
+.report :global(.report-badge), .report .metrics .metricMeta :global(.report-badge) { font-size:13px; }
+.report :global(.report-disclosure) { font-size:14px; }
+.report :global(.report-meta-line .report-created-at) { font-size:13px; }
+.report :global(.report-question-notice), .report :global(.report-area-note) { font-size:14px; }
+.report .topicLink small, .report .topicLink em { font-size:15px; }
+.report :global(.hero-gaps), .report :global(.hero-gaps) a { font-size:15px; }
+.report :global(.reason-originals .evidence-link), .report :global(.reason-originals .reason-article), .report :global(.reason-news) { font-size:15px; }
+.report :global(.chart-period), .report :global(.chart-hover-text), .report :global(.chart-context) { font-size:15px; }
+.report :global(.metrics-heading) h2, .report .story h2, .report :global(.responsive-details > summary) h2 { font-size:21px; }
+.report .headlinePlaceholder { font-size:26px; }
+/* 출처 카드로 옮긴 검사 배지 · 기준 안내 */
+.report :global(.source-number) :global(.report-badge) { margin-left:8px; vertical-align:middle; }
+.report :global(.source-number-subs) :global(.report-badge) { margin-left:2px; }
+.report :global(.evidence-basis) { margin:6px 0 10px; font-size:14px; line-height:1.6; color:#6f6680; }
+/* PC 에서도 접어 둔 출처와 원본 데이터: 한 줄 + '펼치기' */
+.report :global(.source-fold) > summary { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; cursor:pointer; list-style:none; }
+.report :global(.source-fold) > summary::-webkit-details-marker { display:none; }
+.report :global(.source-fold) > summary :global(.fold-hint) { font-size:14px; font-weight:500; color:#7a7186; }
+.report :global(.source-fold) > summary::after { content:"펼치기 ⌄"; margin-left:auto; font-size:14px; font-weight:650; color:#6b4a94; }
+.report :global(.source-fold[open]) > summary::after { content:"접기 ⌃"; }
+/* 차트 아래 관련 기사: 접어 두고 펼치면 전체 제목 (11/24: '…' 로 끊긴 목록 대신) */
+.report :global(.chart-news) { margin-top:14px; }
+.report :global(.chart-news) > summary { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:#fff; border:1px solid #eadfe6; color:#5e4a78; font-size:15px; font-weight:600; cursor:pointer; list-style:none; }
+.report :global(.chart-news) > summary::-webkit-details-marker { display:none; }
+.report :global(.chart-news) > summary::after { content:"⌄"; font-size:16px; }
+.report :global(.chart-news[open]) > summary::after { content:"⌃"; }
+.report :global(.chart-news-dot) { width:8px; height:8px; border-radius:50%; background:var(--up); }
+.report :global(.chart-news) :global(.chart-events) { margin:12px 0 0; padding:4px 16px; list-style:none; background:#fff; border-radius:10px; }
+.report :global(.chart-news) :global(.chart-events) li { display:grid; grid-template-columns:52px minmax(0,1fr); gap:4px 12px; padding:10px 0; border-bottom:1px solid #f1edf5; font-size:15px; line-height:1.6; }
+.report :global(.chart-news) :global(.chart-events) li:last-child { border-bottom:0; }
+.report :global(.chart-news) :global(.chart-event-date) { min-width:0; color:var(--up); font-weight:600; font-variant-numeric:tabular-nums; }
+.report :global(.chart-event-title) { min-width:0; overflow-wrap:anywhere; }
+.report :global(.chart-event-title) a { color:#34303c; text-decoration:underline; text-decoration-color:#d9cfe6; text-underline-offset:3px; }
+.report :global(.chart-event-title) small { display:block; margin-top:2px; font-size:13px; color:#7a7186; }
+@container report (max-width:560px) {
+  .report { font-size:16px; }
+  .report .summaryBody, .report :global(.impact-card) p, .report :global(.reason-evidence) p { font-size:16px; }
+  .report :global(.reason-evidence h3), .report :global(.impact-card) h3 { font-size:17px; }
+  .report :global(.metrics-heading) h2, .report .story h2, .report :global(.responsive-details > summary) h2 { font-size:19px; }
+  .report .headlinePlaceholder { font-size:20px; }
+  .report :global(.chart-news) :global(.chart-events) li { grid-template-columns:44px minmax(0,1fr); gap:2px 10px; }
+  /* 휴대폰 숫자 카드는 여백 · 값 글자를 조금 줄여 한 화면에 더 (11/24 가독성) */
+  .report .metrics :global(.num) { padding:16px 18px; }
+  .report .metrics :global(.num) b { font-size:28px; margin:6px 0 4px; }
+  .report .metrics .metricMeta { margin-top:10px; padding-top:10px; gap:2px 10px; }
+}
