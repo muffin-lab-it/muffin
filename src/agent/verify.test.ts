@@ -839,3 +839,22 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
     expect(verifyText({ ...base, summary: "물가 상승률은 0.44%p 낮아졌어요." }, [cpiNow, cpiBefore, fell])).toEqual([]);
   });
 });
+
+describe("값이 같은 칸이 여럿일 때 기준일의 달 (11/24)", () => {
+  it("실업률 '2026-08 2.7%' 카드는 같은 숫자의 2025-10 칸이 아니라 2026-08 칸에 맞춘다", () => {
+    const jobs: Evidence = {
+      id: "E1",
+      tool: "get_macro_indicators",
+      label: "실업률",
+      values: { indicator: "unemployment", unit: "%", changeUnit: "percentage_points", "latest.month": "202610", "latest.value": 2.5, "latest.previousYear.month": "202510", "latest.previousYear.value": 2.7, "observations.202608.value": 2.7, "observations.202609.value": 2.6 },
+      source: { name: "ECOS", url: "https://ecos.bok.or.kr", asOf: "2026-10-01" },
+    };
+    const out = verifyNumbers([
+      { label: "실업률", value: "2.7%", change: "", asOf: "2026-08-01", ref: "E1" },
+      { label: "실업률", value: "2.7%", change: "", asOf: "2025-10-01", ref: "E1" },
+      { label: "실업률", value: "2.5%", change: "", asOf: "2026-10-01", ref: "E1" },
+    ], [jobs]);
+    expect(out.map((f) => f.status)).toEqual(["verified", "verified", "verified"]);
+    expect(out.map((f) => (f as { key?: string }).key)).toEqual(["observations.202608.value", "latest.previousYear.value", "latest.value"]);
+  });
+});
