@@ -70,7 +70,8 @@ describe("researchInstructions", () => {
     expect(text).toContain("query 는 짧은 주제 핵심어");
     expect(text).toContain("금리와 물가를 따로 검색");
     expect(text).toContain("한 번만 재시도");
-    expect(text).toContain("제목에 query 전체가 포함");
+    expect(text).toContain("query 의 낱말이 모두 든 제목");
+    expect(text).toContain("질문어는 빼고 봅니다");
     expect(text).toContain("Google은 query 를 RSS 검색에 전달");
     expect(text).toContain("제목만 있으면 제목 수준의 사실만");
     expect(text).toContain("본문이 있으면 그 안의 설명 주체와 주장");

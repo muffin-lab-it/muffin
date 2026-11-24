@@ -7,7 +7,7 @@ export const MAX_BODY_CHARS = 12_000;
 
 export type BodyResult =
   | { status: "available"; text: string }
-  | { status: "unavailable"; reason: "original_url_unresolved" | "unsupported_publisher" | "invalid_url" | "access_restricted" | "http_error" | "timeout" | "response_too_large" | "body_too_large" | "output_limit" | "structure_changed"; detail: string };
+  | { status: "unavailable"; reason: "original_url_unresolved" | "unsupported_publisher" | "invalid_url" | "access_restricted" | "http_error" | "timeout" | "response_too_large" | "body_too_large" | "output_limit" | "structure_changed" | "attachment_only"; detail: string };
 
 function paragraphs(parts: string[]): string | null {
   const cleaned = parts.map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
@@ -60,7 +60,17 @@ const extractors: Partial<Record<Article["source"], Extractor>> = {
   hankyung: { parse: extractHankyung },
 };
 
+/** 한국은행 보도자료 설명이 이만큼 길어야 본문으로 씁니다. 짧은 것은 "자세한 내용은 붙임을 참고" 류라 제목만 씁니다 */
+export const BOK_MIN_BODY_CHARS = 200;
+
 export async function fetchArticleBody(article: Article, timeoutMs = 2_500): Promise<BodyResult> {
+  // 한국은행 보도자료는 페이지를 읽지 않고 RSS 설명을 본문으로 씁니다 (11/24 실측: 100건 중 8건이 300자 이상, 59건은 "붙임 참고" 한 줄)
+  if (article.source === "bok") {
+    const text = article.description ?? "";
+    return text.length >= BOK_MIN_BODY_CHARS
+      ? { status: "available", text: text.slice(0, MAX_BODY_CHARS) }
+      : { status: "unavailable", reason: "attachment_only", detail: "본문이 첨부파일에 있어 제목만 확인했어요." };
+  }
   if (article.source === "google") {
     return { status: "unavailable", reason: "original_url_unresolved", detail: "뉴스 검색 서비스의 링크라 원문 주소를 확정할 수 없어요." };
   }
