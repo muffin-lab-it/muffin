@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
-import { formatDateKo, sourceLinkLabel, titleWithoutPublisher } from "./format";
+import { formatDateKo, isBokRelease, newsLicenseNote, sourceLinkLabel, titleWithoutPublisher } from "./format";
 import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { ReportEvidenceLink, ReportSectionLink, useEvidenceSelection, useEvidenceTarget } from "./ReportEvidenceScope";
@@ -178,17 +178,21 @@ function NewsEvidence({ entry, inList = false }: { entry: Evidence; inList?: boo
   const body = entry.values.body;
   // 본문을 못 받은 것(unavailable)과 요청하지 않은 것(not_requested)은 읽는 사람에게 같은 뜻이라 둘 다 '제목만 확인' (11/23 운영 검수: '본문 미요청' 이 내부 말로 보임)
   const status = body === "unavailable" || body === "not_requested" ? "제목만 확인" : body === "available" ? "본문 확보" : "본문 확보 여부 미확인";
+  // 한국은행 보도자료는 기사가 아니라 그렇게 부르고, 출처 · 가공 안내를 카드마다 둡니다 (11/25 이용 조건)
+  const release = isBokRelease(entry);
+  const license = newsLicenseNote(entry);
   return <>
     <p className="evidence-title">{title}</p>
     <div className="evidence-meta">
       <span aria-hidden="true">📰</span><span>{publisher}</span>
-      <SourceLink url={url} name={relay ? "Google News 중계 링크" : "기사 보기"} />
+      <SourceLink url={url} name={relay ? "Google News 중계 링크" : release ? "보도자료 보기" : "기사 보기"} />
       <span>{date.dateTime ? <time dateTime={date.dateTime}>{formatDateKo(date.label)}</time> : date.label}{date.relative && ` · ${date.relative}`}</span>
       <span>{status}</span>
     </div>
     {/* 기사마다 같은 안내 문단이 반복되던 것을 빼고(11/20 QA 13), 제목만 확인한 기사에만 한 줄 둡니다 */}
     {/* 출처 목록에서는 뉴스 묶음 위에 한 번만 둡니다 (11/23 운영 검수: 기사 11건에 같은 문장이 11번) */}
-    {!inList && (body === "unavailable" || body === "not_requested") && <p className="report-muted">제목만 확인한 기사라 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>}
+    {license && <p className="report-muted evidence-license">{license}</p>}
+    {!inList && (body === "unavailable" || body === "not_requested") && <p className="report-muted">제목만 확인한 {release ? "보도자료" : "기사"}라 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 독립 검증된 사실과 구분해 주세요.</p>}
   </>;
 }
 

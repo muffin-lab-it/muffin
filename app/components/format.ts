@@ -85,6 +85,40 @@ export function isNewsEvidence(entry: Pick<Evidence, "tool">): boolean {
   return /news/i.test(entry.tool);
 }
 
+type NewsEntry = Pick<Evidence, "tool" | "values" | "source">;
+
+function newsHost(entry: NewsEntry): string {
+  try {
+    return new URL(entry.source.pageUrl ?? entry.source.url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+/** 한국은행 보도자료(뉴스 tool 의 bok 출처). 기사가 아니라 보도자료라 그렇게 부르고, 이용 조건(출처 · 원문 링크 · 가공 표시)에 맞춰 안내를 붙입니다 (11/25) */
+export function isBokRelease(entry: NewsEntry): boolean {
+  return isNewsEvidence(entry) && (entry.values.publisher === "한국은행" || newsHost(entry) === "www.bok.or.kr");
+}
+
+/** 정책브리핑 정책뉴스(뉴스 tool 의 policy 출처, 공공누리 1유형) */
+export function isPolicyNews(entry: NewsEntry): boolean {
+  const publisher = entry.values.publisher;
+  return isNewsEvidence(entry) && ((typeof publisher === "string" && publisher.startsWith("정책브리핑")) || newsHost(entry) === "www.korea.kr");
+}
+
+/** 뉴스 자료를 부르는 말: 한국은행 보도자료뿐이면 "보도자료", 섞이면 "기사 · 보도자료", 그 밖에는 "기사". 장부를 못 찾은 것은 기사로 셉니다 */
+export function newsNoun(entries: readonly (NewsEntry | undefined)[]): string {
+  const releases = entries.filter(entry => !!entry && isBokRelease(entry)).length;
+  return releases === 0 ? "기사" : releases === entries.length ? "보도자료" : "기사 · 보도자료";
+}
+
+/** 출처 카드의 이용 조건 안내 한 줄. 같은 말이 장부 메모에도 있지만 뉴스 메모는 화면에서 숨기므로 따로 보입니다 */
+export function newsLicenseNote(entry: NewsEntry): string | null {
+  if (isBokRelease(entry)) return "출처 한국은행 · 보도자료 원문을 글자만 옮겨 요약에 썼어요.";
+  if (isPolicyNews(entry)) return "출처 정책브리핑(공공누리 1유형) · 원문을 글자만 옮겨 요약에 썼어요.";
+  return null;
+}
+
 /** 환율 카드 아래 기준 설명 한 줄 (11/20 서영 1-1 · 외부 G2: 은행 고시와 달라 보여 틀린 줄 알았던 것). 환율 tool 장부에만 붙습니다. */
 export function fxBasisNote(tool: string, sourceName: string): string | null {
   if (!/fx/i.test(tool)) return null;
@@ -128,7 +162,7 @@ export function newsCountLine(entries: Evidence[]): string {
   const publishers = [...new Set(entries.map(publisherOf))];
   const named = publishers.length > 3 ? `${publishers.slice(0, 3).join(" · ")} 외 ${publishers.length - 3}곳` : publishers.join(" · ");
   const range = dates.length === 0 ? "날짜 미제공" : dates[0] === dates[dates.length - 1] ? formatDateKo(dates[0]) : `${formatDateKo(dates[0])} ~ ${formatDateKo(dates[dates.length - 1])}`;
-  return `기사 ${entries.length}건 · ${range} · ${named}`;
+  return `${newsNoun(entries)} ${entries.length}건 · ${range} · ${named}`;
 }
 
 export { publisherOf };
