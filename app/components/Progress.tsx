@@ -12,6 +12,7 @@ import stage4 from "../stage-muffin-4.png";
 import stage5 from "../stage-muffin-5.png";
 const stageImages = [stage1, stage2, stage3, stage4, stage5];
 import styles from "./Progress.module.css";
+import { FinanceFloaters } from "./FinanceFloaters";
 import type { ReactNode } from "react";
 import type { Depth } from "@/src/agent/schema";
 import { splitAreaPrefix } from "./home-form";
@@ -128,6 +129,7 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
   const imageIndex = state.complete ? 4 : current ? stages.indexOf(current) : Math.max(0, stages.findLastIndex(stage => state.status[stage] === "done"));
   const percent = state.complete ? 100 : Math.round(finished / applicable.length * 100);
 
+  const storyTitle = state.complete || error ? "확인한 것" : "지금 확인하는 것";
   return (
     <section className={styles.root} aria-label="리포트 생성 진행" data-layout="progress">
       <div className={styles.titleRow}><span className={styles.titleIcon} aria-hidden="true">{titleIcon}</span><h1 className={styles.title} data-tone={timeout || (!error && !state.complete && scope) ? "attention" : undefined} aria-live="polite">{title}</h1></div>
@@ -149,7 +151,7 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
         </p>
 
         <div className={styles.progressHeading}><span>완료 단계 기준{error ? error.kind === "save" ? " · 저장 실패" : " · 중단됨" : ""}</span><strong>{percent}%</strong></div>
-        <div className={styles.track} role="progressbar" aria-label="완료 단계 기준 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${applicable.length}단계 중 ${finished}단계 완료${error ? ", 조사 중단" : ""}`}><span style={{ width: `${percent}%` }} /></div>
+        <div className={styles.track} data-active={!error && !state.complete ? "true" : undefined} role="progressbar" aria-label="완료 단계 기준 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${applicable.length}단계 중 ${finished}단계 완료${error ? ", 조사 중단" : ""}`}><span style={{ width: `${percent}%` }} /></div>
 
         <ol className={styles.stages} aria-label="리포트가 만들어지는 과정">
           {stages.map((stage) => {
@@ -174,9 +176,14 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
       </section>
       </div>
       <div className={styles.side}>
-      <Image className={styles.mascot} src={stageImages[imageIndex]} width={200} height={200} sizes="(max-width: 720px) 160px, 200px" alt="" aria-hidden="true" />
-      <aside className={styles.tip} aria-label="머핀 이야기" data-section="story">
-        <div className={styles.storyHeading}><span className={styles.storyIcon} aria-hidden="true"><Image src="/icon.svg" alt="" width={20} height={20} /></span><h2>머핀 이야기</h2></div>
+      {/* 11/25 사용자: 진행 화면에도 움직임 — 단계가 바뀌면 그림이 톡 튀어나오고(key 로 다시 그림), 둥실 · 둘레에 금융 그림 */}
+      <div className={styles.mascotWrap}>
+        <Image key={imageIndex} className={styles.mascot} src={stageImages[imageIndex]} width={200} height={200} sizes="(max-width: 720px) 160px, 200px" alt="" aria-hidden="true" />
+        <FinanceFloaters variant="progress" />
+      </div>
+      {/* 11/25 사용자: '머핀 이야기' 대신 확인하는 일로 부름. 끝나거나 멈추면 '확인한 것' */}
+      <aside className={styles.tip} aria-label={storyTitle} data-section="story">
+        <div className={styles.storyHeading}><span className={styles.storyIcon} aria-hidden="true"><Image src="/icon.svg" alt="" width={20} height={20} /></span><h2>{storyTitle}</h2></div>
         <p className={styles.story} aria-live="polite">{story}</p>
         {(state.plan || state.steps.length > 0 || verification) && <div className={styles.storyData}>
 

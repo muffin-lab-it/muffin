@@ -61,7 +61,7 @@ describe("MF-02 진행 화면", () => {
     const after = load(renderToStaticMarkup(<Progress question="질문" events={[{ type: "stage", stage: "plan", status: "done" }, { type: "stage", stage: "research", status: "start" }]} pending onRetry={vi.fn()} onEditQuestion={vi.fn()} />));
     expect(after("[aria-current=step]").text()).toContain("자료 찾기");
   });
-  it("질문 · 단계가 앞, 그림 · 머핀 이야기가 뒤에 오고 % 숫자는 보조 기술에만 남는다 (11/21 하니 1)", () => {
+  it("질문 · 단계가 앞, 그림 · 확인하는 것 칸이 뒤에 오고 % 숫자는 보조 기술에만 남는다 (11/21 하니 1)", () => {
     const $ = render([{ type: "stage", stage: "plan", status: "done" }, { type: "stage", stage: "research", status: "start" }]);
     expect($("[data-section]").map((_, el) => $(el).attr("data-section")).get()).toEqual(["question", "progress", "story"]);
     expect($("[data-section=story]").prev("img").length + $("[data-section=story]").parent().find("img").length).toBeGreaterThan(0);
@@ -110,5 +110,25 @@ describe("MF-02 진행 화면", () => {
     expect($("[role=status]").text()).toContain("저장하고 있어요");
     expect($.text()).not.toContain("저장됐어요");
     expect($.text()).toContain("답변 전체의 정확성을 보장하지");
+  });
+});
+
+describe("진행 화면 움직임 · 칸 이름 (11/25 사용자)", () => {
+  it("진행 중에는 '지금 확인하는 것', 끝나거나 멈추면 '확인한 것' 으로 부른다", () => {
+    const running = render([{ type: "stage", stage: "plan", status: "done" }, { type: "stage", stage: "research", status: "start" }]);
+    expect(running("[data-section=story] h2").text()).toBe("지금 확인하는 것");
+    expect(running("[data-section=story]").attr("aria-label")).toBe("지금 확인하는 것");
+    expect(running.text()).not.toContain("머핀 이야기");
+    const stopped = render([{ type: "stage", stage: "plan", status: "start" }], "조사 중 오류가 생겼어요");
+    expect(stopped("[data-section=story] h2").text()).toBe("확인한 것");
+  });
+
+  it("그림 둘레에 떠 있는 금융 그림을 두고, 진행 막대의 빛은 진행 중일 때만 흐른다", () => {
+    const running = render([{ type: "stage", stage: "research", status: "start" }]);
+    expect(running("[class*=mascotWrap] img")).toHaveLength(1);
+    expect(running("[class*=mascotWrap] [class*=floaters] [class*=floater]")).toHaveLength(5);
+    expect(running("[role=progressbar]").attr("data-active")).toBe("true");
+    const stopped = render([{ type: "stage", stage: "research", status: "start" }], "조사 중 오류가 생겼어요");
+    expect(stopped("[role=progressbar]").attr("data-active")).toBeUndefined();
   });
 });

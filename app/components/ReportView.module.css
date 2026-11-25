@@ -814,3 +814,10 @@
 /* 주의점은 늘 펼친 칸이라 제목과 목록 사이 선을 없애고, 목록을 제목 글자에 맞춰 들여 씀 */
 .report :global(.reference-toggle) > summary { padding-bottom:6px; }
 .report :global(.reference-toggle .verification-body) { border-top:0; padding-top:0; padding-left:32px; }
+
+/* 11/25 사용자: 출처부터는 칸마다 배경을 번갈아 — 출처 흰색 · 검증 옅은 보라 · 주의점 흰색 · 이어서 알아볼까요 옅은 보라. 칸 사이 선 대신 색으로 나눔 */
+.report :global(.source-library), .report :global(.report-verification[data-quick="verify"]), .report :global(.report-verification.report-reference), .report .nextTopics { border:0; border-radius:14px; padding:2px 20px; margin:0; box-shadow:none; }
+.report :global(.source-library), .report :global(.report-verification.report-reference) { background:#fff; }
+.report :global(.report-verification[data-quick="verify"]), .report .nextTopics { background:#f6f1fb; }
+.report .nextTopics { padding:6px 20px 14px; }
+@container report (max-width: 560px) { .report :global(.source-library), .report :global(.report-verification[data-quick="verify"]), .report :global(.report-verification.report-reference), .report .nextTopics { padding-left:14px; padding-right:14px; border-radius:12px; } .report :global(.reference-toggle .verification-body) { padding-left:4px; padding-right:0; } } /* 휴대폰은 주의점 목록 들여쓰기를 줄여 글 폭 확보 */
