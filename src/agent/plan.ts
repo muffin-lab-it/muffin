@@ -65,7 +65,7 @@ export const areaTools: Record<Area, string> = {
 const areaNames: Record<Area, string> = { fx: "환율", etf: "ETF", news: "경제뉴스", rate: "금리", macro: "물가·경제지표" };
 
 /** "사도 돼?" 류 판단 요청. Mock 과 기본 규칙이 같이 씁니다. */
-export const DECISION_PATTERN = /(사도|살까|팔까|팔아야|매수|매도|들어가도|투자해도|사야|팔면)/;
+export const DECISION_PATTERN = /(사도|살까|팔까|팔아야|매수|매도|들어가도|투자해도|사야|팔면|(?:뭘|뭐를?|무엇을)\s*사면|사면\s*(?:좋|될|괜찮))/;
 const OUT_OF_SCOPE_PATTERN = /(비트코인|bitcoin|이더리움|ethereum|암호화폐|가상자산|코인)/i;
 const CAUSE_PATTERN = /(왜|원인|이유|때문|배경)/;
 const COMPARE_PATTERN = /(비교|대비|vs|차이|보다|격차)/i;
