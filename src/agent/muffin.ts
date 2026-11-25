@@ -27,7 +27,7 @@ import { dropFetchTalk, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
-import { ensureRateStatement, rateStatementNote } from "./rate-cause";
+import { dropNewerDecisionTalk, ensureRateStatement, rateStatementNote } from "./rate-cause";
 import { todayLine } from "./today";
 import { deepNote, deepRefs, ensureDeep, withDeepNumbers } from "./deep";
 import { ensureRateReference, ensureRateYear, rateReferenceNote, rateYearNote, withRateReference, yearRates } from "./rate-trend";
@@ -379,7 +379,9 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 한 줄 요약 끝의 "…지만 확인되지 않아요" 와, 원인을 묻지 않은 질문의 "원인은 확인할 수 없어요" 문장을 뗍니다 (src/agent/negatives.ts)
   // 관계 질문은 요약에 되풀이된 "상관관계 · 인과관계는 판단할 수 없어요" 와 받지 않는 지표의 한계 문장을 주의점 · 확인하지 못한 것 한 곳으로 모읍니다 (relation.ts)
   // 요약 · 주의점의 "조회가 실패해 이전 응답을 썼어요" 문장은 뺍니다. 저장된 응답을 썼으면 확인하지 못한 것에 코드가 한 줄 넣습니다 (negatives.ts dropFetchTalk)
-  const negTrimmed = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, fallbackTools(ctx.steps)), plan.intent));
+  // 금리 원인 질문을 한국은행 통화정책방향으로 답했으면 "더 최근 결정은 확인되지 않았어요" 문장을 뺍니다 (rate-cause.ts dropNewerDecisionTalk)
+  const negTrimmedAll = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, fallbackTools(ctx.steps)), plan.intent));
+  const negTrimmed = rateStatement ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   const finalOutput = {

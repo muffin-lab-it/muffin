@@ -11,7 +11,7 @@ vi.mock("./news-topics", () => ({ addMacroNews: vi.fn(async () => []), macroNews
 vi.mock("./relation", () => ({ ensureRelation: vi.fn(async () => null), relationNote: vi.fn(() => ""), relationRefs: vi.fn(() => []), relationHidden: vi.fn(() => new Set()), trimRelationRepeats: vi.fn((o: unknown) => o), withRelationNumbers: vi.fn((o: unknown) => o), relationHeadline: vi.fn((h: unknown) => h) }));
 vi.mock("./money-value", () => ({ ensureMoneyValue: vi.fn(async () => false), moneyValueNote: vi.fn(() => ""), moneyValueRows: vi.fn(() => []) }));
 vi.mock("./etf-basket", () => ({ ensureEtfBasket: vi.fn(async () => false), basketChart: vi.fn(() => null), basketNote: vi.fn(() => ""), basketRows: vi.fn(() => []), withBasketNumbers: vi.fn((o: unknown) => o) }));
-vi.mock("./rate-cause", () => ({ ensureRateStatement: vi.fn(async () => null), rateStatementNote: vi.fn(() => "") }));
+vi.mock("./rate-cause", () => ({ ensureRateStatement: vi.fn(async () => null), rateStatementNote: vi.fn(() => ""), dropNewerDecisionTalk: vi.fn((o: unknown) => o) }));
 vi.mock("./cpi-trend", () => ({ cpiChart: vi.fn(() => null), cpiTrendHidden: vi.fn(() => new Set()), ensureCpiTrend: vi.fn(async () => null) }));
 vi.mock("./deep", () => ({ deepNote: vi.fn(() => ""), deepRefs: vi.fn(() => []), ensureDeep: vi.fn(async () => null), withDeepNumbers: vi.fn((o: unknown) => o) }));
 vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), ensureRateReference: vi.fn(async () => null), rateReferenceNote: vi.fn(() => ""), rateYearNote: vi.fn(() => ""), withRateReference: vi.fn((o: unknown) => o), yearRates: vi.fn(() => []) }));

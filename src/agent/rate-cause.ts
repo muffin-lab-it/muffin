@@ -9,8 +9,9 @@
  */
 import { RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
+import { NEGATIVE } from "./negatives";
 import { areaTools } from "./plan";
-import type { Evidence, Intent } from "./schema";
+import type { Evidence, Intent, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
 
 const STATEMENT = /통화정책방향/;
@@ -111,17 +112,75 @@ export async function ensureRateStatement(ctx: ResearchContext, question: string
 
 const DECISION_TEXT: Record<Decision, string> = { 인상: "기준금리 인상", 인하: "기준금리 인하", 동결: "기준금리 유지(동결)" };
 
-/** 작성 입력에 붙이는 [한국은행 통화정책방향]. 본문이 없으면 빈 문자열 */
+/**
+ * 작성 입력에 붙이는 [한국은행 통화정책방향]. 본문이 없으면 빈 문자열.
+ * 장부의 통화정책방향 중 가장 최근 문서면 그렇다고 알립니다 (11/25 운영: 4번 중 2번이 요약 끝에 "2026-11-25 현재 가장 최근 결정문은 확인되지 않아,
+ * 이 설명은 2026-10-22 결정에 해당해요" 를 붙임. 한국은행 보도자료를 이번 실행에서 받았으니 더 최근 결정이 있었다면 그 문서가 잡혔을 것)
+ */
 export function rateStatementNote(evidence: Evidence[], id: string | null, raw: ReadonlyMap<string, unknown>): string {
   const e = id ? evidence.find((x) => x.id === id) : undefined;
   if (!e) return "";
   const body = bodyOf(e, raw.get(e.id));
   if (!body) return "";
   const decision = statementDecision(body);
+  const date = statementDate(e);
+  const newest = newestStatement(evidence);
+  const newestLine =
+    !newest || statementDate(newest) <= date
+      ? `이번에 받은 한국은행 보도자료에는 이보다 최근 통화정책방향이 없습니다. 이 문서가 가장 최근 기준금리 결정이니 "오늘 · 최근 결정은 확인되지 않았다", "이 설명은 ${date} 결정에 해당한다" 같은 문장은 쓰지 않습니다.`
+      : `이번에 받은 한국은행 보도자료에서 가장 최근 통화정책방향은 ${newest.values.title} (ref ${newest.id}, ${statementDate(newest)}) 이고, 그보다 최근 결정문은 없습니다. 오늘 · 최근 결정이 확인되지 않았다는 문장은 쓰지 않습니다.`;
   return [
-    `[한국은행 통화정책방향] 금융통화위원회의 기준금리 결정 이유가 담긴 한국은행 문서입니다: ${e.values.title} (ref ${e.id}, ${statementDate(e)}${decision ? `, 결정: ${DECISION_TEXT[decision]}` : ""})`,
+    `[한국은행 통화정책방향] 금융통화위원회의 기준금리 결정 이유가 담긴 한국은행 문서입니다: ${e.values.title} (ref ${e.id}, ${date}${decision ? `, 결정: ${DECISION_TEXT[decision]}` : ""})`,
     `본문 앞부분: "${body.slice(0, NOTE_CHARS)}${body.length > NOTE_CHARS ? " …" : ""}"`,
     `기준금리를 왜 올리거나 내리거나 유지했는지는 이 문서의 설명으로 답합니다. 요약 첫 문장에 결정과 그 이유를 쓰고, why 에는 basis "news" 로 "한국은행은 … 라고 설명했어요" 처럼 이 문서가 든 이유를 씁니다 (ref ${e.id}).`,
     `이 문서에 없는 이유를 덧붙이지 않습니다. 본문의 숫자는 장부에 있는 값과 같을 때만 씁니다. 문서의 날짜(결정일)를 함께 밝힙니다.`,
+    newestLine,
   ].join("\n");
+}
+
+/** 장부의 통화정책방향 중 결정일이 가장 늦은 문서 */
+function newestStatement(evidence: Evidence[]): Evidence | undefined {
+  return evidence.filter(isStatement).sort((a, b) => statementDate(b).localeCompare(statementDate(a)))[0];
+}
+
+/** 그 항목이 장부의 통화정책방향 중 가장 최근 문서인지 */
+export function isLatestStatement(evidence: Evidence[], id: string | null): boolean {
+  const e = id ? evidence.find((x) => x.id === id) : undefined;
+  const newest = newestStatement(evidence);
+  return !!e && !!newest && statementDate(newest) <= statementDate(e);
+}
+
+/** 더 최근 결정을 모른다는 문장: 최근 · 당일 낱말 + 결정 + 확인 못 함 ("2026-11-25 당일의 결정 여부는 제공된 자료로 확인되지 않았어요") */
+const NEWER_HINT = /가장\s*최근|최신|새\s*(?:결정|발표)|이후|그\s*뒤|당일|오늘|\d{4}-\d{2}-\d{2}\s*(?:현재|기준)/;
+const DECISION_WORD = /결정|통화정책방향|금통위|금융통화위원회/;
+const MISSING = new RegExp(`${NEGATIVE.source}|확보하지\\s*못|자료(?:가|는|도)\\s*없`);
+/** 결정일만 되짚는 문장 ("이 설명은 2026-10-22 결정문에 담겼어요", "동결 사유는 한국은행의 2026-10-22 결정 설명에 해당해요") */
+const SCOPE_ONLY = /결정[^.!?]{0,20}?\s*(?:해당해요|해당합니다|담겼어요|담긴\s*설명이에요|관한\s*내용이에요|대한\s*설명이에요)[.!?]?$/;
+const DATE = /\d{4}-\d{2}-\d{2}/g;
+
+function newerTalk(sentence: string): boolean {
+  const s = sentence.trim();
+  if (!DECISION_WORD.test(s)) return false;
+  if (NEWER_HINT.test(s) && MISSING.test(s)) return true;
+  return SCOPE_ONLY.test(s) && !/\d/.test(s.replace(DATE, ""));
+}
+
+const sentencesOf = (text: string) => text.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
+
+/**
+ * 통화정책방향으로 답했으면, 더 최근 결정이 있을지 모른다는 문장과 결정일만 되짚는 문장을 요약 · 주의점 · 확인하지 못한 것에서 뺍니다 (11/25 운영 · 로컬:
+ * 작성 메모로 막아도 "다만 2026-11-25 현재 가장 최근의 금리 결정 여부와 그 이유는 확인하지 못했어요" 가 요약 끝이나 주의점 · 확인하지 못한 것으로 옮겨 남음).
+ * 이번 실행에서 한국은행 보도자료를 받았으니 더 최근 결정이 있었다면 그 문서가 잡혔습니다. 요약이 그 문장뿐이면 그대로 둡니다
+ */
+export function dropNewerDecisionTalk<T extends Pick<WriterOutput, "summary" | "caveats" | "dataGaps">>(output: T): T {
+  const sentences = sentencesOf(output.summary);
+  const kept = sentences.filter((x) => !newerTalk(x));
+  const summary = kept.length > 0 && kept.length < sentences.length ? kept.join(" ") : output.summary;
+  const lines = (list: string[]) =>
+    list.map((l) => (sentencesOf(l).some(newerTalk) ? sentencesOf(l).filter((x) => !newerTalk(x)).join(" ") : l)).filter((l) => l.trim().length > 0);
+  const caveats = lines(output.caveats);
+  const dataGaps = lines(output.dataGaps);
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+  if (summary === output.summary && same(caveats, output.caveats) && same(dataGaps, output.dataGaps)) return output;
+  return { ...output, summary, caveats, dataGaps };
 }
