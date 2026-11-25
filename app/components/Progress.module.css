@@ -143,3 +143,12 @@
   .title { font-size:25px; }
   .titleRow { margin-bottom:18px; }
 }
+
+/* 11/25 사용자: 진행 화면에도 움직임 — 그림은 단계마다 톡 튀어나와 둥실, 둘레에 금융 그림(FinanceFloaters), 진행 중인 막대에는 빛이 흐름 */
+.mascotWrap { position:relative; display:grid; place-items:center; }
+.mascotWrap .mascot { animation:stagePop .6s cubic-bezier(.22,1.35,.36,1) both, mascotBob 3.2s ease-in-out .6s infinite; }
+.track[data-active="true"] > span { background-image:linear-gradient(100deg, transparent 20%, rgba(255,255,255,.55) 50%, transparent 80%); background-size:200% 100%; background-repeat:no-repeat; animation:trackShine 1.6s linear infinite; }
+@keyframes stagePop { 0% { opacity:0; transform:translateY(10px) scale(.86); } 100% { opacity:1; transform:none; } }
+@keyframes mascotBob { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+@keyframes trackShine { from { background-position:150% 0; } to { background-position:-50% 0; } }
+@media(prefers-reduced-motion:reduce) { .mascotWrap .mascot, .track[data-active="true"] > span { animation:none; } }
