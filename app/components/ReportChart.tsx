@@ -131,6 +131,36 @@ export function chartArticle(event: { ref: string; label: string }, evidence: Ev
   return { title, publisher, url };
 }
 
+/**
+ * 평소 범위 막대 (11/25 가독성 · 52주 범위 막대처럼): 띠의 아래 · 위 값 사이에 지금 값을 점으로 둡니다.
+ * 범위를 벗어나면 막대를 늘려 바깥에 둡니다. 차트 아래 '보라색 띠는 …' 설명 문단을 대신합니다
+ */
+export function RangeBar({ band, value, valueText }: { band: NonNullable<Chart["band"]>; value: number; valueText: (v: number) => string }) {
+  const lo = Math.min(band.low, value);
+  const hi = Math.max(band.high, value);
+  const pad = (hi - lo || Math.abs(value) || 1) * 0.12;
+  const pct = (v: number) => ((v - (lo - pad)) / (hi - lo + 2 * pad)) * 100;
+  const where = value > band.high ? "above" : value < band.low ? "below" : "in";
+  const verdict = where === "in" ? "평소 범위 안이에요" : where === "above" ? "평소 범위보다 높아요" : "평소 범위보다 낮아요";
+  const at = pct(value);
+  // 끝 가까이에서는 '지금' 글씨가 막대 밖으로 나가지 않게 기준점을 옮깁니다
+  const shift = at > 80 ? "-85%" : at < 20 ? "-15%" : "-50%";
+  return (
+    <div className="chart-range" data-where={where}>
+      <p className="chart-range-head"><strong>평소 범위와 비교</strong><span className="chart-range-verdict">{verdict}</span></p>
+      <div className="chart-range-bar" role="img" aria-label={`${band.label}: ${valueText(band.low)}~${valueText(band.high)}, 지금 ${valueText(value)} · ${verdict}`}>
+        <span className="chart-range-band" style={{ left: `${pct(band.low)}%`, width: `${pct(band.high) - pct(band.low)}%` }} />
+        <span className="chart-range-marker" style={{ left: `${at}%` }}><span className="chart-range-now" style={{ transform: `translateX(${shift})` }}>지금 {valueText(value)}</span></span>
+      </div>
+      <div className="chart-range-scale" aria-hidden="true">
+        <span style={{ left: `${pct(band.low)}%` }}>{valueText(band.low)}</span>
+        <span style={{ left: `${pct(band.high)}%` }}>{valueText(band.high)}</span>
+      </div>
+      <p className="chart-range-note">{band.label}</p>
+    </div>
+  );
+}
+
 export function ReportChart({ chart, evidence = [] }: { chart: Chart; evidence?: Evidence[] }) {
   const [hover, setHover] = useState<number | null>(null);
   if (chart.kind === "bar") return <BarChart chart={chart} />;
@@ -207,6 +237,8 @@ export function ReportChart({ chart, evidence = [] }: { chart: Chart; evidence?:
         {band && (
           <g className="chart-band">
             <rect x={sx(band.from)} y={sy(band.high)} width={Math.max(2, sx(band.to) - sx(band.from))} height={Math.max(2, sy(band.low) - sy(band.high))} rx={3} />
+            {/* 띠에 이름을 바로 씁니다 (11/25 가독성: 범례 문장 대신, Datawrapper 식 주석) */}
+            {sx(band.to) - sx(band.from) > 80 && sy(band.low) - sy(band.high) > 22 && <text x={sx(band.from) + 8} y={sy(band.high) + 16} className="chart-band-label">평소 범위</text>}
 
           </g>
         )}
@@ -254,10 +286,10 @@ export function ReportChart({ chart, evidence = [] }: { chart: Chart; evidence?:
           <text x={W - PAD.right} y={H - 28} textAnchor="end">{axisDate(last.t)}</text>
         </g>
       </svg>
-      <p className="chart-hover-text" aria-live="polite">{tipText ?? `선 위에 마우스를 올리거나 손가락으로 짚으면 ${monthly ? "그달" : "그날"} 값이 보여요.`}</p>
+      <p className="chart-hover-text" aria-live="polite">{tipText ?? `선을 짚으면 ${monthly ? "그달" : "그날"} 값이 보여요.`}</p>
       <div className="chart-summary">
-        <p><strong>{lead} {valueText(from.v)}에서 {valueText(last.v)}{rate ? "로" : roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}${changeUnit} ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}의 {name ?? subject} 변화 그래프예요. {fxLabel ? `${fxLabel}을 원 단위로 표시했어요.` : rate ? "단위는 %예요." : `${unitLabel} 기준으로 표시했어요.`}</span></p>
-        {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
+        <p><strong>{lead} {valueText(from.v)}에서 {valueText(last.v)}{rate ? "로" : roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}${changeUnit} ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}{/* 단위는 차트 왼쪽 위 축 이름에 있어 기간만 (11/25 가독성) */}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}</span></p>
+        {band && <RangeBar band={band} value={last.v} valueText={valueText} />}
       {/* 차트 위 빨간 점의 기사. 접어 두고, 펼치면 전체 제목을 기사 링크로 (11/24: '…' 로 끊긴 제목 목록 대신) */}
       {events.length > 0 && (
         <PrintOpenDetails className="chart-news" summary={<><span className="chart-news-dot" aria-hidden="true" />이 기간 관련 {newsNoun(events.map(e => evidence.find(entry => entry.id === e.ref)))} {events.length}건</>}>

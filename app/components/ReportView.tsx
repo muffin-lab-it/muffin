@@ -19,7 +19,7 @@ import { ReportChart } from "./ReportChart";
 import { ReportQuickMenu, type QuickItem } from "./ReportQuickMenu";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
-import { formatDateKo, isBokRelease, isNewsEvidence, newsCountLine, newsNoun, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
+import { formatDateKo, isBokRelease, isNewsEvidence, newsCountLine, newsNoun, prettyDates, prettyReport, publisherOf, repeatsClaim, valueTone } from "./format";
 import { usedEvidenceIds } from "./ReportSources";
 import { evidenceCategory } from "./reportCategory";
 import { splitAreaPrefix } from "./home-form";
@@ -155,6 +155,10 @@ export function ReportView({
   const nextTopics = supported.length > 0 ? supported : fallbackReportTopics(area, question);
   const mismatch = topicMismatch(report, area);
   const whyNote = report.why.length === 0 ? whyEmptyNote(report) : null;
+  // 11/25 가독성: 원인이 있으면 요약 문단은 머리말 · 원인과 겹쳐(녹화에서 낱말 53~77%) 한입 요약 안에 접어 둡니다. 원인이 없으면 요약이 주된 설명이라 그대로
+  const foldSummary = !!headline && report.why.length > 0 && !!report.summary.trim();
+  // 아래쪽 생활 영향을 한입 요약에서 한 줄로 먼저 (Axios 'Why it matters'). 제목이 있을 때만
+  const forMe = impactTitles.slice(0, report.impact.length).map(title => title?.trim()).filter((title): title is string => !!title).slice(0, 3);
   // 영역을 여러 개 고르면 화면이 질문 앞에 붙인 "관심 영역: …" 머리말은 떼서 배지로 보여 줍니다 (11/20 외부 G1 · 하니 2)
   const shown = splitAreaPrefix(question ?? "");
   const questionText = question ? shown.question : undefined;
@@ -211,6 +215,8 @@ export function ReportView({
           <h2>갓 구운 한입 요약</h2>
           {headline && <h3 className={styles.headlinePlaceholder}>{headline}</h3>}
           {!headline && <p className={styles.summaryBody}>{report.summary}</p>}
+          {forMe.length > 0 && <p className={styles.heroForMe}><span className={styles.heroLabel}>나에게</span><ReportSectionLink name="impact" label={forMe.join(" · ")} /></p>}
+          {foldSummary && <PrintOpenDetails className="hero-more" summary="자세한 요약 보기"><p className={styles.summaryBody}>{report.summary}</p></PrintOpenDetails>}
           {/* 답에 영향을 준 자료 부족은 요약 아래 짧게 (11/20 하니 5) */}
           {report.dataGaps.length > 0 && <p className="hero-gaps"><ReportSectionLink name="gaps" label={`확인하지 못한 자료 ${report.dataGaps.length}개 · 아래 주의점에 적었어요`} /></p>}
         </div>
@@ -289,8 +295,10 @@ export function ReportView({
               <ol className="why-list">
                 {report.why.map((w, i) => (
                   <li key={i}>
-                    <span className="basis-explanation"><strong className={`report-badge basis-${w.basis}`}>{tags[w.basis]}</strong> {basisLabel(w)}</span>{" "}
-                    <ReasonEvidenceTarget index={i}><h3>{w.claim}</h3>{w.evidence && w.evidence !== w.claim && <p>{w.evidence}</p>}</ReasonEvidenceTarget>
+                    {/* 11/25 가독성: 등급 설명 문장은 배지 풍선 · 리포트 읽는 법으로. AI 해석이라는 '근거 부족' 만 문장을 그대로 둡니다 */}
+                    <span className="basis-explanation"><strong className={`report-badge basis-${w.basis}`} title={basisLabel(w)}>{tags[w.basis]}</strong>{w.basis === "none" && <> {basisLabel(w)}</>}</span>{" "}
+                    {/* 굵은 문장을 거의 되풀이하는 설명은 뺍니다 (숫자 · 날짜를 더하는 설명은 그대로) */}
+                    <ReasonEvidenceTarget index={i}><h3>{w.claim}</h3>{w.evidence && w.evidence !== w.claim && !repeatsClaim(w.evidence, w.claim) && <p>{w.evidence}</p>}</ReasonEvidenceTarget>
                     <ReasonLinks refs={w.refs} evidence={report.evidence} />
                   </li>
                 ))}
@@ -298,10 +306,10 @@ export function ReportView({
             )}
 
           </section>}
-      {headline && <p className={styles.summaryBody}>{report.summary}</p>}
+      {headline && !foldSummary && <p className={styles.summaryBody}>{report.summary}</p>}
 
           {report.impact.length > 0 && <section data-quick="impact">
-            <h2>내 생활에 미치는 영향</h2>
+            <ReportSectionTarget name="impact"><h2>내 생활에 미치는 영향</h2></ReportSectionTarget>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
           </section>}
 

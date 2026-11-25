@@ -174,3 +174,29 @@ export function titleWithoutPublisher(title: string, publisher?: string): string
   const stripped = title.replace(new RegExp(`\\s+[-–—|]\\s+${escaped}\\s*$`), "").trim();
   return stripped.length > 0 ? stripped : title;
 }
+
+/** 낱말 묶음: 두 글자 이상 낱말의 앞 두 글자 (조사 · 어미 차이를 줄임) */
+function stems(text: string): Set<string> {
+  return new Set(text.replace(/[^\p{L}\p{N}%.]/gu, " ").split(/\s+/).filter(word => word.length >= 2).map(word => word.slice(0, 2)));
+}
+
+/** 숫자 낱말: 부호 · 숫자 · 단위까지 하나로 ("−3.25%", "2%p", "1,343원" → "1343원", "2026-10-22", "10월") */
+function numberTokens(text: string): Set<string> {
+  return new Set((text.match(/[+\-−]?\d[\d.,]*(?:-\d+)*(?:%p|%|bp|원|달러|엔|포인트|배|년|월|일)?/g) ?? []).map(token => token.replace(/,/g, "").replace(/−/g, "-")));
+}
+
+/**
+ * 원인 설명이 굵은 문장을 거의 되풀이하는지: 굵은 문장에 없는 숫자(등락률 · 기여도 · 날짜)가 없고, 설명 낱말의 60% 이상이 굵은 문장에 있으면.
+ * 11/25 가독성: 녹화 13개에서 뉴스 제목류 설명은 62~80% 가 굵은 문장과 같았음. 물가 기여도처럼 낱말은 겹쳐도 숫자를 더하는 설명은 남깁니다.
+ * 숫자는 글자 일부가 아니라 낱말 전체로 비교합니다 (Codex 리뷰: '2%p' 가 '5.25%' 안의 '2' 로 잡혀 금리 차 설명이 숨던 것)
+ */
+export function repeatsClaim(text: string, claim: string): boolean {
+  const claimNumbers = numberTokens(claim);
+  if ([...numberTokens(text)].some(number => !claimNumbers.has(number))) return false;
+  const words = stems(text);
+  if (words.size === 0) return true;
+  const inClaim = stems(claim);
+  let shared = 0;
+  for (const word of words) if (inClaim.has(word)) shared++;
+  return shared / words.size >= 0.6;
+}

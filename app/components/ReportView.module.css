@@ -761,3 +761,23 @@
   .report .metrics :global(.num) b { font-size:28px; margin:6px 0 4px; }
   .report .metrics .metricMeta { margin-top:10px; padding-top:10px; gap:2px 10px; }
 }
+
+/* 11/25 가독성: 한입 요약의 '나에게' 줄 · 접힌 자세한 요약, 평소 범위 막대, 띠 이름 */
+.heroForMe { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:14px 0 0; font-size:16px; line-height:1.6; color:#303442; }
+.heroLabel { flex:none; padding:2px 9px; border-radius:999px; background:#f1eaf8; color:#6b3fa0; font-size:13px; font-weight:700; }
+.report :global(.hero-more) { margin-top:10px; }
+.report :global(.hero-more) > summary { cursor:pointer; width:fit-content; color:#6b3fa0; font-size:14px; font-weight:600; }
+.report :global(.hero-more) .summaryBody { margin-top:8px; }
+.report :global(.chart-range) { margin-top:16px; padding-top:16px; border-top:1px solid var(--brand-purple-border); }
+.report :global(.chart-range-head) { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:4px 12px; margin:0 0 34px !important; font-size:15px !important; color:#303442; }
+.report :global(.chart-range-verdict) { font-weight:700; color:#6b3fa0; }
+.report :global(.chart-range[data-where="above"] .chart-range-verdict) { color: var(--up); }
+.report :global(.chart-range[data-where="below"] .chart-range-verdict) { color: var(--down); }
+.report :global(.chart-range-bar) { position:relative; height:10px; border-radius:999px; background:#ece8f1; }
+.report :global(.chart-range-band) { position:absolute; top:0; bottom:0; border-radius:999px; background:#c9b2e8; }
+.report :global(.chart-range-marker) { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; background:#5b2d91; box-shadow:0 0 0 3px #fff; }
+.report :global(.chart-range-now) { position:absolute; left:50%; bottom:calc(100% + 8px); white-space:nowrap; font-size:13px; font-weight:700; color:#303442; font-variant-numeric:tabular-nums; }
+.report :global(.chart-range-scale) { position:relative; height:20px; margin-top:8px; font-size:12px; color:#545b67; font-variant-numeric:tabular-nums; }
+.report :global(.chart-range-scale) span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+.report :global(.chart-range-note) { margin:6px 0 0 !important; font-size:13px !important; color:#545b67 !important; }
+.report :global(.chart-band-label) { font-size:12px; font-weight:700; paint-order:stroke; stroke:#fff; stroke-width:3px; stroke-linejoin:round; }
