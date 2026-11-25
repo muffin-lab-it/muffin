@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDecisionDisclaimer, dropFetchTalk, dropPickTalk, dropInternalPhrases, dropLeadingLimit, dropRefIds, dropUnaskedCause, plainWords, splitEmyeo, stripRefIds, trimHeadline, trimNegatives } from "./negatives";
+import { dropDecisionDisclaimer, dropFetchTalk, dropPickTalk, dropInternalPhrases, dropLeadingLimit, dropRefIds, dropUnaskedCause, moveImpactLimits, plainWords, splitEmyeo, stripRefIds, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -221,5 +221,58 @@ describe("글에 남은 장부 번호 떼기 (11/25 로컬)", () => {
     expect(out.numbers[0]!.ref).toBe("E1");
     const clean = { ...output, summary: "동결했어요.", why: [], caveats: [] };
     expect(dropRefIds(clean)).toBe(clean);
+  });
+});
+
+describe("생활 영향 칸의 한계 문장은 주의점으로 (QA-03)", () => {
+  const base = { summary: "요약이에요.", headline: null, numbers: [], why: [], nextTopics: [], dataGaps: [] };
+
+  it("'…지만, …만으로 알 수는 없어요' 는 앞 구절만 영향에 두고 뒤 구절을 주의점으로 옮긴다 (11/22 운영)", () => {
+    const out = moveImpactLimits({
+      ...base,
+      impact: [
+        "변동금리 대출이 있으면 기준금리 변화가 대출금리에 영향을 줄 수 있지만, 기준금리만으로 실제 대출금리 변화를 알 수는 없어요.",
+        "전월과 전년 동월보다 낮지만, 이 수치만으로 고용시장 전반의 변화를 단정할 수는 없어요.",
+      ],
+      impactTitles: ["대출 이자", "고용시장"],
+      caveats: ["기준금리는 정책금리라 시장금리와 달라요."],
+    });
+    expect(out.impact).toEqual(["변동금리 대출이 있으면 기준금리 변화가 대출금리에 영향을 줄 수 있어요.", "전월과 전년 동월보다 낮아요."]);
+    expect(out.impactTitles).toEqual(["대출 이자", "고용시장"]);
+    expect(out.caveats).toEqual([
+      "기준금리는 정책금리라 시장금리와 달라요.",
+      "기준금리만으로 실제 대출금리 변화를 알 수는 없어요.",
+      "이 수치만으로 고용시장 전반의 변화를 단정할 수는 없어요.",
+    ]);
+  });
+
+  it("한계뿐인 문장은 통째로 옮기고, 칸이 비면 같은 자리의 제목도 뺀다", () => {
+    const out = moveImpactLimits({
+      ...base,
+      impact: [
+        "원/달러 환율 상승은 달러당 원화 금액이 늘었다는 뜻이에요. 다만 이 변화가 금리 때문인지는 자료만으로 판단할 수 없어요.",
+        "환율이 높다는 사실만으로 향후 환율이나 주가 방향을 알 수는 없어요.",
+        "달러로 결제하면 같은 물건에 원화가 더 들어요.",
+      ],
+      impactTitles: ["환율의 뜻", "앞으로의 방향", "해외 결제"],
+      caveats: [],
+    });
+    expect(out.impact).toEqual(["원/달러 환율 상승은 달러당 원화 금액이 늘었다는 뜻이에요.", "달러로 결제하면 같은 물건에 원화가 더 들어요."]);
+    expect(out.impactTitles).toEqual(["환율의 뜻", "해외 결제"]);
+    expect(out.caveats).toEqual(["이 변화가 금리 때문인지는 자료만으로 판단할 수 없어요.", "환율이 높다는 사실만으로 향후 환율이나 주가 방향을 알 수는 없어요."]);
+  });
+
+  it("조건부 영향 · 조건 설명은 그대로, 바뀐 게 없으면 같은 객체 (기준금리 녹화의 '대출 이자' 카드)", () => {
+    const output = {
+      ...base,
+      impact: [
+        "변동금리 대출이 있으면 기준금리 결정은 대출금리 조정에 영향을 줄 수 있지만, 실제 대출금리는 상품 조건과 시장금리에도 좌우돼요.",
+        "예금금리가 조정되면 예금에서 얻는 이자도 달라질 수 있어요.",
+      ],
+      impactTitles: ["대출 이자", "예금 이자"],
+      caveats: [],
+    };
+    expect(moveImpactLimits(output)).toBe(output);
+    expect(trimNegatives(output, "cause").impact).toEqual(output.impact);
   });
 });
