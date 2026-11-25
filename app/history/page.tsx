@@ -54,7 +54,7 @@ export default function HistoryPage() {
     <div className={`${styles.history} muffin-history`}>
       <header className={styles.historyHeading}><div><p className={styles.eyebrow}>MY MUFFINS</p><h1>보관함</h1><p>궁금했던 이야기와 완성된 리포트를 다시 만나보세요.</p></div><Link href="/" className={styles.newReport}>새 리포트 굽기 <span aria-hidden="true">↗</span></Link></header>
       <div className={styles.historyToolbar}><label htmlFor="history-search" className={styles.srOnly}>질문으로 리포트 검색</label><input id="history-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="어떤 이야기를 찾고 있나요?" /><p>{records === undefined ? "불러오는 중" : `전체 ${records.length}개`}</p></div>
-      <p className={styles.storageNote}>이 브라우저에 저장된 리포트예요. 각 리포트의 데이터 기준일을 확인해 주세요.</p>
+      <p className={styles.storageNote}>이 브라우저의 보관함이에요. 서버에도 함께 저장되지만, 로그인이 없어 다른 기기나 브라우저에서는 보이지 않아요. 각 리포트의 데이터 기준일을 확인해 주세요.</p>
       {error && <div className={styles.error} role="alert"><p>{error}</p>{!confirmation && <button type="button" onClick={() => { setRecords(undefined); setError(null); setReload(value => value + 1); }}>다시 불러오기</button>}</div>}
       <p className={styles.status} role="status">{status}</p>
       {confirmation && <section className={styles.deleteConfirmation} aria-label="리포트 삭제 확인"><h2>이 리포트를 삭제할까요?</h2><p>{confirmation.input.question}</p><small>삭제한 리포트는 되돌릴 수 없어요.</small><div><button type="button" disabled={!!deleting} onClick={() => setConfirmation(null)}>취소</button><button type="button" disabled={!!deleting} onClick={() => void remove(confirmation)}>{deleting ? "삭제 중…" : "삭제하기"}</button></div></section>}

@@ -155,7 +155,7 @@ sequenceDiagram
 - 출처와 검증 결과가 붙은 구조화 리포트 — v1 ✅, v2 (검증 배지 · 근거 등급) 1단계
 - "사도 돼?" 에는 판단에 필요한 사실로 답하기 — 2단계
 - 이례적 움직임만 원인 분석 (직전 90일 기준 z-score) — 2단계 ✅ 환율
-- 리포트 History (브라우저 localStorage ✅, 고도화 기간에 서버 저장)
+- 리포트 History (브라우저 localStorage ✅ · 서버 저장 ✅ 11/24, 로그인 없이 브라우저 익명 id 기준)
 - 차트 (증거 번호에 묶인 시계열 · 뉴스 이벤트 표시) — 고도화
 - AI 생성 고지 (AI 기본법) — 0단계부터 리포트 필드, 화면은 프론트
 
@@ -226,7 +226,7 @@ muffin/
 │  └─ lib/
 │     ├─ http.ts                     fetchJson / fetchText (타임아웃 · HttpError · redirect 옵션)
 │     ├─ api.ts                      프론트용 createReport / streamReport (리더)
-│     ├─ history.ts                  리포트 보관함 (localStorage → 서버, 백엔드)
+│     ├─ history.ts                  리포트 보관함 (브라우저에 먼저 · 서버에도, 백엔드)
 │     ├─ log.ts                      muffin.run 실행 로그
 │     ├─ db.ts                       Supabase 서버 클라이언트 getDb · 표 타입 (secret 키, 서버 전용. 리더)
 │     ├─ admin.ts                    /admin 집계 · 상태 기준 · loadRuns (runs 표 최근 7일 조회, DB 환경 변수 없거나 ?source=sample 이면 예시 데이터, 리더)
@@ -322,7 +322,7 @@ ADMIN_PASSWORD=      # /admin 로그인 비밀번호 (아이디는 아무거나)
 | `app/report/[id]/page.tsx`, `app/history/page.tsx` | 리포트 상세, 저장 목록 | 프론트 |
 | `app/components/ReportView.tsx` | 리포트 한 장. 검증 배지 · 원본 보기 · 📊📰❔ · AI 고지 · 차트가 여기 들어갑니다 | 프론트 |
 | `src/lib/api.ts` | `createReport` (JSON 한 번에), `streamReport` (이벤트 스트림). 프론트는 `fetch` 를 직접 쓰지 않음 | 리더 |
-| `src/lib/history.ts` | 저장 · 목록 · 조회 · 삭제. 지금은 localStorage, 고도화 때 서버로. 읽을 때 `normalizeReport` 로 v1 기록을 v2 모양으로 | 백엔드 |
+| `src/lib/history.ts` | 저장 · 목록 · 조회 · 삭제. 브라우저 localStorage 에 먼저 쓰고 History API(Supabase)에도 저장 (11/24). 읽을 때 `normalizeReport` 로 v1 기록을 v2 모양으로 | 백엔드 |
 | `src/agent/events.ts` | 스트리밍 이벤트 규격과 tool 한국어 라벨 | 백엔드가 보내고, 프론트가 받음 |
 | `app/api/report/route.ts` | POST /api/report. 완료 후 JSON 한 번에 (유지) | 백엔드 |
 | `app/api/report/stream/route.ts` | POST /api/report/stream. NDJSON 이벤트 스트림 (아래 참고 코드) | 백엔드 |

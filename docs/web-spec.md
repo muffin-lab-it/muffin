@@ -20,7 +20,7 @@
 2. 라우트는 출처 검사 → 호출 제한 → 바디 검사 → `research()`(분류 → 조사 → 정제 → 작성 → 검증) 순서로 돌고, 진행 이벤트를 NDJSON 으로 흘립니다. 끝나면 실행 로그를 남깁니다.
 3. 진행 화면(`Progress.tsx`)이 이벤트를 그립니다. 마지막 `report` 이벤트가 오면 `saveReport` 로 저장하고 `/report/<id>` 로 이동합니다.
 4. 상세(`app/report/[id]`)는 `getReport(id)` 로 리포트를 그립니다. 저장함(`app/history`)은 `listReports` · `deleteReport` 를 씁니다.
-5. 저장은 1차가 브라우저 localStorage, 2차가 `/api/history` → Supabase 입니다. 실행 로그도 2차부터 Supabase `runs` 표에 들어갑니다.
+5. 저장은 1차가 브라우저 localStorage, 2차가 `/api/history` → Supabase 입니다 (11/24 연결: 브라우저에 먼저 쓰고 서버에도 저장). 실행 로그도 2차부터 Supabase `runs` 표에 들어갑니다.
 
 ```mermaid
 flowchart LR
@@ -135,7 +135,10 @@ deleteReport(id: string): Promise<void>
 - 지금은 동기 함수이고 화면 세 곳이 부릅니다: `app/page.tsx` 의 `saveReport`, `app/history/page.tsx` 와 `app/report/[id]/page.tsx` 의 `useSyncExternalStore`. 전환 PR(은경)이 이 세 곳을 `await saveReport(...)` 와 `useEffect` + 상태(불러오는 중 · 없음 · 있음)로 같이 고칩니다. 하니는 이 PR 이 머지될 때까지 두 페이지를 고치지 않습니다.
 - `subscribeHistory` 는 뺍니다. 서버 저장에서는 다른 탭의 변경을 알 수 없어서, 저장함 · 상세는 열 때와 지운 뒤에 다시 불러옵니다 (다른 탭에서 바꾼 기록은 새로고침하면 보입니다).
 - 1차: 구현은 localStorage(`muffin.history.v1`) 그대로 두고 함수만 Promise 를 돌려줍니다.
-- 2차: History API 호출로 바꾸고 `X-Muffin-Client` 는 `getClientId()` 로 붙입니다. 1차 브라우저 기록은 서버로 옮기지 않습니다.
+- 2차(11/24): 브라우저 기록은 그대로 두고 History API 에도 저장합니다 (`X-Muffin-Client` 는 `getClientId()`, 호출은 `src/lib/api.ts` 의 `listHistory` · `saveHistory` · `getHistory` · `deleteHistory`).
+  - 저장은 브라우저에 먼저 쓰고 서버 저장은 기다리지 않습니다. 브라우저에 못 쓰면 서버가 유일한 사본이라 기다립니다.
+  - 목록은 서버 기록과 브라우저 기록을 합칩니다. 브라우저에만 있는 기록(1차 기록 포함)은 보관함을 열 때 10개씩, 처음 저장 시각 그대로 서버로 올립니다.
+  - 지운 기록은 서버 목록에서 빠질 때까지 숨기고 보관함을 열 때 다시 지웁니다. 서버 저장소가 없으면(503) 그 탭은 브라우저 기록만 씁니다.
 - 읽을 때 `normalizeReport` 로 v1 기록을 v2 모양으로 맞추는 것은 유지합니다.
 
 ### 4.2 History API (2차, 은경)
@@ -144,9 +147,9 @@ deleteReport(id: string): Promise<void>
 | --- | --- |
 | `GET /api/history?limit=20&before=<ISO>` | 200 `{ records: ReportRecord[] }` 최신순 |
 | `GET /api/history/:id` | 200 `{ record }` · 404 `{ error, id }` (다른 브라우저의 기록도 404) |
-| `POST /api/history`, 바디 `{ id?, input, report, steps }` | 201 `{ record }`. report 는 `reportSchema.parse`, steps 100개 이하, 바디 512KB 이하. 같은 브라우저가 같은 id 를 다시 보내면 200 으로 기존 것, 다른 브라우저의 id 면 409 |
+| `POST /api/history`, 바디 `{ id?, createdAt?, input, report, steps }` | 201 `{ record }`. report 는 `reportSchema.parse`, steps 100개 이하, 바디 512KB 이하. createdAt 은 처음 저장 시각(미래면 지금). 같은 브라우저가 같은 id 를 다시 보내면 200 으로 기존 것, 다른 브라우저의 id 면 409 |
 | `DELETE /api/history/:id` | 204 · 404 |
-| 공통 | 헤더 `X-Muffin-Client` 가 없거나 uuid 가 아니면 400 (`readClientId` 가 undefined). 출처 검사(4.6) 적용. 브라우저당 100개를 넘으면 오래된 것부터 삭제. 호출 제한은 없음 |
+| 공통 | 헤더 `X-Muffin-Client` 가 없거나 uuid 가 아니면 400 (`readClientId` 가 undefined). 출처 검사(4.6)는 POST · DELETE 에 적용. 브라우저당 100개를 넘으면 오래된 것부터 삭제. 호출 제한은 저장(POST)만, 리포트 한도와 따로 브라우저 10분 60회 · IP 10분 300회 (넘으면 429 · Retry-After) |
 
 로그인은 넣지 않습니다(맨 뒤 순위). 나중에 붙여도 표에 `user_id` 열만 더하면 되게 둡니다. 한계: 브라우저 id 를 아는 사람은 그 브라우저의 기록을 볼 수 있습니다.
 

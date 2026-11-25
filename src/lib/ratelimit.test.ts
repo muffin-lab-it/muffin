@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkLimit, hashIp, pruneExpiredRateLimitKeys, retryAfterMessage } from "./ratelimit";
+import { checkHistoryLimit, checkLimit, hashIp, HISTORY_LIMITS, pruneExpiredRateLimitKeys, retryAfterMessage } from "./ratelimit";
 
 describe("hashIp", () => {
   it("returns a stable truncated SHA-256 hash and changes with the salt", () => {
@@ -81,5 +81,29 @@ describe("checkLimit", () => {
     expect(retryAfterMessage(600)).toBe("요청이 많아요. 10분 뒤 다시 시도해 주세요.");
     expect(retryAfterMessage(60 * 60)).toBe("요청이 많아요. 1시간 뒤 다시 시도해 주세요.");
     expect(retryAfterMessage(24 * 60 * 60)).toBe("요청이 많아요. 24시간 뒤 다시 시도해 주세요.");
+  });
+});
+
+describe("checkHistoryLimit (11/24 보관함 저장)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-24T00:00:00.000Z"));
+    vi.stubEnv("RATE_LIMIT_10M", "2");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it("리포트 한도와 따로 세고, 브라우저마다 10분에 60번까지", async () => {
+    const keys = { clientId: "client-history", ipHash: "ip-history" };
+    expect(await checkLimit(keys)).toEqual({ ok: true });
+    expect(await checkLimit(keys)).toEqual({ ok: true });
+    expect(await checkLimit(keys)).toMatchObject({ ok: false }); // 리포트 한도(2)는 찼어도
+    for (let i = 0; i < HISTORY_LIMITS.client10m; i++) expect(await checkHistoryLimit(keys)).toEqual({ ok: true });
+    expect(await checkHistoryLimit(keys)).toMatchObject({ ok: false, retryAfterSec: 600 });
+    vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+    expect(await checkHistoryLimit(keys)).toEqual({ ok: true });
   });
 });
