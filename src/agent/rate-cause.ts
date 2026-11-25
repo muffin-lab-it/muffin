@@ -182,25 +182,28 @@ function newestStatement(evidence: Evidence[]): Evidence | undefined {
 }
 
 /**
- * 더 최근 결정이 있는지 모른다는 문장: 최근 · 당일 낱말이 결정을 바로 꾸미고("가장 최근의 금리 결정", "더 최근 한국은행 통화정책방향", "당일의 새 결정", "2026-10-22 이후 금통위 결정")
- * 확인 못 함 · 자료 없음으로 끝나는 것. 결정의 영향 · 전망 · 다음 결정 이야기("오늘 금통위 결정이 향후 물가에 미칠 영향은 확인할 수 없어요"),
- * 확인된 내용이 함께 든 문장(날짜 밖의 숫자, "…했지만")은 남깁니다 (#167 Codex 리뷰)
+ * 더 최근 결정이 있는지 모른다는 문장: 최근 · 이후 · 추가 · 후속 · 당일(또는 오늘 날짜)이 결정 · 인상 · 인하 · 동결 · 금통위와 가까이 있고
+ * 확인 못 함 · 자료 없음으로 끝나는 것 ("2026-11-25 시점의 더 최근 금통위 결정문이나 추가 설명은 확인되지 않아 …", "2026-11-25 기준 추가 인상 여부와 그 이유는
+ * 확인되지 않았어요", "인상 이후의 추가 설명이나 후속 배경은 확인되지 않았어요", 11/25 로컬). 결정의 영향 · 전망 · 다음 결정 이야기
+ * ("오늘 금통위 결정이 향후 물가에 미칠 영향은 확인할 수 없어요"), 확인된 내용이 함께 든 문장(날짜 밖의 숫자, "…지만")은 남깁니다 (#167 Codex 리뷰)
  */
-const NEWER_DECISION = /(?:최근|최신|새로운?|당일|이후)(?:의)?[^.!?,]{0,14}?(?:결정|통화정책방향|금통위\s*발표)/;
+const HINT = String.raw`(?:최근|최신|새로운?|새\s|당일|이후|그\s*뒤|추가|후속)`;
+const TOPIC = String.raw`(?:결정|금통위|통화정책방향|인상|인하|동결)`;
+const NEAR = new RegExp(`${HINT}[^.!?]{0,25}?${TOPIC}|${TOPIC}[^.!?]{0,25}?${HINT}`);
 const OUTCOME = /영향|전망|움직|향후|앞으로|다음|방향성|경로|시점|가능성|변화|반응|효과/;
 const MISSING = new RegExp(`${NEGATIVE.source}|확보하지\\s*못|자료(?:가|는|도)\\s*없`);
 const MIXED = /지만|으나|는데|했고|됐고|였고/;
-/** 결정일만 되짚는 문장 ("이 설명은 2026-10-22 결정문에 담겼어요", "동결 사유는 한국은행의 2026-10-22 결정 설명에 해당해요") */
-const SCOPE_ONLY = /결정[^.!?]{0,20}?\s*(?:해당해요|해당합니다|담겼어요|담긴\s*설명이에요|관한\s*내용이에요|대한\s*설명이에요)[.!?]?$/;
+/** 결정일만 되짚는 문장 ("이 설명은 2026-10-22 결정문에 담겼어요", "동결 사유는 한국은행의 2026-10-22 결정 설명에 해당해요", "확인된 보도자료는 2026-10-22 결정분이에요") */
+const SCOPE_ONLY = /결정[^.!?]{0,20}?\s*(?:해당해요|해당합니다|담겼어요|담긴\s*설명이에요|관한\s*내용이에요|대한\s*설명이에요|분이에요|분입니다)[.!?]?$/;
 const DATE = /\d{4}-\d{2}-\d{2}/g;
-
-/** 오늘 날짜가 결정을 바로 꾸미는 것도 같은 말 ("2026-11-25 기준금리 결정과 그 설명 자료는 확인되지 않았어요") */
-const todayDecision = (today: string) => new RegExp(`${today}(?:의)?[^.!?,]{0,10}?결정`);
+/** 날짜에 붙은 "시점 · 기준 · 현재" ("2026-11-25 시점의") 는 앞날 이야기가 아님 */
+const DATE_SCOPE = /\d{4}-\d{2}-\d{2}\s*(?:시점|기준|현재)?(?:의|으로|에서|에)?/g;
 
 function isNewerTalk(sentence: string, today: string): boolean {
   const s = sentence.trim();
-  if (/\d/.test(s.replace(DATE, "")) || MIXED.test(s) || OUTCOME.test(s)) return false;
-  return ((NEWER_DECISION.test(s) || todayDecision(today).test(s)) && MISSING.test(s)) || SCOPE_ONLY.test(s);
+  if (/\d/.test(s.replace(DATE, "")) || MIXED.test(s) || OUTCOME.test(s.replace(DATE_SCOPE, ""))) return false;
+  if (SCOPE_ONLY.test(s)) return true;
+  return MISSING.test(s) && (NEAR.test(s) || new RegExp(`${today}[^.!?]{0,25}?${TOPIC}`).test(s));
 }
 
 const sentencesOf = (text: string) => text.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
