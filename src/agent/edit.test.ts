@@ -12,7 +12,7 @@ vi.mock("@openai/agents", async (importOriginal) => {
 import { RunContext, run } from "@openai/agents";
 import { ResearchContext } from "./context";
 import { execute as calcExecute } from "../tools/calc";
-import { cleanFacts, createEditorAgent, editInput, editInstructions, reversedCalcIds, runEdit } from "./edit";
+import { cleanFacts, createEditorAgent, editInput, editInstructions, reversedCalcIds, runEdit, editErrorReason } from "./edit";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes } from "./schema";
 
 const runMock = run as unknown as ReturnType<typeof vi.fn>;
@@ -152,8 +152,23 @@ describe("runEdit", () => {
   it("출력이 없거나 실패하면 null (작성이 장부 전체를 본다)", async () => {
     runMock.mockResolvedValueOnce({ finalOutput: undefined }).mockRejectedValueOnce(new Error("timeout"));
     const ctx = () => new RunContext(new ResearchContext());
-    expect(await runEdit(createEditorAgent("easy"), "input", ctx())).toBeNull();
-    expect(await runEdit(createEditorAgent("easy"), "input", ctx())).toBeNull();
+    const reasons: string[] = [];
+    expect(await runEdit(createEditorAgent("easy"), "input", ctx(), (r) => reasons.push(r))).toBeNull();
+    expect(await runEdit(createEditorAgent("easy"), "input", ctx(), (r) => reasons.push(r))).toBeNull();
+    // 실패 이유는 실행 기록에 남깁니다 (quality.edit.error)
+    expect(reasons).toEqual(["정제 출력 없음", "Error: timeout"]);
+  });
+
+  it("실패 이유에서 비밀값은 지우고 200자로 자른다", () => {
+    process.env.TEST_EDIT_KEY = "sk-test-secret-123456";
+    try {
+      const reason = editErrorReason(new Error(`401 key sk-test-secret-123456 ${"x".repeat(300)}`));
+      expect(reason).not.toContain("sk-test-secret-123456");
+      expect(reason).toContain("[REDACTED]");
+      expect(reason.length).toBe(200);
+    } finally {
+      delete process.env.TEST_EDIT_KEY;
+    }
   });
 });
 

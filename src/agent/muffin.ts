@@ -119,10 +119,10 @@ export type ResearchResult = {
  * dropped 는 정제가 뺀 항목 수(방향이 반대라 코드가 거른 계산 포함), reversed 는 그중 방향이 반대인 계산 수,
  * fallback 은 사실이 0개라 작성이 장부 전체를 본 경우입니다 (정제는 성공).
  */
-export type EditSummary = { ok: boolean; facts: number; dropped: number; unverified: number; reversed: number; fallback: boolean };
+export type EditSummary = { ok: boolean; facts: number; dropped: number; unverified: number; reversed: number; fallback: boolean; error?: string };
 
-export function summarizeEdit(facts: FactsOutput | null, reversed: number): EditSummary {
-  if (!facts) return { ok: false, facts: 0, dropped: 0, unverified: 0, reversed, fallback: true };
+export function summarizeEdit(facts: FactsOutput | null, reversed: number, error?: string): EditSummary {
+  if (!facts) return { ok: false, facts: 0, dropped: 0, unverified: 0, reversed, fallback: true, ...(error ? { error } : {}) };
   return { ok: true, facts: facts.facts.length, dropped: facts.dropped.length, unverified: facts.unverified.length, reversed, fallback: facts.facts.length === 0 };
 }
 
@@ -276,7 +276,9 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   emit({ type: "stage", stage: "edit", status: "start" });
   const gate: Promise<MovementResult> = plan.intent === "cause" || swing ? measureMovement(ctx.evidence, { question, area, target: fxTarget }) : Promise.resolve({ movement: null });
   const editCtx = new RunContext(ctx);
-  const facts = await runEdit(tuned(createEditorAgent(depth), "edit", depth), editInput(question, plan, ctx.evidence, notes), editCtx);
+  // 정제가 실패하면 그 이유를 실행 기록(quality.edit.error)에 남깁니다
+  let editError: string | undefined;
+  const facts = await runEdit(tuned(createEditorAgent(depth), "edit", depth), editInput(question, plan, ctx.evidence, notes), editCtx, (reason) => { editError = reason; });
   addUsage(editCtx, "edit");
   // 게이트 결과는 정제가 끝난 뒤 장부에 올려서 C 번호가 정제의 계산 다음에 오게 합니다.
   const { movement, step: gateStep } = await gate;
@@ -423,7 +425,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     ...(rewriteReasons ? { rewriteReasons } : {}),
     plan,
     facts,
-    edit: summarizeEdit(facts, reversed.size),
+    edit: summarizeEdit(facts, reversed.size, editError),
     model: modelFor(depth),
     usage,
   };
