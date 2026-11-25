@@ -165,8 +165,8 @@ function HomeForm() {
             {depthOptions.map(o => <label className={styles.option} key={o.value}><input type="radio" name="depth" value={o.value} checked={depth === o.value} onChange={() => setDepth(o.value)} /><span><b>{o.label}</b><small>{o.hint}</small><small className={styles.depthTime}>{o.time}</small></span></label>)}
           </div><p className={styles.depthHelp}><Link href="/compare">같은 질문을 깊이별로 비교해 보기 →</Link></p></fieldset>
           {formError && <p className={styles.formError} role="alert">{formError}</p>}
-          {/* 11/25 사용자: 문장마다 줄바꿈 (글은 그대로) */}
-          <p className={styles.aiDisclosure}><span>Muffin은 생성형 AI로 여러 자료를 바탕으로 리포트를 작성해요.</span> <span>투자 권유가 아닌 참고용 정보이며, 내용에 오류가 있을 수 있어요.</span> <span>출처와 기준일을 함께 확인해 주세요.</span></p>
+          {/* 11/25 사용자: 두 줄 (글은 그대로) */}
+          <p className={styles.aiDisclosure}><span>Muffin은 생성형 AI로 여러 자료를 바탕으로 리포트를 작성해요.</span> <span>투자 권유가 아닌 참고용 정보이며, 내용에 오류가 있을 수 있어요. 출처와 기준일을 함께 확인해 주세요.</span></p>
         </div>
       </form>
 

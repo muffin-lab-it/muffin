@@ -152,3 +152,9 @@
 @keyframes mascotBob { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
 @keyframes trackShine { from { background-position:150% 0; } to { background-position:-50% 0; } }
 @media(prefers-reduced-motion:reduce) { .mascotWrap .mascot, .track[data-active="true"] > span { animation:none; } }
+
+/* 11/25 사용자: '확인 노트' 제목 · 짧은 진행 문장은 위 그림과 같이 가운데. 펼치는 내역 목록은 왼쪽 */
+.storyHeading { justify-content:center; }
+.story, .hint, .note { text-align:center; }
+.details > summary { text-align:center; }
+.details ul { text-align:left; }

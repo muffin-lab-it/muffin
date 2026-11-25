@@ -803,9 +803,9 @@
 /* 리포트 끝: 출처 줄을 검증 · 주의점 줄과 같은 모양(아이콘 · 굵은 제목 · 한 줄 요약 · 오른쪽 펼치기)으로, 요약 글씨는 15px */
 .report :global(.source-fold) > summary { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; column-gap:12px; row-gap:4px; }
 .report :global(.source-fold) > summary h2 { grid-column:1; display:flex; align-items:center; margin:0; font-size:16px !important; color:#374151; }
-.report :global(.source-fold) > summary :global(.fold-hint) { grid-column:1; grid-row:2; padding-left:32px; font-size:15px; color:#52606d; }
+.report :global(.source-fold) > summary :global(.fold-hint) { grid-column:1; grid-row:2; padding-left:40px; font-size:15px; color:#52606d; }
 .report :global(.source-fold) > summary::after { grid-column:2; grid-row:1 / span 2; align-self:center; }
-.report :global(.verification-summary-copy > span) { font-size:15px; padding-left:32px; } /* 11/24 크기(15px) 그대로, 휴대폰에서도 출처 줄처럼 제목 글자에 맞춤 */
+.report :global(.verification-summary-copy > span) { font-size:15px; padding-left:40px; } /* 11/24 크기(15px) 그대로, 휴대폰에서도 출처 줄처럼 제목 글자에 맞춤 */
 .report .topicLink { min-height:0; flex-wrap:nowrap; padding:18px 20px; }
 .report :global(.topic-action) { width:auto; margin:0; font-size:20px; color:var(--brand-purple); }
 .report :global(.report-disclosure) { font-size:14px; line-height:1.7; }
@@ -813,7 +813,7 @@
 .report :global(.report-disclosure) span + span { margin-top:2px; }
 /* 주의점은 늘 펼친 칸이라 제목과 목록 사이 선을 없애고, 목록을 제목 글자에 맞춰 들여 씀 */
 .report :global(.reference-toggle) > summary { padding-bottom:6px; }
-.report :global(.reference-toggle .verification-body) { border-top:0; padding-top:0; padding-left:32px; }
+.report :global(.reference-toggle .verification-body) { border-top:0; padding-top:0; padding-left:40px; }
 
 /* 11/25 사용자: 출처부터는 칸마다 배경을 번갈아 — 출처 흰색 · 검증 옅은 보라 · 주의점 흰색 · 이어서 알아볼까요 옅은 보라. 칸 사이 선 대신 색으로 나눔 */
 .report :global(.source-library), .report :global(.report-verification[data-quick="verify"]), .report :global(.report-verification.report-reference), .report .nextTopics { border:0; border-radius:14px; padding:2px 20px; margin:0; box-shadow:none; }
@@ -821,3 +821,20 @@
 .report :global(.report-verification[data-quick="verify"]), .report .nextTopics { background:#f6f1fb; }
 .report .nextTopics { padding:6px 20px 14px; }
 @container report (max-width: 560px) { .report :global(.source-library), .report :global(.report-verification[data-quick="verify"]), .report :global(.report-verification.report-reference), .report .nextTopics { padding-left:14px; padding-right:14px; border-radius:12px; } .report :global(.reference-toggle .verification-body) { padding-left:4px; padding-right:0; } } /* 휴대폰은 주의점 목록 들여쓰기를 줄여 글 폭 확보 */
+
+/* 11/25 사용자: 칸 제목 앞 옅은 보라 동그라미 이모지. 제목 글자는 그대로 두고(목차 · 읽기 도구) CSS 로 그림 */
+.report h2[data-icon], .report strong[data-icon] { display:flex; align-items:center; }
+.report [data-icon]::before { content:attr(data-icon); content:attr(data-icon) / ""; display:inline-grid; place-items:center; flex:none; width:30px; height:30px; margin-right:10px; border-radius:50%; background:#f1eaf8; font-size:16px; line-height:1; }
+/* 아래쪽 네 칸 제목은 같은 크기로 (이어서 알아볼까요만 크던 것) */
+.report :global(.source-fold) > summary h2, .report :global(.verification-summary-copy) strong, .report .nextTopics h2 { font-size:17px !important; }
+.report .nextTopics h2 { margin:0; }
+/* 주의점 한 목록: 확인하지 못한 것 · 자료 메모는 항목 앞 작은 표시 */
+.report :global(.reference-items) { border:0; margin:0; padding:0; }
+.report :global(.reference-items) ul { margin:0; padding-left:18px; }
+.report :global(.reference-items) li + li { margin-top:6px; }
+.report :global(.reference-tag) { display:inline-block; margin-right:6px; padding:1px 7px; border-radius:6px; background:#fdf1e7; color:#9a5b1f; font-size:12px; font-weight:700; vertical-align:1px; }
+/* 이어서 물어볼 길은 추천 띠 안 마지막 줄 */
+.report .nextTopics :global(.report-continue) { margin:14px 0 0; padding:0; border:0; }
+/* 한입 요약 머핀은 상자 세로 가운데 (글이 길면 아래로 처지던 것). 휴대폰은 오른쪽 위 그대로 */
+@container report (min-width: 561px) { .report .heroArt { top:0; bottom:0; margin:auto 0; } }
+@container report (max-width: 560px) { .report :global(.source-fold) > summary :global(.fold-hint), .report :global(.verification-summary-copy > span) { padding-left:40px; } .report :global(.reference-toggle .verification-body) { padding-left:4px; } }

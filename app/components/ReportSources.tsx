@@ -65,7 +65,7 @@ export function ReportSources({ report }: { report: Report }) {
   const keys = usedKeysByRef(report);
   return <section className="source-library" aria-label="정확한 데이터로 보는 금융" id={rootId ?? undefined} tabIndex={-1} data-quick="sources">
     {/* PC 에서도 접어 둡니다. 근거 보기 · 출처로 이동 · 목차를 누르면 펼쳐집니다 (11/24 가독성) */}
-    <ReportResponsiveDetails collapsed className="report-fold source-fold" summary={<><h2><span className="verification-icon" aria-hidden="true">≡</span> 출처와 원본 데이터</h2><span className="fold-hint">자료 {shown.length}개 · 원본 값과 검사 결과</span></>}>
+    <ReportResponsiveDetails collapsed className="report-fold source-fold" summary={<><h2 data-icon="📚">출처와 원본 데이터</h2><span className="fold-hint">자료 {shown.length}개 · 원본 값과 검사 결과</span></>}>
 
     {groups.length > 1 && <div className="source-chips" role="group" aria-label="자료 주제 선택">
       {groups.map(group => <button type="button" key={group} aria-pressed={active === group} onClick={() => scope?.select(group)}>{group}</button>)}

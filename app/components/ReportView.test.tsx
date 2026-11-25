@@ -165,12 +165,14 @@ describe("리포트 하단 도구 실행 내역", () => {
       { tool: "get_rate_data", status: "error", ms: 10_000, error: "10초 안에 끝나지 않음 (timeout)" },
     ];
     const $ = render(fixture(), steps);
-    const text = $(".report-tools").text();
+    // 11/25: 자료 메모는 주의점 한 목록 안 '자료 메모' 표시 항목으로
+    const notes = $(".reference-items li").filter((_, el) => $(el).find(".reference-tag").text() === "자료 메모");
+    const text = notes.text();
     // 11/21: 도구 표 대신 저장본 · 호출 생략 · 실패만 주의점 옆 메모로 (QA 7 · 하니 5). 정상 완료한 도구와 ms 는 적지 않는다
-    expect($(".report-tools").parents(".reference-toggle")).toHaveLength(1);
+    expect(notes.parents(".reference-toggle").length).toBeGreaterThan(0);
     expect($(".tool-table")).toHaveLength(0);
     expect($(".report-details")).toHaveLength(0);
-    expect(text).toContain("자료 확인 메모");
+    expect(text).toContain("자료 메모");
     expect(text).toContain("잠시 호출을 쉬고 있어");
     expect(text).toContain("응답 시간 초과"); // 11/23: 원래 오류 문구 대신 사용자 말로
     expect(text).not.toContain("820");
@@ -406,8 +408,8 @@ it("검증 제목 옆에 상태를 두고 대조 규칙과 도구 기록은 같�
   expect(panel.attr("open")).toBeUndefined();
   expect(panel.find("summary .verification-summary-copy strong .status-partial")).toHaveLength(1);
   expect(panel.find(".verification-detail").text()).toContain('"값" 항목과 정확히 일치');
-  expect($(".reference-toggle .report-tools").text()).toContain("잠시 호출을 쉬고 있어");
-  expect($(".reference-toggle .report-tools").text()).not.toContain("🟡");
+  expect($(".reference-toggle .reference-items").text()).toContain("잠시 호출을 쉬고 있어");
+  expect($(".reference-toggle .reference-items").text()).not.toContain("🟡");
   expect($(".report-disclosure").text()).toBe(report.disclosure);
 });
 
@@ -445,7 +447,7 @@ it("검증은 항상 ON이며 토글 없이 필수 고지·원본 탐색을 제�
 it("도구 기록은 표가 아니라 실패 · 저장본만 메모로 남긴다 (11/21 QA 7)", () => {
   const $ = render(fixture(), [{ tool: "get_fx_krw_rate", status: "ok", ms: 912 }, { tool: "get_rate_data", status: "error", ms: 20, error: "조회 실패" }]);
   expect($(".tool-table")).toHaveLength(0);
-  const notes = $(".report-tools li").map((_, el) => $(el).text()).get();
+  const notes = $(".reference-items li").filter((_, el) => $(el).find(".reference-tag").text() === "자료 메모").map((_, el) => $(el).clone().find(".reference-tag").remove().end().text()).get();
   expect(notes).toHaveLength(1);
   expect(notes[0]).toBe("금리 확인: 자료를 받지 못했어요"); // 11/23: 내부 오류 문구는 붙이지 않음
 });
@@ -532,8 +534,9 @@ it("원인 근거는 숫자 다음에 한 번만 표시하고 안내와 검증�
     expect($(guide).nextAll().not("[class*='reportToolbar']")).toHaveLength(0);
   }
   // 11/21 외부 E2: 추천은 맨 끝, 주의점은 그 앞
-  expect($(".report > section").last().text()).toMatch(/이어서 알아볼까요\?|주의점과 확인하지 못한 것/);
-  if (text.includes("이어서 알아볼까요?")) expect(text.indexOf("주의점과 확인하지 못한 것")).toBeLessThan(text.indexOf("이어서 알아볼까요?"));
+  expect($(".report > section").last().text()).toMatch(/이어서 알아볼까요\?|주의점/);
+  const order = $("strong[data-icon='⚠️'], h2[data-icon='🧁']").map((_, el) => $(el).text()).get();
+  if (order.length === 2) expect(order).toEqual(["주의점", "이어서 알아볼까요?"]);
 });
 
 describe("머리 줄 · 주의점 · 보관 버튼 (11/20 하니 리뷰)", () => {
@@ -621,13 +624,14 @@ describe("11/21 QA 1묶음", () => {
     report.numbers[0].value = "+2.82%";
     expect(render(report)(".num").first().find("b").attr("class")).toContain("tone-up");
   });
-  it("자료 부족은 요약 아래 한 줄로 알리고 아래 목록으로 이어진다 (하니 5)", () => {
+  it("자료 부족은 한입 요약에 따로 알리지 않고 주의점 목록에 '확인 못 함' 표시로 남는다 (11/25 사용자)", () => {
     const report = fixture();
     report.dataGaps = ["기준금리 변경일을 확인하지 못함"];
     const $ = render(report);
-    expect($(".hero-gaps").text()).toContain("확인하지 못한 자료 1개");
-    expect($(".hero-gaps a").attr("href")).toMatch(/section-gaps$/);
-    expect($(".report-section-target").filter((_, el) => $(el).text().includes("확인하지 못한 것"))).toHaveLength(1);
+    expect($(".hero-gaps")).toHaveLength(0);
+    expect($("[data-quick=summary]").text()).not.toContain("확인하지 못한 자료");
+    const gap = $(".reference-items li").filter((_, el) => $(el).text().includes("기준금리 변경일을 확인하지 못함"));
+    expect(gap.find(".reference-tag").text()).toBe("확인 못 함");
   });
   it("기사 출처 카드에는 반복 안내 문단이 없고 상태 배지만 있다 (QA 13)", () => {
     const report = fixture();
@@ -1159,19 +1163,21 @@ describe("11/25 리포트 끝 정리 (사용자: 아래쪽 가독성)", () => {
     expect(verificationLine({ ...v, advice: 2, numbers: { total: 3, verified: 1, derived: 2, reported: 0, unverified: 0 } })).toBe("숫자 3개 중 값 대조 1개 · 계산값 2개 · 권유 표현 2건 감지");
   });
 
-  it("주의점 칸은 개수 줄 없이 있는 것만 제목으로, 안쪽 제목은 둘 이상일 때만", () => {
+  it("주의점 칸은 개수 줄 없이 제목 '주의점' 하나, 확인하지 못한 것은 소제목 대신 항목 앞 표시 (11/25 사용자)", () => {
     const report = fixture();
     report.caveats = ["환율은 일별 기준값이에요."];
     report.dataGaps = [];
     let $ = render(report);
-    expect($("details.reference-toggle > summary").text().trim()).toBe("i 주의점");
+    expect($("details.reference-toggle > summary").text().trim()).toBe("주의점");
+    expect($("details.reference-toggle > summary strong").attr("data-icon")).toBe("⚠️");
     // 사용자 화면에서 숨기는 '검사 후 제외한 항목'(verification-only) 은 빼고 봅니다
     const userHeadings = () => $("details.reference-toggle .verification-body h2").filter((_, el) => $(el).closest(".verification-only").length === 0);
     expect(userHeadings()).toHaveLength(0);
     report.dataGaps = ["미국 금리"];
     $ = render(report);
-    expect($("details.reference-toggle > summary").text()).toContain("주의점 · 확인하지 못한 것");
-    expect(userHeadings().map((_, el) => $(el).text()).get()).toEqual(["주의점", "확인하지 못한 것"]);
+    expect($("details.reference-toggle > summary").text().trim()).toBe("주의점");
+    expect(userHeadings()).toHaveLength(0);
+    expect($(".reference-items li").map((_, el) => $(el).find(".reference-tag").text()).get()).toEqual(["", "확인 못 함"]);
   });
 
   it("작성일은 '(한국 시간)' · 초 없이, 이어서 알아볼까요 카드는 화살표만", () => {
@@ -1181,5 +1187,25 @@ describe("11/25 리포트 끝 정리 (사용자: 아래쪽 가독성)", () => {
     expect(created).not.toContain(":55");
     expect(created).toContain("11:06");
     expect($.text()).not.toContain("머핀랩과 더 알아보기");
+  });
+});
+
+describe("칸 제목 이모지 · 이어서 묻기 자리 (11/25 사용자)", () => {
+  it("칸 제목에는 이모지를 data-icon 으로만 달아 제목 글자는 그대로다", () => {
+    const $ = render(fixture());
+    const icons = Object.fromEntries($("[data-icon]").map((_, el) => [[$(el).text().trim().replace(/\s+/g, " ").slice(0, 12), $(el).attr("data-icon")]]).get());
+    expect(icons["오늘의 숫자"]).toBe("🔢");
+    expect(icons["숫자 너머의 이야기"]).toBe("🔍");
+    expect(icons["내 생활에 미치는 영향"]).toBe("🏠");
+    expect(icons["숫자의 변화 추이"]).toBe("📈");
+    expect(icons["출처와 원본 데이터"]).toBe("📚");
+    expect(icons["이어서 알아볼까요?"]).toBe("🧁");
+    expect($("h2").filter((_, el) => $(el).text() === "오늘의 숫자")).toHaveLength(1);
+  });
+
+  it("추천이 있으면 이어서 묻기 링크는 추천 띠 안 마지막 줄, 하나만", () => {
+    const $ = render(fixture());
+    expect($(".report-continue")).toHaveLength(1);
+    expect($("[class*=nextTopics] .report-continue a").text()).toContain("더 궁금한 점이 있으면");
   });
 });

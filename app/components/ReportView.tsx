@@ -17,7 +17,7 @@ import type { ToolStep } from "@/src/agent/context";
 import type { Area, Evidence, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
 import { ReportQuickMenu, type QuickItem } from "./ReportQuickMenu";
-import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
+import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 import { formatDateKo, isBokRelease, isNewsEvidence, newsCountLine, newsNoun, prettyDates, prettyReport, publisherOf, repeatsClaim, valueTone } from "./format";
 import { usedEvidenceIds } from "./ReportSources";
@@ -182,9 +182,6 @@ export function ReportView({
   const mentioned = (tool: string) => [...report.caveats, ...report.dataGaps].some(line => line.startsWith(`${labelFor(tool)}:`));
   // 계산 도구 실패는 자료를 못 받은 게 아니라 내부 계산이 안 된 것이라 보여 주지 않습니다 (11/23 재점검: "계산: 확인하지 못했어요 (데이터를 확인하지 못했습니다.)")
   const toolNotes = (steps ?? []).filter(step => (step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open") && !mentioned(step.tool) && !/^calc_/.test(step.tool));
-  // 주의점 칸 제목: 있는 것만 (11/25 가독성)
-  const referenceParts = [report.caveats.length > 0 && "주의점", report.dataGaps.length > 0 && "확인하지 못한 것", toolNotes.length > 0 && "자료 확인 메모"].filter((part): part is string => !!part);
-  const referenceTitle = referenceParts.length > 0 ? referenceParts.join(" · ") : "주의점과 확인하지 못한 것";
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
@@ -223,8 +220,7 @@ export function ReportView({
           {headline && <h3 className={styles.headlinePlaceholder}>{headline}</h3>}
           {!headline && <p className={styles.summaryBody}>{report.summary}</p>}
           {foldSummary && <PrintOpenDetails className="hero-more" summary="요약 펼쳐 보기"><p className={styles.summaryBody}>{report.summary}</p></PrintOpenDetails>}
-          {/* 답에 영향을 준 자료 부족은 요약 아래 짧게 (11/20 하니 5) */}
-          {report.dataGaps.length > 0 && <p className="hero-gaps"><ReportSectionLink name="gaps" label={`확인하지 못한 자료 ${report.dataGaps.length}개 · 아래 주의점에 적었어요`} /></p>}
+          {/* 11/25 사용자: '확인하지 못한 자료' 링크는 빼고 아래 주의점 목록에만 ('확인 못 함' 표시) */}
           {/* 11/25 사용자: '나에게' 줄 대신 아래로 이끄는 한 줄 */}
           <p className={styles.heroNudge}>자세한 내용은 아래에서 확인해 봐요 <span aria-hidden="true">↓</span></p>
         </div>
@@ -237,7 +233,7 @@ export function ReportView({
 
       {report.numbers.length > 0 ? (
       <section className={styles.metrics} data-quick="numbers">
-        <div className="metrics-heading"><h2>오늘의 숫자</h2></div>
+        <div className="metrics-heading"><h2 data-icon="🔢">오늘의 숫자</h2></div>
         <div className="numbers" data-count={cards.length}>
           {cards.map(card => {
             const n = card.main;
@@ -284,7 +280,7 @@ export function ReportView({
       ) : newsEntries.length > 0 ? (
       /* 기사로만 만든 리포트는 숫자 칸 대신 확인한 기사 수를 보여 줍니다 (11/20 QA 12) */
       <section className={styles.metrics} data-quick="numbers">
-        <div className="metrics-heading"><h2>확인한 기사</h2></div>
+        <div className="metrics-heading"><h2 data-icon="📰">확인한 기사</h2></div>
         <p className="news-count">{newsCountLine(newsEntries)}</p>
         <p className="report-muted news-only-note">숫자 자료 없이 기사로 만든 리포트예요. 기사 원문은 아래 출처에서 바로 열 수 있어요.</p>
         <div className={styles.reportToolbar}><ReportHelp /></div>
@@ -298,7 +294,7 @@ export function ReportView({
         <div className={styles.story}>
           {/* 원인을 묻지 않은 질문은 원인이 없어도 빈 칸 안내를 띄우지 않고 칸을 숨깁니다 (11/20 QA) */}
           {(report.why.length > 0 || whyNote) && <section className={styles.why} data-quick="story">
-            <h2>숫자 너머의 이야기</h2>
+            <h2 data-icon="🔍">숫자 너머의 이야기</h2>
             {report.why.length === 0 ? (
               <p className="why-note">{whyNote}</p>
             ) : (
@@ -319,13 +315,13 @@ export function ReportView({
       {headline && !foldSummary && <p className={styles.summaryBody}>{report.summary}</p>}
 
           {report.impact.length > 0 && <section data-quick="impact">
-            <h2>내 생활에 미치는 영향</h2>
+            <h2 data-icon="🏠">내 생활에 미치는 영향</h2>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
           </section>}
 
           {report.charts && report.charts.length > 0 && (
             <section data-quick="chart">
-              <h2>{report.charts.every(c => c.kind === "bar") ? "숫자 한눈에 비교" : "숫자의 변화 추이"}</h2>
+              <h2 data-icon={report.charts.every(c => c.kind === "bar") ? "📊" : "📈"}>{report.charts.every(c => c.kind === "bar") ? "숫자 한눈에 비교" : "숫자의 변화 추이"}</h2>
               {report.charts.map((c, i) => (
                 <ReportChart key={i} chart={c} evidence={report.evidence} />
               ))}
@@ -345,32 +341,35 @@ export function ReportView({
         {/* 주의점 · 확인하지 못한 것은 접지 않고 항상 보여 줍니다 (11/20 하니 리뷰). details 는 제외 항목 링크의 대상 구조를 위해 두고 open 으로 고정 */}
         <details className="verification-toggle reference-toggle" open>
           <summary tabIndex={-1}>
-            {/* 11/25 가독성: 개수 줄은 바로 아래 목록과 같은 말이라 빼고, 제목은 있는 것만 */}
-            <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">i</span> {referenceTitle}</strong></span>
+            {/* 11/25 사용자: 제목은 '주의점' 하나 (주의점 · 확인하지 못한 것 · 소제목이 되풀이되던 것) */}
+            <span className="verification-summary-copy"><strong data-icon="⚠️">주의점</strong></span>
           </summary>
           <div className="verification-body" aria-label="자료 범위">
-            {report.caveats.length > 0 && <section>{referenceParts.length > 1 && <h2>주의점</h2>}<ul>{report.caveats.map((item, i) => <li key={i}>{item}</li>)}</ul></section>}
-            {report.dataGaps.length > 0 && <section><ReportSectionTarget name="gaps">{referenceParts.length > 1 && <h2>확인하지 못한 것</h2>}<ul>{report.dataGaps.map((item, i) => <li key={i}>{item}</li>)}</ul></ReportSectionTarget></section>}
+            {/* 확인하지 못한 것 · 자료 메모는 소제목 대신 항목 앞 작은 표시로 한 목록에 */}
+            {(report.caveats.length > 0 || report.dataGaps.length > 0 || toolNotes.length > 0) && <section className="reference-items"><ul>
+              {report.caveats.map((item, i) => <li key={`c${i}`}>{item}</li>)}
+              {report.dataGaps.map((item, i) => <li key={`g${i}`}><span className="reference-tag">확인 못 함</span>{item}</li>)}
+              {toolNotes.map((step, i) => <li key={`t${i}`}><span className="reference-tag">자료 메모</span>{labelFor(step.tool)}: {step.status === "error"
+                ? `자료를 받지 못했어요${/timeout|시간|초과/i.test(step.error ?? "") ? " (응답 시간 초과)" : ""}`
+                : step.breaker === "open" ? "잠시 호출을 쉬고 있어 이번에는 부르지 않았어요"
+                : `${formatAge(step.fallbackAgeMs ?? 0)} 전에 저장해 둔 응답을 썼어요`}</li>)}
+            </ul></section>}
         {report.verification.removed.length > 0 && <section className="verification-only"><ReportSectionTarget name="removed"><h2>검사 후 제외한 항목</h2><ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul></ReportSectionTarget></section>}
 
-        {toolNotes.length > 0 && <section className="report-tools">{referenceParts.length > 1 && <h2>자료 확인 메모</h2>}
-          <ul>{toolNotes.map((step, i) => <li key={i}>{labelFor(step.tool)}: {step.status === "error"
-            ? `자료를 받지 못했어요${/timeout|시간|초과/i.test(step.error ?? "") ? " (응답 시간 초과)" : ""}`
-            : step.breaker === "open" ? "잠시 호출을 쉬고 있어 이번에는 부르지 않았어요"
-            : `${formatAge(step.fallbackAgeMs ?? 0)} 전에 저장해 둔 응답을 썼어요`}</li>)}</ul>
-        </section>}
           </div>
         </details>
       </section>}
 
       {/* 추천은 맨 끝에 두어 검증 · 주의점과 섞이지 않게 (11/20 외부 E2) */}
       {nextTopics.length > 0 && <section className={styles.nextTopics}>
-        <ReportResponsiveDetails className="report-fold" summary={<h2>이어서 알아볼까요?</h2>}>
+        <ReportResponsiveDetails className="report-fold" summary={<h2 data-icon="🧁">이어서 알아볼까요?</h2>}>
         <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action" aria-hidden="true">→</span></Link>)}</div>
         </ReportResponsiveDetails>
+        {/* 11/25 사용자: 이어서 물어볼 길은 추천 띠 안 마지막 줄로 */}
+        <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>
       </section>}
       {/* 추천이 있든 없든 이어서 물어볼 길을 항상 둡니다 (11/21 QA 최종리포트 마무리 문구 제안, Codex 리뷰: 추천이 비면 링크도 사라지던 것) */}
-      <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>
+      {nextTopics.length === 0 && <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>}
 
       {/* 11/25 사용자: '투자 권유' 문장 앞에서 줄을 바꿈 */}
       <p className="report-disclosure">{disclosureLines(report.disclosure).flatMap((line, i) => [...(i > 0 ? [" "] : []), <span key={i}>{line}</span>])}</p>
