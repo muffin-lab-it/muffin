@@ -19,7 +19,7 @@ import { ReportChart } from "./ReportChart";
 import { ReportQuickMenu, type QuickItem } from "./ReportQuickMenu";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionLink, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
-import { formatDateKo, isNewsEvidence, newsCountLine, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
+import { formatDateKo, isBokRelease, isNewsEvidence, newsCountLine, newsNoun, prettyDates, prettyReport, publisherOf, valueTone } from "./format";
 import { usedEvidenceIds } from "./ReportSources";
 import { evidenceCategory } from "./reportCategory";
 import { splitAreaPrefix } from "./home-form";
@@ -125,11 +125,11 @@ function ReasonLinks({ refs, evidence }: { refs: string[]; evidence: Evidence[] 
     const url = entry.source.pageUrl ?? entry.source.url;
     let relay = false;
     try { relay = new URL(url).hostname === "news.google.com"; } catch { /* SourceLink 가 잘못된 주소를 링크로 만들지 않습니다. */ }
-    return <SourceLink key={ref} url={url} name={`${publisherOf(entry)} 기사 보기${relay ? " (Google News)" : ""} ↗`} className="reason-article" />;
+    return <SourceLink key={ref} url={url} name={`${publisherOf(entry)} ${isBokRelease(entry) ? "보도자료" : "기사"} 보기${relay ? " (Google News)" : ""} ↗`} className="reason-article" />;
   };
   return <div className="reason-originals">
     {news.length === 1 && article(news[0])}
-    {news.length >= 2 && <PrintOpenDetails className="reason-news" summary={`기사 ${news.length}건 보기`}><ul>{news.map(item => <li key={item.ref}>{article(item)}</li>)}</ul></PrintOpenDetails>}
+    {news.length >= 2 && <PrintOpenDetails className="reason-news" summary={`${newsNoun(news.map(item => item.entry))} ${news.length}건 보기`}><ul>{news.map(item => <li key={item.ref}>{article(item)}</li>)}</ul></PrintOpenDetails>}
     {data.map(item => <EvidenceReference key={item.ref} evidenceId={item.ref} evidence={evidence} label={`출처로 이동 · ${item.ref}`}><span>출처로 이동 ↓ · {item.ref}</span></EvidenceReference>)}
   </div>;
 }
@@ -177,6 +177,9 @@ export function ReportView({
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
+  // 보도 기반 원인의 근거가 한국은행 보도자료면 '보도자료 내용을 바탕으로' (11/25: 통화정책방향이 근거인데 '기사' 로 보였음)
+  const basisLabel = (w: Report["why"][number]) => w.basis !== "news" ? basisLabels[w.basis]
+    : `${newsNoun((w.refs ?? []).map(ref => report.evidence.find(entry => entry.id === ref)).filter(entry => !entry || isNewsEvidence(entry)))} 내용을 바탕으로 안내해요`;
   // 따라다니는 목차에 넣을 영역: 아래에서 실제로 그리는 영역만 (11/23 사용자 결정: 탭 대신 퀵메뉴)
   const quickItems: QuickItem[] = [
     { key: "summary", label: "요약" },
@@ -254,7 +257,7 @@ export function ReportView({
                   <span className={styles.metricDate}>{n.asOf ? `기준일 ${formatDateKo(n.asOf)}` : "자료 날짜 미제공"}</span>
                   {/* 카드에는 출처 이름 끝의 괄호 설명을 떼고 짧게 (전체 이름은 근거 보기에). 11/24 가독성: 카드마다 출처 줄이 두세 줄로 접혔음 */}
                   {source && <span className="metric-source" title={source.name}>{shortSourceName(source.name)}</span>}
-                  {source && <span className={styles.metricActions}><EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기 · ${checkLabels[check]}`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference></span>}
+                  {source && <span className={styles.metricActions}><EvidenceReference evidenceId={n.ref} evidence={report.evidence} label={`${n.label} 근거 보기 · ${check === "reported" && entry && isBokRelease(entry) ? "보도자료" : checkLabels[check]}`} valueKey={valueKey} origin={origin}><span>근거 보기</span></EvidenceReference></span>}
                 </div>
               </EvidenceOrigin>
             );
@@ -286,7 +289,7 @@ export function ReportView({
               <ol className="why-list">
                 {report.why.map((w, i) => (
                   <li key={i}>
-                    <span className="basis-explanation"><strong className={`report-badge basis-${w.basis}`}>{tags[w.basis]}</strong> {basisLabels[w.basis]}</span>{" "}
+                    <span className="basis-explanation"><strong className={`report-badge basis-${w.basis}`}>{tags[w.basis]}</strong> {basisLabel(w)}</span>{" "}
                     <ReasonEvidenceTarget index={i}><h3>{w.claim}</h3>{w.evidence && w.evidence !== w.claim && <p>{w.evidence}</p>}</ReasonEvidenceTarget>
                     <ReasonLinks refs={w.refs} evidence={report.evidence} />
                   </li>

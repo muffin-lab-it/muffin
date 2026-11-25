@@ -6,7 +6,7 @@ import { reportChange } from "./reportChange";
 import type { Evidence, Report } from "@/src/agent/schema";
 import { EvidenceRecord, SourceLink } from "./ReportEvidence";
 import { useEvidenceSelection, useEvidenceTarget } from "./ReportEvidenceScope";
-import { etfBasisNote, formatDateKo, fxBasisNote } from "./format";
+import { etfBasisNote, formatDateKo, fxBasisNote, isBokRelease, newsNoun } from "./format";
 
 const checkLabels = { verified: "값 대조", derived: "계산값", reported: "기사 보도", unverified: "원문 미대조" } as const;
 
@@ -78,7 +78,8 @@ export function ReportSources({ report }: { report: Report }) {
         const news = shown.filter(entry => evidenceCategory(entry) === group && /news/i.test(entry.tool));
         const titleOnly = news.filter(entry => entry.values.body === "unavailable" || entry.values.body === "not_requested").length;
         if (titleOnly === 0) return null;
-        return <p className="report-muted news-title-note">{titleOnly === news.length ? `기사 ${news.length}건 모두` : `기사 ${news.length}건 중 ${titleOnly}건은`} 제목만 확인해 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 검증된 사실과 구분해 주세요.</p>;
+        const noun = newsNoun(news);
+        return <p className="report-muted news-title-note">{titleOnly === news.length ? `${noun} ${news.length}건 모두` : `${noun} ${news.length}건 중 ${titleOnly}건은`} 제목만 확인해 본문 내용은 반영되지 않았어요. 보도 내용은 공식 데이터로 검증된 사실과 구분해 주세요.</p>;
       })()}
       {group === "참고 문서" ? <ul>{extraSources.map((source, index) => <li key={index}><SourceLink url={source.pageUrl ?? source.url} name={source.name} /> · 기준일 {formatDateKo(source.asOf) || "미제공"}</li>)}</ul> : <div className="source-data-grid">
         {shown.filter(entry => evidenceCategory(entry) === group).map(entry => {
@@ -87,10 +88,12 @@ export function ReportSources({ report }: { report: Report }) {
           const [first, ...rest] = nums;
           // 숫자 카드에서 옮겨 온 것 (11/24 가독성): 검사 결과 배지와 환율 · ETF 기준 안내
           const checkOf = (number: Report["numbers"][number]) => report.verification.status === "skipped" ? "unverified" : number.check;
+          // 한국은행 보도자료에서 온 숫자는 '기사 보도' 대신 '보도자료' (11/25)
+          const labelOf = (number: Report["numbers"][number]) => checkOf(number) === "reported" && isBokRelease(entry) ? "보도자료" : checkLabels[checkOf(number)];
           const basis = fxBasisNote(entry.tool, entry.source.name) ?? etfBasisNote(entry);
           return <div key={entry.id} className="source-data-item">
-          {first && <div className="source-number"><span className="source-number-label">{first.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{first.value}</strong><span className={`report-badge check-${checkOf(first)}`}>{checkLabels[checkOf(first)]}</span>{first.change && <small>{reportChange(first.change, first.changeDetail).text}</small>}</div>}
-          {rest.length > 0 && <ul className="source-number-subs">{rest.map((number, index) => <li key={index}><span>{number.label}</span><b>{number.value}</b><span className={`report-badge check-${checkOf(number)}`}>{checkLabels[checkOf(number)]}</span>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</li>)}</ul>}
+          {first && <div className="source-number"><span className="source-number-label">{first.label} <span className="evidence-id" aria-label={`근거 번호 ${entry.id}`}>{entry.id}</span></span><strong>{first.value}</strong><span className={`report-badge check-${checkOf(first)}`}>{labelOf(first)}</span>{first.change && <small>{reportChange(first.change, first.changeDetail).text}</small>}</div>}
+          {rest.length > 0 && <ul className="source-number-subs">{rest.map((number, index) => <li key={index}><span>{number.label}</span><b>{number.value}</b><span className={`report-badge check-${checkOf(number)}`}>{labelOf(number)}</span>{number.change && <small>{reportChange(number.change, number.changeDetail).text}</small>}</li>)}</ul>}
           {basis && <p className="evidence-basis">{basis}</p>}
           <EvidenceRecord inList entry={entry} evidence={report.evidence} usedKeys={keys.get(entry.id) ?? []} displayedValue={first?.value} displayedLabel={first?.label} hideHeading={!!first} />
         </div>;

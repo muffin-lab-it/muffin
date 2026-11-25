@@ -1012,3 +1012,61 @@ describe("기사 제목 끝의 언론사 (11/24)", () => {
     expect(titleWithoutPublisher("제목 - Chosunbiz")).toBe("제목 - Chosunbiz");
   });
 });
+
+describe("한국은행 보도자료 · 정책브리핑 표시 (11/25 이용 조건)", () => {
+  const news = (id: string, publisher: string, url: string): Report["evidence"][number] => ({ id, tool: "get_korean_economic_news", label: "기사", values: { title: `${id} 제목`, publisher, publishedAt: "2026-11-24", body: "available" }, source: { name: publisher, url, asOf: "2026-11-24" } });
+  const bok = news("E9-1", "한국은행", "https://www.bok.or.kr/portal/bbs/B0000501/view.do?nttId=1&menuNo=200690");
+  const policy = news("E9-2", "정책브리핑(기획재정부)", "https://www.korea.kr/news/policyNewsView.do?newsId=1");
+  const press = news("E9-3", "연합뉴스", "https://www.yna.co.kr/view/1");
+
+  it("한국은행만이면 '보도자료', 섞이면 '기사 · 보도자료' 로 부르고, ECOS 금리 같은 데이터는 보도자료로 보지 않는다", async () => {
+    const { isBokRelease, isPolicyNews, newsCountLine, newsLicenseNote, newsNoun } = await import("./format");
+    expect(isBokRelease(bok)).toBe(true);
+    expect(isBokRelease(press)).toBe(false);
+    expect(isBokRelease({ ...bok, tool: "get_rate_data" })).toBe(false);
+    expect(isPolicyNews(policy)).toBe(true);
+    expect(newsNoun([bok])).toBe("보도자료");
+    expect(newsNoun([bok, press])).toBe("기사 · 보도자료");
+    expect(newsNoun([press, undefined])).toBe("기사");
+    expect(newsCountLine([bok])).toMatch(/^보도자료 1건 · /);
+    expect(newsLicenseNote(bok)).toBe("출처 한국은행 · 보도자료 원문을 글자만 옮겨 요약에 썼어요.");
+    expect(newsLicenseNote(policy)).toContain("공공누리 1유형");
+    expect(newsLicenseNote(press)).toBeNull();
+  });
+
+  it("원인 문장의 링크는 '한국은행 보도자료 보기', 여럿이면 '기사 · 보도자료 N건 보기'", () => {
+    const report = fixture();
+    report.evidence.push(bok, press);
+    report.why[0].refs = ["E9-1"];
+    expect(render(report)(".reason-article").text()).toContain("한국은행 보도자료 보기");
+    report.why[0].refs = ["E9-1", "E9-3"];
+    expect(render(report)(".reason-news > summary").text()).toContain("기사 · 보도자료 2건 보기");
+  });
+
+  it("출처 카드는 '보도자료 보기' 와 출처 · 가공 안내를, 정책브리핑은 공공누리 안내를 보이고 일반 기사에는 없다", () => {
+    const card = (entry: Report["evidence"][number]) => load(renderToStaticMarkup(<EvidenceRecord entry={entry} evidence={[entry]} />));
+    const $bok = card(bok);
+    expect($bok(".evidence-meta").text()).toContain("보도자료 보기");
+    expect($bok(".evidence-meta").text()).not.toContain("기사 보기");
+    expect($bok(".evidence-license").text()).toContain("출처 한국은행");
+    expect(card(policy)(".evidence-license").text()).toContain("정책브리핑(공공누리 1유형)");
+    expect(card(press)(".evidence-license")).toHaveLength(0);
+  });
+
+  it("보도 기반 원인의 근거가 한국은행 보도자료면 '보도자료 내용을 바탕으로' 라고 쓴다", () => {
+    const report = fixture();
+    report.evidence.push(bok, press);
+    report.why[0] = { ...report.why[0], basis: "news", refs: ["E9-1"] };
+    expect(render(report)(".basis-explanation").first().text()).toContain("보도자료 내용을 바탕으로 안내해요");
+    report.why[0].refs = ["E9-3"];
+    expect(render(report)(".basis-explanation").first().text()).toContain("기사 내용을 바탕으로 안내해요");
+  });
+
+  it("차트 아래 목록도 한국은행 항목이면 '관련 보도자료' 로 부른다", () => {
+    const report = fixture();
+    const entry = report.evidence.find(item => item.id === report.charts![0].events![0].ref)!;
+    entry.values.publisher = "한국은행";
+    entry.source = { ...entry.source, name: "한국은행", url: "https://www.bok.or.kr/portal/bbs/B0000501/view.do?nttId=2&menuNo=200690" };
+    expect(render(report)(".chart-news > summary").text()).toContain("이 기간 관련 보도자료 1건");
+  });
+});

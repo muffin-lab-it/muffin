@@ -6,7 +6,7 @@
  * 11/21 사용자 요청: 선 위에 마우스를 올리거나 손가락으로 짚으면 가장 가까운 날의 날짜 · 값을 보여 줍니다 (값은 장부 그대로).
  */
 import { useState } from "react";
-import { prettyDates, titleWithoutPublisher } from "./format";
+import { newsNoun, prettyDates, titleWithoutPublisher } from "./format";
 import { PrintOpenDetails } from "./ReportResponsiveDetails";
 import type { Chart, Evidence } from "@/src/agent/schema";
 
@@ -260,7 +260,7 @@ export function ReportChart({ chart, evidence = [] }: { chart: Chart; evidence?:
         {band && <div className="chart-context"><strong>과거 움직임과 비교하기</strong><p>보라색 띠는 {band.label}을 적용한 비교 범위예요. 마지막 값은 이 범위{last.v > band.high ? "보다 높아요" : last.v < band.low ? "보다 낮아요" : " 안에 있어요"}.</p></div>}
       {/* 차트 위 빨간 점의 기사. 접어 두고, 펼치면 전체 제목을 기사 링크로 (11/24: '…' 로 끊긴 제목 목록 대신) */}
       {events.length > 0 && (
-        <PrintOpenDetails className="chart-news" summary={<><span className="chart-news-dot" aria-hidden="true" />이 기간 관련 기사 {events.length}건</>}>
+        <PrintOpenDetails className="chart-news" summary={<><span className="chart-news-dot" aria-hidden="true" />이 기간 관련 {newsNoun(events.map(e => evidence.find(entry => entry.id === e.ref)))} {events.length}건</>}>
           <ul className="chart-events">
             {events.map((e) => {
               const article = chartArticle(e, evidence);
