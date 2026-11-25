@@ -20,10 +20,11 @@ const ORIGIN = "https://muffin-kappa.vercel.app";
 const report = reportSchema.parse(sample.report);
 const input = { question: "KODEX 200 요즘 어때?", depth: "standard", area: "etf" };
 
-function req(method: string, path: string, { client = A, origin = ORIGIN, body }: { client?: string | null; origin?: string | null; body?: unknown } = {}) {
+function req(method: string, path: string, { client = A, origin = ORIGIN, body, ip }: { client?: string | null; origin?: string | null; body?: unknown; ip?: string } = {}) {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (client) headers["x-muffin-client"] = client;
   if (origin) headers.origin = origin;
+  if (ip) headers["x-forwarded-for"] = ip;
   return new Request(`${ORIGIN}${path}`, { method, headers, body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body) });
 }
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -196,5 +197,30 @@ describe("GET · DELETE /api/history/:id", () => {
   it("삭제는 출처 검사를 한다", async () => {
     expect((await DELETE(req("DELETE", "/api/history/a1", { origin: "https://evil.example.com" }), ctx("a1"))).status).toBe(403);
     expect(f.rows).toHaveLength(1);
+  });
+});
+
+describe("저장 시각 · 저장 한도 (11/24 화면 연결)", () => {
+  it("createdAt 을 주면 그 시각으로 저장하고, 미래 시각이면 지금으로 둔다", async () => {
+    const res = await save({ id: "old-1", createdAt: "2026-11-01T09:00:00.000Z", input, report });
+    expect(res.status).toBe(201);
+    expect((await res.json()).record.createdAt).toBe("2026-11-01T09:00:00.000Z");
+    expect(f.rows[0]).toMatchObject({ id: "old-1", created_at: "2026-11-01T09:00:00.000Z" });
+
+    const future = await save({ id: "future-1", createdAt: "2099-01-01T00:00:00.000Z", input, report });
+    expect(future.status).toBe(201);
+    expect((await future.json()).record.createdAt).not.toBe("2099-01-01T00:00:00.000Z");
+  });
+
+  it("저장은 브라우저마다 10분에 60번까지이고 넘으면 429 와 Retry-After, 목록 조회는 세지 않는다", async () => {
+    const C = "33333333-3333-4333-8333-333333333333";
+    const saveAs = (id: string) => POST(req("POST", "/api/history", { client: C, ip: "203.0.113.7", body: { id, input, report } }));
+    for (let i = 0; i < 60; i++) expect((await saveAs(`limit-${i}`)).status).toBe(201);
+    const over = await saveAs("limit-60");
+    expect(over.status).toBe(429);
+    expect(Number(over.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(await over.json()).toMatchObject({ error: expect.stringContaining("요청이 많아요"), retryAfterSec: expect.any(Number) });
+    expect(f.rows.some((r) => r.id === "limit-60")).toBe(false);
+    expect((await GET(req("GET", "/api/history?limit=5", { client: C }))).status).toBe(200);
   });
 });

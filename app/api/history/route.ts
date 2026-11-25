@@ -3,6 +3,7 @@ import { z } from "zod";
 import { areas, depths, reportSchema } from "@/src/agent/schema";
 import { BODY_LIMIT, BODY_TOO_LARGE_MESSAGE, BodyTooLargeError, readJsonLimited } from "@/src/lib/guard";
 import { newRunId } from "@/src/lib/log";
+import { checkHistoryLimit, hashIp, retryAfterMessage } from "@/src/lib/ratelimit";
 import { redactSecrets } from "@/src/lib/redact";
 import { errorJson, guard, recordIdSchema, serverError } from "./shared";
 import { insertReport, listReports, trimReports } from "./store";
@@ -18,6 +19,8 @@ const stepSchema = z.object({
 
 const bodySchema = z.object({
   id: recordIdSchema.optional(),
+  /** 브라우저가 처음 저장한 시각. 예전 기록을 나중에 올려도 순서가 그대로이게 받고, 미래 시각은 지금으로 둡니다 (11/24) */
+  createdAt: z.iso.datetime({ offset: true }).optional(),
   input: z.object({
     question: z.string().trim().min(1).max(500),
     depth: z.enum(depths),
@@ -48,10 +51,21 @@ export async function GET(req: Request) {
   }
 }
 
-/** 리포트 저장. 새로 넣으면 201, 같은 브라우저가 같은 id 를 다시 보내면 200(기존 기록), 다른 브라우저의 id 면 409 */
+/** 리포트 저장. 새로 넣으면 201, 같은 브라우저가 같은 id 를 다시 보내면 200(기존 기록), 다른 브라우저의 id 면 409, 저장 한도를 넘으면 429 */
 export async function POST(req: Request) {
   const checked = guard(req, { origin: true });
   if ("response" in checked) return checked.response;
+
+  // 저장 한도는 리포트 한도와 따로 셉니다 (src/lib/ratelimit.ts HISTORY_LIMITS)
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwardedFor || req.headers.get("x-real-ip") || "unknown";
+  const rate = await checkHistoryLimit({ clientId: checked.clientId, ipHash: hashIp(ip, process.env.RATE_LIMIT_SALT ?? "") });
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: retryAfterMessage(rate.retryAfterSec), id: newRunId(), retryAfterSec: rate.retryAfterSec },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+    );
+  }
 
   let raw: unknown;
   try {
@@ -63,10 +77,11 @@ export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(raw);
   if (!parsed.success) return errorJson(400, "id, input, report, steps 를 확인하세요.");
 
-  const { id = newRunId(), input, report, steps } = parsed.data;
+  const { id = newRunId(), createdAt, input, report, steps } = parsed.data;
   const clientId = checked.clientId;
+  const created_at = createdAt && Date.parse(createdAt) <= Date.now() ? new Date(createdAt).toISOString() : undefined;
   try {
-    const result = await insertReport({ id, client_id: clientId, input, report, steps });
+    const result = await insertReport({ id, client_id: clientId, ...(created_at ? { created_at } : {}), input, report, steps });
     if (result.status === "conflict") return errorJson(409, "이미 쓰인 리포트 id 예요.", id);
     if (result.status === "existing") return NextResponse.json({ record: result.record });
 

@@ -60,14 +60,15 @@ function prunePeriodically(now: number): void {
 }
 
 type Rule = { key: string; windowMs: number; limit: number };
+type LimitResult = { ok: true } | { ok: false; retryAfterSec: number };
 
 export async function checkLimit(keys: {
   clientId?: string;
   ipHash: string;
-}): Promise<{ ok: true } | { ok: false; retryAfterSec: number }> {
+}): Promise<LimitResult> {
   const now = Date.now();
   prunePeriodically(now);
-  const rules: Rule[] = [
+  return consume([
     ...(keys.clientId
       ? [
           { key: `client:10m:${keys.clientId}`, windowMs: TEN_MINUTES_MS, limit: limitFor("client10m") },
@@ -75,8 +76,23 @@ export async function checkLimit(keys: {
         ]
       : []),
     { key: `ip:10m:${keys.ipHash}`, windowMs: TEN_MINUTES_MS, limit: limitFor("ip10m") },
-  ];
+  ], now);
+}
 
+/** 보관함 저장(POST /api/history) 한도. OpenAI 를 부르지 않아 리포트 한도와 따로, 넉넉하게 셉니다 (11/24: 화면이 서버 저장을 쓰면서 밖에서 줄을 쌓지 못하게) */
+export const HISTORY_LIMITS = { client10m: 60, ip10m: 300 } as const;
+
+export async function checkHistoryLimit(keys: { clientId: string; ipHash: string }): Promise<LimitResult> {
+  const now = Date.now();
+  prunePeriodically(now);
+  return consume([
+    { key: `history:client:10m:${keys.clientId}`, windowMs: TEN_MINUTES_MS, limit: HISTORY_LIMITS.client10m },
+    { key: `history:ip:10m:${keys.ipHash}`, windowMs: TEN_MINUTES_MS, limit: HISTORY_LIMITS.ip10m },
+  ], now);
+}
+
+/** 규칙 하나라도 찼으면 가장 늦게 풀리는 시간을 돌려주고, 아니면 모든 규칙에 이번 요청을 셉니다 */
+function consume(rules: Rule[], now: number): LimitResult {
   const exceeded = rules
     .map((rule) => ({ ...rule, timestamps: activeTimestamps(rule.key, now, rule.windowMs) }))
     .filter((rule) => rule.timestamps.length >= rule.limit);

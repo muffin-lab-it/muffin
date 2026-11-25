@@ -3,6 +3,7 @@
  *
  *  createReport  POST /api/report        완료 후 JSON 한 번에
  *  streamReport  POST /api/report/stream NDJSON 이벤트 스트림. 진행 화면용
+ *  listHistory · saveHistory · getHistory · deleteHistory  /api/history  보관함 서버 (src/lib/history.ts 만 부릅니다)
  *
  * 모든 요청에 브라우저 익명 id(X-Muffin-Client)를 붙입니다. 실패하면 ApiError 를 throw 하고, message 는 화면에 그대로 보여 줄 문장입니다.
  */
@@ -10,6 +11,7 @@ import type { ToolStep } from "../agent/context";
 import type { MuffinEvent } from "../agent/events";
 import type { Area, Depth, Report } from "../agent/schema";
 import { CLIENT_HEADER, getClientId } from "./client";
+import type { ReportRecord } from "./history";
 import type { Cost, UsageSummary } from "./pricing";
 
 export type ReportRequest = { question: string; depth: Depth; area?: Area };
@@ -115,4 +117,48 @@ export async function streamReport(input: ReportRequest | ReplayRequest, onEvent
 
   if (!final) throw new Error("스트림이 리포트 없이 끝났습니다.");
   return final;
+}
+
+/**
+ * 보관함 서버 (History API, 11/24 화면 연결). 브라우저 익명 id 로 나눠 저장합니다.
+ * 없는 기록은 null · false 로 돌려주고, 그 밖의 실패는 ApiError 로 throw 합니다 (history.ts 가 브라우저 기록으로 대신합니다).
+ */
+type HistoryBody = ErrorBody & { record?: ReportRecord; records?: ReportRecord[] };
+
+async function historyBody(res: Response): Promise<HistoryBody> {
+  return (await res.json().catch(() => ({}))) as HistoryBody;
+}
+
+/** 최신순 */
+export async function listHistory(limit: number, signal?: AbortSignal): Promise<ReportRecord[]> {
+  const res = await fetch(`/api/history?limit=${limit}`, { headers: headers(), cache: "no-store", signal });
+  const json = await historyBody(res);
+  if (!res.ok || !Array.isArray(json.records)) throw failure(json, res.status, res.headers.get("Retry-After"));
+  return json.records;
+}
+
+/** 처음 저장한 시각(createdAt)도 보내 예전 기록을 나중에 올려도 순서가 그대로입니다. 같은 id 를 다시 보내면 서버의 기존 기록이 옵니다 */
+export async function saveHistory(record: ReportRecord, signal?: AbortSignal): Promise<ReportRecord> {
+  const { id, createdAt, input, report, steps } = record;
+  const res = await fetch("/api/history", { method: "POST", headers: headers(), body: JSON.stringify({ id, createdAt, input, report, steps }), signal });
+  const json = await historyBody(res);
+  if (!res.ok || !json.record) throw failure(json, res.status, res.headers.get("Retry-After"));
+  return json.record;
+}
+
+/** 없거나 다른 브라우저의 기록이면 null */
+export async function getHistory(id: string, signal?: AbortSignal): Promise<ReportRecord | null> {
+  const res = await fetch(`/api/history/${encodeURIComponent(id)}`, { headers: headers(), cache: "no-store", signal });
+  if (res.status === 404) return null;
+  const json = await historyBody(res);
+  if (!res.ok || !json.record) throw failure(json, res.status, res.headers.get("Retry-After"));
+  return json.record;
+}
+
+/** 지웠으면 true, 서버에 없던 기록이면 false */
+export async function deleteHistory(id: string, signal?: AbortSignal): Promise<boolean> {
+  const res = await fetch(`/api/history/${encodeURIComponent(id)}`, { method: "DELETE", headers: headers(), signal });
+  if (res.status === 204) return true;
+  if (res.status === 404) return false;
+  throw failure(await historyBody(res), res.status, res.headers.get("Retry-After"));
 }

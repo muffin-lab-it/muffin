@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteReport, getReport, listReports, saveReport } from "./history";
+import { deleteReport, getReport, listReports, saveReport, type ReportRecord } from "./history";
 import { normalizeReport } from "../agent/normalize";
 
 const report = normalizeReport({
@@ -268,5 +268,279 @@ describe("옮기기 되돌리기 · 되풀이 방지 (Codex 재리뷰 3)", () =>
     await listReports();
     await getReport("v1-0");
     expect(store.writes).toBe(after);
+  });
+});
+
+describe("서버 저장 (History API, 11/24 화면 연결)", () => {
+  const CLIENT = "11111111-1111-4111-8111-111111111111";
+  const OTHER = "22222222-2222-4222-8222-222222222222";
+  type ServerRow = ReportRecord & { client: string };
+  type Fail = (method: string, path: string, body?: { id?: string }) => Response | undefined;
+
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  const record = (id: string, createdAt: string, question = id): ReportRecord => ({ id, createdAt, input: { question, depth: "easy" }, report, steps: [] });
+
+  /** /api/history 흉내. 브라우저 id 로 나누고, 시각은 Postgres 처럼 +00:00 꼴로 돌려줍니다 */
+  function fakeServer({ off = false } = {}) {
+    const rows = new Map<string, ServerRow>();
+    const calls: { method: string; path: string; id?: string }[] = [];
+    let fail: Fail | undefined;
+    let down = off;
+    let gate: { open: Promise<void>; match: (method: string, path: string) => boolean } | undefined; // 붙잡아 둔 요청은 풀 때까지 늦게 닿습니다
+    const out = (row: ServerRow): ReportRecord => ({ id: row.id, createdAt: row.createdAt.replace("Z", "+00:00"), input: row.input, report: row.report, steps: row.steps });
+    const fetchMock = vi.fn(async (path: string, init: RequestInit = {}) => {
+      const method = init.method ?? "GET";
+      const body = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
+      calls.push({ method, path, id: body?.id });
+      const injected = fail?.(method, path, body);
+      if (injected) return injected;
+      if (down) return json({ error: "저장소 설정을 확인해 주세요.", id: "x" }, 503);
+      if (gate?.match(method, path)) await gate.open;
+      const client = new Headers(init.headers).get("X-Muffin-Client") ?? "";
+      const one = /^\/api\/history\/([^?]+)$/.exec(path);
+      if (method === "GET" && path.startsWith("/api/history?")) {
+        const mine = [...rows.values()].filter((row) => row.client === client).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+        return json({ records: mine.map(out) });
+      }
+      if (method === "POST" && path === "/api/history") {
+        const existing = rows.get(body.id);
+        if (existing) return existing.client === client ? json({ record: out(existing) }) : json({ error: "이미 쓰인 리포트 id 예요.", id: body.id }, 409);
+        const row = { ...body, createdAt: body.createdAt ?? new Date().toISOString(), client };
+        rows.set(body.id, row);
+        return json({ record: out(row) }, 201);
+      }
+      if (one) {
+        const id = decodeURIComponent(one[1]);
+        const row = rows.get(id);
+        if (!row || row.client !== client) return json({ error: "리포트를 찾을 수 없어요.", id }, 404);
+        if (method === "DELETE") { rows.delete(id); return new Response(null, { status: 204 }); }
+        return json({ record: out(row) });
+      }
+      return json({ error: "알 수 없는 요청" }, 500);
+    });
+    return {
+      rows, calls, fetchMock,
+      failWith(next?: Fail) { fail = next; },
+      setOff(next: boolean) { down = next; },
+      hold(match: (method: string, path: string) => boolean) {
+        let release = () => {};
+        gate = { match, open: new Promise<void>((resolve) => { release = () => { gate = undefined; resolve(); }; }) };
+        return release;
+      },
+    };
+  }
+
+  let store: ReturnType<typeof fakeStorage>;
+  let server: ReturnType<typeof fakeServer>;
+  let history: typeof import("./history");
+  const useStorage = (next: ReturnType<typeof fakeStorage>) => {
+    store = next;
+    store.setItem("muffin.client", CLIENT);
+    vi.stubGlobal("window", { localStorage: store, location: { protocol: "https:" } });
+  };
+  const useServer = (next: ReturnType<typeof fakeServer>) => { server = next; vi.stubGlobal("fetch", server.fetchMock); };
+  const putLocal = (r: ReportRecord) => store.setItem(`muffin.history.v1:${r.id}`, JSON.stringify(r));
+  const putServer = (r: ReportRecord, client = CLIENT) => server.rows.set(r.id, { ...r, client });
+  const posts = (id: string) => server.calls.filter((call) => call.method === "POST" && call.id === id).length;
+
+  beforeEach(async () => {
+    vi.resetModules(); // 탭마다의 서버 상태(503 로 끔 · 맞추는 중)를 테스트마다 새로
+    useStorage(fakeStorage());
+    useServer(fakeServer());
+    history = await import("./history");
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("저장하면 브라우저에 먼저 쓰고 서버에도 올린다 (브라우저 id · 처음 저장 시각 그대로)", async () => {
+    const saved = await history.saveReport({ question: "환율", depth: "easy" }, report, [], "req-1");
+    expect(store.getItem("muffin.history.v1:req-1")).not.toBeNull();
+    await vi.waitFor(() => expect(server.rows.get("req-1")).toMatchObject({ client: CLIENT, createdAt: saved.createdAt }));
+  });
+
+  it("브라우저에 못 쓰면 서버 저장을 기다리고, 조회는 서버에서 찾는다", async () => {
+    useStorage(fakeStorage(120)); // 브라우저 id 만 들어가는 크기
+    await history.saveReport({ question: "큰 리포트", depth: "deep" }, report, [], "req-2");
+    expect(server.rows.has("req-2")).toBe(true);
+    expect(store.getItem("muffin.history.v1:req-2")).toBeNull();
+    expect((await history.getReport("req-2"))?.input.question).toBe("큰 리포트");
+  });
+
+  it("목록은 서버 기록과 브라우저 기록을 합쳐 최신순으로 보이고, 브라우저에만 있던 기록은 뒤에서 서버로 올린다", async () => {
+    putLocal(record("local-old", "2026-11-01T00:00:00.000Z"));
+    putServer(record("server-only", "2026-11-10T00:00:00.000Z"));
+    putLocal(record("both", "2026-11-20T00:00:00.000Z"));
+    putServer(record("both", "2026-11-20T00:00:00.000Z"));
+    const list = await history.listReports();
+    expect(list.map((r) => r.id)).toEqual(["both", "server-only", "local-old"]);
+    expect(list[1].createdAt).toBe("2026-11-10T00:00:00.000Z"); // 서버의 +00:00 꼴을 브라우저와 같은 ISO 로
+    await history.waitForHistorySync();
+    expect(server.rows.get("local-old")?.createdAt).toBe("2026-11-01T00:00:00.000Z");
+    expect(server.calls.filter((call) => call.method === "POST").map((call) => call.id)).toEqual(["local-old"]);
+  });
+
+  it("서버에서 가져온 기록은 브라우저에도 넣어 둬 다음에는 서버를 부르지 않는다", async () => {
+    putServer(record("from-server", "2026-11-07T00:00:00.000Z"));
+    expect((await history.getReport("from-server"))?.createdAt).toBe("2026-11-07T00:00:00.000Z");
+    expect(store.getItem("muffin.history.v1:from-server")).not.toBeNull();
+    const before = server.calls.length;
+    await history.getReport("from-server");
+    expect(server.calls).toHaveLength(before);
+  });
+
+  it("지우면 브라우저와 서버에서 지우고, 서버가 실패하면 숨겨 둔 채 보관함을 열 때 다시 지운다", async () => {
+    await history.saveReport({ question: "지울 것", depth: "easy" }, report, [], "req-3");
+    await vi.waitFor(() => expect(server.rows.has("req-3")).toBe(true));
+    server.failWith((method) => (method === "DELETE" ? json({ error: "잠깐 오류" }, 500) : undefined));
+    await history.deleteReport("req-3");
+    expect(store.getItem("muffin.history.v1:req-3")).toBeNull();
+    expect(server.rows.has("req-3")).toBe(true);
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("req-3");
+    expect(await history.getReport("req-3")).toBeNull();
+    await history.waitForHistorySync();
+
+    server.failWith(undefined);
+    await history.listReports();
+    await history.waitForHistorySync();
+    expect(server.rows.has("req-3")).toBe(false);
+    await history.listReports(); // 서버 목록에서 빠져도 늦게 닿는 저장에 대비해 2분은 기억하고
+    await history.waitForHistorySync();
+    expect(store.getItem("muffin.history.deleted")).toContain("req-3");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3 * 60 * 1000);
+    await history.listReports(); // 그 뒤에 잊습니다
+    await history.waitForHistorySync();
+    clock.mockRestore();
+    expect(store.getItem("muffin.history.deleted")).toBeNull();
+  });
+
+  it("올리는 중에 지우면(지우기가 먼저 닿아 404) 저장이 늦게 닿아도 바로 서버에서 지운다 (Codex 리뷰)", async () => {
+    const release = server.hold((method) => method === "POST");
+    await history.saveReport({ question: "올리는 중", depth: "easy" }, report, [], "req-4");
+    await history.deleteReport("req-4");
+    expect(server.rows.has("req-4")).toBe(false);
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("req-4");
+    await history.waitForHistorySync();
+    expect(store.getItem("muffin.history.deleted")).toContain("req-4"); // 서버 목록에 없어도 아직 잊지 않습니다
+    release();
+    await vi.waitFor(() => expect(server.calls.filter((call) => call.method === "DELETE" && call.path.endsWith("/req-4"))).toHaveLength(2));
+    expect(server.rows.has("req-4")).toBe(false);
+  });
+
+  it("지운 직후 서버 목록에 없어도 2분은 기억해, 새로고침 뒤 늦게 닿은 저장도 숨기고 지운다 (Codex 리뷰)", async () => {
+    putLocal(record("late-1", "2026-11-20T00:00:00.000Z"));
+    await history.deleteReport("late-1");
+    await history.listReports();
+    await history.waitForHistorySync();
+    putServer(record("late-1", "2026-11-20T00:00:00.000Z")); // 다른 탭에서 올리던 저장이 늦게 닿음
+    vi.resetModules(); // 새로고침
+    history = await import("./history");
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("late-1");
+    await history.waitForHistorySync();
+    expect(server.rows.has("late-1")).toBe(false);
+  });
+
+  it("서버를 끈 탭(503)에서 지운 기록도 기억해 두었다가, 서버가 돌아오면 숨기고 지운다 (Codex 리뷰)", async () => {
+    const synced = record("synced-1", "2026-11-21T00:00:00.000Z");
+    putLocal(synced);
+    putServer(synced);
+    server.setOff(true);
+    await history.listReports(); // 503 → 이 탭은 서버를 끕니다
+    await history.deleteReport("synced-1");
+    expect(server.calls.filter((call) => call.method === "DELETE")).toHaveLength(0);
+    expect(store.getItem("muffin.history.deleted")).toContain("synced-1");
+
+    server.setOff(false);
+    vi.resetModules(); // 서버가 돌아온 뒤 새로 연 탭
+    history = await import("./history");
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("synced-1");
+    await history.waitForHistorySync();
+    expect(server.rows.has("synced-1")).toBe(false);
+  });
+
+  it("서버 저장소가 없으면(503) 이 탭에서는 더 부르지 않고 브라우저 기록만 쓴다", async () => {
+    useServer(fakeServer({ off: true }));
+    expect(await history.listReports()).toEqual([]);
+    const saved = await history.saveReport({ question: "브라우저만", depth: "easy" }, report, []);
+    expect((await history.listReports()).map((r) => r.id)).toEqual([saved.id]);
+    expect(await history.getReport("nope")).toBeNull();
+    await history.deleteReport(saved.id);
+    expect(await history.listReports()).toEqual([]);
+    expect(server.calls).toHaveLength(1);
+  });
+
+  it("서버가 받지 않는 기록(400)은 다시 올리지 않고, 잠깐의 실패(429)는 다음에 다시 올린다", async () => {
+    putLocal(record("bad-old", "2026-11-01T00:00:00.000Z"));
+    putLocal(record("busy-new", "2026-11-02T00:00:00.000Z"));
+    let busy = true;
+    server.failWith((method, _path, body) => {
+      if (method !== "POST") return undefined;
+      if (body?.id === "bad-old") return json({ error: "id, input, report, steps 를 확인하세요." }, 400);
+      if (body?.id === "busy-new" && busy) return json({ error: "요청이 많아요.", retryAfterSec: 30 }, 429);
+      return undefined;
+    });
+    await history.listReports();
+    await history.waitForHistorySync();
+    expect(posts("busy-new")).toBe(1);
+    expect(posts("bad-old")).toBe(0); // 429 면 이번에는 멈춥니다
+
+    busy = false;
+    for (let round = 0; round < 2; round++) {
+      await history.listReports();
+      await history.waitForHistorySync();
+    }
+    expect(server.rows.has("busy-new")).toBe(true);
+    expect(posts("busy-new")).toBe(2);
+    expect(posts("bad-old")).toBe(1);
+  });
+
+  it("서버가 이미 100개를 들고 있으면 그보다 오래된 브라우저 기록은 올리지 않는다 (올려도 서버 정리에 지워져 되풀이되므로)", async () => {
+    for (let i = 0; i < 100; i++) putServer(record(`server-${i}`, new Date(Date.UTC(2026, 10, 10, 0, i)).toISOString()));
+    putLocal(record("older-local", "2026-11-01T00:00:00.000Z"));
+    await history.listReports();
+    await history.waitForHistorySync();
+    expect(posts("older-local")).toBe(0);
+  });
+
+  it("다른 브라우저의 기록은 찾을 수 없음(null), 서버에 닿지 못하면 조회는 실패로 알리고 목록은 브라우저 기록으로 대신한다", async () => {
+    putServer(record("someone-else", "2026-11-05T00:00:00.000Z"), OTHER);
+    expect(await history.getReport("someone-else")).toBeNull();
+    server.failWith(() => { throw new TypeError("fetch failed"); });
+    await expect(history.getReport("unknown")).rejects.toThrow("fetch failed");
+    putLocal(record("mine", "2026-11-06T00:00:00.000Z"));
+    expect((await history.listReports()).map((r) => r.id)).toEqual(["mine"]);
+  });
+
+  it("올리는 중인 기록은 2분이 지나도 지운 표시를 잊지 않고, 끝난 뒤에 잊는다 (Codex 리뷰)", async () => {
+    const release = server.hold((method) => method === "POST");
+    await history.saveReport({ question: "느린 저장", depth: "easy" }, report, [], "req-5");
+    await history.deleteReport("req-5");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3 * 60 * 1000);
+    await history.listReports();
+    await history.waitForHistorySync();
+    expect(store.getItem("muffin.history.deleted")).toContain("req-5");
+    release();
+    await vi.waitFor(() => expect(server.calls.filter((call) => call.method === "DELETE" && call.path.endsWith("/req-5"))).toHaveLength(2));
+    await history.listReports();
+    await history.waitForHistorySync();
+    clock.mockRestore();
+    expect(server.rows.has("req-5")).toBe(false);
+    expect(store.getItem("muffin.history.deleted")).toBeNull();
+  });
+
+  it("다른 탭에서 지우는 사이 서버에서 받아 온 기록은 브라우저에 넣지 않고 버린다 (Codex 리뷰)", async () => {
+    putServer(record("opening-1", "2026-11-22T00:00:00.000Z"));
+    const release = server.hold((method, path) => method === "GET" && path === "/api/history/opening-1");
+    const opening = history.getReport("opening-1");
+    store.setItem("muffin.history.deleted", JSON.stringify({ "opening-1": Date.now() })); // 다른 탭이 지움
+    release();
+    expect(await opening).toBeNull();
+    expect(store.getItem("muffin.history.v1:opening-1")).toBeNull();
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("opening-1");
+  });
+
+  it("지운 표시가 있으면 브라우저에 남은 사본도 지운 것으로 본다", async () => {
+    putLocal(record("stale-1", "2026-11-23T00:00:00.000Z"));
+    store.setItem("muffin.history.deleted", JSON.stringify({ "stale-1": Date.now() }));
+    expect(await history.getReport("stale-1")).toBeNull();
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("stale-1");
   });
 });
