@@ -24,6 +24,7 @@ import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
 import { dropFetchTalk, dropRefIds, trimNegatives } from "./negatives";
+import { withEtfIntro } from "./etf-intro";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
@@ -391,8 +392,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const negTrimmed = explainsLatest(ctx.evidence, ctx.raw, rateStatement) ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
-  // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds)
-  const finalOutput = dropRefIds({
+  // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds). Easy 요약이 ETF 이름을 설명 없이 쓰면 소개 한 문장을 넣습니다 (etf-intro.ts, QA-02)
+  const finalOutput = withEtfIntro(dropRefIds({
     ...trimmed,
     // 원인 질문의 평소 범위 답이 요약에 "평소 범위 안" 을 두 번 쓰면 뒤의 것을 줄입니다 (movement.ts dedupeNormalRange)
     ...(movement ? { summary: dedupeNormalRange(trimmed.summary) } : {}),
@@ -402,7 +403,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
     // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
-  });
+  }), ctx.evidence, depth);
 
   // 지역 행정 기사를 가리키는 차트 사건 점은 뺍니다. 근거 목록에서 빠진 기사를 점이 가리키지 않게 합니다 (#154 Codex 리뷰)
   const shownCharts = withoutEvents(charts, localNews);
