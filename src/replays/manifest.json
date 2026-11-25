@@ -1,5 +1,23 @@
 [
   {
+    "id": "etf-decision",
+    "recordedAt": "2026-11-25T05:24:45.298Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "standard",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 23833
+  },
+  {
+    "id": "etf-decision-easy",
+    "recordedAt": "2026-11-25T05:24:18.994Z",
+    "question": "KODEX 200 지금 사도 돼?",
+    "depth": "easy",
+    "area": "etf",
+    "model": "gpt-6-luna",
+    "ms": 23688
+  },
+  {
     "id": "rate-cause",
     "recordedAt": "2026-11-25T02:06:55.114Z",
     "question": "한국은행이 최근 기준금리를 결정한 이유가 뭐야?",
@@ -94,23 +112,5 @@
     "area": "etf",
     "model": "gpt-6-sol",
     "ms": 27817
-  },
-  {
-    "id": "etf-decision-easy",
-    "recordedAt": "2026-11-23T06:44:25.859Z",
-    "question": "KODEX 200 지금 사도 돼?",
-    "depth": "easy",
-    "area": "etf",
-    "model": "gpt-6-luna",
-    "ms": 16719
-  },
-  {
-    "id": "etf-decision",
-    "recordedAt": "2026-11-23T06:44:01.109Z",
-    "question": "KODEX 200 지금 사도 돼?",
-    "depth": "standard",
-    "area": "etf",
-    "model": "gpt-6-luna",
-    "ms": 21909
   }
 ]
