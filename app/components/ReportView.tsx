@@ -63,6 +63,12 @@ type ReportViewProps = {
 
 type NumberItem = Report["numbers"][number];
 
+/** 안내문을 '투자 권유' 문장 앞에서 두 줄로 (11/25 사용자). 그 말이 없는 예전 안내문은 한 줄 그대로 */
+export function disclosureLines(text: string): string[] {
+  const at = text.indexOf("투자 권유");
+  return at > 0 ? [text.slice(0, at).trim(), text.slice(at).trim()] : [text];
+}
+
 /** 숫자 카드용 짧은 출처 이름: 끝의 괄호 설명을 뗍니다 ("Frankfurter v2 일별 환율 (2026년 7월 27일~11월 23일)" → "Frankfurter v2 일별 환율") */
 export function shortSourceName(name: string): string {
   const short = name.replace(/\s*\([^()]*\)\s*$/, "").trim();
@@ -157,15 +163,13 @@ export function ReportView({
   const whyNote = report.why.length === 0 ? whyEmptyNote(report) : null;
   // 11/25 가독성: 원인이 있으면 요약 문단은 머리말 · 원인과 겹쳐(녹화에서 낱말 53~77%) 한입 요약 안에 접어 둡니다. 원인이 없으면 요약이 주된 설명이라 그대로
   const foldSummary = !!headline && report.why.length > 0 && !!report.summary.trim();
-  // 아래쪽 생활 영향을 한입 요약에서 한 줄로 먼저 (Axios 'Why it matters'). 제목이 있을 때만
-  const forMe = impactTitles.slice(0, report.impact.length).map(title => title?.trim()).filter((title): title is string => !!title).slice(0, 3);
   // 영역을 여러 개 고르면 화면이 질문 앞에 붙인 "관심 영역: …" 머리말은 떼서 배지로 보여 줍니다 (11/20 외부 G1 · 하니 2)
   const shown = splitAreaPrefix(question ?? "");
   const questionText = question ? shown.question : undefined;
   const areaChips = shown.areas.length > 0 ? <div className="chips report-area-chips">{shown.areas.map(name => <span key={name} className="category-chip" data-category={name === "경제뉴스" ? "뉴스" : name}>{name}</span>)}</div> : null;
   // 관심 영역 · 깊이 배지와 작성일은 질문 바로 아래 한 줄에 (11/20 하니 리뷰: 머리에 모아 두기, 보관함에서 다시 볼 때 날짜가 바로 보이게)
   const metaLine = (header || createdAt || areaChips)
-    ? <div className="report-meta-line">{areaChips}{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국 시간)</time></span>}{mismatch && <span className="report-area-note">질문에 맞춰 {mismatch.join(" · ")}를 중심으로 설명했어요</span>}</div>
+    ? <div className="report-meta-line">{areaChips}{header}{createdAt && <span className="report-created-at">작성일 · <time dateTime={createdAt}>{new Date(createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" })}</time></span>}{mismatch && <span className="report-area-note">질문에 맞춰 {mismatch.join(" · ")}를 중심으로 설명했어요</span>}</div>
     : null;
   // 판단 요청 고지("투자 판단을 대신하지 않아요 …")는 그 질문에 붙은 안내라 질문 카드 안에 둡니다 (11/22 운영 확인: 브랜드 제목 위에 떠 있었음)
   const questionNotice = report.notice && report.mode !== "research"
@@ -178,6 +182,9 @@ export function ReportView({
   const mentioned = (tool: string) => [...report.caveats, ...report.dataGaps].some(line => line.startsWith(`${labelFor(tool)}:`));
   // 계산 도구 실패는 자료를 못 받은 게 아니라 내부 계산이 안 된 것이라 보여 주지 않습니다 (11/23 재점검: "계산: 확인하지 못했어요 (데이터를 확인하지 못했습니다.)")
   const toolNotes = (steps ?? []).filter(step => (step.status === "error" || step.fallbackAgeMs !== undefined || step.breaker === "open") && !mentioned(step.tool) && !/^calc_/.test(step.tool));
+  // 주의점 칸 제목: 있는 것만 (11/25 가독성)
+  const referenceParts = [report.caveats.length > 0 && "주의점", report.dataGaps.length > 0 && "확인하지 못한 것", toolNotes.length > 0 && "자료 확인 메모"].filter((part): part is string => !!part);
+  const referenceTitle = referenceParts.length > 0 ? referenceParts.join(" · ") : "주의점과 확인하지 못한 것";
   const showReference = report.caveats.length > 0 || report.dataGaps.length > 0 || report.verification.removed.length > 0 || toolNotes.length > 0;
   const basisLabels = { data: "공개된 데이터를 바탕으로 설명해요", news: "기사 내용을 바탕으로 안내해요", none: "직접 뒷받침하는 자료가 없는 머핀랩의 AI 해석이에요" };
   const tags = { data: "데이터 인용", news: "보도 기반", none: "근거 부족" };
@@ -215,13 +222,16 @@ export function ReportView({
           <h2>갓 구운 한입 요약</h2>
           {headline && <h3 className={styles.headlinePlaceholder}>{headline}</h3>}
           {!headline && <p className={styles.summaryBody}>{report.summary}</p>}
-          {forMe.length > 0 && <p className={styles.heroForMe}><span className={styles.heroLabel}>나에게</span><ReportSectionLink name="impact" label={forMe.join(" · ")} /></p>}
-          {foldSummary && <PrintOpenDetails className="hero-more" summary="자세한 요약 보기"><p className={styles.summaryBody}>{report.summary}</p></PrintOpenDetails>}
+          {foldSummary && <PrintOpenDetails className="hero-more" summary="요약 펼쳐 보기"><p className={styles.summaryBody}>{report.summary}</p></PrintOpenDetails>}
           {/* 답에 영향을 준 자료 부족은 요약 아래 짧게 (11/20 하니 5) */}
           {report.dataGaps.length > 0 && <p className="hero-gaps"><ReportSectionLink name="gaps" label={`확인하지 못한 자료 ${report.dataGaps.length}개 · 아래 주의점에 적었어요`} /></p>}
+          {/* 11/25 사용자: '나에게' 줄 대신 아래로 이끄는 한 줄 */}
+          <p className={styles.heroNudge}>자세한 내용은 아래에서 확인해 봐요 <span aria-hidden="true">↓</span></p>
         </div>
+        {/* 갓 구운 머핀: 튀어 오르기 · 둥실 · 따뜻한 빛 · 반짝이 (11/25 사용자. 움직임 줄이기 설정 · 인쇄 때는 멈춤) */}
         <div className={styles.heroArt} aria-hidden="true">
           <Image src={resultMuffin} alt="" fill sizes="(max-width: 560px) 64px, 150px" />
+          <span className={styles.sparkle} /><span className={styles.sparkle} /><span className={styles.sparkle} />
         </div>
       </section>
 
@@ -309,7 +319,7 @@ export function ReportView({
       {headline && !foldSummary && <p className={styles.summaryBody}>{report.summary}</p>}
 
           {report.impact.length > 0 && <section data-quick="impact">
-            <ReportSectionTarget name="impact"><h2>내 생활에 미치는 영향</h2></ReportSectionTarget>
+            <h2>내 생활에 미치는 영향</h2>
             <div className="impact-grid">{report.impact.map((w, i) => <article className="impact-card" key={i}>{impactTitles[i] && <h3><span aria-hidden="true">{/여행|해외/.test(impactTitles[i]) ? "✈️" : /자산|보유/.test(impactTitles[i]) ? "💰" : /상품|비교/.test(impactTitles[i]) ? "🔎" : /예금|적금/.test(impactTitles[i]) ? "🏦" : /물가|장보기/.test(impactTitles[i]) ? "🛒" : /뉴스/.test(impactTitles[i]) ? "📰" : "💡"}</span> {impactTitles[i]}</h3>}<p>{w}</p></article>)}</div>
           </section>}
 
@@ -335,14 +345,15 @@ export function ReportView({
         {/* 주의점 · 확인하지 못한 것은 접지 않고 항상 보여 줍니다 (11/20 하니 리뷰). details 는 제외 항목 링크의 대상 구조를 위해 두고 open 으로 고정 */}
         <details className="verification-toggle reference-toggle" open>
           <summary tabIndex={-1}>
-            <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">i</span> 주의점과 확인하지 못한 것</strong><span>주의점 {report.caveats.length}개 · 확인하지 못한 것 {report.dataGaps.length}개<span className="verification-only"> · 제외 {report.verification.removed.length}개</span></span></span>
+            {/* 11/25 가독성: 개수 줄은 바로 아래 목록과 같은 말이라 빼고, 제목은 있는 것만 */}
+            <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">i</span> {referenceTitle}</strong></span>
           </summary>
           <div className="verification-body" aria-label="자료 범위">
-            {report.caveats.length > 0 && <section><h2>주의점</h2><ul>{report.caveats.map((item, i) => <li key={i}>{item}</li>)}</ul></section>}
-            {report.dataGaps.length > 0 && <section><ReportSectionTarget name="gaps"><h2>확인하지 못한 것</h2><ul>{report.dataGaps.map((item, i) => <li key={i}>{item}</li>)}</ul></ReportSectionTarget></section>}
+            {report.caveats.length > 0 && <section>{referenceParts.length > 1 && <h2>주의점</h2>}<ul>{report.caveats.map((item, i) => <li key={i}>{item}</li>)}</ul></section>}
+            {report.dataGaps.length > 0 && <section><ReportSectionTarget name="gaps">{referenceParts.length > 1 && <h2>확인하지 못한 것</h2>}<ul>{report.dataGaps.map((item, i) => <li key={i}>{item}</li>)}</ul></ReportSectionTarget></section>}
         {report.verification.removed.length > 0 && <section className="verification-only"><ReportSectionTarget name="removed"><h2>검사 후 제외한 항목</h2><ul>{report.verification.removed.map((item, i) => <li key={i}>{item}</li>)}</ul></ReportSectionTarget></section>}
 
-        {toolNotes.length > 0 && <section className="report-tools"><h2>자료 확인 메모</h2>
+        {toolNotes.length > 0 && <section className="report-tools">{referenceParts.length > 1 && <h2>자료 확인 메모</h2>}
           <ul>{toolNotes.map((step, i) => <li key={i}>{labelFor(step.tool)}: {step.status === "error"
             ? `자료를 받지 못했어요${/timeout|시간|초과/i.test(step.error ?? "") ? " (응답 시간 초과)" : ""}`
             : step.breaker === "open" ? "잠시 호출을 쉬고 있어 이번에는 부르지 않았어요"
@@ -355,13 +366,14 @@ export function ReportView({
       {/* 추천은 맨 끝에 두어 검증 · 주의점과 섞이지 않게 (11/20 외부 E2) */}
       {nextTopics.length > 0 && <section className={styles.nextTopics}>
         <ReportResponsiveDetails className="report-fold" summary={<h2>이어서 알아볼까요?</h2>}>
-        <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action"><em>머핀랩과 더 알아보기</em><span aria-hidden="true">→</span></span></Link>)}</div>
+        <div className={styles.topicGrid}>{nextTopics.map((topic, i) => <Link key={i} href={`/?question=${encodeURIComponent(topic.question)}&area=${topic.area}`} className={styles.topicLink}><span><strong>{topic.question}</strong><small>{topic.reason}</small></span><span className="topic-action" aria-hidden="true">→</span></Link>)}</div>
         </ReportResponsiveDetails>
       </section>}
       {/* 추천이 있든 없든 이어서 물어볼 길을 항상 둡니다 (11/21 QA 최종리포트 마무리 문구 제안, Codex 리뷰: 추천이 비면 링크도 사라지던 것) */}
       <p className="report-continue"><Link href={area ? `/?area=${area}` : "/"}>더 궁금한 점이 있으면 홈에서 이어서 물어보세요 →</Link></p>
 
-      <p className="report-disclosure">{report.disclosure}</p>
+      {/* 11/25 사용자: '투자 권유' 문장 앞에서 줄을 바꿈 */}
+      <p className="report-disclosure">{disclosureLines(report.disclosure).flatMap((line, i) => [...(i > 0 ? [" "] : []), <span key={i}>{line}</span>])}</p>
     </ReportDisplay>
     </ReportEvidenceScope>
     </div>
