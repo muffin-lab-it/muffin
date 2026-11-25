@@ -139,9 +139,6 @@
 /* 11/21 QA 1묶음: 깊이 설명 두 줄 + 비교 링크(QA 9), 반려 뒤 지우기 버튼(외부 F1) */
 .depths .option>span{height:auto;min-height:96px;padding:12px 8px;gap:4px}
 .depthTime{color:#8550df;font-size:13px}
-.depthHelp{margin:12px 0 0;font-size:14px;line-height:1.6}
-.depthHelp a{color:#8550df;text-decoration:none}
-.depthHelp a:hover{text-decoration:underline}
 .clearQuestion{margin-top:14px;border:1px solid var(--brand-purple-border);border-radius:10px;background:#fff;color:var(--brand-purple-strong);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
 .clearQuestion:hover{background:var(--brand-purple-tint)}
 @media(max-width:600px){.depths .option>span{min-height:0;padding:12px 6px}}
