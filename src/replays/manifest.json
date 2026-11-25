@@ -1,21 +1,57 @@
 [
   {
-    "id": "fx-cause-deep",
-    "recordedAt": "2026-11-24T00:27:46.572Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "id": "rate-cause",
+    "recordedAt": "2026-11-25T02:06:55.114Z",
+    "question": "한국은행이 최근 기준금리를 결정한 이유가 뭐야?",
+    "depth": "standard",
+    "area": "rate",
+    "model": "gpt-6-luna",
+    "ms": 24554
+  },
+  {
+    "id": "macro-cause-deep",
+    "recordedAt": "2026-11-25T01:55:25.382Z",
+    "question": "최근 소비자물가 상승 원인은 뭐야?",
     "depth": "deep",
-    "area": "fx",
+    "area": "macro",
     "model": "gpt-6-sol",
-    "ms": 50692
+    "ms": 39779
   },
   {
     "id": "macro-cause",
-    "recordedAt": "2026-11-23T07:10:15.411Z",
+    "recordedAt": "2026-11-25T01:54:58.265Z",
     "question": "최근 소비자물가 상승 원인은 뭐야?",
     "depth": "standard",
     "area": "macro",
     "model": "gpt-6-luna",
-    "ms": 28273
+    "ms": 24625
+  },
+  {
+    "id": "fx-cause-deep",
+    "recordedAt": "2026-11-25T01:54:18.348Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "deep",
+    "area": "fx",
+    "model": "gpt-6-sol",
+    "ms": 37185
+  },
+  {
+    "id": "fx-cause-easy",
+    "recordedAt": "2026-11-25T01:53:52.592Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "easy",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 23560
+  },
+  {
+    "id": "fx-cause",
+    "recordedAt": "2026-11-25T01:53:24.350Z",
+    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
+    "depth": "standard",
+    "area": "fx",
+    "model": "gpt-6-luna",
+    "ms": 25665
   },
   {
     "id": "rate-kospi",
@@ -24,33 +60,6 @@
     "depth": "standard",
     "model": "gpt-6-luna",
     "ms": 17787
-  },
-  {
-    "id": "macro-cause-deep",
-    "recordedAt": "2026-11-23T07:04:58.445Z",
-    "question": "최근 소비자물가 상승 원인은 뭐야?",
-    "depth": "deep",
-    "area": "macro",
-    "model": "gpt-6-sol",
-    "ms": 48571
-  },
-  {
-    "id": "fx-cause-easy",
-    "recordedAt": "2026-11-23T07:03:19.451Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "easy",
-    "area": "fx",
-    "model": "gpt-6-luna",
-    "ms": 24903
-  },
-  {
-    "id": "fx-cause",
-    "recordedAt": "2026-11-23T07:02:50.896Z",
-    "question": "요즘 원달러 환율이 왜 이렇게 움직여?",
-    "depth": "standard",
-    "area": "fx",
-    "model": "gpt-6-luna",
-    "ms": 26059
   },
   {
     "id": "rate-compare",

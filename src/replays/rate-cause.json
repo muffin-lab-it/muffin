@@ -1,0 +1,381 @@
+{
+  "version": 1,
+  "id": "rate-cause",
+  "recordedAt": "2026-11-25T02:06:55.114Z",
+  "question": "한국은행이 최근 기준금리를 결정한 이유가 뭐야?",
+  "depth": "standard",
+  "area": "rate",
+  "model": "gpt-6-luna",
+  "usage": {
+    "requests": 6,
+    "inputTokens": 27662,
+    "outputTokens": 1344,
+    "byModel": {
+      "gpt-5.4-mini": {
+        "requests": 2,
+        "inputTokens": 7076,
+        "cachedInputTokens": 5504,
+        "outputTokens": 371
+      },
+      "gpt-6-luna": {
+        "requests": 4,
+        "inputTokens": 20586,
+        "cachedInputTokens": 17934,
+        "outputTokens": 973
+      }
+    }
+  },
+  "ms": 24554,
+  "events": [
+    {
+      "t": 1,
+      "type": "stage",
+      "stage": "plan",
+      "status": "start"
+    },
+    {
+      "t": 2524,
+      "type": "plan",
+      "intent": "cause",
+      "mode": "research",
+      "tools": [
+        "get_rate_data",
+        "get_korean_economic_news"
+      ]
+    },
+    {
+      "t": 2524,
+      "type": "stage",
+      "stage": "plan",
+      "status": "done"
+    },
+    {
+      "t": 2525,
+      "type": "stage",
+      "stage": "research",
+      "status": "start"
+    },
+    {
+      "t": 5074,
+      "type": "step",
+      "step": {
+        "tool": "get_rate_data",
+        "status": "ok",
+        "ms": 542
+      }
+    },
+    {
+      "t": 7645,
+      "type": "step",
+      "step": {
+        "tool": "get_korean_economic_news",
+        "status": "ok",
+        "ms": 484
+      }
+    },
+    {
+      "t": 12523,
+      "type": "step",
+      "step": {
+        "tool": "get_korean_economic_news",
+        "status": "ok",
+        "ms": 452
+      }
+    },
+    {
+      "t": 13094,
+      "type": "step",
+      "step": {
+        "tool": "get_rate_data",
+        "status": "ok",
+        "ms": 567
+      }
+    },
+    {
+      "t": 13097,
+      "type": "stage",
+      "stage": "research",
+      "status": "done"
+    },
+    {
+      "t": 13097,
+      "type": "stage",
+      "stage": "edit",
+      "status": "start"
+    },
+    {
+      "t": 17672,
+      "type": "stage",
+      "stage": "edit",
+      "status": "done"
+    },
+    {
+      "t": 17672,
+      "type": "stage",
+      "stage": "write",
+      "status": "start"
+    },
+    {
+      "t": 24542,
+      "type": "stage",
+      "stage": "write",
+      "status": "done"
+    },
+    {
+      "t": 24542,
+      "type": "stage",
+      "stage": "verify",
+      "status": "start"
+    },
+    {
+      "t": 24549,
+      "type": "verify",
+      "verification": {
+        "status": "pass",
+        "numbers": {
+          "total": 1,
+          "verified": 1,
+          "derived": 0,
+          "reported": 0,
+          "unverified": 0
+        },
+        "why": {
+          "data": 0,
+          "news": 1,
+          "none": 0,
+          "unsupported": 0
+        },
+        "advice": 0,
+        "revisions": 0,
+        "removed": []
+      }
+    },
+    {
+      "t": 24549,
+      "type": "stage",
+      "stage": "verify",
+      "status": "done"
+    }
+  ],
+  "report": {
+    "summary": "한국은행은 2026-10-22 기준금리를 3.00%로 동결했어요. 물가가 높은 오름세를 이어가고 금융안정 위험도 남아 있었지만, 대내외 불확실성이 커져 금리를 유지하며 위험 요인과 앞선 두 차례 인상의 영향을 더 살펴보기로 했어요. 당시 국내경제는 수출과 투자를 중심으로 높은 성장세를 보였고, 물가는 목표 수준을 웃도는 흐름이 예상됐어요.",
+    "headline": "한국은행은 높은 물가와 금융안정 위험에도 불확실성과 앞선 인상의 영향을 살피려고 금리를 동결했어요",
+    "numbers": [
+      {
+        "label": "한국은행 기준금리",
+        "value": "3.00%",
+        "change": "2026-10-23 대비 0.00%p",
+        "asOf": "2026-11-22",
+        "ref": "E1",
+        "check": "verified",
+        "match": {
+          "key": "rate",
+          "policy": "exact",
+          "change": {
+            "key": "changePp",
+            "policy": "exact"
+          }
+        },
+        "changeDetail": {
+          "key": "changePp",
+          "value": 0,
+          "unit": "%p",
+          "from": "2026-10-23",
+          "to": "2026-11-22",
+          "days": 30,
+          "basis": "30일 전과 비교"
+        }
+      }
+    ],
+    "why": [
+      {
+        "claim": "한국은행은 물가의 높은 오름세와 금융안정 위험이 이어지는 가운데 대내외 불확실성이 커져, 금리를 유지하며 위험 요인과 앞선 두 차례 인상의 파급영향을 점검할 필요가 있다고 설명했어요.",
+        "evidence": "한국은행은 2026-10-22 통화정책방향에서 물가·금융안정 위험과 불확실성, 앞선 두 차례 인상의 영향을 동결 이유로 들었어요.",
+        "basis": "news",
+        "refs": [
+          "E2-1"
+        ]
+      }
+    ],
+    "impact": [
+      "변동금리 대출이 있으면 기준금리 결정은 대출금리 조정에 영향을 줄 수 있지만, 실제 대출금리는 상품 조건과 시장금리에도 좌우돼요.",
+      "예금이 있으면 금융기관의 예금금리 조정이 이자에 영향을 줄 수 있어요.",
+      "채권을 보유하면 시장금리 변화에 따라 채권 가격이 달라질 수 있어요."
+    ],
+    "impactTitles": [
+      "대출 이자",
+      "예금 이자",
+      "채권 가격"
+    ],
+    "caveats": [
+      "기준금리는 정책금리라 매일 움직이는 시장금리와 달라요."
+    ],
+    "dataGaps": [],
+    "nextTopics": [],
+    "version": 2,
+    "mode": "research",
+    "intent": "cause",
+    "sources": [
+      {
+        "name": "한국은행 경제통계시스템(ECOS)",
+        "url": "https://ecos.bok.or.kr",
+        "asOf": "2026-11-22",
+        "id": "E1"
+      },
+      {
+        "name": "한국은행",
+        "url": "https://www.bok.or.kr/portal/bbs/P0000559/view.do?nttId=11065823&menuNo=200690",
+        "asOf": "2026-10-22T01:30:00.000Z",
+        "id": "E2-1"
+      },
+      {
+        "name": "한국은행",
+        "url": "https://www.bok.or.kr/portal/bbs/P0000559/view.do?nttId=11064191&menuNo=200690",
+        "asOf": "2026-08-27T01:30:00.000Z",
+        "id": "E2-2"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "E1",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-11-22",
+          "comparisonDate": "2026-10-23",
+          "comparisonRate": 3,
+          "changePp": 0,
+          "changeBp": 0,
+          "requestedDays": 30,
+          "observationCount": 31
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-11-22"
+        },
+        "note": "기준금리는 정책금리라 매일 움직이는 시장금리와 달라요. 한국은행 자료의 단위 '연%' 를 '%' 로 적었어요. 변화는 최신 관측일과, 비교 기간만큼 앞선 날(그날 값이 없으면 바로 앞 관측일)의 값을 비교했어요. 발표 시차 때문에 최신 관측일이 오늘보다 앞설 수 있어요."
+      },
+      {
+        "id": "E2-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국은행",
+        "values": {
+          "title": "통화정책방향(2026.10.22)",
+          "publisher": "한국은행",
+          "publishedAt": "2026-10-22T01:30:00.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국은행",
+          "url": "https://www.bok.or.kr/portal/bbs/P0000559/view.do?nttId=11065823&menuNo=200690",
+          "asOf": "2026-10-22T01:30:00.000Z"
+        },
+        "note": "기사 5건의 본문을 받으려 했고 2건을 받았어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요."
+      },
+      {
+        "id": "E2-2",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국은행",
+        "values": {
+          "title": "통화정책방향(2026.8.27)",
+          "publisher": "한국은행",
+          "publishedAt": "2026-08-27T01:30:00.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국은행",
+          "url": "https://www.bok.or.kr/portal/bbs/P0000559/view.do?nttId=11064191&menuNo=200690",
+          "asOf": "2026-08-27T01:30:00.000Z"
+        },
+        "note": "기사 5건의 본문을 받으려 했고 2건을 받았어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요."
+      },
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국은행",
+        "values": {
+          "title": "통화정책방향(2026.10.22)",
+          "publisher": "한국은행",
+          "publishedAt": "2026-10-22T01:30:00.000Z",
+          "body": "not_requested"
+        },
+        "source": {
+          "name": "한국은행",
+          "url": "https://www.bok.or.kr/portal/bbs/P0000559/view.do?nttId=11065823&menuNo=200690",
+          "asOf": "2026-10-22T01:30:00.000Z"
+        },
+        "note": "기사 본문은 보지 않고 제목 · 발행일 · 링크만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요."
+      },
+      {
+        "id": "E4",
+        "tool": "get_rate_data",
+        "label": "금리 확인 · 한국은행 경제통계시스템(ECOS)",
+        "values": {
+          "indicator": "한국은행 기준금리",
+          "rate": 3,
+          "unit": "%",
+          "asOf": "2026-11-22",
+          "comparisonDate": "2025-11-22",
+          "comparisonRate": 2.5,
+          "changePp": 0.5,
+          "changeBp": 50,
+          "requestedDays": 365,
+          "observationCount": 366
+        },
+        "source": {
+          "name": "한국은행 경제통계시스템(ECOS)",
+          "url": "https://ecos.bok.or.kr",
+          "asOf": "2026-11-22"
+        },
+        "note": "기준금리는 정책금리라 매일 움직이는 시장금리와 달라요. 한국은행 자료의 단위 '연%' 를 '%' 로 적었어요. 변화는 최신 관측일과, 비교 기간만큼 앞선 날(그날 값이 없으면 바로 앞 관측일)의 값을 비교했어요. 발표 시차 때문에 최신 관측일이 오늘보다 앞설 수 있어요."
+      }
+    ],
+    "verification": {
+      "status": "pass",
+      "numbers": {
+        "total": 1,
+        "verified": 1,
+        "derived": 0,
+        "reported": 0,
+        "unverified": 0
+      },
+      "why": {
+        "data": 0,
+        "news": 1,
+        "none": 0,
+        "unsupported": 0
+      },
+      "advice": 0,
+      "revisions": 0,
+      "removed": []
+    },
+    "disclosure": "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요."
+  },
+  "steps": [
+    {
+      "tool": "get_rate_data",
+      "status": "ok",
+      "ms": 542
+    },
+    {
+      "tool": "get_korean_economic_news",
+      "status": "ok",
+      "ms": 484
+    },
+    {
+      "tool": "get_korean_economic_news",
+      "status": "ok",
+      "ms": 452
+    },
+    {
+      "tool": "get_rate_data",
+      "status": "ok",
+      "ms": 567
+    }
+  ],
+  "rewrites": 0
+}

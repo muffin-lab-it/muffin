@@ -8,9 +8,10 @@ import r5 from "./fx-cause-deep.json";
 import r6 from "./fx-cause-easy.json";
 import r7 from "./macro-cause.json";
 import r8 from "./macro-cause-deep.json";
-import r9 from "./rate-compare.json";
-import r10 from "./rate-kospi.json";
-import r11 from "./rate-trend.json";
+import r9 from "./rate-cause.json";
+import r10 from "./rate-compare.json";
+import r11 from "./rate-kospi.json";
+import r12 from "./rate-trend.json";
 
 export const replays: Record<string, unknown> = {
   "etf-basket": r0,
@@ -22,7 +23,8 @@ export const replays: Record<string, unknown> = {
   "fx-cause-easy": r6,
   "macro-cause": r7,
   "macro-cause-deep": r8,
-  "rate-compare": r9,
-  "rate-kospi": r10,
-  "rate-trend": r11,
+  "rate-cause": r9,
+  "rate-compare": r10,
+  "rate-kospi": r11,
+  "rate-trend": r12,
 };

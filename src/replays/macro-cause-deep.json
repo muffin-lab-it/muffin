@@ -1,31 +1,31 @@
 {
   "version": 1,
   "id": "macro-cause-deep",
-  "recordedAt": "2026-11-23T07:04:58.445Z",
+  "recordedAt": "2026-11-25T01:55:25.382Z",
   "question": "최근 소비자물가 상승 원인은 뭐야?",
   "depth": "deep",
   "area": "macro",
   "model": "gpt-6-sol",
   "usage": {
-    "requests": 6,
-    "inputTokens": 42408,
-    "outputTokens": 4970,
+    "requests": 5,
+    "inputTokens": 37729,
+    "outputTokens": 4405,
     "byModel": {
       "gpt-5.4-mini": {
         "requests": 2,
-        "inputTokens": 12738,
+        "inputTokens": 12480,
         "cachedInputTokens": 2688,
-        "outputTokens": 998
+        "outputTokens": 870
       },
       "gpt-6-sol": {
-        "requests": 4,
-        "inputTokens": 29670,
-        "cachedInputTokens": 5767,
-        "outputTokens": 3972
+        "requests": 3,
+        "inputTokens": 25249,
+        "cachedInputTokens": 2858,
+        "outputTokens": 3535
       }
     }
   },
-  "ms": 48571,
+  "ms": 39779,
   "events": [
     {
       "t": 1,
@@ -34,7 +34,7 @@
       "status": "start"
     },
     {
-      "t": 2094,
+      "t": 2345,
       "type": "plan",
       "intent": "cause",
       "mode": "research",
@@ -44,100 +44,100 @@
       ]
     },
     {
-      "t": 2094,
+      "t": 2345,
       "type": "stage",
       "stage": "plan",
       "status": "done"
     },
     {
-      "t": 2094,
+      "t": 2345,
       "type": "stage",
       "stage": "research",
       "status": "start"
     },
     {
-      "t": 5055,
+      "t": 5608,
       "type": "step",
       "step": {
         "tool": "get_macro_indicators",
         "status": "ok",
-        "ms": 523
+        "ms": 765
       }
     },
     {
-      "t": 9327,
+      "t": 5899,
+      "type": "step",
+      "step": {
+        "tool": "get_macro_indicators",
+        "status": "ok",
+        "ms": 1053
+      }
+    },
+    {
+      "t": 6356,
       "type": "step",
       "step": {
         "tool": "get_korean_economic_news",
         "status": "ok",
-        "ms": 1266
+        "ms": 1508
       }
     },
     {
-      "t": 10382,
+      "t": 14438,
       "type": "step",
       "step": {
         "tool": "get_macro_indicators",
         "status": "ok",
-        "ms": 2322
+        "ms": 452
       }
     },
     {
-      "t": 21329,
+      "t": 14883,
       "type": "step",
       "step": {
         "tool": "get_macro_indicators",
         "status": "ok",
-        "ms": 402
+        "ms": 440
       }
     },
     {
-      "t": 21538,
-      "type": "step",
-      "step": {
-        "tool": "get_macro_indicators",
-        "status": "ok",
-        "ms": 205
-      }
-    },
-    {
-      "t": 21540,
+      "t": 14884,
       "type": "stage",
       "stage": "research",
       "status": "done"
     },
     {
-      "t": 21540,
+      "t": 14884,
       "type": "stage",
       "stage": "edit",
       "status": "start"
     },
     {
-      "t": 27436,
+      "t": 20818,
       "type": "stage",
       "stage": "edit",
       "status": "done"
     },
     {
-      "t": 27437,
+      "t": 20818,
       "type": "stage",
       "stage": "write",
       "status": "start"
     },
     {
-      "t": 48566,
+      "t": 39762,
       "type": "stage",
       "stage": "write",
       "status": "done"
     },
     {
-      "t": 48566,
+      "t": 39762,
       "type": "stage",
       "stage": "verify",
       "status": "start"
     },
     {
-      "t": 48569,
+      "t": 39773,
       "type": "verify",
       "verification": {
         "status": "pass",
@@ -160,18 +160,18 @@
       }
     },
     {
-      "t": 48569,
+      "t": 39773,
       "type": "stage",
       "stage": "verify",
       "status": "done"
     }
   ],
   "report": {
-    "summary": "최근 한국 소비자물가 상승에는 교통이 가장 크게 기여했고, 음식 및 숙박과 주택·수도·전기·연료가 뒤를 이었어요. 2026-10 소비자물가지수는 120.73(2020=100)으로 전월보다 0.25% 올랐고, 전년 동월보다 2.82% 올랐어요. 전월 지수가 오른 것과 같은 방향으로, 전년 동월 대비 상승률도 2025-10의 2.38%에서 2026-10의 2.82%로 높아졌어요. 이 순서는 개별 가격 상승률이 아니라 전체 물가 상승에 보탠 정도를 기준으로 해요.",
-    "headline": "최근 한국 소비자물가 상승에는 교통이 가장 크게 기여했고, 음식 및 숙박과 주거 관련 품목군이 뒤를 이었어요.",
+    "summary": "최근 소비자물가 상승에는 교통, 음식 및 숙박, 주택·수도·전기·연료 물가가 크게 기여했어요. 2026-10 소비자물가지수는 120.73(2020=100)으로 전년 동월 대비 2.82%, 전월 대비 0.25% 올랐어요. 전년 동월 대비 상승률은 2025-10의 2.38%보다 높아졌고, 최근 전월 대비 물가 수준도 상승했어요. 다만 한국은행의 근원물가 전망을 개별 품목군 가격이 오른 직접적인 이유로 볼 수는 없어요.",
+    "headline": "2026-10 소비자물가 상승에는 교통·음식 및 숙박·주거 관련 물가가 크게 기여했어요.",
     "numbers": [
       {
-        "label": "한국 소비자물가지수",
+        "label": "소비자물가지수 총지수",
         "value": "120.73(2020=100)",
         "change": "전월 대비 +0.25%",
         "asOf": "2026-10-01",
@@ -195,7 +195,7 @@
         }
       },
       {
-        "label": "한국 소비자물가 전년 동월 대비 상승률",
+        "label": "소비자물가지수 전년 동월 대비 상승률",
         "value": "2.82%",
         "change": "",
         "asOf": "2026-10-01",
@@ -211,7 +211,7 @@
         "value": "0.75%p",
         "change": "",
         "asOf": "2026-10-01",
-        "ref": "E3-2",
+        "ref": "E2-2",
         "check": "verified",
         "match": {
           "key": "contributionPp",
@@ -223,7 +223,7 @@
         "value": "0.43%p",
         "change": "",
         "asOf": "2026-10-01",
-        "ref": "E3-3",
+        "ref": "E2-3",
         "check": "verified",
         "match": {
           "key": "contributionPp",
@@ -235,7 +235,7 @@
         "value": "0.34%p",
         "change": "",
         "asOf": "2026-10-01",
-        "ref": "E3-4",
+        "ref": "E2-4",
         "check": "verified",
         "match": {
           "key": "contributionPp",
@@ -257,60 +257,60 @@
     ],
     "why": [
       {
-        "claim": "전년 동월 대비 총지수 상승에는 교통이 품목군 중 가장 크게 기여했어요.",
-        "evidence": "교통 가격은 전년 동월 대비 6.80% 올랐고, 총지수 상승에 대한 근사 기여도는 0.75%p예요.",
+        "claim": "교통 물가 상승이 전년 동월 대비 총지수 상승에 가장 크게 기여했어요.",
+        "evidence": "교통 물가는 전년 동월 대비 6.80% 올랐고, 총지수 상승에 대한 근사 기여도는 0.75%p예요.",
         "basis": "data",
         "refs": [
-          "E3-2"
+          "E2-2"
         ]
       },
       {
-        "claim": "음식 및 숙박도 전년 동월 대비 물가 상승의 주요 기여 품목군이에요.",
-        "evidence": "음식 및 숙박 가격은 전년 동월 대비 3.00% 올랐고, 근사 기여도는 0.43%p예요.",
+        "claim": "음식 및 숙박 물가 상승도 총지수를 끌어올린 주요 요인이에요.",
+        "evidence": "음식 및 숙박 물가는 전년 동월 대비 3.00% 올랐고, 근사 기여도는 0.43%p예요.",
         "basis": "data",
         "refs": [
-          "E3-3"
+          "E2-3"
         ]
       },
       {
-        "claim": "주택·수도·전기·연료 역시 전년 동월 대비 총지수 상승에 기여했어요.",
-        "evidence": "이 품목군 가격은 전년 동월 대비 1.99% 올랐고, 근사 기여도는 0.34%p예요.",
+        "claim": "주택·수도·전기·연료 물가 상승 역시 총지수 상승에 기여했어요.",
+        "evidence": "해당 품목군 물가는 전년 동월 대비 1.99% 올랐고, 근사 기여도는 0.34%p예요.",
         "basis": "data",
         "refs": [
-          "E3-4"
+          "E2-4"
         ]
       }
     ],
     "impact": [
-      "교통 관련 지출이 있으면 해당 품목군의 가격 상승이 생활비에 반영될 수 있어요.",
-      "외식이나 숙박 서비스를 이용하면 해당 품목군의 가격 상승을 체감할 수 있어요.",
-      "주거·수도·전기·연료 관련 지출이 있으면 해당 품목군의 가격 상승이 생활비에 영향을 줄 수 있어요."
+      "교통비를 지출하는 상황이면 교통 물가 상승이 생활비 부담으로 이어질 수 있어요.",
+      "외식이나 숙박 서비스를 이용하면 해당 가격 상승을 지출에서 체감할 수 있어요.",
+      "주거 관련 서비스나 에너지를 사용하는 상황이면 관련 가격 상승이 생활비에 반영될 수 있어요."
     ],
     "impactTitles": [
-      "교통 관련 생활비",
-      "외식·숙박 비용",
-      "주거·공공요금 관련 비용"
+      "교통비 부담",
+      "외식·숙박 지출",
+      "주거·에너지 비용"
     ],
     "caveats": [
-      "품목군 기여도는 가중치와 등락률로 구한 근사치여서 통계청 공식 기여도와 다를 수 있어요.",
-      "자료는 계절조정 전 수치라 전월 대비 변화에는 계절적 움직임이 섞여 있어요.",
-      "기준일은 관측 월의 첫날이지 발표일이 아니며, 자료 개정과 반올림으로 공식 발표 수치와 조금 다를 수 있어요."
+      "품목군 기여도는 가중치와 등락률로 구한 근사치라 통계청 공식 기여도와 일치하지 않을 수 있어요.",
+      "2026-10-01은 관측 월을 나타내는 기준일이지 발표일이 아니에요. 전월 대비 수치는 계절조정 전 자료라 계절적 움직임이 섞여 있어요.",
+      "한국은행의 2026-08-27 전망은 누적된 비용충격의 전이와 수요압력 확대를 근원물가 오름세의 배경으로 예상했지만, 이를 2026-10 품목군별 가격 상승의 직접 원인으로 확인한 것은 아니에요."
     ],
     "dataGaps": [
-      "교통·음식 및 숙박·주택·수도·전기·연료의 가격이 왜 올랐는지 확인하려면 상승 배경을 설명하는 별도 근거가 필요해요.",
-      "경남의 가공식품·외식 비용 상승을 다룬 기사 본문은 확인되지 않아, 그 기사에 제시된 상승 배경은 확인하지 못했어요."
+      "품목군 가격이 각각 왜 올랐는지 확인할 직접적인 근거가 부족해요.",
+      "2026-10 물가 상승을 직접 설명하는 최근 보도자료가 제한적으로 확보돼 뉴스 기반 원인 검증에는 한계가 있어요."
     ],
     "nextTopics": [
       "최근 30일 달러 대비 원화 환율은 얼마나 변했나요?",
       "최근 30일 한국 기준금리와 미국 실효연방기금금리는 각각 얼마나 변했나요?",
-      "최근 한국 기준금리 관련 경제뉴스는 무엇인가요?",
-      "최근 30일 미국 국채 10년물 금리는 얼마나 변했나요?"
+      "최근 30일 미국 국채 10년물 금리는 얼마나 변했나요?",
+      "최근 한국 기준금리 관련 경제뉴스는 무엇인가요?"
     ],
     "topicReasons": [
-      "원화 환율의 최근 움직임을 물가 흐름과 함께 살펴볼 수 있어요.",
-      "한국과 미국의 단기 금리 흐름을 물가 지표와 나란히 살펴볼 수 있어요.",
-      "한국 기준금리를 둘러싼 최근 보도에서 물가가 어떻게 다뤄지는지 살펴볼 수 있어요.",
-      "미국의 장기 시장금리 흐름을 물가 지표와 함께 살펴볼 수 있어요."
+      "수입 비용과 관련된 환율 흐름을 별도로 살펴볼 수 있어요.",
+      "물가와 함께 살펴보는 한국과 미국의 단기 금리 흐름을 확인할 수 있어요.",
+      "미국의 장기 시장금리 흐름을 함께 살펴볼 수 있어요.",
+      "물가 흐름과 관련해 한국 기준금리가 어떻게 논의되는지 기사로 확인할 수 있어요."
     ],
     "version": 2,
     "mode": "research",
@@ -323,34 +323,10 @@
         "id": "E1"
       },
       {
-        "name": "서울경제",
-        "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE10ZzZ4dkQ5SEdPRDdiOGRNR3p1aHJVMXNXZU5kSDJfRjJJUVRzU05ZYTdSVjNmMTBjdklHMkhuaW1xM1AtT3k1Vl9QN3RSeWJMeVHSAVNBVV95cUxOMjM5N3YwdGsya0Y5ZEVyM0RUYWV4X3l1U2lWUnY4ck9jWEJFMTZGNzNXTDk4Nk5KRjFzOWptZlJNWS1WU2Y1MHlCMU90NE1oNzNKZw?oc=5",
-        "asOf": "2026-11-17T06:45:28.000Z",
-        "id": "E2-1"
-      },
-      {
-        "name": "뉴시스",
-        "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5sYlotT3Q5TzRMN3VuY0h4UExmNEhId25paFh2bm9EQXVwYzZZOWktNEJsUnRoeWFSQjBYVWF3UUJWNnVjWkhwd3J0MDY1WlVkY0NORlhfdmxaNVFDOWxhSdIBeEFVX3lxTFBkUkQ0SDBsSUllbEUxU2hyR2VLUHl3dndjaFVwSDRGYWNhb19YQjh4WlpqanZ1NFZ0RGlPTkR4VjF5emg5ZGMtZ29DeTRDR0tQSi1Ydjlod1RUblBvekY2TGVQekJhM19hWE12Yi0wMjFZTkMwUFBURw?oc=5",
-        "asOf": "2026-11-15T00:01:00.000Z",
-        "id": "E2-2"
-      },
-      {
-        "name": "강원도민일보",
-        "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE0yNXJkenIwQTVCNU95cVQyV2M1SzdEVG04Y0pJc2hBdHQwWmhwbHQ1bHFRN1pRSElMUGVpb0hpX1BRTkhEUjZJWHVJZ2ItVVBmYVhxdW90NUI5UFJYVTVJanJPZXN5WjN6?oc=5",
-        "asOf": "2026-11-12T00:39:18.000Z",
-        "id": "E2-3"
-      },
-      {
-        "name": "경남도민일보",
-        "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTFAwbC1JQmh0Z1F4bXNfdHVpajBTbzhBTDJPM240UEtjNE1CcTNvZlFQb0JNMHFIZHhtUklPdFpjTzRmMWg1dXNRUzBtMl9zT3g5ZGRVZGtxWDB2RXRzQW1ON0cyNUp1UFhaTFE?oc=5",
-        "asOf": "2026-11-04T08:00:00.000Z",
-        "id": "E2-4"
-      },
-      {
-        "name": "마켓인",
-        "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBtbkZUWlVPX0NlTy0zeHZsTTJHZ0MyZlBSOUZ2LWl3STVqcXUzdmVmOGJHajdBYTNseWxiMEhrUW5DUmhacVRUSlJ3X05IcC1tNXRXaGtuV28tbFh4aTd0cWNISU5sRWl4bVFOZHNwZHNZSW8?oc=5",
-        "asOf": "2026-10-30T07:00:00.000Z",
-        "id": "E2-5"
+        "name": "한국은행",
+        "url": "https://www.bok.or.kr/portal/bbs/B0000502/view.do?nttId=11064211&menuNo=200690",
+        "asOf": "2026-08-27T04:30:00.000Z",
+        "id": "E3-1"
       },
       {
         "name": "한국은행 ECOS — 소비자물가지수 총지수",
@@ -374,9 +350,9 @@
           "seasonalAdjustment": "not_seasonally_adjusted",
           "changeUnit": "percent",
           "changeFormula": "(current / previous - 1) * 100",
-          "period.from": "202608",
+          "period.from": "202605",
           "period.to": "202610",
-          "period.months": 3,
+          "period.months": 6,
           "latest.month": "202610",
           "latest.value": 120.73,
           "latest.previousMonth.month": "202609",
@@ -384,7 +360,17 @@
           "latest.previousMonth.change": 0.249107,
           "latest.previousYear.month": "202510",
           "latest.previousYear.value": 117.42,
-          "latest.previousYear.change": 2.818941
+          "latest.previousYear.change": 2.818941,
+          "observations.202605.value": 119.92,
+          "observations.202605.previousYear.change": 3.139245,
+          "observations.202606.value": 119.99,
+          "observations.202606.previousYear.change": 3.163958,
+          "observations.202607.value": 119.77,
+          "observations.202607.previousYear.change": 2.789221,
+          "observations.202608.value": 120.05,
+          "observations.202608.previousYear.change": 3.091456,
+          "observations.202609.value": 120.43,
+          "observations.202609.previousYear.change": 2.878866
         },
         "source": {
           "name": "한국은행 ECOS — 소비자물가지수 총지수",
@@ -395,91 +381,6 @@
       },
       {
         "id": "E2-1",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 서울경제",
-        "values": {
-          "title": "美 긴축 우려에 환율 2.5원 오른 1338.2원 마감 [김혜란의 FX] - 서울경제",
-          "publisher": "서울경제",
-          "publishedAt": "2026-11-17T06:45:28.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "서울경제",
-          "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE10ZzZ4dkQ5SEdPRDdiOGRNR3p1aHJVMXNXZU5kSDJfRjJJUVRzU05ZYTdSVjNmMTBjdklHMkhuaW1xM1AtT3k1Vl9QN3RSeWJMeVHSAVNBVV95cUxOMjM5N3YwdGsya0Y5ZEVyM0RUYWV4X3l1U2lWUnY4ck9jWEJFMTZGNzNXTDk4Nk5KRjFzOWptZlJNWS1WU2Y1MHlCMU90NE1oNzNKZw?oc=5",
-          "asOf": "2026-11-17T06:45:28.000Z"
-        },
-        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
-      },
-      {
-        "id": "E2-2",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 뉴시스",
-        "values": {
-          "title": "\"어묵값 상승 무섭네\"…분식집은 이미 '한겨울' - 뉴시스",
-          "publisher": "뉴시스",
-          "publishedAt": "2026-11-15T00:01:00.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "뉴시스",
-          "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5sYlotT3Q5TzRMN3VuY0h4UExmNEhId25paFh2bm9EQXVwYzZZOWktNEJsUnRoeWFSQjBYVWF3UUJWNnVjWkhwd3J0MDY1WlVkY0NORlhfdmxaNVFDOWxhSdIBeEFVX3lxTFBkUkQ0SDBsSUllbEUxU2hyR2VLUHl3dndjaFVwSDRGYWNhb19YQjh4WlpqanZ1NFZ0RGlPTkR4VjF5emg5ZGMtZ29DeTRDR0tQSi1Ydjlod1RUblBvekY2TGVQekJhM19hWE12Yi0wMjFZTkMwUFBURw?oc=5",
-          "asOf": "2026-11-15T00:01:00.000Z"
-        },
-        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
-      },
-      {
-        "id": "E2-3",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 강원도민일보",
-        "values": {
-          "title": "달러 가치 19개월 만에 최고…미 소비자물가 상승률 전망 웃돌아 - 강원도민일보",
-          "publisher": "강원도민일보",
-          "publishedAt": "2026-11-12T00:39:18.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "강원도민일보",
-          "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE0yNXJkenIwQTVCNU95cVQyV2M1SzdEVG04Y0pJc2hBdHQwWmhwbHQ1bHFRN1pRSElMUGVpb0hpX1BRTkhEUjZJWHVJZ2ItVVBmYVhxdW90NUI5UFJYVTVJanJPZXN5WjN6?oc=5",
-          "asOf": "2026-11-12T00:39:18.000Z"
-        },
-        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
-      },
-      {
-        "id": "E2-4",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 경남도민일보",
-        "values": {
-          "title": "가공식품·외식 비용 올랐다…경남 소비자물가 3.2% 상승 - 경남도민일보",
-          "publisher": "경남도민일보",
-          "publishedAt": "2026-11-04T08:00:00.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "경남도민일보",
-          "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTFAwbC1JQmh0Z1F4bXNfdHVpajBTbzhBTDJPM240UEtjNE1CcTNvZlFQb0JNMHFIZHhtUklPdFpjTzRmMWg1dXNRUzBtMl9zT3g5ZGRVZGtxWDB2RXRzQW1ON0cyNUp1UFhaTFE?oc=5",
-          "asOf": "2026-11-04T08:00:00.000Z"
-        },
-        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
-      },
-      {
-        "id": "E2-5",
-        "tool": "get_korean_economic_news",
-        "label": "경제 뉴스 확인 · 마켓인",
-        "values": {
-          "title": "도쿄 10월 물가 2.6% 상승…日 12월 금리 인상 '무게' - 마켓인",
-          "publisher": "마켓인",
-          "publishedAt": "2026-10-30T07:00:00.000Z",
-          "body": "unavailable"
-        },
-        "source": {
-          "name": "마켓인",
-          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBtbkZUWlVPX0NlTy0zeHZsTTJHZ0MyZlBSOUZ2LWl3STVqcXUzdmVmOGJHajdBYTNseWxiMEhrUW5DUmhacVRUSlJ3X05IcC1tNXRXaGtuV28tbFh4aTd0cWNISU5sRWl4bVFOZHNwZHNZSW8?oc=5",
-          "asOf": "2026-10-30T07:00:00.000Z"
-        },
-        "note": "본문은 받지 못해 기사 제목 5건만 확인했어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요."
-      },
-      {
-        "id": "E3-1",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 총지수",
         "values": {
@@ -506,7 +407,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-2",
+        "id": "E2-2",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 교통",
         "values": {
@@ -533,7 +434,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-3",
+        "id": "E2-3",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 음식 및 숙박",
         "values": {
@@ -560,7 +461,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-4",
+        "id": "E2-4",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 주택, 수도, 전기 및 연료",
         "values": {
@@ -587,7 +488,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-5",
+        "id": "E2-5",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 오락 및 문화",
         "values": {
@@ -614,7 +515,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-6",
+        "id": "E2-6",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 기타 상품 및 서비스",
         "values": {
@@ -641,7 +542,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-7",
+        "id": "E2-7",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 가정용품 및 가사 서비스",
         "values": {
@@ -668,7 +569,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-8",
+        "id": "E2-8",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 보건",
         "values": {
@@ -695,7 +596,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-9",
+        "id": "E2-9",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 교육",
         "values": {
@@ -722,7 +623,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-10",
+        "id": "E2-10",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 통신",
         "values": {
@@ -749,7 +650,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-11",
+        "id": "E2-11",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 의류 및 신발",
         "values": {
@@ -776,7 +677,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-12",
+        "id": "E2-12",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 식료품 및 비주류음료",
         "values": {
@@ -803,7 +704,7 @@
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
       },
       {
-        "id": "E3-13",
+        "id": "E2-13",
         "tool": "get_macro_indicators",
         "label": "물가·고용 지표 확인 · 한국은행 ECOS — 소비자물가지수 · 주류 및 담배",
         "values": {
@@ -828,6 +729,23 @@
           "asOf": "2026-10-01"
         },
         "note": "기준일은 마지막 관측 월의 첫날로 적었어요. 발표일이나 조회일이 아니에요. 품목군마다 전년 같은 달 대비와 전월 대비 등락률(%)이 있어요. 기여도(%p)는 품목군 비중 × 등락률로 낸 근사치라 통계청 공식 기여도와 다를 수 있고, 12개를 더해도 전체 물가 등락률과 꼭 같지는 않아요. 기여도가 큰 품목군은 전체 물가 변화를 이루는 요인으로 설명할 수 있지만, 그 품목군 가격이 왜 올랐는지는 이 자료로 알 수 없어요. 계절조정 전 자료예요."
+      },
+      {
+        "id": "E3-1",
+        "tool": "get_korean_economic_news",
+        "label": "경제 뉴스 확인 · 한국은행",
+        "values": {
+          "title": "경제전망(2026년 8월)",
+          "publisher": "한국은행",
+          "publishedAt": "2026-08-27T04:30:00.000Z",
+          "body": "available"
+        },
+        "source": {
+          "name": "한국은행",
+          "url": "https://www.bok.or.kr/portal/bbs/B0000502/view.do?nttId=11064211&menuNo=200690",
+          "asOf": "2026-08-27T04:30:00.000Z"
+        },
+        "note": "기사 5건의 본문을 받으려 했고 1건을 받았어요. 기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요. 한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요."
       },
       {
         "id": "E4",
@@ -887,7 +805,29 @@
           "latest.previousMonth.change": 0.249107,
           "latest.previousYear.month": "202510",
           "latest.previousYear.value": 117.42,
-          "latest.previousYear.change": 2.818941
+          "latest.previousYear.change": 2.818941,
+          "observations.202511.value": 117.2,
+          "observations.202511.previousYear.change": 2.447552,
+          "observations.202512.value": 117.57,
+          "observations.202512.previousYear.change": 2.314855,
+          "observations.202601.value": 118.03,
+          "observations.202601.previousYear.change": 2.005013,
+          "observations.202602.value": 118.4,
+          "observations.202602.previousYear.change": 1.998622,
+          "observations.202603.value": 118.8,
+          "observations.202603.previousYear.change": 2.158397,
+          "observations.202604.value": 119.37,
+          "observations.202604.previousYear.change": 2.56917,
+          "observations.202605.value": 119.92,
+          "observations.202605.previousYear.change": 3.139245,
+          "observations.202606.value": 119.99,
+          "observations.202606.previousYear.change": 3.163958,
+          "observations.202607.value": 119.77,
+          "observations.202607.previousYear.change": 2.789221,
+          "observations.202608.value": 120.05,
+          "observations.202608.previousYear.change": 3.091456,
+          "observations.202609.value": 120.43,
+          "observations.202609.previousYear.change": 2.878866
         },
         "source": {
           "name": "한국은행 ECOS — 소비자물가지수 총지수",
@@ -985,27 +925,27 @@
     {
       "tool": "get_macro_indicators",
       "status": "ok",
-      "ms": 523
+      "ms": 765
+    },
+    {
+      "tool": "get_macro_indicators",
+      "status": "ok",
+      "ms": 1053
     },
     {
       "tool": "get_korean_economic_news",
       "status": "ok",
-      "ms": 1266
+      "ms": 1508
     },
     {
       "tool": "get_macro_indicators",
       "status": "ok",
-      "ms": 2322
+      "ms": 452
     },
     {
       "tool": "get_macro_indicators",
       "status": "ok",
-      "ms": 402
-    },
-    {
-      "tool": "get_macro_indicators",
-      "status": "ok",
-      "ms": 205
+      "ms": 440
     }
   ],
   "rewrites": 0
