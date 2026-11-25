@@ -17,11 +17,13 @@ describe("차트 설명 (11/19 페르소나 테스트: 엔화 차트에 '지표 
     expect(fxUnitLabel(undefined)).toBeNull();
   });
 
-  it("엔화 · 유로 차트도 '환율' 로 부르고 단위 문장을 통화에 맞춘다", () => {
+  it("엔화 · 유로 차트도 '환율' 로 부르고 단위(축 이름)를 통화에 맞춘다", () => {
     const $ = load(renderToStaticMarkup(<ReportChart chart={chart("JPY(100)/KRW 최근 30일", "KRW per 100 JPY")} evidence={[]} />));
     const text = $.text();
     expect(text).toContain("환율 변화를 확인해 보세요");
-    expect(text).toContain("100엔당 원화 금액을 원 단위로 표시했어요");
+    // 11/25 가독성: 단위 문장은 빼고 차트 왼쪽 위 축 이름으로만
+    expect($(".chart-axis-guide").text()).toContain("100엔당 원화 금액(원)");
+    expect(text).not.toContain("원 단위로 표시했어요");
     expect(text).toContain("환율이 839.69에서 836.49로");
     expect(text).not.toContain("지표");
     const eur = load(renderToStaticMarkup(<ReportChart chart={chart("EUR/KRW 최근 30일", "KRW per 1 EUR")} evidence={[]} />)).text();
@@ -31,7 +33,7 @@ describe("차트 설명 (11/19 페르소나 테스트: 엔화 차트에 '지표 
   it("환율이 아닌 차트는 제목으로 주제를 고르고, 모르면 지표 값으로 적는다", () => {
     const text = load(renderToStaticMarkup(<ReportChart chart={chart("소비자물가지수 최근 12개월", "2020=100")} evidence={[]} />)).text();
     expect(text).toContain("물가 변화를 확인해 보세요");
-    expect(text).toContain("2020=100 기준으로 표시했어요");
+    expect(text).toContain("2020=100"); // 축 이름
   });
 });
 
@@ -90,7 +92,8 @@ describe("1년 차트 (11/23 백엔드 #144 관계 질문)", () => {
     const text = load(renderToStaticMarkup(<ReportChart chart={yearChart()} evidence={[]} />)).text();
     expect(text).toContain("코스피 1년 변화를 확인해 보세요");
     expect(text).toContain("코스피 지수가 4,005에서 4,870으로");
-    expect(text).toContain("2025년 11월 20일부터 2026년 11월 20일까지 1년간의 코스피 변화 그래프예요");
+    expect(text).toContain("2025년 11월 20일부터 2026년 11월 20일까지 1년간");
+    expect(text).toContain("코스피 지수가");
   });
   it("숫자 뒤 로 · 으로", async () => {
     const { roParticle } = await import("./ReportChart");
@@ -122,7 +125,8 @@ describe("막대 차트 · 비율 선 차트 (11/23)", () => {
     const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
     const text = $.text();
     expect(text).toContain("한국 소비자물가 상승률이 2.38%에서 2.82%로 0.44%p 올랐어요");
-    expect(text).toContain("2025년 11월부터 2026년 10월까지 1년간의 한국 소비자물가 상승률 변화 그래프예요. 단위는 %예요.");
+    expect(text).toContain("2025년 11월부터 2026년 10월까지 1년간");
+    expect(text).not.toContain("그래프예요");
     expect(text).toContain("그달 값이 보여요");
     expect($("svg").attr("aria-label")).toContain("(+0.44%p)");
     const axis = $(".chart-axis text").map((_, el) => $(el).text()).get();
@@ -147,6 +151,6 @@ describe("월별 차트 제목의 1년 (11/23 백엔드 #151)", () => {
     const chart = { kind: "line" as const, title: "미국 소비자물가 상승률 (전년 같은 달 대비)", unit: "%", series: [{ label: "미국 CPI", ref: "E1", points: months.map((t, i) => ({ t, v: 2.7 + i * 0.02 })) }] };
     const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
     expect($("figcaption").text()).toBe("미국 소비자물가 상승률 변화를 확인해 보세요");
-    expect($.text()).toContain("2025년 11월부터 2026년 9월까지 11개월간의 미국 소비자물가 상승률 변화 그래프예요");
+    expect($.text()).toContain("2025년 11월부터 2026년 9월까지 11개월간");
   });
 });

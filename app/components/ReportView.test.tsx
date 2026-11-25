@@ -496,7 +496,10 @@ describe("답과 숫자 우선 배치", () => {
     const text = $(".report").text();
     expect(text.indexOf("비교 질문")).toBeLessThan(text.indexOf(report.headline!));
     expect(text.indexOf(report.headline!)).toBeLessThan(text.indexOf(report.numbers[0].value));
-    expect(text.indexOf(report.numbers[0].value)).toBeLessThan(text.indexOf(report.summary));
+    // 11/25 가독성: 원인이 있으면 요약 문단은 한입 요약 안 '자세한 요약' 에 접혀 한 번만 나온다
+    expect($(".hero-more").attr("open")).toBeUndefined();
+    expect($(".hero-more").text()).toContain(report.summary);
+    expect(text.split(report.summary)).toHaveLength(2);
     expect($(".numbers").parent().find(".report-help-button").text()).toContain("리포트 읽는 법");
     expect($(".report-mode-toggle")).toHaveLength(0);
     // 11/24 가독성: 출처와 원본 데이터는 PC 에서도 접어 두고 한 줄 요약을 보인다
@@ -1057,9 +1060,10 @@ describe("한국은행 보도자료 · 정책브리핑 표시 (11/25 이용 조�
     const report = fixture();
     report.evidence.push(bok, press);
     report.why[0] = { ...report.why[0], basis: "news", refs: ["E9-1"] };
-    expect(render(report)(".basis-explanation").first().text()).toContain("보도자료 내용을 바탕으로 안내해요");
+    // 11/25 가독성: 등급 설명은 배지 풍선(title)으로
+    expect(render(report)(".basis-explanation .report-badge").first().attr("title")).toBe("보도자료 내용을 바탕으로 안내해요");
     report.why[0].refs = ["E9-3"];
-    expect(render(report)(".basis-explanation").first().text()).toContain("기사 내용을 바탕으로 안내해요");
+    expect(render(report)(".basis-explanation .report-badge").first().attr("title")).toBe("기사 내용을 바탕으로 안내해요");
   });
 
   it("차트 아래 목록도 한국은행 항목이면 '관련 보도자료' 로 부른다", () => {
@@ -1068,5 +1072,71 @@ describe("한국은행 보도자료 · 정책브리핑 표시 (11/25 이용 조�
     entry.values.publisher = "한국은행";
     entry.source = { ...entry.source, name: "한국은행", url: "https://www.bok.or.kr/portal/bbs/B0000501/view.do?nttId=2&menuNo=200690" };
     expect(render(report)(".chart-news > summary").text()).toContain("이 기간 관련 보도자료 1건");
+  });
+});
+
+describe("11/25 가독성: 같은 말 한 번만 · 나에게 · 평소 범위 막대", () => {
+  it("설명이 굵은 문장을 거의 되풀이하는지 낱말로 본다 (숫자 · 날짜를 더하면 되풀이가 아님)", async () => {
+    const { repeatsClaim } = await import("./format");
+    // 녹화 fx-cause · macro-cause-deep · rate-cause 의 실제 문장
+    expect(repeatsClaim("데일리안 기사 제목에서 미국 기술주 투매와 환율 상승을 함께 다뤘어요.", "데일리안 제목은 미국 기술주 투매와 원·달러 환율의 소폭 상승을 함께 언급했어요")).toBe(true);
+    expect(repeatsClaim("교통 물가는 전년 동월 대비 6.80% 올랐고, 총지수 상승에 대한 근사 기여도는 0.75%p예요.", "교통 물가 상승이 전년 동월 대비 총지수 상승에 가장 크게 기여했어요.")).toBe(false);
+    expect(repeatsClaim("한국은행은 2026-10-22 통화정책방향에서 물가·금융안정 위험과 불확실성을 동결 이유로 들었어요.", "한국은행은 물가의 높은 오름세와 금융안정 위험, 불확실성 때문에 금리를 유지했어요.")).toBe(false);
+    expect(repeatsClaim("", "아무 문장")).toBe(true);
+  });
+
+  it("원인이 있으면 요약 문단은 한입 요약 안에 접고, 원인이 없으면 그대로 보인다", () => {
+    const report = fixture();
+    expect(render(report)(".hero-more")).toHaveLength(1);
+    report.why = [];
+    const $ = render(report);
+    expect($(".hero-more")).toHaveLength(0);
+    expect($(".report").text().split(report.summary)).toHaveLength(2);
+  });
+
+  it("한입 요약의 '나에게' 줄은 생활 영향 제목을 모아 영향 칸으로 잇는다", () => {
+    const report = fixture();
+    report.impactTitles = ["대출 이자", "예금 이자", "채권 가격"].slice(0, report.impact.length);
+    const $ = render(report);
+    const line = $("[class*=heroForMe]");
+    expect(line.text()).toContain("나에게");
+    expect(line.text()).toContain(report.impactTitles.join(" · "));
+    const href = line.find("a").attr("href")!;
+    expect($(`[id="${decodeURIComponent(href.slice(1))}"]`).text()).toContain("내 생활에 미치는 영향");
+    report.impactTitles = [];
+    expect(render(report)("[class*=heroForMe]")).toHaveLength(0);
+  });
+
+  it("굵은 문장을 되풀이하는 설명은 빼고, 등급 설명 문장은 '근거 부족' 에만 남긴다", () => {
+    const report = fixture();
+    report.why = [
+      { ...report.why[0], basis: "news", claim: "데일리안 제목은 미국 기술주 투매와 원·달러 환율의 소폭 상승을 함께 언급했어요", evidence: "데일리안 기사 제목에서 미국 기술주 투매와 환율 상승을 함께 다뤘어요." },
+      { ...report.why[0], basis: "data", claim: "교통 물가가 가장 크게 올랐어요", evidence: "2026년 10월 교통 기여도는 0.8%p 였어요" },
+      { ...report.why[0], basis: "none", claim: "수요 회복이 이어졌을 수 있어요", evidence: "" },
+    ];
+    const $ = render(report);
+    const items = $(".why-list > li");
+    expect(items.eq(0).find("p").text()).not.toContain("함께 다뤘어요");
+    expect(items.eq(1).text()).toContain("기여도는 0.8%p");
+    expect(items.eq(0).find(".basis-explanation").text().trim()).toBe("보도 기반");
+    expect(items.eq(1).find(".basis-explanation").text().trim()).toBe("데이터 인용");
+    expect(items.eq(2).find(".basis-explanation").text()).toContain("AI 해석이에요");
+    expect(items.eq(1).find(".report-badge").attr("title")).toBe("공개된 데이터를 바탕으로 설명해요");
+  });
+
+  it("차트 아래 설명 문단 대신 평소 범위 막대로 안 · 위 · 아래를 보이고, 띠에 이름을 쓴다", async () => {
+    const $ = render(fixture());
+    expect($(".chart-context")).toHaveLength(0);
+    expect($(".chart-range-verdict").text()).toMatch(/평소 범위/);
+    expect($(".chart-band-label").text()).toBe("평소 범위");
+    const { RangeBar } = await import("./ReportChart");
+    const band = { from: "2026-10-24", to: "2026-11-23", low: 1320, high: 1355, label: "평소 폭 ±1.63% (직전 90일 기준)" };
+    const bar = (value: number) => load(renderToStaticMarkup(<RangeBar band={band} value={value} valueText={v => v.toLocaleString("ko-KR")} />));
+    expect(bar(1343)(".chart-range").attr("data-where")).toBe("in");
+    expect(bar(1343)(".chart-range-verdict").text()).toBe("평소 범위 안이에요");
+    expect(bar(1343)(".chart-range-now").text()).toBe("지금 1,343");
+    expect(bar(1370)(".chart-range-verdict").text()).toBe("평소 범위보다 높아요");
+    expect(bar(1300)(".chart-range-verdict").text()).toBe("평소 범위보다 낮아요");
+    expect(bar(1343)(".chart-range-note").text()).toBe(band.label);
   });
 });
