@@ -12,9 +12,48 @@ export const parameters = z.object({
   query: z.string().trim().min(1).max(100).nullable().describe("검색어. Google News는 RSS 검색에 사용하며, 다른 소스는 받은 기사 제목에서 필터링. 없으면 null이고 Google News는 '경제'로 검색"),
   limit: z.number().int().min(1).max(10).describe("반환할 최대 기사 수 (1~10, 보통 5건)"),
   content: z.enum(["list", "body"]).describe("list는 목록만, body는 본문 추출을 시도한다. 본문 0건이면 이미 수집한 Google 제목 목록만 반환하며 본문 미확보를 명시"),
+  days: z
+    .number()
+    .int()
+    .min(2)
+    .max(30)
+    .nullable()
+    .describe("기간(일). 질문이 '이번 주 · 지난주 · 최근 일주일' 처럼 기간을 말하면 7, '이번 달 · 최근 한 달' 이면 30. 기간을 말하지 않으면 null (가장 최근 기사)"),
 });
 
-export type Input = z.infer<typeof parameters>;
+/** 코드가 부를 때는 days 를 빼도 됩니다 (null = 기간 없음). 모델에게는 strict 스키마라 늘 채우게 합니다 */
+export type Input = Omit<z.infer<typeof parameters>, "days"> & { days?: number | null };
+
+const DAY_MS = 86_400_000;
+/** 한국 날짜 (YYYY-MM-DD) */
+const kstDay = (iso: string) => new Date(Date.parse(iso) + 9 * 3_600_000).toISOString().slice(0, 10);
+
+/**
+ * 기간을 물은 질문의 기사 순서: 날짜(한국)별로 묶어 최근 날짜부터 하루에 한 건씩 돌아가며 고르고, 그날 기사 중에서는 지금까지 덜 고른 언론사를 먼저 고릅니다.
+ * 최신순으로만 자르면 "이번 주 경제 뉴스" 에도 오늘 기사 · 한 언론사만 남습니다 (11/20 QA 13 · 11/25 로컬: 8건 모두 오늘, 6건이 연합뉴스).
+ */
+export function spreadByDay(articles: Article[]): Article[] {
+  const byDay = new Map<string, Article[]>();
+  for (const article of [...articles].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))) {
+    const day = kstDay(article.publishedAt);
+    byDay.set(day, [...(byDay.get(day) ?? []), article]);
+  }
+  const queues = [...byDay.values()];
+  const picked = new Map<string, number>();
+  const count = (article: Article) => picked.get(article.publisher) ?? 0;
+  const out: Article[] = [];
+  while (queues.some((q) => q.length > 0)) {
+    for (const queue of queues) {
+      if (queue.length === 0) continue;
+      let best = 0;
+      for (let i = 1; i < queue.length; i++) if (count(queue[i]!) < count(queue[best]!)) best = i;
+      const [article] = queue.splice(best, 1);
+      out.push(article!);
+      picked.set(article!.publisher, count(article!) + 1);
+    }
+  }
+  return out;
+}
 
 export type NewsData = {
   articles: (Article & { body: BodyResult | { status: "not_requested" } })[];
@@ -87,13 +126,14 @@ async function searchInstead(query: string, startedAt: number): Promise<Article[
   }
 }
 
-async function fetchSource(id: NewsSourceId, query: string | null, timeoutMs = RSS_TIMEOUT_MS): Promise<Article[]> {
+async function fetchSource(id: NewsSourceId, query: string | null, timeoutMs = RSS_TIMEOUT_MS, days: number | null = null): Promise<Article[]> {
   if (id === "policy") {
     // 정책브리핑: 최근 8일 정책뉴스. 검색어가 없으면 경제 부처 · 경제 낱말 기사만 (김장철 원산지 점검 같은 일반 정책 제외)
     const articles = await fetchPolicyNews(timeoutMs);
     return query ? articles.filter((article) => titleMatches(article.title, query, article.description?.slice(0, MATCH_DESCRIPTION_CHARS))) : articles.filter(isEconomicPolicy);
   }
-  const xml = await fetchText(newsSources[id].url(query), { timeoutMs });
+  // 뉴스 검색은 기간을 검색어 연산자로 겁니다 ("경제 when:7d" → 최근 7일)
+  const xml = await fetchText(newsSources[id].url(id === "google" && days ? `${query ?? "경제"} when:${days}d` : query), { timeoutMs });
   const feed = parseRss(xml);
   if (feed.items.length === 0) throw new Error("RSS 기사 항목이 없습니다.");
   const articles = normalizeArticles(feed, id);
@@ -135,11 +175,12 @@ function publicArticle(article: Article): Article {
 
 /** Agent 없이도 실행합니다. 부분 실패는 결과에 명시하고, 전부 실패하거나 기사가 없으면 throw 합니다. */
 export async function execute(input: Input): Promise<ToolResult<NewsData>> {
-  const { sources, query, limit, content } = parameters.parse(input);
+  const { sources, query, limit, content, days } = parameters.parse({ days: null, ...input });
   const startedAt = Date.now();
   const deadline = startedAt + TOTAL_BUDGET_MS;
-  const selected = [...new Set(sources)];
-  const settled = await Promise.allSettled(selected.map((id) => fetchSource(id, query)));
+  // 기간을 물으면 뉴스 검색을 함께 씁니다. 연합뉴스 · 한국경제 피드는 몇 시간 치라 일주일 · 한 달 기사가 없습니다
+  const selected = [...new Set<NewsSourceId>(days ? [...sources, "google"] : sources)];
+  const settled = await Promise.allSettled(selected.map((id) => fetchSource(id, query, RSS_TIMEOUT_MS, days)));
   const articles: Article[] = [];
   const failedSources: NewsData["failedSources"] = [];
   settled.forEach((result, i) => {
@@ -160,7 +201,9 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
       searchFallback = true;
     }
   }
-  const ranked = deduplicate(articles).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const recent = deduplicate(articles).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  // 기간을 물었으면 그 기간 밖 기사(한국은행 석 달 치 등)는 빼고, 날짜 · 언론사가 고르게 섞이도록 늘어놓습니다
+  const ranked = days ? spreadByDay(recent.filter((article) => Date.parse(article.publishedAt) >= startedAt - days * DAY_MS)) : recent;
   if (ranked.length === 0) throw new Error("조건에 맞는 뉴스 기사가 없습니다.");
   const detailed: NewsData["articles"] = [];
   const failureCounts: Record<string, number> = {};
@@ -176,7 +219,9 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
     if (detailed.length === limit) stopReason = "target_reached";
   } else {
     // Google 링크는 원문 URL이 미확정입니다. 본문을 제공할 수 있는 직접 피드를 먼저 확인합니다.
-    const candidates = [...ranked.filter((article) => article.source !== "google"), ...ranked.filter((article) => article.source === "google")];
+    // 기간을 물었으면 날짜 · 언론사를 섞은 순서 그대로 봅니다 (직접 피드를 앞에 두면 오늘 기사로만 채워짐). 본문이 모자란 자리는 아래에서 제목으로 채웁니다
+    const candidates = days ? ranked : [...ranked.filter((article) => article.source !== "google"), ...ranked.filter((article) => article.source === "google")];
+    const inspected = new Map<string, BodyResult>();
     const candidateLimit = Math.min(MAX_CANDIDATES, Math.max(15, limit * 3));
     for (let offset = 0; offset < candidates.length && offset < candidateLimit;) {
       if (Date.now() >= deadline) { stopReason = "deadline"; break; }
@@ -190,6 +235,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
         const body: BodyResult = result.status === "available" && bodyCharacters + result.text.length > MAX_TOTAL_BODY_CHARS
           ? { status: "unavailable", reason: "output_limit", detail: "한 번에 돌려줄 수 있는 본문 크기를 넘어 이 기사는 본문을 싣지 않았어요." }
           : result;
+        inspected.set(batch[i].url, body);
         if (body.status === "available") {
           detailed.push({ ...publicArticle(batch[i]), body });
           bodyCharacters += body.text.length;
@@ -203,6 +249,18 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
       });
       if (detailed.length >= limit) { stopReason = "target_reached"; break; }
       if (offset >= candidateLimit && offset < candidates.length) stopReason = "candidate_limit";
+    }
+    // 기간을 물었으면 본문을 못 받은 자리를 그 기간의 기사 제목으로 채웁니다 (본문을 받은 기사는 대개 오늘 피드 기사뿐이라, 채우지 않으면 일주일이 하루로 줄어듦)
+    if (days && detailed.length < limit) {
+      const have = new Set(detailed.map((article) => article.url));
+      for (const article of ranked) {
+        if (detailed.length >= limit) break;
+        if (have.has(article.url)) continue;
+        const body = inspected.get(article.url) ?? (article.source === "google"
+          ? { status: "unavailable" as const, reason: "original_url_unresolved" as const, detail: "뉴스 검색 서비스의 링크라 원문 주소를 확정할 수 없어요. 제목만 확인했어요." }
+          : { status: "not_requested" as const });
+        detailed.push({ ...publicArticle(article), body });
+      }
     }
     detailed.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     // 검색어가 있는데 본문을 하나도 못 받았고 뉴스 검색 결과도 없으면, 같은 검색어로 뉴스 검색 제목을 받아 제목 근거로 씁니다
@@ -264,6 +322,7 @@ export async function execute(input: Input): Promise<ToolResult<NewsData>> {
           : `기사 ${limit}건의 본문을 받으려 했고 ${collectedCount}건을 받았어요.`,
       "기사 속 수치는 따로 검증하지 않았어요. 본문을 받았다고 원인 · 인과관계가 확인된 것은 아니에요.",
       searchFallback ? "연합뉴스 · 한국경제 피드에서 쓸 기사를 찾지 못해 같은 검색어의 뉴스 검색 결과를 대신 받았어요." : "",
+      days ? `최근 ${days}일 기사예요.` : "",
       detailed.some((article) => article.source === "bok") ? "한국은행 보도자료는 한국은행 홈페이지 원문(링크)을 글자만 남겨 옮겼어요." : "",
       detailed.some((article) => article.source === "policy") ? "정책브리핑 기사는 공공누리 1유형 자료로, 출처(정책브리핑 · 부처)를 밝혀 본문을 글자만 남겨 옮겼어요." : "",
       detailed.some((article) => article.source === "google") ? "일부 기사 링크는 언론사 원문이 아니라 뉴스 검색 서비스를 거쳐 열릴 수 있어요." : "",
@@ -283,6 +342,7 @@ export const newsTool = defineTool({
     "본문이 0건이고 선택한 Google RSS 목록이 있으면 제목 근거로만 반환한다(bodyStatus · resultStatus 로 확인). 그때는 제목에 직접 드러난 사실만 근거로 쓰고, 본문을 읽은 것처럼 설명하지 않는다. collectedCount는 본문 확보 수이며 제목 fallback은 포함하지 않는다. 기사마다 body.status 로 본문 확보 여부를 확인한다. 기사 속 수치는 검증된 통계가 아니다. 제목에 없는 원인을 추정하거나 인과관계를 검증했다고 표현하지 않는다. " +
     "연합뉴스 · 한국경제 · 한국은행(bok)은 검색어의 낱말이 모두 든 제목(연합뉴스 · 한국은행은 설명 포함)을 고른다. 띄어쓰기 · / · 가운뎃점 · 줄표 · 따옴표는 무시하고, 질문어(원인 · 이유 · 배경 · 전망 · 영향 · 상승 · 하락 · 최근 · 요즘 · 왜 · 동향 · 흐름)는 뺀다. 맞는 기사가 없으면 같은 검색어의 Google News 검색 결과를 대신 돌려준다. " +
     "bok 은 한국은행 보도자료(석 달 치)로, 본문은 RSS 설명이고 짧은 것은 제목만이다. policy 는 정책브리핑 정책뉴스(최근 8일, 부처 보도)로 본문이 함께 온다. 검색어가 없으면 경제 부처 · 경제 낱말 기사만 남긴다. " +
+    "days 를 주면 그 기간(일) 기사만, 날짜 · 언론사가 고르게 섞이도록 골라 돌려준다(뉴스 검색을 함께 씀). 본문을 못 받은 자리는 그 기간의 제목으로 채운다. 기간을 말하지 않은 질문은 days=null. " +
     "국내 경제 이슈의 최근 보도나 검색어를 찾을 때 사용한다. 사실 검증, 해외 뉴스와 투자 권유는 제공하지 않는다.",
   parameters,
   execute,

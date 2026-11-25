@@ -87,7 +87,17 @@ export function isGeneralNewsQuestion(question: string): boolean {
   return NEWS_WORDS.test(question) && !TOPIC_WORDS.test(question);
 }
 
-type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; limit: number; content: "list" }) => Promise<{ data: NewsData }>;
+type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; limit: number; content: "list"; days?: number | null }) => Promise<{ data: NewsData }>;
+
+/**
+ * 질문이 말한 뉴스 기간(일). "이번 주 · 지난주 · 일주일" 7, "이번 달 · 한 달" 30, 없으면 null.
+ * 직접 피드는 몇 시간 치라, 기간을 말한 질문은 뉴스 tool 의 days 로 그 기간 기사를 받습니다 (11/20 QA 13)
+ */
+export function questionDays(question: string): number | null {
+  if (/이번\s*주|지난\s*주|금주|일주일|한\s*주|최근\s*7\s*일|주간/.test(question)) return 7;
+  if (/이번\s*달|한\s*달|최근\s*30\s*일|월간/.test(question)) return 30;
+  return null;
+}
 
 /**
  * 주제 없는 뉴스 질문이면 주제어별 기사를 장부에 보탭니다. 올린 항목들을 돌려주고, 대상이 아니거나 하나도 못 찾으면 빈 배열.
@@ -96,7 +106,9 @@ type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; li
 export async function addMacroNews(ctx: ResearchContext, question: string, news: NewsFetch = fetchNews as NewsFetch): Promise<Evidence[]> {
   if (!isGeneralNewsQuestion(question)) return [];
   const started = Date.now();
-  const results = await Promise.all(MACRO_TOPICS.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: FETCH_PER_TOPIC, content: "list" }).catch(() => null)));
+  // 기간을 말한 질문("이번 주 경제 뉴스")이면 주제어마다 그 기간 기사를 받습니다 (뉴스 tool 이 뉴스 검색을 함께 쓰고 날짜 · 언론사를 섞음)
+  const days = questionDays(question);
+  const results = await Promise.all(MACRO_TOPICS.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: FETCH_PER_TOPIC, content: "list", days }).catch(() => null)));
   const seen = new Set(ctx.evidence.map((e) => e.source.url));
   const picked: NewsData["articles"] = [];
   // 주제마다 한 건씩 번갈아 골라 한 주제로 쏠리지 않게 합니다
