@@ -177,3 +177,13 @@
 .hero>.mascotWrap{flex:0 0 auto;min-width:auto} /* .hero>div{flex:1} 이 감싼 상자를 그림보다 넓게 늘리던 것 */
 @media(max-width:600px){.mascotWrap{width:fit-content;margin:0 auto}}
 .aiDisclosure span{display:block} /* 11/25 사용자: 문장마다 줄바꿈 */
+
+/* 11/25 보관함 카드 정리: 한 줄 요약(2줄에서 자름) · 날짜와 삭제를 한 줄로 · #162 글자 크기 · 안 여백 18 (휴대폰 카드 5개가 1.5장 안쪽) */
+.cardLink{padding:18px 18px 12px}
+.cardChips{margin-bottom:10px}
+.cardChips span{font-size:12px}
+.historyCard h2{font-size:18px;line-height:1.5;margin:0 0 6px}
+.cardSummary{font-size:16px;line-height:1.6;color:#5b5466;margin:0;-webkit-line-clamp:2}
+.cardFoot{margin:0;padding:8px 18px 12px;border-top:1px solid #f2ecf7;font-size:13px;color:#8f819a}
+.deleteButton{align-self:auto;min-height:32px;margin:0;padding:4px 12px;font-size:13px}
+@media(max-width:600px){.historyGrid{gap:12px}.historyCard h2{font-size:17px}.cardSummary{font-size:15px}}
