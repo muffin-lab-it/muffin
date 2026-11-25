@@ -358,7 +358,7 @@ export function ReportVerification({ report, children }: { report: Report; child
     <section className="report-verification" aria-label="리포트 검증 상태" data-quick="verify">
       {/* 기본은 접힌 한 줄. 펼쳐야 내역이 보입니다 (11/20 서영 2-2 · 3, 외부 E1, 하니 2). 인쇄 때는 PrintOpenDetails 가 잠시 펼칩니다 */}
       <PrintOpenDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
-          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : verificationLine(verification)}</span></span>
+          <span className="verification-summary-copy"><strong data-icon="✅">검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : verificationLine(verification)}</span></span>
           <span className="verification-summary-action"><span className="verification-toggle-label">자세히 보기</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
         </>}>
         <div className="verification-body">

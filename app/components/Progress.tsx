@@ -129,7 +129,7 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
   const imageIndex = state.complete ? 4 : current ? stages.indexOf(current) : Math.max(0, stages.findLastIndex(stage => state.status[stage] === "done"));
   const percent = state.complete ? 100 : Math.round(finished / applicable.length * 100);
 
-  const storyTitle = state.complete || error ? "확인한 것" : "지금 확인하는 것";
+  const storyTitle = "확인 노트";
   return (
     <section className={styles.root} aria-label="리포트 생성 진행" data-layout="progress">
       <div className={styles.titleRow}><span className={styles.titleIcon} aria-hidden="true">{titleIcon}</span><h1 className={styles.title} data-tone={timeout || (!error && !state.complete && scope) ? "attention" : undefined} aria-live="polite">{title}</h1></div>
@@ -181,7 +181,7 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
         <Image key={imageIndex} className={styles.mascot} src={stageImages[imageIndex]} width={200} height={200} sizes="(max-width: 720px) 160px, 200px" alt="" aria-hidden="true" />
         <FinanceFloaters variant="progress" />
       </div>
-      {/* 11/25 사용자: '머핀 이야기' 대신 확인하는 일로 부름. 끝나거나 멈추면 '확인한 것' */}
+      {/* 11/25 사용자: '머핀 이야기' 대신 '확인 노트' */}
       <aside className={styles.tip} aria-label={storyTitle} data-section="story">
         <div className={styles.storyHeading}><span className={styles.storyIcon} aria-hidden="true"><Image src="/icon.svg" alt="" width={20} height={20} /></span><h2>{storyTitle}</h2></div>
         <p className={styles.story} aria-live="polite">{story}</p>

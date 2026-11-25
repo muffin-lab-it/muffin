@@ -114,13 +114,13 @@ describe("MF-02 진행 화면", () => {
 });
 
 describe("진행 화면 움직임 · 칸 이름 (11/25 사용자)", () => {
-  it("진행 중에는 '지금 확인하는 것', 끝나거나 멈추면 '확인한 것' 으로 부른다", () => {
+  it("칸 이름은 진행 중이든 끝났든 '확인 노트' 다 (11/25 사용자)", () => {
     const running = render([{ type: "stage", stage: "plan", status: "done" }, { type: "stage", stage: "research", status: "start" }]);
-    expect(running("[data-section=story] h2").text()).toBe("지금 확인하는 것");
-    expect(running("[data-section=story]").attr("aria-label")).toBe("지금 확인하는 것");
+    expect(running("[data-section=story] h2").text()).toBe("확인 노트");
+    expect(running("[data-section=story]").attr("aria-label")).toBe("확인 노트");
     expect(running.text()).not.toContain("머핀 이야기");
     const stopped = render([{ type: "stage", stage: "plan", status: "start" }], "조사 중 오류가 생겼어요");
-    expect(stopped("[data-section=story] h2").text()).toBe("확인한 것");
+    expect(stopped("[data-section=story] h2").text()).toBe("확인 노트");
   });
 
   it("그림 둘레에 떠 있는 금융 그림을 두고, 진행 막대의 빛은 진행 중일 때만 흐른다", () => {
