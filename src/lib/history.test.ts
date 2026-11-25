@@ -285,6 +285,8 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
     const rows = new Map<string, ServerRow>();
     const calls: { method: string; path: string; id?: string }[] = [];
     let fail: Fail | undefined;
+    let down = off;
+    let gate: Promise<void> | undefined; // 붙잡아 둔 저장(POST)은 풀 때까지 늦게 닿습니다
     const out = (row: ServerRow): ReportRecord => ({ id: row.id, createdAt: row.createdAt.replace("Z", "+00:00"), input: row.input, report: row.report, steps: row.steps });
     const fetchMock = vi.fn(async (path: string, init: RequestInit = {}) => {
       const method = init.method ?? "GET";
@@ -292,7 +294,8 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
       calls.push({ method, path, id: body?.id });
       const injected = fail?.(method, path, body);
       if (injected) return injected;
-      if (off) return json({ error: "저장소 설정을 확인해 주세요.", id: "x" }, 503);
+      if (down) return json({ error: "저장소 설정을 확인해 주세요.", id: "x" }, 503);
+      if (method === "POST" && gate) await gate;
       const client = new Headers(init.headers).get("X-Muffin-Client") ?? "";
       const one = /^\/api\/history\/([^?]+)$/.exec(path);
       if (method === "GET" && path.startsWith("/api/history?")) {
@@ -315,7 +318,16 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
       }
       return json({ error: "알 수 없는 요청" }, 500);
     });
-    return { rows, calls, fetchMock, failWith(next?: Fail) { fail = next; } };
+    return {
+      rows, calls, fetchMock,
+      failWith(next?: Fail) { fail = next; },
+      setOff(next: boolean) { down = next; },
+      holdPosts() {
+        let release = () => {};
+        gate = new Promise<void>((resolve) => { release = () => { gate = undefined; resolve(); }; });
+        return release;
+      },
+    };
   }
 
   let store: ReturnType<typeof fakeStorage>;
@@ -390,9 +402,58 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
     await history.listReports();
     await history.waitForHistorySync();
     expect(server.rows.has("req-3")).toBe(false);
-    await history.listReports(); // 서버 목록에서 빠진 게 보이면 잊습니다
+    await history.listReports(); // 서버 목록에서 빠져도 늦게 닿는 저장에 대비해 2분은 기억하고
     await history.waitForHistorySync();
+    expect(store.getItem("muffin.history.deleted")).toContain("req-3");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3 * 60 * 1000);
+    await history.listReports(); // 그 뒤에 잊습니다
+    await history.waitForHistorySync();
+    clock.mockRestore();
     expect(store.getItem("muffin.history.deleted")).toBeNull();
+  });
+
+  it("올리는 중에 지우면(지우기가 먼저 닿아 404) 저장이 늦게 닿아도 바로 서버에서 지운다 (Codex 리뷰)", async () => {
+    const release = server.holdPosts();
+    await history.saveReport({ question: "올리는 중", depth: "easy" }, report, [], "req-4");
+    await history.deleteReport("req-4");
+    expect(server.rows.has("req-4")).toBe(false);
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("req-4");
+    await history.waitForHistorySync();
+    expect(store.getItem("muffin.history.deleted")).toContain("req-4"); // 서버 목록에 없어도 아직 잊지 않습니다
+    release();
+    await vi.waitFor(() => expect(server.calls.filter((call) => call.method === "DELETE" && call.path.endsWith("/req-4"))).toHaveLength(2));
+    expect(server.rows.has("req-4")).toBe(false);
+  });
+
+  it("지운 직후 서버 목록에 없어도 2분은 기억해, 새로고침 뒤 늦게 닿은 저장도 숨기고 지운다 (Codex 리뷰)", async () => {
+    putLocal(record("late-1", "2026-11-20T00:00:00.000Z"));
+    await history.deleteReport("late-1");
+    await history.listReports();
+    await history.waitForHistorySync();
+    putServer(record("late-1", "2026-11-20T00:00:00.000Z")); // 다른 탭에서 올리던 저장이 늦게 닿음
+    vi.resetModules(); // 새로고침
+    history = await import("./history");
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("late-1");
+    await history.waitForHistorySync();
+    expect(server.rows.has("late-1")).toBe(false);
+  });
+
+  it("서버를 끈 탭(503)에서 지운 기록도 기억해 두었다가, 서버가 돌아오면 숨기고 지운다 (Codex 리뷰)", async () => {
+    const synced = record("synced-1", "2026-11-21T00:00:00.000Z");
+    putLocal(synced);
+    putServer(synced);
+    server.setOff(true);
+    await history.listReports(); // 503 → 이 탭은 서버를 끕니다
+    await history.deleteReport("synced-1");
+    expect(server.calls.filter((call) => call.method === "DELETE")).toHaveLength(0);
+    expect(store.getItem("muffin.history.deleted")).toContain("synced-1");
+
+    server.setOff(false);
+    vi.resetModules(); // 서버가 돌아온 뒤 새로 연 탭
+    history = await import("./history");
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("synced-1");
+    await history.waitForHistorySync();
+    expect(server.rows.has("synced-1")).toBe(false);
   });
 
   it("서버 저장소가 없으면(503) 이 탭에서는 더 부르지 않고 브라우저 기록만 쓴다", async () => {

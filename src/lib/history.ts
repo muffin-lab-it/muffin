@@ -31,7 +31,7 @@ export const HISTORY_KEY = "muffin.history.v1";
 /** 기록별 키 머리. 뒤에 기록 id 가 붙습니다 */
 export const HISTORY_RECORD_PREFIX = `${HISTORY_KEY}:`;
 const MAX = 100;
-/** 서버에서 지운 것이 아직 확인되지 않은 기록 id. 목록 · 조회에서 숨기고 보관함을 열 때 다시 지웁니다 */
+/** 서버에서 지운 게 아직 확인되지 않은 기록 id 와 지운 시각({ id: ms }). 목록 · 조회에서 숨기고 보관함을 열 때 다시 지웁니다 */
 const DELETED_KEY = "muffin.history.deleted";
 /** 서버가 받지 않는 기록 id (형식 · 크기 · 다른 브라우저의 id). 다시 올리지 않습니다 */
 const SKIPPED_KEY = "muffin.history.skipped";
@@ -41,6 +41,11 @@ const SERVER_ID = /^[a-z0-9-]{1,64}$/;
 const SYNC_BATCH = 10;
 /** 기억하는 id 수 상한 (지운 기록 · 건너뛴 기록 각각) */
 const ID_SET_MAX = 200;
+/**
+ * 지운 뒤 서버 목록에 없어도 이만큼은 지운 표시를 남깁니다. 올리던 저장(POST)이 지우기(DELETE)보다 늦게 닿으면
+ * 그때 다시 지워야 하므로, 저장 제한 시간(10초)보다 넉넉하게 둡니다 (Codex 리뷰: 표시를 먼저 잊으면 지운 기록이 되살아남)
+ */
+const DELETE_SETTLE_MS = 2 * 60 * 1000;
 
 const newestFirst = (a: ReportRecord, b: ReportRecord) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0);
 
@@ -221,14 +226,19 @@ function trim() {
 /** 이 탭에서 서버 저장소가 없다(503)고 들으면 더 부르지 않습니다 */
 let serverOff = false;
 
-/** 서버 저장을 부를 수 있는지: 브라우저 주소(http · https)에서만. 서버 렌더링이나 location 이 없는 테스트용 window 는 브라우저 기록만 씁니다 */
-function serverReady(): boolean {
-  if (serverOff || typeof window === "undefined" || typeof fetch !== "function") return false;
+/** 서버 저장을 쓰는 곳인지: 브라우저 주소(http · https)에서만. 서버 렌더링이나 location 이 없는 테스트용 window 는 브라우저 기록만 씁니다 */
+function browserPage(): boolean {
+  if (typeof window === "undefined" || typeof fetch !== "function") return false;
   try {
     return /^https?:$/.test(window.location?.protocol ?? "");
   } catch {
     return false;
   }
+}
+
+/** 지금 이 탭에서 서버를 부를지 */
+function serverReady(): boolean {
+  return !serverOff && browserPage();
 }
 
 function timeout(ms: number): AbortSignal | undefined {
@@ -269,9 +279,38 @@ function addId(key: string, id: string) {
   writeIds(key, ids);
 }
 
-function dropId(key: string, id: string) {
-  const ids = readIds(key);
-  if (ids.delete(id)) writeIds(key, ids);
+function readDeleted(): Map<string, number> {
+  const store = storage();
+  if (!store) return new Map();
+  try {
+    const parsed: unknown = JSON.parse(store.getItem(DELETED_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Map();
+    return new Map(Object.entries(parsed).filter((entry): entry is [string, number] => typeof entry[1] === "number"));
+  } catch {
+    return new Map();
+  }
+}
+
+function writeDeleted(deleted: Map<string, number>) {
+  const store = storage();
+  if (!store) return;
+  try {
+    if (deleted.size === 0) store.removeItem(DELETED_KEY);
+    else store.setItem(DELETED_KEY, JSON.stringify(Object.fromEntries([...deleted].sort((a, b) => a[1] - b[1]).slice(-ID_SET_MAX))));
+  } catch {
+    // 기억하지 못해도 화면은 계속 동작합니다
+  }
+}
+
+function markDeleted(id: string) {
+  const deleted = readDeleted();
+  deleted.set(id, Date.now());
+  writeDeleted(deleted);
+}
+
+function unmarkDeleted(id: string) {
+  const deleted = readDeleted();
+  if (deleted.delete(id)) writeDeleted(deleted);
 }
 
 /** 서버 기록을 브라우저 기록 모양으로. 시각은 Postgres 꼴(+00:00 · 마이크로초)이라 브라우저와 같은 ISO 로 맞춰 정렬이 섞이지 않게 합니다 */
@@ -293,6 +332,8 @@ async function pushRecord(record: ReportRecord): Promise<"saved" | "skipped" | "
   }
   try {
     await saveHistory(record, timeout(10_000));
+    // 올리는 사이 지웠으면 바로 서버에서도 지웁니다 (지우기가 저장보다 먼저 닿아 404 였던 경우, Codex 리뷰)
+    if (readDeleted().has(record.id)) await deleteHistory(record.id, timeout(10_000)).catch(noteFailure);
     return "saved";
   } catch (error) {
     noteFailure(error);
@@ -314,9 +355,11 @@ function syncLater(local: ReportRecord[], remote: ReportRecord[]) {
   if (syncing) return;
   syncing = (async () => {
     const onServer = new Set(remote.map((record) => record.id));
-    for (const id of readIds(DELETED_KEY)) {
+    const now = Date.now();
+    for (const [id, deletedAt] of readDeleted()) {
       if (!onServer.has(id)) {
-        dropId(DELETED_KEY, id);
+        // 서버 목록에 없어도 지운 직후에는 늦게 닿는 저장이 있을 수 있어 DELETE_SETTLE_MS 동안은 더 기억합니다
+        if (now - deletedAt > DELETE_SETTLE_MS) unmarkDeleted(id);
         continue;
       }
       try {
@@ -333,7 +376,7 @@ function syncLater(local: ReportRecord[], remote: ReportRecord[]) {
       .slice(0, SYNC_BATCH);
     for (const record of pending) {
       if (!serverReady()) return;
-      if (readIds(DELETED_KEY).has(record.id)) continue;
+      if (readDeleted().has(record.id)) continue;
       if ((await pushRecord(record)) === "later") return;
     }
   })().finally(() => {
@@ -365,7 +408,7 @@ export async function saveReport(input: ReportRecord["input"], report: Report, s
     report,
     steps,
   };
-  dropId(DELETED_KEY, record.id);
+  unmarkDeleted(record.id);
   const local = writeRecord(record);
   if (local) trim();
   if (serverReady()) {
@@ -387,7 +430,7 @@ export async function listReports(): Promise<ReportRecord[]> {
     return local;
   }
   syncLater(local, remote);
-  const deleted = readIds(DELETED_KEY);
+  const deleted = readDeleted();
   const byId = new Map<string, ReportRecord>();
   for (const record of remote) if (!deleted.has(record.id)) byId.set(record.id, record);
   for (const record of local) byId.set(record.id, record);
@@ -401,7 +444,7 @@ export async function listReports(): Promise<ReportRecord[]> {
 export async function getReport(id: string): Promise<ReportRecord | null> {
   const own = readLocal(id);
   if (own) return own;
-  if (!serverReady() || readIds(DELETED_KEY).has(id)) return null;
+  if (!serverReady() || readDeleted().has(id)) return null;
   try {
     const found = await getHistory(id, timeout(8_000));
     const record = found ? fromServer(found) : null;
@@ -421,9 +464,11 @@ export async function deleteReport(id: string): Promise<void> {
     readAll(); // 예전 목록이 남아 있으면 먼저 기록별 키로 옮깁니다
     removeRecord(store, id); // 기록별 키와, 옮기지 못해 목록에 남은 기록 모두
   }
+  if (!browserPage()) return;
+  // 서버 목록에서 빠진 게 확인될 때까지 기억합니다 (지우는 사이 올리던 저장이 늦게 닿아도 되살아나지 않게).
+  // 이 탭에서 서버를 껐어도(503) 남겨 두어, 서버가 돌아온 뒤 보관함을 열 때 지웁니다 (Codex 리뷰)
+  markDeleted(id);
   if (!serverReady()) return;
-  // 서버 목록에서 빠진 게 확인될 때까지 기억합니다 (지우는 사이 올리던 저장이 늦게 닿아도 되살아나지 않게)
-  addId(DELETED_KEY, id);
   try {
     await deleteHistory(id, timeout(10_000));
   } catch (error) {
