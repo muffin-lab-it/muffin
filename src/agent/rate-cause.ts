@@ -11,6 +11,7 @@ import { RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
 import { NEGATIVE } from "./negatives";
 import { areaTools } from "./plan";
+import { todayKst } from "./today";
 import type { Evidence, Intent, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
 
@@ -95,19 +96,27 @@ export function pickStatement(evidence: Evidence[], raw: ReadonlyMap<string, unk
     .sort((a, b) => b.date.localeCompare(a.date) || String(b.e.values.publishedAt).localeCompare(String(a.e.values.publishedAt)))[0]?.e;
 }
 
+/** 고른 통화정책방향과, 이번 실행이 직접 받은(검색 조건 없는) 한국은행 보도자료 중 가장 최근 문서 */
+export type RateStatement = { id: string; newestId: string | null };
+
 /**
- * 질문에 맞는 통화정책방향(본문 있는 것)이 장부에 없으면 뉴스 tool 로 받습니다 (한국은행 보도자료 · 본문). 고른 항목 id, 대상이 아니거나 맞는 문서가 없으면 null.
- * 때를 물으면 지난 문서까지 닿도록 4건, 아니면 2건. 실패해도 던지지 않습니다
+ * 한국 기준금리 원인 질문이면 한국은행 보도자료를 "통화정책방향" 으로 받습니다. 질문에 맞는 문서(본문 있는 것)가 장부에 없으면 그것을 찾으려고 2건
+ * (때를 물으면 지난 문서까지 닿도록 4건), 이미 있으면 가장 최근 결정이 무엇인지만 확인하려고 1건 (결과는 최근 순).
+ * 조사가 받아 둔 문서만으로는 그보다 최근 결정이 있는지 알 수 없어서, "가장 최근 결정" 이라고 알리는 것은 이번 조회가 성공했을 때만입니다 (#167 Codex 리뷰).
+ * 고른 항목 id 와 이번 조회의 가장 최근 문서 id, 대상이 아니거나 맞는 문서가 없으면 null. 실패해도 던지지 않습니다
  */
-export async function ensureRateStatement(ctx: ResearchContext, question: string, intent: Intent | undefined, tools: readonly InvokableTool[]): Promise<string | null> {
+export async function ensureRateStatement(ctx: ResearchContext, question: string, intent: Intent | undefined, tools: readonly InvokableTool[]): Promise<RateStatement | null> {
   if (!isKoreanRateCause(question, intent)) return null;
-  if (!pickStatement(ctx.evidence, ctx.raw, question)) {
-    const news = tools.find((t) => t.name === areaTools.news);
-    if (!news) return null;
-    const limit = askedMonth(question) ? 4 : 2;
+  let newestId: string | null = null;
+  const news = tools.find((t) => t.name === areaTools.news);
+  if (news) {
+    const limit = pickStatement(ctx.evidence, ctx.raw, question) ? 1 : askedMonth(question) ? 4 : 2;
+    const before = ctx.evidence.length;
     await news.invoke(new RunContext(ctx), JSON.stringify({ sources: ["bok"], query: "통화정책방향", limit, content: "body" })).catch(() => undefined);
+    newestId = newestStatement(ctx.evidence.slice(before))?.id ?? null;
   }
-  return pickStatement(ctx.evidence, ctx.raw, question)?.id ?? null;
+  const picked = pickStatement(ctx.evidence, ctx.raw, question);
+  return picked ? { id: picked.id, newestId } : null;
 }
 
 const DECISION_TEXT: Record<Decision, string> = { 인상: "기준금리 인상", 인하: "기준금리 인하", 동결: "기준금리 유지(동결)" };
@@ -117,16 +126,18 @@ const DECISION_TEXT: Record<Decision, string> = { 인상: "기준금리 인상",
  * 장부의 통화정책방향 중 가장 최근 문서면 그렇다고 알립니다 (11/25 운영: 4번 중 2번이 요약 끝에 "2026-11-25 현재 가장 최근 결정문은 확인되지 않아,
  * 이 설명은 2026-10-22 결정에 해당해요" 를 붙임. 한국은행 보도자료를 이번 실행에서 받았으니 더 최근 결정이 있었다면 그 문서가 잡혔을 것)
  */
-export function rateStatementNote(evidence: Evidence[], id: string | null, raw: ReadonlyMap<string, unknown>): string {
-  const e = id ? evidence.find((x) => x.id === id) : undefined;
+export function rateStatementNote(evidence: Evidence[], statement: RateStatement | null, raw: ReadonlyMap<string, unknown>): string {
+  const e = statement ? evidence.find((x) => x.id === statement.id) : undefined;
   if (!e) return "";
   const body = bodyOf(e, raw.get(e.id));
   if (!body) return "";
   const decision = statementDecision(body);
   const date = statementDate(e);
-  const newest = newestStatement(evidence);
-  const newestLine =
-    !newest || statementDate(newest) <= date
+  const newest = statement?.newestId ? evidence.find((x) => x.id === statement.newestId) : undefined;
+  // 이번 조회가 실패했으면 가장 최근 결정이 무엇인지 알리지 않습니다 (장부의 문서만으로는 더 최근 결정이 있는지 모름)
+  const newestLine = !newest
+    ? ""
+    : statementDate(newest) <= date
       ? `이번에 받은 한국은행 보도자료에는 이보다 최근 통화정책방향이 없습니다. 이 문서가 가장 최근 기준금리 결정이니 "오늘 · 최근 결정은 확인되지 않았다", "이 설명은 ${date} 결정에 해당한다" 같은 문장은 쓰지 않습니다.`
       : `이번에 받은 한국은행 보도자료에서 가장 최근 통화정책방향은 ${newest.values.title} (ref ${newest.id}, ${statementDate(newest)}) 이고, 그보다 최근 결정문은 없습니다. 오늘 · 최근 결정이 확인되지 않았다는 문장은 쓰지 않습니다.`;
   return [
@@ -134,7 +145,7 @@ export function rateStatementNote(evidence: Evidence[], id: string | null, raw: 
     `본문 앞부분: "${body.slice(0, NOTE_CHARS)}${body.length > NOTE_CHARS ? " …" : ""}"`,
     `기준금리를 왜 올리거나 내리거나 유지했는지는 이 문서의 설명으로 답합니다. 요약 첫 문장에 결정과 그 이유를 쓰고, why 에는 basis "news" 로 "한국은행은 … 라고 설명했어요" 처럼 이 문서가 든 이유를 씁니다 (ref ${e.id}).`,
     `이 문서에 없는 이유를 덧붙이지 않습니다. 본문의 숫자는 장부에 있는 값과 같을 때만 씁니다. 문서의 날짜(결정일)를 함께 밝힙니다.`,
-    newestLine,
+    ...(newestLine ? [newestLine] : []),
   ].join("\n");
 }
 
@@ -143,36 +154,37 @@ function newestStatement(evidence: Evidence[]): Evidence | undefined {
   return evidence.filter(isStatement).sort((a, b) => statementDate(b).localeCompare(statementDate(a)))[0];
 }
 
-/** 그 항목이 장부의 통화정책방향 중 가장 최근 문서인지 */
-export function isLatestStatement(evidence: Evidence[], id: string | null): boolean {
-  const e = id ? evidence.find((x) => x.id === id) : undefined;
-  const newest = newestStatement(evidence);
-  return !!e && !!newest && statementDate(newest) <= statementDate(e);
-}
-
-/** 더 최근 결정을 모른다는 문장: 최근 · 당일 낱말 + 결정 + 확인 못 함 ("2026-11-25 당일의 결정 여부는 제공된 자료로 확인되지 않았어요") */
-const NEWER_HINT = /가장\s*최근|최신|새\s*(?:결정|발표)|이후|그\s*뒤|당일|오늘|\d{4}-\d{2}-\d{2}\s*(?:현재|기준)/;
-const DECISION_WORD = /결정|통화정책방향|금통위|금융통화위원회/;
+/**
+ * 더 최근 결정이 있는지 모른다는 문장: 최근 · 당일 낱말이 결정을 바로 꾸미고("가장 최근의 금리 결정", "당일의 새 결정", "2026-10-22 이후 금통위 결정")
+ * 확인 못 함 · 자료 없음으로 끝나는 것. 결정의 영향 · 전망 · 다음 결정 이야기("오늘 금통위 결정이 향후 물가에 미칠 영향은 확인할 수 없어요"),
+ * 확인된 내용이 함께 든 문장(날짜 밖의 숫자, "…했지만")은 남깁니다 (#167 Codex 리뷰)
+ */
+const NEWER_DECISION = /(?:가장\s*최근|최신|새로운?|당일|이후)(?:의)?[^.!?,]{0,14}?(?:결정|통화정책방향|금통위\s*발표)/;
+const OUTCOME = /영향|전망|움직|향후|앞으로|다음|방향성|경로|시점|가능성|변화|반응|효과/;
 const MISSING = new RegExp(`${NEGATIVE.source}|확보하지\\s*못|자료(?:가|는|도)\\s*없`);
+const MIXED = /지만|으나|는데|했고|됐고|였고/;
 /** 결정일만 되짚는 문장 ("이 설명은 2026-10-22 결정문에 담겼어요", "동결 사유는 한국은행의 2026-10-22 결정 설명에 해당해요") */
 const SCOPE_ONLY = /결정[^.!?]{0,20}?\s*(?:해당해요|해당합니다|담겼어요|담긴\s*설명이에요|관한\s*내용이에요|대한\s*설명이에요)[.!?]?$/;
 const DATE = /\d{4}-\d{2}-\d{2}/g;
 
-function newerTalk(sentence: string): boolean {
+/** 오늘 날짜가 결정을 바로 꾸미는 것도 같은 말 ("2026-11-25 기준금리 결정과 그 설명 자료는 확인되지 않았어요") */
+const todayDecision = (today: string) => new RegExp(`${today}(?:의)?[^.!?,]{0,10}?결정`);
+
+function isNewerTalk(sentence: string, today: string): boolean {
   const s = sentence.trim();
-  if (!DECISION_WORD.test(s)) return false;
-  if (NEWER_HINT.test(s) && MISSING.test(s)) return true;
-  return SCOPE_ONLY.test(s) && !/\d/.test(s.replace(DATE, ""));
+  if (/\d/.test(s.replace(DATE, "")) || MIXED.test(s) || OUTCOME.test(s)) return false;
+  return ((NEWER_DECISION.test(s) || todayDecision(today).test(s)) && MISSING.test(s)) || SCOPE_ONLY.test(s);
 }
 
 const sentencesOf = (text: string) => text.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
 
 /**
- * 통화정책방향으로 답했으면, 더 최근 결정이 있을지 모른다는 문장과 결정일만 되짚는 문장을 요약 · 주의점 · 확인하지 못한 것에서 뺍니다 (11/25 운영 · 로컬:
+ * 이번 실행이 받은 한국은행 보도자료로 가장 최근 결정을 확인했으면(muffin.ts 가 newestId 가 있을 때만 부름), 더 최근 결정이 있을지 모른다는 문장과 결정일만 되짚는 문장을 요약 · 주의점 · 확인하지 못한 것에서 뺍니다 (11/25 운영 · 로컬:
  * 작성 메모로 막아도 "다만 2026-11-25 현재 가장 최근의 금리 결정 여부와 그 이유는 확인하지 못했어요" 가 요약 끝이나 주의점 · 확인하지 못한 것으로 옮겨 남음).
- * 이번 실행에서 한국은행 보도자료를 받았으니 더 최근 결정이 있었다면 그 문서가 잡혔습니다. 요약이 그 문장뿐이면 그대로 둡니다
+ * 더 최근 결정이 있었다면 그 조회에 잡혔습니다. 요약이 그 문장뿐이면 그대로 둡니다
  */
-export function dropNewerDecisionTalk<T extends Pick<WriterOutput, "summary" | "caveats" | "dataGaps">>(output: T): T {
+export function dropNewerDecisionTalk<T extends Pick<WriterOutput, "summary" | "caveats" | "dataGaps">>(output: T, today = todayKst()): T {
+  const newerTalk = (x: string) => isNewerTalk(x, today);
   const sentences = sentencesOf(output.summary);
   const kept = sentences.filter((x) => !newerTalk(x));
   const summary = kept.length > 0 && kept.length < sentences.length ? kept.join(" ") : output.summary;
