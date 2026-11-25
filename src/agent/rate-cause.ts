@@ -120,10 +120,10 @@ export async function ensureRateStatement(ctx: ResearchContext, question: string
   let newestId: string | null = null;
   const news = tools.find((t) => t.name === areaTools.news);
   if (news) {
-    const recent = await invokeNews(ctx, news, { sources: ["bok"], query: "통화정책방향", limit: 1, content: "list" });
+    const recent = await invokeNews(ctx, news, { sources: ["bok"], query: "통화정책방향", limit: 1, content: "list", period: null });
     if (recent.fresh) newestId = newestStatement(recent.added)?.id ?? null;
     if (!pickStatement(ctx.evidence, ctx.raw, question)) {
-      await invokeNews(ctx, news, { sources: ["bok"], query: "통화정책방향", limit: askedMonth(question) ? 4 : 2, content: "body" });
+      await invokeNews(ctx, news, { sources: ["bok"], query: "통화정책방향", limit: askedMonth(question) ? 4 : 2, content: "body", period: null });
     }
   }
   const picked = pickStatement(ctx.evidence, ctx.raw, question);

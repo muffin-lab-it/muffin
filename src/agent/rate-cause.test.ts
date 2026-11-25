@@ -58,13 +58,13 @@ describe("한국 기준금리 원인 질문의 통화정책방향 (11/24)", () =
     const got = await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", news.tools);
     expect(got).toEqual({ id: "E9-2", newestId: "E9-1" });
     expect(news.inputs()).toEqual([
-      { sources: ["bok"], query: "통화정책방향", limit: 1, content: "list" },
-      { sources: ["bok"], query: "통화정책방향", limit: 2, content: "body" },
+      { sources: ["bok"], query: "통화정책방향", limit: 1, content: "list", period: null },
+      { sources: ["bok"], query: "통화정책방향", limit: 2, content: "body", period: null },
     ]);
     expect(explainsLatest(ctx.evidence, ctx.raw, got)).toBe(true);
     // 이미 맞는 문서가 있으면 가장 최근 결정 확인(목록 1건)만
     await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", news.tools);
-    expect(news.inputs().slice(2)).toEqual([{ sources: ["bok"], query: "통화정책방향", limit: 1, content: "list" }]);
+    expect(news.inputs().slice(2)).toEqual([{ sources: ["bok"], query: "통화정책방향", limit: 1, content: "list", period: null }]);
 
     const failed = new ResearchContext();
     await expect(ensureRateStatement(failed, "금리 왜 올렸어?", "cause", fakeNews(failed, { list: [], body: [] }, { fail: true }).tools)).resolves.toBeNull();

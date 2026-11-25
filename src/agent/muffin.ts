@@ -24,6 +24,7 @@ import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
 import { dropFetchTalk, dropRefIds, trimNegatives } from "./negatives";
+import { withEtfIntro } from "./etf-intro";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
@@ -58,7 +59,8 @@ export function isStockQuestion(question: string): boolean {
 /** 사거나 팔거나 투자할지를 묻는 낱말. 이 낱말이 없으면 판단 요청으로 보지 않습니다 */
 /** 원인을 묻는 말 (분류 지시문의 cause 기준, plan.ts) */
 export const CAUSE_WORDS = /왜|원인|이유|배경/;
-export const DECISION_WORDS = /사도|살까|사야|살\s*만|사는\s*게|팔까|팔아|팔면|매수|매도|투자|들어가도|넣어도|갈아타|환전해도|바꿔도|바꿀까|가입해도|해지/;
+/** 판단 요청 낱말. "뭘 사면 좋을까 · 사면 괜찮아" 처럼 무엇을 살지 묻는 꼴도 (11/25 QA-01 재확인: "앞으로 ETF는 뭘 사면 좋을까?" 를 분류는 판단 요청으로 봤는데 이 목록에 없어 현황으로 돌림) */
+export const DECISION_WORDS = /사도|살까|사야|살\s*만|사는\s*게|팔까|팔아|팔면|매수|매도|투자|들어가도|넣어도|갈아타|환전해도|바꿔도|바꿀까|가입해도|해지|(?:뭘|뭐를?|무엇을|어떤\s*(?:걸|거|것을?|[A-Za-z가-힣]+을|[A-Za-z가-힣]+를))\s*사(?:면|야)|사면\s*(?:좋|될|괜찮)/;
 
 /** 스트림 라우트의 마감(STREAM_TIMEOUT_MS 55초)과 같은 기본 예산. research() 를 부른 시각부터 셉니다. */
 export const TIME_BUDGET_MS = 55_000;
@@ -390,8 +392,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const negTrimmed = explainsLatest(ctx.evidence, ctx.raw, rateStatement) ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
-  // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds)
-  const finalOutput = dropRefIds({
+  // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds). Easy 요약이 ETF 이름을 설명 없이 쓰면 소개 한 문장을 넣습니다 (etf-intro.ts, QA-02)
+  const finalOutput = withEtfIntro(dropRefIds({
     ...trimmed,
     // 원인 질문의 평소 범위 답이 요약에 "평소 범위 안" 을 두 번 쓰면 뒤의 것을 줄입니다 (movement.ts dedupeNormalRange)
     ...(movement ? { summary: dedupeNormalRange(trimmed.summary) } : {}),
@@ -401,7 +403,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
     // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
-  });
+  }), ctx.evidence, depth);
 
   // 지역 행정 기사를 가리키는 차트 사건 점은 뺍니다. 근거 목록에서 빠진 기사를 점이 가리키지 않게 합니다 (#154 Codex 리뷰)
   const shownCharts = withoutEvents(charts, localNews);

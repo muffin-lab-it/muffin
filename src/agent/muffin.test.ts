@@ -22,7 +22,7 @@ import { indexFor } from "./index-quote";
 import { ensureOtherPairs } from "./supplement";
 import type { ResearchContext } from "./context";
 import type { MuffinEvent } from "./events";
-import { isStockQuestion, plainQuestion, research, hintAreaFor, modelFor } from "./muffin";
+import { DECISION_WORDS, isStockQuestion, plainQuestion, research, hintAreaFor, modelFor } from "./muffin";
 import { DECISION_NOTICE } from "./report";
 import type { Evidence, FactsOutput, PlanOutput, ResearchNotes, WriterOutput } from "./schema";
 
@@ -350,6 +350,18 @@ describe("research() 다섯 단계", () => {
     const loan = await research({ question: "금리 오르면 내 대출 이자 어떻게 돼?", depth: "easy", area: "rate" });
     expect(loan.plan).toMatchObject({ intent: "status", mode: "research" });
     expect(loan.report.notice ?? "").not.toContain("투자 판단");
+  });
+
+  it("'뭘 사면 좋을까' 처럼 무엇을 살지 묻는 판단 요청은 현황으로 돌리지 않는다 (11/25 QA-01 재확인)", async () => {
+    expect(DECISION_WORDS.test("환율이 이제 내려갔잖아 그럼 앞으로 ETF는 뭘 사면 좋을까?")).toBe(true);
+    expect(DECISION_WORDS.test("요즘 어떤 ETF를 사면 돼?")).toBe(true);
+    expect(DECISION_WORDS.test("달러 지금 사면 괜찮아?")).toBe(true);
+    expect(DECISION_WORDS.test("미국에서 물건 사면 원화가 얼마나 더 들어?")).toBe(false);
+    expect(DECISION_WORDS.test("어떤 물건을 사는 데 환율이 영향을 줘?")).toBe(false);
+    expect(DECISION_WORDS.test("금리 오르면 내 대출 이자 어떻게 돼?")).toBe(false);
+    mockRuns({ plan: { intent: "decision", tools: ["get_etf_kr_price"], reason: "뭘 살지" }, writer: [good] });
+    const pick = await research({ question: "환율이 이제 내려갔잖아 그럼 앞으로 ETF는 뭘 사면 좋을까?", depth: "easy", area: "etf" });
+    expect(pick.plan).toMatchObject({ intent: "decision", mode: "decision_facts" });
   });
 
   it("'왜' · 원인 · 이유 · 배경을 묻는데 분류가 현황 · 비교로 보내면 원인 질문으로 돌린다 (11/25 로컬)", async () => {

@@ -187,7 +187,48 @@ export function dropPickTalk(lines: string[]): string[] {
     .filter((l) => l.trim().length > 0);
 }
 
-export function trimNegatives(output: WriterOutput, intent: Intent | undefined): WriterOutput {
+/**
+ * 생활 영향 칸의 한계 문장("…만으로 알 수는 없어요", "…단정할 수 없어요")을 주의점으로 옮깁니다 (QA-03 · 11/21: 영향 카드가 주의 문구의 반복).
+ * 작성 지시문(write.ts "주의 문구나 '~만으로는 알 수 없어요' 를 impact 에 쓰지 않습니다")만으로는 11/22 운영에서 영향 274칸 중 17칸에 남았습니다.
+ * 관계 질문은 relation.ts 가 상관 · 인과 문장을 따로 모으고, 여기는 모든 질문의 한계 문장입니다.
+ *  - "A할 수 있지만, B만으로 알 수는 없어요" → 영향에는 "A할 수 있어요", 주의점에 "B만으로 알 수는 없어요" (앞 구절 어미를 바꿀 수 있을 때만)
+ *  - 한계뿐인 문장은 통째로 주의점으로 ("다만" 은 뗌). 칸이 비면 그 칸과 같은 자리의 제목을 함께 뺍니다 (impactTitles 는 impact 와 개수가 같아야 함)
+ * 조건부 영향("…달라질 수 있어요")은 한계 문장이 아니라 그대로 둡니다. 주의점에 같은 한계가 겹치면 뒤의 trimRepeats 가 줄입니다
+ */
+export function moveImpactLimits<T extends WriterOutput>(output: T): T {
+  const moved: string[] = [];
+  const items = output.impact.map((item) =>
+    item
+      .split(/(?<=[.!?])\s+/)
+      .filter((x) => x.trim())
+      .flatMap((sentence) => {
+        if (!NEGATIVE.test(sentence)) return [sentence];
+        const m = /^(.+?)(지만|으나),?\s+(.+)$/.exec(sentence.trim());
+        if (m && !NEGATIVE.test(m[1]!) && NEGATIVE.test(m[3]!)) {
+          const head = politeEnd(m[1]!);
+          if (head) {
+            moved.push(m[3]!.replace(/^다만\s*,?\s*/, ""));
+            return [head];
+          }
+        }
+        moved.push(sentence.trim().replace(/^다만\s*,?\s*/, ""));
+        return [];
+      })
+      .join(" "),
+  );
+  if (moved.length === 0) return output;
+  const keep = items.map((t, i) => (t.trim() ? i : -1)).filter((i) => i >= 0);
+  const titles = output.impactTitles;
+  return {
+    ...output,
+    impact: keep.map((i) => items[i]!),
+    ...(titles && titles.length === output.impact.length ? { impactTitles: keep.map((i) => titles[i]!) } : {}),
+    caveats: [...output.caveats, ...moved.filter((x, i) => moved.indexOf(x) === i && !output.caveats.includes(x))],
+  };
+}
+
+export function trimNegatives(input: WriterOutput, intent: Intent | undefined): WriterOutput {
+  const output = moveImpactLimits(input);
   const decision = (t: string) => (intent === "decision" ? dropDecisionDisclaimer(t) : t);
   const headline = output.headline ? plainWords(decision(dropInternalPhrases(trimHeadline(output.headline)))) : output.headline;
   const lead = dropLeadingLimit({ summary: output.summary, dataGaps: output.dataGaps });
@@ -196,8 +237,8 @@ export function trimNegatives(output: WriterOutput, intent: Intent | undefined):
   const caveats = tidy(dropPickTalk(output.caveats));
   const dataGaps = tidy(dropPickTalk(lead.dataGaps));
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
-  return headline === output.headline && summary === output.summary && same(caveats, output.caveats) && same(dataGaps, output.dataGaps)
-    ? output
+  return output === input && headline === output.headline && summary === output.summary && same(caveats, output.caveats) && same(dataGaps, output.dataGaps)
+    ? input
     : { ...output, headline, summary, caveats, dataGaps };
 }
 

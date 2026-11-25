@@ -43,6 +43,7 @@
 | `query` | 검색어 또는 `null`. Google News는 RSS 검색 질의로 사용하며 `null`이면 **경제**로 검색. 다른 피드는 받은 최신 기사 **제목만** 필터링 |
 | `limit` | `list`에서는 반환 목록 상한, `body`에서는 본문 확보 목표. 1~10, Agent 호출 시 필수. 보통 5건 권장 |
 | `content` | `list` 또는 `body`. `body`는 본문 추출을 시도하고, 0건이면 이미 받은 Google 목록을 제목 근거로 반환 |
+| `period` | 기간 또는 `null`: `7d` · `30d`(최근 7 · 30일), `this_week` · `last_week` · `this_month`(한국 달력, 월요일 시작). 값이 있으면 Google News 검색을 함께 쓰고(`when:Nd` · `after:` `before:`), 그 기간 밖 기사는 빼고, 날짜별로 돌아가며 덜 고른 언론사부터 고른다. `body` 면 고른 기사의 본문을 받아 보고 못 받은 기사는 제목으로 남긴다. Agent 호출 시 필수(기간 없으면 `null`), 코드 호출은 생략 가능 (11/25, QA 13 · #171 Codex 리뷰) |
 
 `data.articles[]`에는 `title`, `url`, `publisher`, `publishedAt`(ISO 8601), `source`(소스 ID), `body`가 있습니다. `list`에서는 `{status:"not_requested"}`, 본문 확보 시에는 `{status:"available",text}`, 제목 fallback은 `{status:"unavailable",reason:"original_url_unresolved",detail}`입니다. fallback에는 `text`가 없습니다. `source[]`는 실제 반환 기사와 같은 순서·개수의 `{ name, url, asOf }`입니다.
 
