@@ -1097,17 +1097,12 @@ describe("11/25 가독성: 같은 말 한 번만 · 나에게 · 평소 범위 �
     expect($(".report").text().split(report.summary)).toHaveLength(2);
   });
 
-  it("한입 요약의 '나에게' 줄은 생활 영향 제목을 모아 영향 칸으로 잇는다", () => {
-    const report = fixture();
-    report.impactTitles = ["대출 이자", "예금 이자", "채권 가격"].slice(0, report.impact.length);
-    const $ = render(report);
-    const line = $("[class*=heroForMe]");
-    expect(line.text()).toContain("나에게");
-    expect(line.text()).toContain(report.impactTitles.join(" · "));
-    const href = line.find("a").attr("href")!;
-    expect($(`[id="${decodeURIComponent(href.slice(1))}"]`).text()).toContain("내 생활에 미치는 영향");
-    report.impactTitles = [];
-    expect(render(report)("[class*=heroForMe]")).toHaveLength(0);
+  it("한입 요약은 '나에게' 줄 대신 아래로 이끄는 한 줄로 끝나고, 머핀 그림에 반짝이를 둔다 (11/25 사용자)", () => {
+    const $ = render(fixture());
+    expect($("[data-quick=summary]").text()).not.toContain("나에게");
+    expect($("[class*=heroNudge]").text()).toContain("자세한 내용은 아래에서 확인해 봐요");
+    expect($("[class*=heroArt] [class*=sparkle]")).toHaveLength(3);
+    expect($(".hero-more > summary").text()).toBe("요약 펼쳐 보기");
   });
 
   it("굵은 문장을 되풀이하는 설명은 빼고, 등급 설명 문장은 '근거 부족' 에만 남긴다", () => {
@@ -1141,5 +1136,50 @@ describe("11/25 가독성: 같은 말 한 번만 · 나에게 · 평소 범위 �
     expect(bar(1370)(".chart-range-verdict").text()).toBe("평소 범위보다 높아요");
     expect(bar(1300)(".chart-range-verdict").text()).toBe("평소 범위보다 낮아요");
     expect(bar(1343)(".chart-range-note").text()).toBe(band.label);
+  });
+});
+
+describe("11/25 리포트 끝 정리 (사용자: 아래쪽 가독성)", () => {
+  it("안내문은 '투자 권유' 문장 앞에서 두 줄로 나누되 글은 그대로다", async () => {
+    const { disclosureLines } = await import("./ReportView");
+    const text = "이 리포트는 생성형 AI 머핀이 여러 자료를 바탕으로 작성했으며, 내용에 오류나 누락이 있을 수 있어요. 출처와 기준일, 확인하지 못한 내용을 함께 살펴봐 주세요. 투자 권유가 아닌 참고용 정보이므로, 실제 투자 결정은 본인의 투자 목적과 위험 감수 수준을 충분히 고려해 신중하게 내려주세요.";
+    expect(disclosureLines(text)).toEqual([text.slice(0, text.indexOf("투자 권유")).trim(), text.slice(text.indexOf("투자 권유"))]);
+    expect(disclosureLines("예전 고지 한 줄")).toEqual(["예전 고지 한 줄"]);
+    const report = fixture();
+    report.disclosure = text;
+    const $ = render(report);
+    expect($(".report-disclosure > span")).toHaveLength(2);
+    expect($(".report-disclosure").text()).toBe(text);
+  });
+
+  it("검증 한 줄은 0개 항목을 빼고 권유 표현은 '없음' 으로 쓴다", async () => {
+    const { verificationLine } = await import("./ReportEvidence");
+    const v = { ...fixture().verification, advice: 0, numbers: { total: 1, verified: 1, derived: 0, reported: 0, unverified: 0 } };
+    expect(verificationLine(v)).toBe("숫자 1개 중 값 대조 1개 · 권유 표현 없음");
+    expect(verificationLine({ ...v, advice: 2, numbers: { total: 3, verified: 1, derived: 2, reported: 0, unverified: 0 } })).toBe("숫자 3개 중 값 대조 1개 · 계산값 2개 · 권유 표현 2건 정리");
+  });
+
+  it("주의점 칸은 개수 줄 없이 있는 것만 제목으로, 안쪽 제목은 둘 이상일 때만", () => {
+    const report = fixture();
+    report.caveats = ["환율은 일별 기준값이에요."];
+    report.dataGaps = [];
+    let $ = render(report);
+    expect($("details.reference-toggle > summary").text().trim()).toBe("i 주의점");
+    // 사용자 화면에서 숨기는 '검사 후 제외한 항목'(verification-only) 은 빼고 봅니다
+    const userHeadings = () => $("details.reference-toggle .verification-body h2").filter((_, el) => $(el).closest(".verification-only").length === 0);
+    expect(userHeadings()).toHaveLength(0);
+    report.dataGaps = ["미국 금리"];
+    $ = render(report);
+    expect($("details.reference-toggle > summary").text()).toContain("주의점 · 확인하지 못한 것");
+    expect(userHeadings().map((_, el) => $(el).text()).get()).toEqual(["주의점", "확인하지 못한 것"]);
+  });
+
+  it("작성일은 '(한국 시간)' · 초 없이, 이어서 알아볼까요 카드는 화살표만", () => {
+    const $ = load(renderToStaticMarkup(<ReportView report={fixture()} question="요즘 환율 왜 이래?" createdAt="2026-11-25T02:06:55Z" />));
+    const created = $(".report-created-at").text();
+    expect(created).not.toContain("한국 시간");
+    expect(created).not.toContain(":55");
+    expect(created).toContain("11:06");
+    expect($.text()).not.toContain("머핀랩과 더 알아보기");
   });
 });

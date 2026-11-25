@@ -339,6 +339,14 @@ export function VerificationDetail({ report }: { report: Report }) {
   );
 }
 
+/** 검증 한 줄: 0개인 항목은 빼고, 권유 표현은 '없음' 으로 (11/25 가독성: "계산값 0개 · 권유 표현 0건" 같은 0 이 줄을 채우던 것) */
+export function verificationLine(verification: Report["verification"]): string {
+  const n = verification.numbers;
+  const parts = [n.verified > 0 && `값 대조 ${n.verified}개`, n.derived > 0 && `계산값 ${n.derived}개`, (n.reported ?? 0) > 0 && `기사 보도 ${n.reported}개`, n.unverified > 0 && `미검증 ${n.unverified}개`].filter(Boolean);
+  const numbers = n.total > 0 ? `숫자 ${n.total}개 중 ${parts.join(" · ")}` : "확인할 숫자가 없는 리포트예요";
+  return `${numbers} · ${verification.advice > 0 ? `권유 표현 ${verification.advice}건 정리` : "권유 표현 없음"}`;
+}
+
 export function ReportVerification({ report, children }: { report: Report; children?: ReactNode }) {
   const verification = report.verification;
   const skipped = verification.status === "skipped";
@@ -347,7 +355,7 @@ export function ReportVerification({ report, children }: { report: Report; child
     <section className="report-verification" aria-label="리포트 검증 상태" data-quick="verify">
       {/* 기본은 접힌 한 줄. 펼쳐야 내역이 보입니다 (11/20 서영 2-2 · 3, 외부 E1, 하니 2). 인쇄 때는 PrintOpenDetails 가 잠시 펼칩니다 */}
       <PrintOpenDetails className="verification-toggle" label="리포트 상세 정보" summary={<>
-          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : `숫자 ${verification.numbers.total}개 중 값 대조 ${verification.numbers.verified}개 · 계산값 ${verification.numbers.derived}개 · 권유 표현 ${verification.advice}건`}</span></span>
+          <span className="verification-summary-copy"><strong><span className="verification-icon" aria-hidden="true">✓</span> 검증이 한 일<span className={`report-badge status-${verification.status}`}>{labels[verification.status]}</span></strong><span>{skipped ? "검사를 실행하지 않은 리포트예요" : verificationLine(verification)}</span></span>
           <span className="verification-summary-action"><span className="verification-toggle-label">자세히 보기</span><span className="verification-chevron" aria-hidden="true">⌄</span></span>
         </>}>
         <div className="verification-body">
