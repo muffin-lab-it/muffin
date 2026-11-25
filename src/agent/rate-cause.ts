@@ -186,7 +186,8 @@ function newestStatement(evidence: Evidence[]): Evidence | undefined {
  * 확인 못 함 · 자료 없음으로 끝나는 것 ("2026-11-25 시점의 더 최근 금통위 결정문이나 추가 설명은 확인되지 않아 …", "2026-11-25 기준 추가 인상 여부와 그 이유는
  * 확인되지 않았어요", "인상 이후의 추가 설명이나 후속 배경은 확인되지 않았어요", 11/25 로컬). 결정의 영향 · 전망 · 다음 결정 이야기
  * ("오늘 금통위 결정이 향후 물가에 미칠 영향은 확인할 수 없어요"), 확인된 내용이 함께 든 문장(날짜 밖의 숫자, "…지만"), 한국은행 기준금리가 아닌 대상
- * ("최근 미국의 금리 인하 이유는 확인되지 않았어요", "최근 대출 금리 인상 이유는 …")은 남깁니다 (#167 · #169 Codex 리뷰)
+ * ("최근 미국의 금리 인하 이유는 확인되지 않았어요", "최근 대출 금리 인상 이유는 …"), 결정 뒤의 경제 흐름("최근 금리 인상 이후 소비 위축 이유는 …")은
+ * 남깁니다. 정리하는 것은 결정 자체(더 최근 결정이 있었는지, 그 설명)를 모른다는 문장뿐입니다 (#167 · #169 Codex 리뷰)
  */
 const HINT = String.raw`(?:최근|최신|새로운?|새\s|당일|이후|그\s*뒤|추가|후속)`;
 const TOPIC = String.raw`(?:결정|금통위|통화정책방향|인상|인하|동결)`;
@@ -196,6 +197,8 @@ const MISSING = new RegExp(`${NEGATIVE.source}|확보하지\\s*못|자료(?:가|
 const MIXED = /지만|으나|는데|했고|됐고|였고/;
 /** 한국은행 기준금리 결정이 아닌 대상 (다른 나라 중앙은행 · 예적금 · 대출 · 시장금리). 이 한계는 한국은행 문서로 풀리지 않아 남깁니다 (#169 Codex 리뷰) */
 const OTHER_SUBJECT = /미국|연준|\bFed\b|FOMC|일본|일본은행|\bBOJ\b|유럽|\bECB\b|영국|중국|해외|주요국|다른\s*나라|예금|적금|대출|주담대|시장\s*금리|국채|채권|회사채/i;
+/** 결정 뒤의 경제 흐름 (소비 · 물가 · 성장 · 환율 · 고용 · 주택 · 가계부채 · 수출 등). 한국은행 문서로 풀리지 않는 한계라 남깁니다 (#169 Codex 리뷰) */
+const ECONOMY = /소비|물가|성장|경기|환율|고용|실업|일자리|집값|주택|부동산|가계|부채|수출|수입|투자|증시|주가|코스피|코스닥|소득|임금|생산|내수/;
 /** 결정일만 되짚는 문장 ("이 설명은 2026-10-22 결정문에 담겼어요", "동결 사유는 한국은행의 2026-10-22 결정 설명에 해당해요", "확인된 보도자료는 2026-10-22 결정분이에요") */
 const SCOPE_ONLY = /결정[^.!?]{0,20}?\s*(?:해당해요|해당합니다|담겼어요|담긴\s*설명이에요|관한\s*내용이에요|대한\s*설명이에요|분이에요|분입니다)[.!?]?$/;
 const DATE = /\d{4}-\d{2}-\d{2}/g;
@@ -204,7 +207,7 @@ const DATE_SCOPE = /\d{4}-\d{2}-\d{2}\s*(?:시점|기준|현재)?(?:의|으로|�
 
 function isNewerTalk(sentence: string, today: string): boolean {
   const s = sentence.trim();
-  if (/\d/.test(s.replace(DATE, "")) || MIXED.test(s) || OTHER_SUBJECT.test(s) || OUTCOME.test(s.replace(DATE_SCOPE, ""))) return false;
+  if (/\d/.test(s.replace(DATE, "")) || MIXED.test(s) || OTHER_SUBJECT.test(s) || ECONOMY.test(s) || OUTCOME.test(s.replace(DATE_SCOPE, ""))) return false;
   if (SCOPE_ONLY.test(s)) return true;
   return MISSING.test(s) && (NEAR.test(s) || new RegExp(`${today}[^.!?]{0,25}?${TOPIC}`).test(s));
 }
