@@ -232,7 +232,9 @@ export function trimNegatives(input: WriterOutput, intent: Intent | undefined): 
   const decision = (t: string) => (intent === "decision" ? dropDecisionDisclaimer(t) : t);
   const headline = output.headline ? plainWords(decision(dropInternalPhrases(trimHeadline(output.headline)))) : output.headline;
   const lead = dropLeadingLimit({ summary: output.summary, dataGaps: output.dataGaps });
-  const summary = splitEmyeo(plainWords(decision(dropInternalPhrases(dropUnaskedCause(lead.summary, intent, output.why.length > 0)))));
+  // "~이며" 로 이은 문장은 나눈 뒤 다시 봅니다. "…수치이며, 이 수치만으로 원인을 알 수는 없어요" 는 확인된 내용이 섞여 남겼다가, 나누면 한계만 남은 문장이 됩니다 (11/25 운영 실업률 mwvlczkg-oqd7uu)
+  const hasWhy = output.why.length > 0;
+  const summary = dropUnaskedCause(splitEmyeo(plainWords(decision(dropInternalPhrases(dropUnaskedCause(lead.summary, intent, hasWhy))))), intent, hasWhy);
   const tidy = (lines: string[]) => lines.map((l) => splitEmyeo(plainWords(l)));
   const caveats = tidy(dropPickTalk(output.caveats));
   const dataGaps = tidy(dropPickTalk(lead.dataGaps));
