@@ -5,6 +5,7 @@
  * "기준금리 동결" 로 골라 한국은행 문서("기준금리를 … 유지")가 걸리지 않고 Google 제목만 받아 "왜 동결됐는지는 확인된 자료만으로 설명하기 어려워요" 로 시작했습니다.
  * 금리 결정의 이유는 금융통화위원회 통화정책방향에 본문으로 있으니, 한국 기준금리 원인 질문이면 코드가 뉴스 tool 로 그 문서를 받습니다.
  * 장부에는 기사 제목만 오르므로(본문은 tool 의 전체 응답에만 있음) 본문 앞부분을 작성에 [한국은행 통화정책방향] 으로 알려 줍니다.
+ * 고르는 문서는 질문이 말한 결정(올림 · 내림 · 동결)과 때에 맞는 것만입니다 ("8월에 왜 올렸어?" 에 10월 동결 문서의 이유를 쓰지 않게, #165 Codex 리뷰).
  */
 import { RunContext } from "@openai/agents";
 import type { ResearchContext } from "./context";
@@ -26,37 +27,99 @@ export function isKoreanRateCause(question: string, intent: Intent | undefined):
 
 const isStatement = (e: Evidence) => e.tool === areaTools.news && e.values.publisher === "한국은행" && STATEMENT.test(String(e.values.title ?? ""));
 
-/** 가장 최근 통화정책방향 장부 항목 */
-export function latestStatement(evidence: Evidence[]): Evidence | undefined {
-  return evidence.filter(isStatement).sort((a, b) => String(b.values.publishedAt).localeCompare(String(a.values.publishedAt)))[0];
+export type Decision = "인상" | "인하" | "동결";
+const DECISION_WORDS: [Decision, RegExp][] = [
+  ["인상", /올렸|올린|올려|올리|올랐|인상|상향/],
+  ["인하", /내렸|내린|내려|내리|낮췄|낮춘|인하|하향/],
+  ["동결", /동결|유지|묶|멈췄|멈춘/],
+];
+
+/** 질문이 묻는 결정 (말이 하나만 있을 때만. "올리지 않고 동결" 처럼 섞이면 null) */
+export function askedDecision(question: string): Decision | null {
+  const text = question.replace(/결정을?\s*내[렸린려리]/g, "");
+  const found = DECISION_WORDS.filter(([, re]) => re.test(text)).map(([d]) => d);
+  return found.length === 1 ? found[0]! : null;
 }
 
-/** 통화정책방향이 장부에 없으면 뉴스 tool 로 받습니다 (한국은행 보도자료 · 본문). 받은(또는 있던) 항목 id, 대상이 아니거나 못 받으면 null. 실패해도 던지지 않습니다 */
-export async function ensureRateStatement(ctx: ResearchContext, question: string, intent: Intent | undefined, tools: readonly InvokableTool[]): Promise<string | null> {
-  if (!isKoreanRateCause(question, intent)) return null;
-  if (!latestStatement(ctx.evidence)) {
-    const news = tools.find((t) => t.name === areaTools.news);
-    if (!news) return null;
-    await news.invoke(new RunContext(ctx), JSON.stringify({ sources: ["bok"], query: "통화정책방향", limit: 2, content: "body" })).catch(() => undefined);
-  }
-  return latestStatement(ctx.evidence)?.id ?? null;
+/** 질문이 묻는 때 ("2026년 8월", "8월") */
+export function askedMonth(question: string): { year?: number; month?: number } | null {
+  const year = /(20\d{2})\s*년/.exec(question)?.[1];
+  const month = /(?<!\d)(1[0-2]|0?[1-9])\s*월/.exec(question)?.[1];
+  if (!year && !month) return null;
+  return { ...(year ? { year: Number(year) } : {}), ...(month ? { month: Number(month) } : {}) };
+}
+
+/** 문서 첫 문장의 결정 ("… 3.00% 수준에서 유지하여", "… 3.00%로 상향 조정하여") */
+export function statementDecision(body: string): Decision | null {
+  const end = body.indexOf("하였다");
+  const first = body.slice(0, end > 0 ? end : 300);
+  if (/상향\s*조정|인상하/.test(first)) return "인상";
+  if (/하향\s*조정|인하하/.test(first)) return "인하";
+  if (/유지/.test(first)) return "동결";
+  return null;
+}
+
+/** 결정일 (제목 "통화정책방향(2026.8.27)", 없으면 게시 시각의 한국 날짜) YYYY-MM-DD */
+function statementDate(e: Evidence): string {
+  const m = /\((\d{4})\.(\d{1,2})\.(\d{1,2})\)/.exec(String(e.values.title ?? ""));
+  if (m) return `${m[1]}-${m[2]!.padStart(2, "0")}-${m[3]!.padStart(2, "0")}`;
+  const time = Date.parse(String(e.values.publishedAt ?? ""));
+  return Number.isNaN(time) ? "" : new Date(time + 9 * 3_600_000).toISOString().slice(0, 10);
 }
 
 /** 그 항목의 본문 (tool 의 전체 응답에서 같은 주소의 기사) */
 function bodyOf(e: Evidence, raw: unknown): string {
   const articles = (raw as { articles?: { url?: string; body?: { status?: string; text?: string } }[] } | undefined)?.articles ?? [];
   const article = articles.find((a) => a.url === e.source.url);
-  return article?.body?.status === "available" ? String(article.body.text ?? "") : "";
+  return article?.body?.status === "available" ? String(article.body.text ?? "").replace(/\s+/g, " ").trim() : "";
 }
+
+/**
+ * 질문에 맞는 통화정책방향: 본문이 있는 것 중 질문이 말한 결정(올림 · 내림 · 동결)과 때(연 · 월)가 맞는 가장 최근 문서 (#165 Codex 리뷰).
+ * 제목만 받은 항목(content "list")은 고르지 않습니다. 맞는 문서가 없으면 undefined (작성에 다른 결정의 이유를 강제하지 않음)
+ */
+export function pickStatement(evidence: Evidence[], raw: ReadonlyMap<string, unknown>, question: string): Evidence | undefined {
+  const decision = askedDecision(question);
+  const when = askedMonth(question);
+  return evidence
+    .filter(isStatement)
+    .map((e) => ({ e, body: bodyOf(e, raw.get(e.id)), date: statementDate(e) }))
+    .filter(({ body, date }) => {
+      if (!body) return false;
+      if (decision && statementDecision(body) !== decision) return false;
+      if (when?.year && !date.startsWith(String(when.year))) return false;
+      if (when?.month && Number(date.slice(5, 7)) !== when.month) return false;
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date) || String(b.e.values.publishedAt).localeCompare(String(a.e.values.publishedAt)))[0]?.e;
+}
+
+/**
+ * 질문에 맞는 통화정책방향(본문 있는 것)이 장부에 없으면 뉴스 tool 로 받습니다 (한국은행 보도자료 · 본문). 고른 항목 id, 대상이 아니거나 맞는 문서가 없으면 null.
+ * 때를 물으면 지난 문서까지 닿도록 4건, 아니면 2건. 실패해도 던지지 않습니다
+ */
+export async function ensureRateStatement(ctx: ResearchContext, question: string, intent: Intent | undefined, tools: readonly InvokableTool[]): Promise<string | null> {
+  if (!isKoreanRateCause(question, intent)) return null;
+  if (!pickStatement(ctx.evidence, ctx.raw, question)) {
+    const news = tools.find((t) => t.name === areaTools.news);
+    if (!news) return null;
+    const limit = askedMonth(question) ? 4 : 2;
+    await news.invoke(new RunContext(ctx), JSON.stringify({ sources: ["bok"], query: "통화정책방향", limit, content: "body" })).catch(() => undefined);
+  }
+  return pickStatement(ctx.evidence, ctx.raw, question)?.id ?? null;
+}
+
+const DECISION_TEXT: Record<Decision, string> = { 인상: "기준금리 인상", 인하: "기준금리 인하", 동결: "기준금리 유지(동결)" };
 
 /** 작성 입력에 붙이는 [한국은행 통화정책방향]. 본문이 없으면 빈 문자열 */
 export function rateStatementNote(evidence: Evidence[], id: string | null, raw: ReadonlyMap<string, unknown>): string {
   const e = id ? evidence.find((x) => x.id === id) : undefined;
   if (!e) return "";
-  const body = bodyOf(e, raw.get(e.id)).replace(/\s+/g, " ").trim();
+  const body = bodyOf(e, raw.get(e.id));
   if (!body) return "";
+  const decision = statementDecision(body);
   return [
-    `[한국은행 통화정책방향] 금융통화위원회의 기준금리 결정 이유가 담긴 한국은행 문서입니다: ${e.values.title} (ref ${e.id}, ${String(e.values.publishedAt).slice(0, 10)})`,
+    `[한국은행 통화정책방향] 금융통화위원회의 기준금리 결정 이유가 담긴 한국은행 문서입니다: ${e.values.title} (ref ${e.id}, ${statementDate(e)}${decision ? `, 결정: ${DECISION_TEXT[decision]}` : ""})`,
     `본문 앞부분: "${body.slice(0, NOTE_CHARS)}${body.length > NOTE_CHARS ? " …" : ""}"`,
     `기준금리를 왜 올리거나 내리거나 유지했는지는 이 문서의 설명으로 답합니다. 요약 첫 문장에 결정과 그 이유를 쓰고, why 에는 basis "news" 로 "한국은행은 … 라고 설명했어요" 처럼 이 문서가 든 이유를 씁니다 (ref ${e.id}).`,
     `이 문서에 없는 이유를 덧붙이지 않습니다. 본문의 숫자는 장부에 있는 값과 같을 때만 씁니다. 문서의 날짜(결정일)를 함께 밝힙니다.`,
