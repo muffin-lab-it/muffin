@@ -321,6 +321,9 @@ function fromServer(raw: ReportRecord): ReportRecord | null {
   return Number.isNaN(at) ? null : { ...record, createdAt: new Date(at).toISOString() };
 }
 
+/** 이 탭에서 서버로 올리는 중인 기록 id. 끝나기 전에는 서버 목록에 없어도 지운 표시를 잊지 않습니다 (Codex 리뷰) */
+const uploading = new Set<string>();
+
 /**
  * 기록 하나를 서버에 올립니다. 서버가 받지 않는 기록(400 · 409 · 413)은 건너뛴 것으로 기억하고,
  * 잠깐의 실패(429 · 네트워크 · 서버 오류)는 "later" 로 돌려 다음에 다시 올립니다.
@@ -330,6 +333,7 @@ async function pushRecord(record: ReportRecord): Promise<"saved" | "skipped" | "
     addId(SKIPPED_KEY, record.id);
     return "skipped";
   }
+  uploading.add(record.id);
   try {
     await saveHistory(record, timeout(10_000));
     // 올리는 사이 지웠으면 바로 서버에서도 지웁니다 (지우기가 저장보다 먼저 닿아 404 였던 경우, Codex 리뷰)
@@ -342,6 +346,8 @@ async function pushRecord(record: ReportRecord): Promise<"saved" | "skipped" | "
       return "skipped";
     }
     return "later";
+  } finally {
+    uploading.delete(record.id);
   }
 }
 
@@ -358,8 +364,8 @@ function syncLater(local: ReportRecord[], remote: ReportRecord[]) {
     const now = Date.now();
     for (const [id, deletedAt] of readDeleted()) {
       if (!onServer.has(id)) {
-        // 서버 목록에 없어도 지운 직후에는 늦게 닿는 저장이 있을 수 있어 DELETE_SETTLE_MS 동안은 더 기억합니다
-        if (now - deletedAt > DELETE_SETTLE_MS) unmarkDeleted(id);
+        // 서버 목록에 없어도 지운 직후나 이 탭이 아직 올리는 중이면 늦게 닿는 저장이 있을 수 있어 더 기억합니다
+        if (now - deletedAt > DELETE_SETTLE_MS && !uploading.has(id)) unmarkDeleted(id);
         continue;
       }
       try {
@@ -372,7 +378,7 @@ function syncLater(local: ReportRecord[], remote: ReportRecord[]) {
     const oldestKept = remote.length >= MAX ? remote[remote.length - 1]?.createdAt : undefined;
     const skipped = readIds(SKIPPED_KEY);
     const pending = local
-      .filter((record) => !onServer.has(record.id) && !skipped.has(record.id) && (!oldestKept || record.createdAt > oldestKept))
+      .filter((record) => !onServer.has(record.id) && !skipped.has(record.id) && !uploading.has(record.id) && (!oldestKept || record.createdAt > oldestKept))
       .slice(0, SYNC_BATCH);
     for (const record of pending) {
       if (!serverReady()) return;
@@ -420,7 +426,9 @@ export async function saveReport(input: ReportRecord["input"], report: Report, s
 
 /** 최신순. 서버 목록과 브라우저 기록을 합칩니다 (같은 기록은 브라우저 것). 서버가 안 되면 브라우저 기록만 */
 export async function listReports(): Promise<ReportRecord[]> {
-  const local = readAll();
+  // 지운 표시가 있는 브라우저 사본은 다른 탭과 엇갈려 다시 들어간 것이라 빼고 봅니다
+  const deleted = readDeleted();
+  const local = readAll().filter((record) => !deleted.has(record.id));
   if (!serverReady()) return local;
   let remote: ReportRecord[];
   try {
@@ -430,7 +438,6 @@ export async function listReports(): Promise<ReportRecord[]> {
     return local;
   }
   syncLater(local, remote);
-  const deleted = readDeleted();
   const byId = new Map<string, ReportRecord>();
   for (const record of remote) if (!deleted.has(record.id)) byId.set(record.id, record);
   for (const record of local) byId.set(record.id, record);
@@ -442,12 +449,16 @@ export async function listReports(): Promise<ReportRecord[]> {
  * 서버에 닿지 못하면(네트워크 · 서버 오류) throw 해서 화면이 "없음" 대신 "불러오지 못했어요" 를 보이게 합니다.
  */
 export async function getReport(id: string): Promise<ReportRecord | null> {
+  // 지운 표시가 있으면 브라우저에 사본이 남아 있어도 지운 것으로 봅니다
+  if (readDeleted().has(id)) return null;
   const own = readLocal(id);
   if (own) return own;
-  if (!serverReady() || readDeleted().has(id)) return null;
+  if (!serverReady()) return null;
   try {
     const found = await getHistory(id, timeout(8_000));
-    const record = found ? fromServer(found) : null;
+    // 기다리는 사이 다른 탭에서 지웠으면 버립니다 (브라우저에 넣으면 지운 기록이 되살아남, Codex 리뷰)
+    if (!found || readDeleted().has(id)) return null;
+    const record = fromServer(found);
     if (record && writeRecord(record)) trim();
     return record;
   } catch (error) {

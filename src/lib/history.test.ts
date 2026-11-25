@@ -286,7 +286,7 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
     const calls: { method: string; path: string; id?: string }[] = [];
     let fail: Fail | undefined;
     let down = off;
-    let gate: Promise<void> | undefined; // 붙잡아 둔 저장(POST)은 풀 때까지 늦게 닿습니다
+    let gate: { open: Promise<void>; match: (method: string, path: string) => boolean } | undefined; // 붙잡아 둔 요청은 풀 때까지 늦게 닿습니다
     const out = (row: ServerRow): ReportRecord => ({ id: row.id, createdAt: row.createdAt.replace("Z", "+00:00"), input: row.input, report: row.report, steps: row.steps });
     const fetchMock = vi.fn(async (path: string, init: RequestInit = {}) => {
       const method = init.method ?? "GET";
@@ -295,7 +295,7 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
       const injected = fail?.(method, path, body);
       if (injected) return injected;
       if (down) return json({ error: "저장소 설정을 확인해 주세요.", id: "x" }, 503);
-      if (method === "POST" && gate) await gate;
+      if (gate?.match(method, path)) await gate.open;
       const client = new Headers(init.headers).get("X-Muffin-Client") ?? "";
       const one = /^\/api\/history\/([^?]+)$/.exec(path);
       if (method === "GET" && path.startsWith("/api/history?")) {
@@ -322,9 +322,9 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
       rows, calls, fetchMock,
       failWith(next?: Fail) { fail = next; },
       setOff(next: boolean) { down = next; },
-      holdPosts() {
+      hold(match: (method: string, path: string) => boolean) {
         let release = () => {};
-        gate = new Promise<void>((resolve) => { release = () => { gate = undefined; resolve(); }; });
+        gate = { match, open: new Promise<void>((resolve) => { release = () => { gate = undefined; resolve(); }; }) };
         return release;
       },
     };
@@ -413,7 +413,7 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
   });
 
   it("올리는 중에 지우면(지우기가 먼저 닿아 404) 저장이 늦게 닿아도 바로 서버에서 지운다 (Codex 리뷰)", async () => {
-    const release = server.holdPosts();
+    const release = server.hold((method) => method === "POST");
     await history.saveReport({ question: "올리는 중", depth: "easy" }, report, [], "req-4");
     await history.deleteReport("req-4");
     expect(server.rows.has("req-4")).toBe(false);
@@ -507,5 +507,40 @@ describe("서버 저장 (History API, 11/24 화면 연결)", () => {
     await expect(history.getReport("unknown")).rejects.toThrow("fetch failed");
     putLocal(record("mine", "2026-11-06T00:00:00.000Z"));
     expect((await history.listReports()).map((r) => r.id)).toEqual(["mine"]);
+  });
+
+  it("올리는 중인 기록은 2분이 지나도 지운 표시를 잊지 않고, 끝난 뒤에 잊는다 (Codex 리뷰)", async () => {
+    const release = server.hold((method) => method === "POST");
+    await history.saveReport({ question: "느린 저장", depth: "easy" }, report, [], "req-5");
+    await history.deleteReport("req-5");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3 * 60 * 1000);
+    await history.listReports();
+    await history.waitForHistorySync();
+    expect(store.getItem("muffin.history.deleted")).toContain("req-5");
+    release();
+    await vi.waitFor(() => expect(server.calls.filter((call) => call.method === "DELETE" && call.path.endsWith("/req-5"))).toHaveLength(2));
+    await history.listReports();
+    await history.waitForHistorySync();
+    clock.mockRestore();
+    expect(server.rows.has("req-5")).toBe(false);
+    expect(store.getItem("muffin.history.deleted")).toBeNull();
+  });
+
+  it("다른 탭에서 지우는 사이 서버에서 받아 온 기록은 브라우저에 넣지 않고 버린다 (Codex 리뷰)", async () => {
+    putServer(record("opening-1", "2026-11-22T00:00:00.000Z"));
+    const release = server.hold((method, path) => method === "GET" && path === "/api/history/opening-1");
+    const opening = history.getReport("opening-1");
+    store.setItem("muffin.history.deleted", JSON.stringify({ "opening-1": Date.now() })); // 다른 탭이 지움
+    release();
+    expect(await opening).toBeNull();
+    expect(store.getItem("muffin.history.v1:opening-1")).toBeNull();
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("opening-1");
+  });
+
+  it("지운 표시가 있으면 브라우저에 남은 사본도 지운 것으로 본다", async () => {
+    putLocal(record("stale-1", "2026-11-23T00:00:00.000Z"));
+    store.setItem("muffin.history.deleted", JSON.stringify({ "stale-1": Date.now() }));
+    expect(await history.getReport("stale-1")).toBeNull();
+    expect((await history.listReports()).map((r) => r.id)).not.toContain("stale-1");
   });
 });
