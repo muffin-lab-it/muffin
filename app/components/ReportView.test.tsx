@@ -1156,7 +1156,7 @@ describe("11/25 리포트 끝 정리 (사용자: 아래쪽 가독성)", () => {
     const { verificationLine } = await import("./ReportEvidence");
     const v = { ...fixture().verification, advice: 0, numbers: { total: 1, verified: 1, derived: 0, reported: 0, unverified: 0 } };
     expect(verificationLine(v)).toBe("숫자 1개 중 값 대조 1개 · 권유 표현 없음");
-    expect(verificationLine({ ...v, advice: 2, numbers: { total: 3, verified: 1, derived: 2, reported: 0, unverified: 0 } })).toBe("숫자 3개 중 값 대조 1개 · 계산값 2개 · 권유 표현 2건 정리");
+    expect(verificationLine({ ...v, advice: 2, numbers: { total: 3, verified: 1, derived: 2, reported: 0, unverified: 0 } })).toBe("숫자 3개 중 값 대조 1개 · 계산값 2개 · 권유 표현 2건 감지");
   });
 
   it("주의점 칸은 개수 줄 없이 있는 것만 제목으로, 안쪽 제목은 둘 이상일 때만", () => {
