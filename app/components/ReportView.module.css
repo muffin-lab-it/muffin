@@ -835,7 +835,7 @@
 .report :global(.reference-toggle .reference-items) li + li { margin-top:12px; }
 .report :global(.reference-tag) { display:inline-block; margin-right:6px; padding:1px 7px; border-radius:6px; background:#fdf1e7; color:#9a5b1f; font-size:12px; font-weight:700; vertical-align:1px; }
 /* 이어서 물어볼 길은 추천 띠 안 마지막 줄 */
-.report .nextTopics :global(.report-continue) { margin:8px 0 0; padding:0 0 22px; border:0; }
+.report .nextTopics :global(.report-continue) { margin:16px 0 0; padding:0 0 22px; border:0; }
 /* 한입 요약 머핀은 상자 세로 가운데 (글이 길면 아래로 처지던 것). 휴대폰은 오른쪽 위 그대로 */
 @container report (min-width: 561px) { .report .heroArt { top:0; bottom:0; margin:auto 0; } }
 @container report (max-width: 560px) { .report :global(.source-fold) > summary :global(.fold-hint), .report :global(.verification-summary-copy > span) { padding-left:40px; } .report :global(.reference-toggle .verification-body) { padding-left:4px; } }
@@ -855,4 +855,21 @@
 @container report (max-width: 560px) {
   .report :global(.why-list) { gap:24px; }
   .report :global(.chart-svg) { padding-inline:12px; }
+}
+
+/* 11/25 사용자: '이어서 알아볼까요?' 가독성. 띠 위에 선만 그은 줄 대신 흰 카드,
+   질문은 영향 카드 제목과 같은 진한 보라 16px · 설명 15px 회색, 화살표는 오른쪽 동그라미 */
+.report .nextTopics :global(.report-fold)[open] { padding-bottom:4px; }
+.report .nextTopics .topicGrid { gap:12px; }
+.report .nextTopics .topicLink { gap:16px; align-items:center; padding:18px 18px 18px 20px; border:1px solid #e4d9f0; border-radius:14px; background:#fff; }
+.report .nextTopics .topicLink:hover { background:#fff; border-color:#b89ad9; box-shadow:0 6px 18px rgba(101,66,143,.12); }
+.report .nextTopics .topicLink:focus-visible { outline:3px solid #8b5cf6; outline-offset:2px; }
+.report .nextTopics .topicLink strong { display:block; color:#49345e; font-size:16px; line-height:1.55; }
+.report .nextTopics .topicLink small { margin-top:6px; color:#5f5869; font-size:15px; line-height:1.6; }
+.report .nextTopics .topicLink :global(.topic-action) { display:grid; place-items:center; flex:none; width:36px; height:36px; margin:0; border-radius:50%; background:#f1eaf8; color:#7c4dcc; font-size:18px; }
+.report .nextTopics .topicLink:hover :global(.topic-action) { background:#e6d9f5; }
+/* '더 궁금한 점이…' 는 PC 에서 흰 둥근 버튼. 휴대폰은 버튼이면 두 줄로 꺾여 가운데 글 링크 그대로 */
+@container report (min-width: 561px) {
+  .report .nextTopics :global(.report-continue) a { display:inline-flex; align-items:center; padding:10px 18px; border:1px solid #d9c9ec; border-radius:999px; background:#fff; }
+  .report .nextTopics :global(.report-continue) a:hover { border-color:#b89ad9; text-decoration:none; }
 }
