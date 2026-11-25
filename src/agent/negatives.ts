@@ -200,3 +200,46 @@ export function trimNegatives(output: WriterOutput, intent: Intent | undefined):
     ? output
     : { ...output, headline, summary, caveats, dataGaps };
 }
+
+/**
+ * 사용자에게 보이는 글에 남은 장부 번호를 뗍니다 ("…점검하겠다고 밝혔어요. (E2-1)", "(ref E9-1, 2026-10-22)" → "(2026-10-22)", 11/25 로컬).
+ * 작성은 근거를 refs 칸에 적는데, 지시문의 "(ref E…)" 모양을 글에 그대로 옮기는 일이 있습니다. 사용자는 E 번호가 무엇인지 모릅니다.
+ * 괄호 안이 번호뿐이면 괄호째, 다른 말(날짜 등)이 함께 있으면 번호만 뗍니다. 괄호 밖 번호는 떼면 문장이 깨질 수 있어 두고, refs · numbers[].ref 같은 구조 칸은 건드리지 않습니다.
+ */
+const REF_ID = String.raw`(?:E\d+(?:-\d+)?|C\d+)`;
+const REF_TOKEN = new RegExp(String.raw`(?:\b(?:refs?|근거|출처)\s*:?\s*)?(?<![A-Za-z0-9-])${REF_ID}(?![A-Za-z0-9-])`, "g");
+const REF_GROUP = /\s*([(\[])([^()\[\]]*)([)\]])/g;
+const HAS_REF = new RegExp(String.raw`(?<![A-Za-z0-9-])${REF_ID}(?![A-Za-z0-9-])`);
+
+export function stripRefIds(text: string): string {
+  if (!HAS_REF.test(text)) return text;
+  const out = text
+    .replace(REF_GROUP, (whole, open: string, inner: string, close: string) => {
+      if (!HAS_REF.test(inner)) return whole;
+      const rest = inner.replace(REF_TOKEN, "").replace(/^[\s,·/:]+|[\s,·/:]+$/g, "").replace(/\s*,\s*(?=,)/g, "");
+      const lead = /^\s/.test(whole) ? " " : "";
+      return rest ? `${lead}${open}${rest}${close}` : "";
+    })
+    .replace(/\s+([.,!?])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return out || text;
+}
+
+/** 작성 출력의 글 칸 전부에서 장부 번호를 뗍니다. 바뀐 것이 없으면 받은 그대로 */
+export function dropRefIds<T extends WriterOutput>(output: T): T {
+  const list = (xs: string[] | undefined) => xs?.map(stripRefIds);
+  const next: T = {
+    ...output,
+    summary: stripRefIds(output.summary),
+    headline: output.headline ? stripRefIds(output.headline) : output.headline,
+    why: output.why.map((w) => ({ ...w, claim: stripRefIds(w.claim), evidence: stripRefIds(w.evidence) })),
+    impact: list(output.impact)!,
+    caveats: list(output.caveats)!,
+    dataGaps: list(output.dataGaps)!,
+    nextTopics: list(output.nextTopics)!,
+    ...(output.impactTitles ? { impactTitles: list(output.impactTitles) } : {}),
+    ...(output.topicReasons ? { topicReasons: list(output.topicReasons) } : {}),
+  };
+  return JSON.stringify(next) === JSON.stringify(output) ? output : next;
+}

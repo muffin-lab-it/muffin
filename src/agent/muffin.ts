@@ -23,7 +23,7 @@ import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
 import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
-import { dropFetchTalk, trimNegatives } from "./negatives";
+import { dropFetchTalk, dropRefIds, trimNegatives } from "./negatives";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
 import { addMacroNews, localNewsIds, macroNewsNote, withoutEvents, withoutUncited } from "./news-topics";
 import { cpiChart, cpiTrendHidden, ensureCpiTrend } from "./cpi-trend";
@@ -56,6 +56,8 @@ export function isStockQuestion(question: string): boolean {
 }
 
 /** 사거나 팔거나 투자할지를 묻는 낱말. 이 낱말이 없으면 판단 요청으로 보지 않습니다 */
+/** 원인을 묻는 말 (분류 지시문의 cause 기준, plan.ts) */
+export const CAUSE_WORDS = /왜|원인|이유|배경/;
 export const DECISION_WORDS = /사도|살까|사야|살\s*만|사는\s*게|팔까|팔아|팔면|매수|매도|투자|들어가도|넣어도|갈아타|환전해도|바꿔도|바꿀까|가입해도|해지/;
 
 /** 스트림 라우트의 마감(STREAM_TIMEOUT_MS 55초)과 같은 기본 예산. research() 를 부른 시각부터 셉니다. */
@@ -186,9 +188,13 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     : scope
       ? { intent: "status" as const, tools: scope.tools, reason: "범위 밖 대상이 섞였지만 답할 수 있는 부분이 있는 질문" }
       : planned;
+  // '왜' · 원인 · 이유 · 배경을 묻는 질문을 분류가 현황 · 비교로 보내면 원인 질문으로 돌립니다 (분류 지시문의 기준 그대로, 11/25 로컬: "금리 왜 올렸어?" 가 status 로 분류돼
+  // 한국은행 통화정책방향 보강 · 원인 칸이 아예 돌지 않음). 지수 · 범위 구제로 정한 현황 질문과 판단 요청은 그대로 둡니다
+  const causal = rescuedPlan === planned && (planned.intent === "status" || planned.intent === "compare") && CAUSE_WORDS.test(question);
+  const causePlan = causal ? { ...planned, intent: "cause" as const, tools: [...new Set([...planned.tools, areaTools.news])] } : rescuedPlan;
   // 판단 요청은 사거나 팔거나 투자할지를 물을 때만입니다. 분류가 "금리 오르면 내 대출 이자 어떻게 돼?" 같은 생활 영향 질문을 판단 요청으로 보내면
   // "투자 판단을 대신하지 않아요" 안내가 엉뚱하게 붙으므로 현황 질문으로 돌립니다 (11/21 점검)
-  const settledPlan = rescuedPlan.intent === "decision" && !DECISION_WORDS.test(question) ? { ...rescuedPlan, intent: "status" as const } : rescuedPlan;
+  const settledPlan = causePlan.intent === "decision" && !DECISION_WORDS.test(question) ? { ...causePlan, intent: "status" as const } : causePlan;
   const normalized = normalizePlan(settledPlan, question, area);
   // 질문에 이름이 나온 영역(환율 · 금리 · 물가)의 tool 은 분류가 빠뜨려도 조사에 줍니다 (11/22 QA: "미국 여행 갈 때 환율이 무슨 의미인지" 에 환율 tool 이 빠져 "환율 자료가 없어요")
   const plan = {
@@ -384,7 +390,8 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const negTrimmed = explainsLatest(ctx.evidence, ctx.raw, rateStatement) ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
-  const finalOutput = {
+  // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds)
+  const finalOutput = dropRefIds({
     ...trimmed,
     // 원인 질문의 평소 범위 답이 요약에 "평소 범위 안" 을 두 번 쓰면 뒤의 것을 줄입니다 (movement.ts dedupeNormalRange)
     ...(movement ? { summary: dedupeNormalRange(trimmed.summary) } : {}),
@@ -394,7 +401,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
     // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
-  };
+  });
 
   // 지역 행정 기사를 가리키는 차트 사건 점은 뺍니다. 근거 목록에서 빠진 기사를 점이 가리키지 않게 합니다 (#154 Codex 리뷰)
   const shownCharts = withoutEvents(charts, localNews);
