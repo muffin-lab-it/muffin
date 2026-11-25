@@ -39,7 +39,7 @@ export const areaResearch: Record<Area, string> = {
   news: `[관심 영역: 경제뉴스]
 - 뉴스 tool 이 제공되면 먼저 사용합니다. 단순 보도 설명에는 추가 지표 조회를 요구하지 않습니다. 공식 수치의 독립 검증이 질문에 필요한 경우에만 제공된 지표 tool 을 쓰고, 없거나 대조할 자료가 부족하면 검증 불가를 gaps 에 적습니다.
 - query 는 짧은 주제 핵심어로 씁니다. 연합뉴스·한국경제·한국은행(bok)·정책브리핑(policy)은 query 의 낱말이 모두 든 제목(연합뉴스·한국은행·정책브리핑은 설명 앞부분 포함)만 남깁니다. 띄어쓰기·/·가운뎃점·줄표는 무시하고 원인·이유·전망 같은 질문어는 빼고 봅니다. 맞는 기사가 없으면 같은 query 의 Google 검색 제목을 대신 받습니다. Google은 query 를 RSS 검색에 전달합니다 (null 이면 경제). 과거 기사 전체나 본문 검색으로 간주하지 않습니다.
-- 질문이 '이번 주 · 지난주 · 최근 일주일 · 이번 달 · 최근 한 달' 처럼 기간을 말하면 뉴스 days 에 그 기간(일주일 7, 한 달 30)을 넣습니다. 기간을 말하지 않으면 days=null 입니다 (11/20 QA 13: '이번 주 경제 뉴스' 에도 오늘 기사만 나옴).
+- 질문이 기간을 말하면 뉴스 period 를 넣습니다: '이번 주' this_week, '지난주' last_week, '이번 달' this_month, '최근 일주일 · 7일' 7d, '최근 한 달 · 30일' 30d. 기간을 말하지 않으면 period=null 입니다 (11/20 QA 13: '이번 주 경제 뉴스' 에도 오늘 기사만 나옴).
 - 복수 주제는 각각 조회합니다 (예: 금리와 물가를 따로 검색). 결과 없음이면 실패한 주제의 검색어를 더 짧고 넓게 바꿔 한 번만 재시도합니다. 이미 짧으면 query=null 로 현재 목록을 확인할 수 있지만 무관한 기사를 그 주제의 근거로 쓰지 않습니다.
 - 제목·링크 목록은 content=list, 보도의 배경·주장·쟁점 설명은 content=body 로 연합뉴스·한국경제 본문을 시도합니다. Google은 목록·검색 전용이며 원문 미확정을 본문 확보로 취급하지 않습니다.
 - 기사별 body.status와 실제 반환 텍스트를 확인합니다. 제목만 있으면 제목 수준의 사실만, 본문이 있으면 그 안의 설명 주체와 주장을 구분해 메모합니다. 기사 보도와 독립 검증된 사실·인과관계를 구분하고 기사 수치는 "기사 보도"로 표시합니다.
@@ -65,7 +65,7 @@ export type ResearchTools = typeof muffinTools;
  */
 function guardNewsSearch(tool: ResearchTools[number]): ResearchTools[number] {
   if (tool.name !== "get_korean_economic_news") return tool;
-  type Search = { query: string | null; sources: string[]; days?: number };
+  type Search = { query: string | null; sources: string[]; period?: string };
   type State = {
     empty: Map<string, Search>;
     pending: Map<string, { input: string; result: Promise<unknown> }>;
@@ -84,9 +84,9 @@ function guardNewsSearch(tool: ResearchTools[number]): ResearchTools[number] {
       const parsed = newsParameters.safeParse(json);
       // 잘못된 입력의 오류 처리/검증은 기존 SDK에 맡깁니다.
       if (!parsed.success) return tool.invoke(runContext, input, details);
-      const { query, sources, content, limit, days } = parsed.data;
+      const { query, sources, content, limit, period } = parsed.data;
       // 기간이 다르면 다른 검색입니다 (오늘 0건이어도 일주일로는 있을 수 있음)
-      const search: Search = { query, sources: [...new Set(sources)].sort(), ...(days ? { days } : {}) };
+      const search: Search = { query, sources: [...new Set(sources)].sort(), ...(period ? { period } : {}) };
       const key = JSON.stringify(search);
       const inputKey = JSON.stringify({ ...search, content, limit });
       let state = requests.get(runContext.context);
@@ -106,7 +106,7 @@ function guardNewsSearch(tool: ResearchTools[number]): ResearchTools[number] {
         const previous = state.empty.get(key);
         return previous ? blocked(previous, "같은 query와 sources에서 이미 결과 0건을 확인했습니다.") : output;
       }
-      const previous = state.empty.get(key) ?? [...state.empty.values()].find((search) => search.query === query && (search.days ?? null) === (days ?? null));
+      const previous = state.empty.get(key) ?? [...state.empty.values()].find((search) => search.query === query && (search.period ?? null) === (period ?? null));
       // query 그대로 sources만 바꾸는 우회도 막습니다. query까지 다른 경우는
       // 별도 주제일 수 있으므로 요청 전체의 sources를 고정하지 않습니다.
       if (previous) return blocked(previous, "이미 0건인 query를 반복할 수 없습니다. 보완 검색은 기존 sources를 유지하세요.");

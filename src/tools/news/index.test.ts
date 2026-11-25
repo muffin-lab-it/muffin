@@ -3,7 +3,7 @@ import { RunContext } from "@openai/agents";
 import { ResearchContext } from "../../agent/context";
 import type { Source, ToolResult } from "../types";
 import fixture from "./fixture.json";
-import { execute, newsTool, parameters, spreadByDay, type Input, type NewsData } from "./index";
+import { execute, newsTool, parameters, periodRange, spreadByDay, type Input, type NewsData } from "./index";
 import { extractHankyung, extractYonhap } from "./body";
 import { fetchArticleBody } from "./body";
 import { parseRss } from "./rss";
@@ -47,8 +47,8 @@ function mockFeeds(overrides: Partial<Record<FeedKey, string | Response | Error>
 const input = { sources: ["yonhap", "hankyung", "google"] as FeedKey[], query: null, limit: 10, content: "list" as const };
 
 async function invokeNews(input: Input, context = new ResearchContext()) {
-  // 모델은 strict 스키마라 days 를 늘 채웁니다 (기간 없으면 null)
-  const result = await newsTool.invoke(new RunContext(context), JSON.stringify({ days: null, ...input }));
+  // 모델은 strict 스키마라 period 를 늘 채웁니다 (기간 없으면 null)
+  const result = await newsTool.invoke(new RunContext(context), JSON.stringify({ period: null, ...input }));
   return { context, result: result as ToolResult<NewsData> & { id: string; source: (Source & { id: string })[] } };
 }
 
@@ -204,7 +204,7 @@ describe("News Tool", () => {
     expect(calls.every((url) => url.pathname === "/rss/search")).toBe(true);
     const before = structuredClone(context.evidence);
     vi.mocked(fetch).mockRejectedValueOnce(new Error("RSS 연결 실패"));
-    const failed = await newsTool.invoke(new RunContext(context), JSON.stringify({ days: null, ...googleInput }));
+    const failed = await newsTool.invoke(new RunContext(context), JSON.stringify({ period: null, ...googleInput }));
     expect(failed).toMatchObject({ error: expect.stringContaining("RSS 연결 실패") });
     expect(context.evidence).toEqual(before);
     expect(context.steps.map(({ status }) => status)).toEqual(["ok", "ok", "error"]);
@@ -861,10 +861,10 @@ describe("News Tool", () => {
   });
 });
 
-describe("기간을 물은 질문 (days, 11/20 QA 13)", () => {
+describe("기간을 물은 질문 (period, 11/20 QA 13)", () => {
   const item = (n: number, title: string, date: string, publisher: string) =>
     `<item><title>${title} - ${publisher}</title><link>https://news.google.com/rss/articles/W${n}</link><pubDate>${date}</pubDate><source url="https://example.com/${n}">${publisher}</source></item>`;
-  // TEST_NOW = 2026-10-18 12:00 UTC. 오늘 셋(연합 둘 · 뉴스1), 10/15 둘, 10/12 하나, 한 달 전 하나
+  // TEST_NOW = 2026-10-18(일) 12:00 UTC = 10/18 21:00 KST. 이번 주 월요일은 10/12, 지난주는 10/5~10/11
   const weekFeed = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>경제 - Google 뉴스</title>${[
     item(1, "코스피 하락 마감", "Sun, 18 Oct 2026 03:00:00 GMT", "연합뉴스"),
     item(2, "환율 상승 출발", "Sun, 18 Oct 2026 02:00:00 GMT", "연합뉴스"),
@@ -872,7 +872,9 @@ describe("기간을 물은 질문 (days, 11/20 QA 13)", () => {
     item(4, "금리 동결 전망", "Thu, 15 Oct 2026 03:00:00 GMT", "연합뉴스"),
     item(5, "물가 둔화", "Thu, 15 Oct 2026 02:00:00 GMT", "매일경제"),
     item(6, "반도체 수출 호조", "Mon, 12 Oct 2026 03:00:00 GMT", "서울경제"),
-    item(7, "한 달 전 경제 기사", "Mon, 14 Sep 2026 03:00:00 GMT", "연합뉴스"),
+    item(7, "지난주 금요일 기사", "Fri, 09 Oct 2026 03:00:00 GMT", "한겨레"),
+    item(8, "지난주 화요일 기사", "Tue, 06 Oct 2026 03:00:00 GMT", "조선일보"),
+    item(9, "한 달 전 경제 기사", "Mon, 14 Sep 2026 03:00:00 GMT", "연합뉴스"),
   ].join("")}</channel></rss>`;
 
   it("날짜별로 돌아가며, 그날 기사 중에서는 덜 고른 언론사부터 늘어놓는다", () => {
@@ -888,27 +890,44 @@ describe("기간을 물은 질문 (days, 11/20 QA 13)", () => {
     expect(order).toEqual(["오늘1", "15일2", "12일", "오늘3", "15일1", "오늘2"]);
   });
 
-  it("days 를 주면 뉴스 검색을 함께 쓰고(when:Nd), 기간 밖 기사는 빼고, 날짜 · 언론사를 섞어 고른다", async () => {
+  it("기간은 최근 N일 또는 한국 달력(월요일 시작)으로 잡는다 (#171 Codex 리뷰: 지난주 ≠ 최근 7일)", () => {
+    const iso = (t: number) => new Date(t).toISOString();
+    expect(periodRange("7d", TEST_NOW)).toMatchObject({ from: TEST_NOW - 7 * DAY_MS, to: TEST_NOW, search: "when:7d" });
+    const thisWeek = periodRange("this_week", TEST_NOW);
+    expect([iso(thisWeek.from), iso(thisWeek.to)]).toEqual(["2026-10-11T15:00:00.000Z", iso(TEST_NOW)]); // 10/12 0시 KST
+    const lastWeek = periodRange("last_week", TEST_NOW);
+    expect([iso(lastWeek.from), iso(lastWeek.to)]).toEqual(["2026-10-04T15:00:00.000Z", "2026-10-11T15:00:00.000Z"]); // 10/5 ~ 10/12 0시 KST
+    expect(lastWeek.search).toBe("after:2026-10-04 before:2026-10-13");
+    expect(iso(periodRange("this_month", TEST_NOW).from)).toBe("2026-09-30T15:00:00.000Z"); // 10/1 0시 KST
+  });
+
+  it("period 를 주면 뉴스 검색을 함께 쓰고, 기간 밖 기사는 빼고, 날짜 · 언론사를 섞어 고른다", async () => {
     const calls = mockFeeds({ google: weekFeed });
-    const { data, note } = await execute({ sources: ["yonhap", "hankyung"], query: null, limit: 4, content: "list", days: 7 });
-    const google = calls.find((url) => url.hostname === "news.google.com");
-    expect(google?.searchParams.get("q")).toBe("경제 when:7d");
+    const { data, note } = await execute({ sources: ["yonhap", "hankyung"], query: null, limit: 4, content: "list", period: "7d" });
+    expect(calls.find((url) => url.hostname === "news.google.com")?.searchParams.get("q")).toBe("경제 when:7d");
     const titles = data.articles.map((x) => x.title);
     expect(titles).not.toContain("한 달 전 경제 기사");
-    const days = new Set(data.articles.map((x) => x.publishedAt.slice(0, 10)));
-    expect(days.size).toBeGreaterThanOrEqual(3);
+    expect(new Set(data.articles.map((x) => x.publishedAt.slice(0, 10))).size).toBeGreaterThanOrEqual(3);
     expect(note).toContain("최근 7일 기사예요.");
   });
 
-  it("본문을 청해도 기간이 하루로 줄지 않게 본문이 모자란 자리를 그 기간의 제목으로 채운다", async () => {
-    mockFeeds({ google: weekFeed });
-    const { data } = await execute({ sources: ["yonhap", "hankyung"], query: null, limit: 5, content: "body", days: 7 });
-    expect(data.articles).toHaveLength(5);
-    expect(new Set(data.articles.map((x) => x.publishedAt.slice(0, 10))).size).toBeGreaterThanOrEqual(3);
-    expect(data.articles.some((x) => x.body.status === "available")).toBe(true);
+  it("지난주는 지난 월~일 기사만 (이번 주 기사로 대신하지 않음)", async () => {
+    const calls = mockFeeds({ google: weekFeed });
+    const { data, note } = await execute({ sources: ["yonhap", "hankyung"], query: null, limit: 5, content: "list", period: "last_week" });
+    expect(calls.find((url) => url.hostname === "news.google.com")?.searchParams.get("q")).toBe("경제 after:2026-10-04 before:2026-10-13");
+    expect(data.articles.map((x) => x.title).sort()).toEqual(["지난주 금요일 기사 - 한겨레", "지난주 화요일 기사 - 조선일보"]);
+    expect(note).toContain("지난주 기사예요.");
   });
 
-  it("days 가 없으면(코드 호출) 지금처럼 최신순 · 검색 연산자 없음", async () => {
+  it("본문을 청해도 날짜를 섞어 고른 기사가 먼저이고, 본문을 못 받은 기사는 제목으로 남긴다 (#171 Codex 리뷰)", async () => {
+    mockFeeds({ google: weekFeed });
+    const { data } = await execute({ sources: ["yonhap", "hankyung"], query: null, limit: 5, content: "body", period: "7d" });
+    expect(data.articles).toHaveLength(5);
+    expect(new Set(data.articles.map((x) => x.publishedAt.slice(0, 10))).size).toBeGreaterThanOrEqual(3);
+    expect(data.articles.filter((x) => x.source === "google").every((x) => x.body.status === "unavailable")).toBe(true);
+  });
+
+  it("period 가 없으면(코드 호출) 지금처럼 최신순 · 검색 연산자 없음", async () => {
     const calls = mockFeeds();
     await execute({ sources: ["google"], query: null, limit: 2, content: "list" });
     expect(calls.find((url) => url.hostname === "news.google.com")?.searchParams.get("q")).toBe("경제");

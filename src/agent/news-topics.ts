@@ -6,7 +6,7 @@
  * 다이소 품절 · 협회장 당선, 같은 날 코스피 5% 급락 기사는 빠짐). 그래서 주제 없는 뉴스 질문이면 코드가 경제 흐름 주제어(증시 · 환율 · 금리 · 물가 · 수출)로
  * 제목을 한 번 더 찾아 장부에 올리고, 작성에는 이 기사들을 먼저 쓰라고 알립니다. 뉴스 tool 과 조사 지시문은 건드리지 않습니다.
  */
-import { execute as fetchNews, type NewsData } from "../tools/news";
+import { execute as fetchNews, type NewsData, type NewsPeriod } from "../tools/news";
 import type { ResearchContext } from "./context";
 import { labelFor } from "./events";
 import { areaTools } from "./plan";
@@ -87,15 +87,18 @@ export function isGeneralNewsQuestion(question: string): boolean {
   return NEWS_WORDS.test(question) && !TOPIC_WORDS.test(question);
 }
 
-type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; limit: number; content: "list"; days?: number | null }) => Promise<{ data: NewsData }>;
+type NewsFetch = (input: { sources: ("yonhap" | "hankyung")[]; query: string; limit: number; content: "list"; period?: NewsPeriod | null }) => Promise<{ data: NewsData }>;
 
 /**
- * 질문이 말한 뉴스 기간(일). "이번 주 · 지난주 · 일주일" 7, "이번 달 · 한 달" 30, 없으면 null.
- * 직접 피드는 몇 시간 치라, 기간을 말한 질문은 뉴스 tool 의 days 로 그 기간 기사를 받습니다 (11/20 QA 13)
+ * 질문이 말한 뉴스 기간. "지난주" 는 지난 월~일, "이번 주 · 이번 달" 은 한국 달력, "일주일 · 한 달" 은 최근 7 · 30일 (#171 Codex 리뷰).
+ * 직접 피드는 몇 시간 치라, 기간을 말한 질문은 뉴스 tool 의 period 로 그 기간 기사를 받습니다 (11/20 QA 13)
  */
-export function questionDays(question: string): number | null {
-  if (/이번\s*주|지난\s*주|금주|일주일|한\s*주|최근\s*7\s*일|주간/.test(question)) return 7;
-  if (/이번\s*달|한\s*달|최근\s*30\s*일|월간/.test(question)) return 30;
+export function questionPeriod(question: string): NewsPeriod | null {
+  if (/지난\s*주/.test(question)) return "last_week";
+  if (/이번\s*주|금주/.test(question)) return "this_week";
+  if (/일주일|한\s*주|최근\s*7\s*일|주간/.test(question)) return "7d";
+  if (/이번\s*달/.test(question)) return "this_month";
+  if (/한\s*달|최근\s*30\s*일|월간/.test(question)) return "30d";
   return null;
 }
 
@@ -107,8 +110,8 @@ export async function addMacroNews(ctx: ResearchContext, question: string, news:
   if (!isGeneralNewsQuestion(question)) return [];
   const started = Date.now();
   // 기간을 말한 질문("이번 주 경제 뉴스")이면 주제어마다 그 기간 기사를 받습니다 (뉴스 tool 이 뉴스 검색을 함께 쓰고 날짜 · 언론사를 섞음)
-  const days = questionDays(question);
-  const results = await Promise.all(MACRO_TOPICS.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: FETCH_PER_TOPIC, content: "list", days }).catch(() => null)));
+  const period = questionPeriod(question);
+  const results = await Promise.all(MACRO_TOPICS.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: FETCH_PER_TOPIC, content: "list", period }).catch(() => null)));
   const seen = new Set(ctx.evidence.map((e) => e.source.url));
   const picked: NewsData["articles"] = [];
   // 주제마다 한 건씩 번갈아 골라 한 주제로 쏠리지 않게 합니다

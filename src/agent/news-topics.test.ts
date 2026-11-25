@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { MACRO_TOPICS, addMacroNews, isGeneralNewsQuestion, isLocalNotice, localNewsIds, macroNewsNote, questionDays, withoutEvents, withoutUncited } from "./news-topics";
+import { MACRO_TOPICS, addMacroNews, isGeneralNewsQuestion, isLocalNotice, localNewsIds, macroNewsNote, questionPeriod, withoutEvents, withoutUncited } from "./news-topics";
 import type { Evidence } from "./schema";
 
 const article = (title: string, url: string) => ({ title, url, publisher: "연합뉴스", publishedAt: "2026-11-20T07:29:21.000Z", source: "yonhap", body: { status: "not_requested" } });
@@ -24,7 +24,7 @@ describe("주제 없는 뉴스 질문의 기사 고르기 (11/21)", () => {
     const ctx = new ResearchContext();
     const entries = await addMacroNews(ctx, "오늘 경제 뉴스 알려줘", newsFor as never);
     expect(newsFor).toHaveBeenCalledTimes(MACRO_TOPICS.length);
-    expect(newsFor.mock.calls[0]![0]).toMatchObject({ sources: ["yonhap", "hankyung"], query: "코스피", content: "list", days: null });
+    expect(newsFor.mock.calls[0]![0]).toMatchObject({ sources: ["yonhap", "hankyung"], query: "코스피", content: "list", period: null });
     // 첫 바퀴: 주제마다 첫 기사 (증시의 첫 기사는 코스피와 같은 주소라 빠짐) → 둘째 바퀴에서 6건까지
     expect(entries.map((e) => e.values.title)).toEqual(["코스피 기사 1", "환율 기사 1", "금리 기사 1", "물가 기사 1", "수출 기사 1", "코스피 기사 2"]);
     expect(entries.map((e) => e.id)).toEqual(["E1-1", "E1-2", "E1-3", "E1-4", "E1-5", "E1-6"]);
@@ -103,19 +103,20 @@ describe("지역 행정 · 정당 기사 거르기 (11/23 운영 '오늘 경제 
 });
 
 describe("질문이 말한 뉴스 기간 (11/20 QA 13)", () => {
-  it("이번 주 · 지난주 · 일주일은 7일, 이번 달 · 한 달은 30일, 없으면 null", () => {
-    expect(questionDays("이번 주 경제 뉴스 핵심만 정리해줘")).toBe(7);
-    expect(questionDays("지난주 경제 뉴스 알려줘")).toBe(7);
-    expect(questionDays("최근 일주일 경제 소식")).toBe(7);
-    expect(questionDays("이번 달 경제 뉴스 정리해줘")).toBe(30);
-    expect(questionDays("오늘 경제 뉴스 알려줘")).toBeNull();
+  it("지난주는 지난 월~일, 이번 주 · 이번 달은 달력, 일주일 · 한 달은 최근 7 · 30일, 없으면 null (#171 Codex 리뷰)", () => {
+    expect(questionPeriod("이번 주 경제 뉴스 핵심만 정리해줘")).toBe("this_week");
+    expect(questionPeriod("지난주 경제 뉴스 정리해줘")).toBe("last_week");
+    expect(questionPeriod("최근 일주일 경제 소식")).toBe("7d");
+    expect(questionPeriod("이번 달 경제 뉴스 정리해줘")).toBe("this_month");
+    expect(questionPeriod("최근 한 달 경제 뉴스")).toBe("30d");
+    expect(questionPeriod("오늘 경제 뉴스 알려줘")).toBeNull();
   });
 
   it("기간을 말한 주제 없는 뉴스 질문은 주제어마다 그 기간으로 받는다", async () => {
-    const seen: { query: string; days?: number | null }[] = [];
-    const news = vi.fn(async (input: { query: string; days?: number | null }) => (seen.push(input), { data: { articles: [] } }));
+    const seen: { query: string; period?: string | null }[] = [];
+    const news = vi.fn(async (input: { query: string; period?: string | null }) => (seen.push(input), { data: { articles: [] } }));
     await addMacroNews(new ResearchContext(), "이번 주 경제 뉴스 핵심만 정리해줘", news as never);
     expect(news).toHaveBeenCalledTimes(MACRO_TOPICS.length);
-    expect(seen[0]).toMatchObject({ query: "코스피", days: 7 });
+    expect(seen[0]).toMatchObject({ query: "코스피", period: "this_week" });
   });
 });

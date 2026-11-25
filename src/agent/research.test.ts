@@ -298,7 +298,7 @@ describe("runResearch", () => {
 // 실제 SDK FunctionTool.invoke → defineTool → 합성 execute 경로를 검사합니다.
 // 모델 실행은 하지 않으며, 기존 Tool의 성공/실패/증거 장부 처리 자체는 모킹하지 않습니다.
 describe("Research 뉴스 중복 실행 차단", () => {
-  const input: NewsInput = { sources: ["yonhap", "hankyung", "google"], query: "물가", content: "body", limit: 5, days: null };
+  const input: NewsInput = { sources: ["yonhap", "hankyung", "google"], query: "물가", content: "body", limit: 5, period: null };
   const noNews = "조건에 맞는 뉴스 기사가 없습니다.";
   const sample = (body = "available", partial = false) => ({
     data: {
@@ -349,10 +349,10 @@ describe("Research 뉴스 중복 실행 차단", () => {
     expect(h.ctx.context.steps).toHaveLength(1); // 차단은 실제 수집 오류로 집계하지 않음
   });
 
-  it("0건 뒤 같은 query 라도 기간(days)이 다르면 다른 검색이라 실행한다 (11/25 QA 13)", async () => {
+  it("0건 뒤 같은 query 라도 기간(period)이 다르면 다른 검색이라 실행한다 (11/25 QA 13)", async () => {
     const h = setup(empty);
     await h.call();
-    await h.call({ days: 7 });
+    await h.call({ period: "7d" });
     expect(h.execute).toHaveBeenCalledTimes(2);
   });
 
