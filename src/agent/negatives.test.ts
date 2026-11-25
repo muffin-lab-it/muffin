@@ -79,6 +79,9 @@ describe("베타 남은 항목 정리 (11/23 운영 실제 문장)", () => {
     expect(out.dataGaps).toEqual(["기사 본문을 확보하지 못해 오늘 환율 관련 뉴스의 내용과 맥락은 정리할 수 없어요."]);
     const kept = { summary: "환율은 0.87% 올랐지만 원인은 확인되지 않았어요. 금리는 그대로예요.", dataGaps: [] };
     expect(dropLeadingLimit(kept)).toBe(kept);
+    // "설명하기 어려워요" 도 한계 문장 (11/24 운영: 금리 동결 질문 첫 문장)
+    const explain = dropLeadingLimit({ summary: "한국 기준금리가 왜 동결됐는지는 확인된 자료만으로 설명하기 어려워요. 기준금리는 3%예요.", dataGaps: [] });
+    expect(explain.summary).toBe("기준금리는 3%예요.");
     const one = { summary: "자료가 없어 확인할 수 없어요.", dataGaps: [] };
     expect(dropLeadingLimit(one)).toBe(one);
     // 확인된 내용과 한계가 한 문장에 같이 들었으면 앞 구절은 첫 문장으로 남기고 한계 구절만 내린다 (#147 Codex 리뷰)
