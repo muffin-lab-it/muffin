@@ -110,7 +110,10 @@ describe("지수 질문의 지수 값 (11/21)", () => {
     await addTodayClose(ctx, "코스피", newsOf(article(body)) as never);
     const note = indexNote(ctx.evidence, "코스피");
     expect(note).toContain("공식 자료 (ref E2");
-    expect(note).toContain("종가 5,137.89 (2026-11-19), 전일 대비 +1.39%");
+    expect(note).toContain("종가 5,137.89 (2026-11-19), 전일 대비 +1.39% (상승)");
+    // 하루는 상승 · 기간은 하락이라 방향 낱말과 "질문 방향에 맞추지 않는다" 를 알림 (11/25 운영 코스닥)
+    expect(note).toContain("2026-10-20 종가 5,552.74 와 비교해 -7.47% (하락)");
+    expect(note).toContain("질문이 \"떨어졌어 · 올랐어\" 라고 해도 방향을 바꾸지 않습니다");
     expect(note).toContain("기사 보도 (ref C1, 연합뉴스");
     expect(note).toContain("2026-11-20 종가 4,869.96, 전일 대비 -5.21% (-267.93포인트)");
     expect(withIndexNumbers(empty, ctx.evidence, "코스피").numbers).toEqual([

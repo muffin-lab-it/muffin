@@ -16,6 +16,7 @@ import type { ResearchContext } from "./context";
 import { instructionsFor } from "./instructions";
 import { modelFor } from "./models";
 import { factsSchema, type Depth, type Evidence, type FactsOutput, type PlanOutput, type ResearchNotes } from "./schema";
+import { redactSecrets } from "../lib/redact";
 
 /**
  * 고르는 기준 · 계산을 부르는 기준. 10/28 기준선 eval(etf · common)에서 본 실수를 막는 규칙이 들어 있습니다:
@@ -183,18 +184,30 @@ export function reversedCalcIds(evidence: readonly Pick<Evidence, "id" | "note" 
  * 정제 Agent 를 한 번 실행합니다. 계산 tool 결과는 runCtx 안의 장부에 C 번호로 쌓입니다.
  * 출력은 cleanFacts 로 장부와 맞춥니다 (계산 tool 이 만든 C 번호도 장부에 있으므로 통과).
  * 출력이 없거나 실패하면 null 을 돌려주고, 작성은 장부 전체를 봅니다 (muffin.ts). 정제 하나 때문에 리포트가 실패하지 않게 하기 위한 것입니다.
+ * 실패 이유는 onError 로 알립니다 (실행 기록 quality.edit.error, 11/25: 정제가 실패해도 이유가 어디에도 남지 않아 발표 전 문제를 쫓을 수 없었음).
  */
 export async function runEdit(
   agent: ReturnType<typeof createEditorAgent>,
   input: string,
   runCtx: RunContext<ResearchContext>,
+  onError?: (reason: string) => void,
 ): Promise<FactsOutput | null> {
   try {
     const result = await run(agent, input, { context: runCtx });
-    if (!result.finalOutput) return null;
+    if (!result.finalOutput) {
+      onError?.("정제 출력 없음");
+      return null;
+    }
     const { evidence } = runCtx.context;
     return cleanFacts(result.finalOutput, new Set(evidence.map((e) => e.id)), reversedCalcIds(evidence));
-  } catch {
+  } catch (err) {
+    onError?.(editErrorReason(err));
     return null;
   }
+}
+
+/** 실행 기록에 남길 실패 이유: 오류 이름 + 메시지 앞부분 (비밀값은 지움) */
+export function editErrorReason(err: unknown): string {
+  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return redactSecrets(text).replace(/\s+/g, " ").slice(0, 200);
 }

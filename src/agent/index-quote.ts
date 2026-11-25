@@ -182,6 +182,12 @@ const signed = (n: number, unit: string) => `${n > 0 ? "+" : ""}${n.toFixed(2)}$
 /** 공식 자료가 늦는 이유 한 마디. 국내는 다음 영업일 공개, 미국(FRED)은 하루 이틀 뒤 */
 const lag = (index: IndexName) => (isUs(index) ? "하루 이틀 늦게 올라오는 자료라" : "다음 영업일에 공개되는 자료라");
 
+/** 변화의 방향 낱말 (지수 메모용) */
+function direction(value: unknown): string {
+  const n = typeof value === "number" ? value : Number(value);
+  return !Number.isFinite(n) || n === 0 ? "변동 없음" : n > 0 ? "상승" : "하락";
+}
+
 export function indexNote(evidence: Evidence[], index: IndexName): string {
   const o = officialIndex(evidence, index);
   if (!o) return "";
@@ -190,8 +196,10 @@ export function indexNote(evidence: Evidence[], index: IndexName): string {
   const lines = [
     `[지수 값] 질문이 물은 ${index} 지수의 값입니다. 지수 값에는 "원" 을 붙이지 않습니다.`,
     `공식 자료 (ref ${o.id}, ${lag(index)} ${v["latest.date"]} 종가가 최신입니다):`,
-    `- 종가 ${points(v["latest.close"] as number)} (${v["latest.date"]}), 전일 대비 ${signed(v["latest.changePct"] as number, "%")}`,
-    `- ${v["period.from"]} 종가 ${points(v["period.closeFrom"] as number)} 와 비교해 ${signed(v["period.returnPct"] as number, "%")}`,
+    `- 종가 ${points(v["latest.close"] as number)} (${v["latest.date"]}), 전일 대비 ${signed(v["latest.changePct"] as number, "%")} (${direction(v["latest.changePct"])})`,
+    `- ${v["period.from"]} 종가 ${points(v["period.closeFrom"] as number)} 와 비교해 ${signed(v["period.returnPct"] as number, "%")} (${direction(v["period.returnPct"])})`,
+    // 질문이 "왜 떨어졌어?" 여도 하루 등락은 장부 방향 그대로 (11/25 운영: 11/24 하루 +4.79% 를 "전일보다 4.79% 하락" 으로 써 검증이 문장을 뺌, mwvnyrfx-2axwvk)
+    `오르내림의 방향은 위 괄호 그대로 씁니다. 질문이 "떨어졌어 · 올랐어" 라고 해도 방향을 바꾸지 않습니다. 하루와 기간의 방향이 다르면 어느 기간인지 밝혀 나눠 쓰고, 질문이 말한 방향과 맞는 기간을 먼저 씁니다.`,
   ];
   if (t) {
     lines.push(

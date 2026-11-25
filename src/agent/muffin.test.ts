@@ -243,7 +243,7 @@ describe("research() 다섯 단계", () => {
     expect(inputOf(3)).toContain("- E1 · 환율 확인 · Frankfurter v2");
     expect(result.facts).toBeNull();
     // 실행 로그용 정제 요약: 실패(ok false)와 장부 전체 폴백이 남는다
-    expect(result.edit).toEqual({ ok: false, facts: 0, dropped: 0, unverified: 0, reversed: 0, fallback: true });
+    expect(result.edit).toEqual({ ok: false, facts: 0, dropped: 0, unverified: 0, reversed: 0, fallback: true, error: "정제 출력 없음" });
     expect(result.report.verification.status).toBe("pass");
   });
 
