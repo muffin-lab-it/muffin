@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { askedDecision, askedMonth, dropNewerDecisionTalk, ensureRateStatement, isKoreanRateCause, pickStatement, rateStatementNote, statementDecision } from "./rate-cause";
+import { askedDecision, askedMonth, dropNewerDecisionTalk, ensureRateStatement, explainsLatest, isKoreanRateCause, pickStatement, rateStatementNote, statementDecision } from "./rate-cause";
 import type { Evidence } from "./schema";
 
 const statement = (id: string, title: string, publishedAt: string, url: string): Evidence => ({
@@ -17,6 +17,29 @@ const HIKE = "통화정책방향 □ 금융통화위원회는 다음 통화정�
 /** 뉴스 tool 의 전체 응답 (본문 있음 / 제목만) */
 const withBody = (url: string, text: string) => ({ articles: [{ url, body: { status: "available", text } }] });
 const listOnly = (url: string) => ({ articles: [{ url, body: { status: "not_requested" } }] });
+const NEWS = "get_korean_economic_news";
+const URL3 = "https://www.bok.or.kr/portal/bbs/P0000559/view.do?nttId=3&menuNo=200690";
+type Doc = { title: string; publishedAt: string; url: string; text?: string };
+const OCT: Doc = { title: "통화정책방향(2026.10.22)", publishedAt: "2026-10-22T01:30:00.000Z", url: URL1, text: BODY };
+const AUG: Doc = { title: "통화정책방향(2026.8.27)", publishedAt: "2026-08-27T01:30:00.000Z", url: URL2, text: HIKE };
+const NOV: Doc = { title: "통화정책방향(2026.11.27)", publishedAt: "2026-11-27T01:30:00.000Z", url: URL3 };
+
+/** 가짜 뉴스 tool: content 별 문서를 장부에 올리고 실행 기록을 남김 (fallback 이면 저장된 응답을 쓴 것처럼, fail 이면 던짐) */
+function fakeNews(ctx: ResearchContext, docs: { list: Doc[]; body: Doc[] }, opts: { fallback?: boolean; fail?: boolean } = {}) {
+  let n = 0;
+  const invoke = vi.fn(async (_run: unknown, input: string) => {
+    if (opts.fail) throw new Error("실패");
+    const { content, limit } = JSON.parse(input) as { content: "list" | "body"; limit: number };
+    for (const d of docs[content].slice(0, limit)) {
+      const id = `E9-${++n}`;
+      ctx.addEvidence([statement(id, d.title, d.publishedAt, d.url)]);
+      ctx.raw.set(id, content === "body" && d.text ? withBody(d.url, d.text) : listOnly(d.url));
+    }
+    ctx.addStep({ tool: NEWS, status: "ok", ms: 1, ...(opts.fallback ? { fallbackAgeMs: 3_600_000, error: "timeout" } : {}) });
+    return "ok";
+  });
+  return { invoke, tools: [{ name: NEWS, invoke }], inputs: () => invoke.mock.calls.map((c) => JSON.parse(c[1]) as Record<string, unknown>) };
+}
 
 describe("한국 기준금리 원인 질문의 통화정책방향 (11/24)", () => {
   it("한국 기준금리의 원인 질문만 대상 (다른 나라 · 예적금 · 대출 · 환율 질문은 아님)", () => {
@@ -29,64 +52,65 @@ describe("한국 기준금리 원인 질문의 통화정책방향 (11/24)", () =
     expect(isKoreanRateCause("환율이랑 금리 왜 움직여?", "cause")).toBe(false);
   });
 
-  it("한국은행 보도자료를 '통화정책방향' 으로 받는다: 맞는 문서가 없으면 2건, 있으면 가장 최근 결정만 확인하려고 1건. 실패해도 던지지 않는다", async () => {
+  it("제목 목록 1건으로 가장 최근 결정을 확인하고, 맞는 문서(본문)가 없으면 본문 2건을 받는다. 실패해도 던지지 않는다", async () => {
     const ctx = new ResearchContext();
-    let n = 0;
-    const invoke = vi.fn(async (...args: [unknown, string]) => {
-      if (args.length) {
-        const id = `E3-${++n}`;
-        ctx.addEvidence([statement(id, "통화정책방향(2026.10.22)", "2026-10-22T07:00:00.000Z", URL1)]);
-        ctx.raw.set(id, withBody(URL1, BODY));
-      }
-      return "ok";
-    });
-    const tools = [{ name: "get_korean_economic_news", invoke }];
-    expect(await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", tools)).toEqual({ id: "E3-1", newestId: "E3-1" });
-    expect(JSON.parse(invoke.mock.calls[0]![1])).toEqual({ sources: ["bok"], query: "통화정책방향", limit: 2, content: "body" });
-    expect(await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", tools)).toEqual({ id: "E3-1", newestId: "E3-2" });
-    expect(JSON.parse(invoke.mock.calls[1]![1]).limit).toBe(1);
+    const news = fakeNews(ctx, { list: [OCT], body: [OCT, AUG] });
+    const got = await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", news.tools);
+    expect(got).toEqual({ id: "E9-2", newestId: "E9-1" });
+    expect(news.inputs()).toEqual([
+      { sources: ["bok"], query: "통화정책방향", limit: 1, content: "list" },
+      { sources: ["bok"], query: "통화정책방향", limit: 2, content: "body" },
+    ]);
+    expect(explainsLatest(ctx.evidence, ctx.raw, got)).toBe(true);
+    // 이미 맞는 문서가 있으면 가장 최근 결정 확인(목록 1건)만
+    await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", news.tools);
+    expect(news.inputs().slice(2)).toEqual([{ sources: ["bok"], query: "통화정책방향", limit: 1, content: "list" }]);
+
     const failed = new ResearchContext();
-    await expect(ensureRateStatement(failed, "금리 왜 올렸어?", "cause", [{ name: "get_korean_economic_news", invoke: vi.fn(async () => { throw new Error("실패"); }) }])).resolves.toBeNull();
-    expect(await ensureRateStatement(new ResearchContext(), "한국 기준금리 얼마야?", "status", tools)).toBeNull();
-    expect(invoke).toHaveBeenCalledTimes(2);
+    await expect(ensureRateStatement(failed, "금리 왜 올렸어?", "cause", fakeNews(failed, { list: [], body: [] }, { fail: true }).tools)).resolves.toBeNull();
+    const status = fakeNews(new ResearchContext(), { list: [OCT], body: [OCT] });
+    expect(await ensureRateStatement(new ResearchContext(), "한국 기준금리 얼마야?", "status", status.tools)).toBeNull();
+    expect(status.invoke).not.toHaveBeenCalled();
   });
 
-  it("조사가 지난 문서만 받아 뒀어도 가장 최근 결정은 이번 조회로 확인하고, 조회가 실패하면 가장 최근이라고 하지 않는다 (#167 Codex 리뷰)", async () => {
-    const aug = statement("E1-1", "통화정책방향(2026.8.27)", "2026-08-27T01:30:00.000Z", URL2);
+  it("조회가 저장된 응답으로 대신했으면 가장 최근 결정을 확인한 것으로 보지 않는다 (#167 Codex 리뷰)", async () => {
     const ctx = new ResearchContext();
-    ctx.addEvidence([aug]);
-    ctx.raw.set("E1-1", withBody(URL2, HIKE));
-    const invoke = vi.fn(async () => {
-      ctx.addEvidence([statement("E3-1", "통화정책방향(2026.10.22)", "2026-10-22T01:30:00.000Z", URL1)]);
-      ctx.raw.set("E3-1", withBody(URL1, BODY));
-      return "ok";
-    });
-    const picked = await ensureRateStatement(ctx, "금리 왜 올렸어?", "cause", [{ name: "get_korean_economic_news", invoke }]);
-    expect(picked).toEqual({ id: "E1-1", newestId: "E3-1" });
-    expect(rateStatementNote(ctx.evidence, picked, ctx.raw)).toContain("가장 최근 통화정책방향은 통화정책방향(2026.10.22) (ref E3-1, 2026-10-22)");
+    const got = await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", fakeNews(ctx, { list: [OCT], body: [OCT] }, { fallback: true }).tools);
+    expect(got).toEqual({ id: "E9-2", newestId: null });
+    expect(explainsLatest(ctx.evidence, ctx.raw, got)).toBe(false);
+    expect(rateStatementNote(ctx.evidence, got, ctx.raw)).not.toContain("이보다 최근");
+  });
 
-    const stale = new ResearchContext();
-    stale.addEvidence([aug]);
-    stale.raw.set("E1-1", withBody(URL2, HIKE));
-    const down = await ensureRateStatement(stale, "금리 왜 올렸어?", "cause", [{ name: "get_korean_economic_news", invoke: vi.fn(async () => { throw new Error("실패"); }) }]);
-    expect(down).toEqual({ id: "E1-1", newestId: null });
-    const note = rateStatementNote(stale.evidence, down, stale.raw);
-    expect(note).toContain("결정: 기준금리 인상");
-    expect(note).not.toContain("가장 최근");
-    expect(note).not.toContain("이보다 최근");
+  it("가장 최근 문서가 첨부파일뿐(본문 없음)이면 그 결정의 이유는 확인되지 않았다고 알리고 문장을 정리하지 않는다 (#167 Codex 리뷰)", async () => {
+    const ctx = new ResearchContext();
+    const got = await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", fakeNews(ctx, { list: [NOV], body: [OCT] }).tools);
+    expect(got).toEqual({ id: "E9-2", newestId: "E9-1" });
+    expect(explainsLatest(ctx.evidence, ctx.raw, got)).toBe(false);
+    const note = rateStatementNote(ctx.evidence, got, ctx.raw);
+    expect(note).toContain("가장 최근 통화정책방향은 통화정책방향(2026.11.27) (ref E9-1, 2026-11-27) 입니다");
+    expect(note).toContain("그 결정의 이유는 확인되지 않았습니다");
+  });
+
+  it("조사가 지난 문서(8월 인상)만 받아 뒀어도 가장 최근 결정은 이번 조회로 확인한다 (#167 Codex 리뷰)", async () => {
+    const ctx = new ResearchContext();
+    ctx.addEvidence([statement("E1-1", AUG.title, AUG.publishedAt, URL2)]);
+    ctx.raw.set("E1-1", withBody(URL2, HIKE));
+    const news = fakeNews(ctx, { list: [OCT], body: [OCT, AUG] });
+    const got = await ensureRateStatement(ctx, "금리 왜 올렸어?", "cause", news.tools);
+    expect(got).toEqual({ id: "E1-1", newestId: "E9-1" });
+    expect(news.inputs()).toHaveLength(1);
+    // 10월 문서는 제목만 받아 이유를 모름 → 정리하지 않고, 작성에는 가장 최근 결정 이름과 이유를 모른다는 것을 알림
+    expect(explainsLatest(ctx.evidence, ctx.raw, got)).toBe(false);
+    expect(rateStatementNote(ctx.evidence, got, ctx.raw)).toContain("가장 최근 통화정책방향은 통화정책방향(2026.10.22) (ref E9-1, 2026-10-22) 입니다");
   });
 
   it("조사가 제목만 받아 둔 통화정책방향은 본문을 다시 받는다 (#165 Codex 리뷰)", async () => {
     const ctx = new ResearchContext();
-    ctx.addEvidence([statement("E1-1", "통화정책방향(2026.10.22)", "2026-10-22T01:30:00.000Z", URL1)]);
+    ctx.addEvidence([statement("E1-1", OCT.title, OCT.publishedAt, URL1)]);
     ctx.raw.set("E1-1", listOnly(URL1));
-    const invoke = vi.fn(async () => {
-      ctx.addEvidence([statement("E3-1", "통화정책방향(2026.10.22)", "2026-10-22T01:30:00.000Z", URL1)]);
-      ctx.raw.set("E3-1", withBody(URL1, BODY));
-      return "ok";
-    });
-    expect(await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", [{ name: "get_korean_economic_news", invoke }])).toEqual({ id: "E3-1", newestId: "E3-1" });
-    expect(invoke).toHaveBeenCalledTimes(1);
+    const news = fakeNews(ctx, { list: [OCT], body: [OCT] });
+    expect(await ensureRateStatement(ctx, "한국 기준금리는 왜 동결됐어?", "cause", news.tools)).toEqual({ id: "E9-2", newestId: "E9-1" });
+    expect(news.inputs().map((x) => x.content)).toEqual(["list", "body"]);
   });
 
   it("질문이 말한 결정 · 때를 읽는다 ('결정을 내렸' 는 인하가 아님)", () => {
@@ -115,15 +139,11 @@ describe("한국 기준금리 원인 질문의 통화정책방향 (11/24)", () =
     expect(pickStatement([aug, oct], raw, "금리 왜 내렸어?")).toBeUndefined();
     expect(pickStatement([aug, oct], new Map([["E3-1", listOnly(URL1)]]), "한국 기준금리는 왜 동결됐어?")).toBeUndefined();
 
-    // 맞는 문서가 끝내 없으면 null (다른 결정의 이유를 작성에 강제하지 않음), 때를 물으면 4건까지 받음
+    // 맞는 문서가 끝내 없으면 null (다른 결정의 이유를 작성에 강제하지 않음), 때를 물으면 본문 4건까지 받음
     const ctx = new ResearchContext();
-    const invoke = vi.fn(async () => {
-      ctx.addEvidence([oct]);
-      ctx.raw.set("E3-1", withBody(URL1, BODY));
-      return "ok";
-    });
-    expect(await ensureRateStatement(ctx, "2026년 5월 한국 기준금리는 왜 올렸어?", "cause", [{ name: "get_korean_economic_news", invoke }])).toBeNull();
-    expect(JSON.parse((invoke.mock.calls as unknown as [unknown, string][])[0]![1]).limit).toBe(4);
+    const news = fakeNews(ctx, { list: [OCT], body: [OCT, AUG] });
+    expect(await ensureRateStatement(ctx, "2026년 5월 한국 기준금리는 왜 올렸어?", "cause", news.tools)).toBeNull();
+    expect(news.inputs()[1]).toMatchObject({ content: "body", limit: 4 });
   });
 
   it("작성에는 본문 앞부분 · 결정 · 쓰는 법을 알린다 (본문이 없으면 빈 문자열)", () => {
@@ -138,7 +158,7 @@ describe("한국 기준금리 원인 질문의 통화정책방향 (11/24)", () =
     // 가장 최근 문서면 "더 최근 결정이 있을지 모른다" 는 문장을 쓰지 않게 하고, 지난 문서(8월 인상)를 골랐으면 그 줄을 붙이지 않음 (11/25 운영)
     expect(note).toContain("이번에 받은 한국은행 보도자료에는 이보다 최근 통화정책방향이 없습니다");
     expect(note).toContain('"이 설명은 2026-10-22 결정에 해당한다"');
-    const augRaw = new Map<string, unknown>([["E3-2", withBody(URL2, HIKE)]]);
+    const augRaw = new Map<string, unknown>([["E3-2", withBody(URL2, HIKE)], ["E3-1", withBody(URL1, BODY)]]);
     const augNote = rateStatementNote([older, latest], { id: "E3-2", newestId: "E3-1" }, augRaw);
     expect(augNote).toContain("결정: 기준금리 인상");
     expect(augNote).toContain("가장 최근 통화정책방향은 통화정책방향(2026.10.22) (ref E3-1, 2026-10-22) 이고, 그보다 최근 결정문은 없습니다");
