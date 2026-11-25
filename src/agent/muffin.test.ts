@@ -352,6 +352,20 @@ describe("research() 다섯 단계", () => {
     expect(loan.report.notice ?? "").not.toContain("투자 판단");
   });
 
+  it("'왜' · 원인 · 이유 · 배경을 묻는데 분류가 현황 · 비교로 보내면 원인 질문으로 돌린다 (11/25 로컬)", async () => {
+    mockRuns({ plan: { intent: "status", tools: ["get_rate_data"], reason: "금리" }, writer: [good] });
+    const why = await research({ question: "금리 왜 올렸어?", depth: "standard" });
+    expect(why.plan).toMatchObject({ intent: "cause", mode: "research" });
+    expect(why.plan.tools).toEqual(expect.arrayContaining(["get_rate_data", "get_korean_economic_news"]));
+
+    mockRuns({ plan: { intent: "compare", tools: ["get_rate_data"], reason: "비교" }, writer: [good] });
+    expect((await research({ question: "한국과 미국 금리 차이가 나는 이유가 뭐야?", depth: "standard" })).plan.intent).toBe("cause");
+
+    // 원인을 묻지 않으면 그대로
+    mockRuns({ plan: { intent: "status", tools: ["get_rate_data"], reason: "금리" }, writer: [good] });
+    expect((await research({ question: "한국 기준금리 얼마야?", depth: "standard" })).plan.intent).toBe("status");
+  });
+
   it("판단 요청이면 작성에 모드 규칙이 붙고 리포트에 안내가 달린다", async () => {
     mockRuns({ plan: { intent: "decision", tools: ["get_etf_kr_price"], reason: "사도 돼" }, writer: [good] });
     const events: MuffinEvent[] = [];

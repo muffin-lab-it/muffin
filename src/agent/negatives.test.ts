@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDecisionDisclaimer, dropFetchTalk, dropPickTalk, dropInternalPhrases, dropLeadingLimit, dropUnaskedCause, plainWords, splitEmyeo, trimHeadline, trimNegatives } from "./negatives";
+import { dropDecisionDisclaimer, dropFetchTalk, dropPickTalk, dropInternalPhrases, dropLeadingLimit, dropRefIds, dropUnaskedCause, plainWords, splitEmyeo, stripRefIds, trimHeadline, trimNegatives } from "./negatives";
 import type { WriterOutput } from "./schema";
 
 describe("묻지 않은 부정 문장 정리 (11/22)", () => {
@@ -189,3 +189,37 @@ describe("기사 고르기 작업 설명 빼기 (11/23 화면 QA, C3 남은 것)
   });
 });
 
+describe("글에 남은 장부 번호 떼기 (11/25 로컬)", () => {
+  it("괄호 안이 번호뿐이면 괄호째, 날짜 등이 함께 있으면 번호만 뗀다", () => {
+    expect(stripRefIds("앞선 두 차례 인상의 영향을 살펴볼 필요가 있다고 밝혔어요. (E2-1)")).toBe("앞선 두 차례 인상의 영향을 살펴볼 필요가 있다고 밝혔어요.");
+    expect(stripRefIds("물가가 올랐어요 (E3-1, E3-2).")).toBe("물가가 올랐어요.");
+    expect(stripRefIds("환율은 1,472.46원이에요 [C1].")).toBe("환율은 1,472.46원이에요.");
+    expect(stripRefIds("통화정책방향(2026.10.22) (ref E9-1, 2026-10-22) 에서 동결했어요.")).toBe("통화정책방향(2026.10.22) (2026-10-22) 에서 동결했어요.");
+  });
+
+  it("번호가 아닌 괄호 · 괄호 밖 번호는 그대로", () => {
+    for (const t of ["KODEX 200(069500) 종가는 35,000원이에요.", "유로(EUR) 환율은 1,600원이에요.", "통화정책방향(2026.8.27)", "근거는 ref E2-1 입니다.", "E2-1"]) {
+      expect(stripRefIds(t)).toBe(t);
+    }
+  });
+
+  it("작성 출력의 글 칸에서만 떼고 refs · numbers 는 그대로, 바뀐 게 없으면 같은 객체", () => {
+    const output = {
+      summary: "한국은행은 동결했어요 (E2-1).",
+      headline: null,
+      numbers: [{ label: "기준금리", value: "3.00%", change: "", asOf: "2026-11-22", ref: "E1" }],
+      why: [{ claim: "물가가 높아요. (E2-1)", evidence: "통화정책방향 (ref E2-1)", basis: "news" as const, refs: ["E2-1"] }],
+      impact: [],
+      caveats: ["2026-10-22 한국은행은 동결했어요. (E2-1)"],
+      dataGaps: [],
+      nextTopics: [],
+    };
+    const out = dropRefIds(output);
+    expect(out.summary).toBe("한국은행은 동결했어요.");
+    expect(out.why[0]).toMatchObject({ claim: "물가가 높아요.", evidence: "통화정책방향", refs: ["E2-1"] });
+    expect(out.caveats).toEqual(["2026-10-22 한국은행은 동결했어요."]);
+    expect(out.numbers[0]!.ref).toBe("E1");
+    const clean = { ...output, summary: "동결했어요.", why: [], caveats: [] };
+    expect(dropRefIds(clean)).toBe(clean);
+  });
+});
