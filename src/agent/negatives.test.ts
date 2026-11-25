@@ -276,3 +276,11 @@ describe("생활 영향 칸의 한계 문장은 주의점으로 (QA-03)", () => 
     expect(trimNegatives(output, "cause").impact).toEqual(output.impact);
   });
 });
+
+describe("'~이며' 를 나눈 뒤 남은 묻지 않은 원인 한계 (11/25 운영)", () => {
+  it("나눈 뒤 한계만 남은 문장도 뺀다", () => {
+    const base = { headline: null, numbers: [], why: [], impact: [], caveats: [], dataGaps: [], nextTopics: [] };
+    const out = trimNegatives({ ...base, summary: "실업률은 2026년 10월 2.5%로 전월보다 낮았어요. 실업률은 계절적 영향을 조정한 수치이며, 이 수치만으로 변화의 원인을 알 수는 없어요." }, "status");
+    expect(out.summary).toBe("실업률은 2026년 10월 2.5%로 전월보다 낮았어요. 실업률은 계절적 영향을 조정한 수치예요.");
+  });
+});
