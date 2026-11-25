@@ -43,12 +43,13 @@ describe("차트 인터랙티브 (11/21 사용자 요청)", () => {
     expect(nearestIndex([10, 20, 30], 26)).toBe(2);
     expect(nearestIndex([10], 100)).toBe(0);
   });
-  it("처음에는 안내 문장과 짚을 수 있는 투명 판만 있고 말풍선은 없다", () => {
+  it("처음에는 짚을 수 있는 투명 판만 있고 말풍선 · 안내 문장은 없다 (11/25 사용자)", () => {
     const chart = { kind: "line" as const, title: "USD/KRW 최근 30일", unit: "KRW per 1 USD", series: [{ label: "달러당 원화", ref: "E1", points: [{ t: "2026-10-19", v: 1365.1 }, { t: "2026-11-19", v: 1392.4 }] }] };
     const $ = load(renderToStaticMarkup(<ReportChart chart={chart} evidence={[]} />));
     expect($("rect.chart-hover-target")).toHaveLength(1);
     expect($(".chart-hover")).toHaveLength(0);
-    expect($(".chart-hover-text").text()).toContain("그날 값");
+    expect($(".chart-hover-text").text()).toBe("");
+    expect($.text()).not.toContain("선을 짚으면");
   });
 });
 
@@ -127,7 +128,7 @@ describe("막대 차트 · 비율 선 차트 (11/23)", () => {
     expect(text).toContain("한국 소비자물가 상승률이 2.38%에서 2.82%로 0.44%p 올랐어요");
     expect(text).toContain("2025년 11월부터 2026년 10월까지 1년간");
     expect(text).not.toContain("그래프예요");
-    expect(text).toContain("그달 값이 보여요");
+    expect(text).not.toContain("선을 짚으면"); // 11/25 사용자: 안내 문장은 뺌
     expect($("svg").attr("aria-label")).toContain("(+0.44%p)");
     const axis = $(".chart-axis text").map((_, el) => $(el).text()).get();
     expect(axis[0]).toBe("25.11");

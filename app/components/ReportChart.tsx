@@ -286,7 +286,8 @@ export function ReportChart({ chart, evidence = [] }: { chart: Chart; evidence?:
           <text x={W - PAD.right} y={H - 28} textAnchor="end">{axisDate(last.t)}</text>
         </g>
       </svg>
-      <p className="chart-hover-text" aria-live="polite">{tipText ?? `선을 짚으면 ${monthly ? "그달" : "그날"} 값이 보여요.`}</p>
+      {/* 11/25 사용자: '선을 짚으면…' 안내는 뺌. 짚은 날 값만 (PC 는 차트 말풍선, 휴대폰은 이 줄) */}
+      <p className="chart-hover-text" aria-live="polite">{tipText}</p>
       <div className="chart-summary">
         <p><strong>{lead} {valueText(from.v)}에서 {valueText(last.v)}{rate ? "로" : roParticle(fmtValue(last.v))}{change !== null ? ` ${Math.abs(Number(change)).toFixed(2)}${changeUnit} ${Number(change) > 0 ? "올랐어요" : Number(change) < 0 ? "내렸어요" : "변화 없이 유지됐어요"}` : " 바뀌었어요"}.</strong>{from.t !== first.t && <span className="chart-period">변화율 비교 기간: {dateY(from.t)}부터 {dateY(last.t)}까지 ({Math.round(day(last.t) - day(from.t))}일)</span>}{/* 단위는 차트 왼쪽 위 축 이름에 있어 기간만 (11/25 가독성) */}<span className="chart-period">{dateY(first.t)}부터 {dateY(last.t)}까지 {periodText}</span></p>
         {band && <RangeBar band={band} value={last.v} valueText={valueText} />}
