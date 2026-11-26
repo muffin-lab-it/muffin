@@ -26,7 +26,7 @@ export function CookieDecor() {
   }, []);
   return (
     <div ref={ref} className={styles.cookies} aria-hidden="true">
-      <Image src={cookie} alt="" width={460} height={519} unoptimized className={styles.cookie} />
+      <Image src={cookie} alt="" width={560} height={537} unoptimized className={styles.cookie} />
     </div>
   );
 }
