@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { addTodayClose, consistent, dropDailyCloseTalk, ensureIndex, ensureIndexes, indexCaveats, indexDays, indexesFor, indexFor, indexHidden, indexNote, indexPlan, indexRefs, isWeekToDate, officialIndex, parseClose, sessionDate, thisWeekDays, withIndexNumbers } from "./index-quote";
+import { addTodayClose, closeDate, consistent, dropDailyCloseTalk, ensureIndex, ensureIndexes, explicitDays, indexCaveats, indexDays, indexesFor, indexFor, indexHidden, indexNote, indexPlan, indexRefs, isWeekToDate, officialIndex, parseClose, sessionDate, thisWeekDays, withIndexNumbers } from "./index-quote";
 import type { Evidence, WriterOutput } from "./schema";
 
 const official: Evidence = {
@@ -340,5 +340,49 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
     const b: Evidence = { ...kosdaq("E2"), values: { ...kosdaq("E2").values, "period.returnPct": 1.23 } };
     const cards = (["코스닥", "코스피"] as const).reduce<WriterOutput>((acc, i) => withIndexNumbers(acc, [a, b], i, 7), empty).numbers;
     expect(cards.filter((n) => n.value === "+1.23%").map((n) => n.label)).toEqual(["코스피 기간 변화 (공식 자료)", "코스닥 기간 변화 (공식 자료)"]);
+  });
+});
+
+describe("종가 문장의 거래일 (11/26 Codex 적대적 검토 #5)", () => {
+  it("본문 첫 날짜가 다른 사건이면 그 날을 종가 날짜로 쓰지 않는다", async () => {
+    const ctx = new ResearchContext();
+    ctx.addEvidence([official]); // 공식 2026-11-19 종가 5,137.89
+    const other = "(서울=연합뉴스) 23일 예정된 회의를 앞두고 시장이 움직였다. 19일 코스피는 전장보다 267.93포인트(5.21%) 내린 4,869.96에 거래를 마쳤다.";
+    // 19일 종가는 공식 기준일과 같아 올리지 않음 (전: 23일 종가로 올림)
+    expect(await addTodayClose(ctx, "코스피", newsOf(article(other, "2026-11-23T07:29:21.000Z")) as never)).toBeUndefined();
+  });
+
+  it("종가 문장에 날짜가 없으면('이날') 바로 앞의 시장 문장 날짜, 그것도 없으면 등록하지 않는다", () => {
+    expect(closeDate({ lead: "이날 ", before: "(서울=연합뉴스) 20일 코스피와 코스닥이 5% 넘게 급락 마감했다.\n\n" }, "2026-11-20T07:29:21.000Z")).toBe("2026-11-20");
+    expect(closeDate({ lead: "20일 ", before: "23일 예정된 회의를 앞두고 시장이 움직였다. " }, "2026-11-23T07:29:21.000Z")).toBe("2026-11-20");
+    expect(closeDate({ lead: "이날 ", before: "23일 예정된 회의가 있다. " }, "2026-11-23T07:29:21.000Z")).toBeNull();
+    expect(closeDate({ lead: "", before: "" }, "2026-11-23T07:29:21.000Z")).toBeNull();
+  });
+});
+
+describe("숫자로 말한 지수 기간 (11/26 Codex 적대적 검토 #7)", () => {
+  it("최근 90일 · N개월 · 1년 · 석 달 · N주는 그 일수, 날짜 · 연도는 기간이 아니다", () => {
+    expect(indexPlan("최근 90일 코스피 추세 알려줘")).toEqual({ days: 90, calendar: null });
+    expect(indexPlan("최근 1년 코스피 추세 알려줘")).toEqual({ days: 365, calendar: null });
+    expect(explicitDays("코스닥 3개월 동안 어땠어?")).toBe(90);
+    expect(explicitDays("코스피 6개월 흐름")).toBe(180);
+    expect(explicitDays("석 달 동안 코스피")).toBe(90);
+    expect(explicitDays("한 해 동안 나스닥")).toBe(365);
+    expect(explicitDays("2주 동안 코스피")).toBe(14);
+    expect(explicitDays("지난 10일 코스닥")).toBe(10);
+    expect(explicitDays("11월 20일 코스피 종가")).toBeNull();
+    expect(explicitDays("2021년 코스피")).toBeNull();
+    expect(explicitDays("요즘 코스피 어때?")).toBeNull();
+    // 낱말 안의 글자는 기간이 아님 (#182 Codex 리뷰: "대한 해석" 의 "한 해")
+    expect(indexPlan("이번 주 코스피 급락에 대한 해석 알려줘")).toEqual({ days: 7, calendar: "this_week" });
+    expect(explicitDays("코스피 하락에 대한 해설")).toBeNull();
+    expect(explicitDays("매일 년초 계획")).toBeNull();
+    expect(explicitDays("한해 동안 코스피")).toBe(365);
+    expect(explicitDays("일년간 코스닥")).toBe(365);
+    expect(explicitDays("반년 동안 나스닥")).toBe(180);
+    expect(explicitDays("두 달 사이 코스피")).toBe(60);
+    // 기존 낱말은 그대로
+    expect(indexPlan("코스피 일주일 추세")).toEqual({ days: 7, calendar: null });
+    expect(indexPlan("코스피 한 달 동안 어땠어?")).toEqual({ days: 30, calendar: null });
   });
 });

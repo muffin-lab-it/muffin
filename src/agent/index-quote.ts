@@ -67,12 +67,36 @@ export function indexesFor(question: string): IndexName[] {
 
 /**
  * 질문의 기간 → 지수 조회 계획. 지수 tool 은 늘 최신 기준일에서 거꾸로 days 만큼과 비교합니다 (#178 Codex 리뷰).
+ *  - 숫자로 말한 기간(최근 90일 · 3개월 · 1년 …)은 그 일수 (explicitDays)
  *  - '일주일 · 최근 7일' 7일, '한 달' · 말 없음 30일
  *  - '이번 주': 기준일을 안 뒤 "지난 일요일까지" 로 다시 받아 월요일 앞 마지막 거래일 종가와 비교 (ensureOne)
  *  - '지난주': 기준일이 늘 최신이라 지난주만 떼어 받을 수 없음 → 기본 기간으로 받고 작성에 '지난주' 라고 부르지 않게 알림
  */
 export type IndexCalendar = "this_week" | "last_week" | null;
+/**
+ * 질문이 숫자로 말한 기간(달력 일수): "최근 90일 · 지난 10일 · 30일 동안", "3개월 · 6개월", "석 달 · 두 달 · 반년", "1년 · 한 해 · 12개월", "2주".
+ * 날짜("11월 20일 코스피") · 연도("2021년")는 기간이 아닙니다. 지수 tool 범위(2~365일)로 자릅니다 (11/26 Codex 적대적 검토 #7: 90일 · 1년을 30일로 바꿈)
+ */
+export function explicitDays(question: string): number | null {
+  const clamp = (n: number) => Math.min(365, Math.max(2, Math.round(n)));
+  const day = /(?:최근|지난)\s*(\d{1,3})\s*일|(?<!\d)(\d{1,3})\s*일\s*(?:간|동안|사이)/.exec(question);
+  if (day) return clamp(Number(day[1] ?? day[2]));
+  // 한글로 쓴 기간은 낱말 경계가 있어야 합니다: "대한 해석" 의 "한 해" 가 1년으로 읽혀 '이번 주' 를 덮던 것 (#182 Codex 리뷰)
+  const word = (body: string) => new RegExp(`(?<![가-힣])(?:${body})(?=$|[^가-힣]|간|동안|사이|의|을|를|은|는|이|가|에)`);
+  if (/(?<!\d)1\s*년|(?<!\d)12\s*개월/.test(question) || word("일\\s*년|한\\s*해").test(question)) return 365;
+  const month = /(?<!\d)(\d{1,2})\s*개월|(?<!\d)(\d{1,2})\s*달\s*(?:간|동안|사이)?/.exec(question);
+  if (month) return clamp(Number(month[1] ?? month[2]) * 30);
+  if (word("반\\s*년|여섯\\s*달").test(question)) return 180;
+  if (word("석\\s*달|세\\s*달").test(question)) return 90;
+  if (word("두\\s*달").test(question)) return 60;
+  const week = /(?<!\d)(\d)\s*주\s*(?:간|동안|사이)/.exec(question);
+  if (week) return clamp(Number(week[1]) * 7);
+  return null;
+}
+
 export function indexPlan(question: string): { days: number; calendar: IndexCalendar } {
+  const explicit = explicitDays(question);
+  if (explicit !== null) return { days: explicit, calendar: null };
   const period = questionPeriod(question);
   if (period === "7d") return { days: 7, calendar: null };
   if (period === "this_week") return { days: 7, calendar: "this_week" };
@@ -134,7 +158,7 @@ export function parseClose(text: string, index: KrIndexName): TodayClose | null 
 }
 
 /** parseClose 와 같되, 그 문장에서 지수 이름 앞에 온 말(lead)도 돌려줍니다. "전날 코스피는…" 처럼 다른 날의 마감을 다시 쓴 문장을 가리는 데 씁니다 */
-function closeMatch(text: string, index: KrIndexName): (TodayClose & { lead: string }) | null {
+function closeMatch(text: string, index: KrIndexName): (TodayClose & { lead: string; before: string }) | null {
   const re = new RegExp(
     `${escapeRe(index)}(?:\\s*지수)?[은는이가]?\\s*(?:전장|전\\s*거래일|전일)\\s*(?:보다|대비)\\s*([\\d,]+\\.\\d+)\\s*포인트\\s*\\(\\s*([\\d.]+)\\s*%\\s*\\)\\s*(내린|하락한|떨어진|밀린|오른|상승한|뛴)\\s*([\\d,]+\\.\\d+)`,
   );
@@ -145,7 +169,23 @@ function closeMatch(text: string, index: KrIndexName): (TodayClose & { lead: str
   if (/^.{0,12}(출발|개장|장중|거래되|거래\s*중|기록\s*중)/.test(rest) || !/마쳤|마감|마친/.test(rest)) return null;
   const sign = /내린|하락한|떨어진|밀린/.test(m[3]!) ? -1 : 1;
   const lead = text.slice(0, m.index).split(/(?<!\d)\.(?!\d)|\n/).at(-1) ?? "";
-  return { close: num(m[4]!), change: sign * num(m[1]!), changePct: sign * Number(m[2]), lead };
+  return { close: num(m[4]!), change: sign * num(m[1]!), changePct: sign * Number(m[2]), lead, before: text.slice(0, m.index - lead.length) };
+}
+
+/** 시장 마감을 말하는 문장의 낱말 (앞 문장의 날짜를 종가 날짜로 빌려 올 때) */
+const MARKET_WORDS = /코스피|코스닥|증시|주가|지수|마감|장\s*(?:을|이|은|초반|마감)|거래/;
+
+/**
+ * 종가 문장의 거래일 (11/26 Codex 적대적 검토 #5: 본문 첫 "N일" 을 쓰면 "23일 예정된 회의를 앞두고 … 20일 코스피는 … 마쳤다" 에서 23일 종가가 됨).
+ *  - 종가 문장 안에 "N일" 이 있으면 그 날
+ *  - 없으면("이날 코스피는 …") 바로 앞 문장들 가운데 날짜와 시장 낱말이 함께 든 가장 가까운 문장의 날 ("20일 코스피와 코스닥이 … 마감했다")
+ *  - 둘 다 없으면 null (등록하지 않음)
+ */
+export function closeDate(match: { lead: string; before: string }, publishedAt: string): string | null {
+  if (/(?:^|[^\d])\d{1,2}일/.test(match.lead)) return sessionDate(match.lead, publishedAt);
+  const sentences = match.before.split(/(?<!\d)\.(?!\d)|\n/).map((x) => x.trim()).filter(Boolean).reverse();
+  const near = sentences.find((x) => /(?:^|[^\d])\d{1,2}일/.test(x) && MARKET_WORDS.test(x));
+  return near ? sessionDate(near, publishedAt) : null;
 }
 
 /** 검산: 공식 전일 종가 + 기사의 변화폭이 기사의 종가와 맞는지 (반올림 오차 0.02 포인트), 등락률이 그 변화폭과 맞는지 */
@@ -189,11 +229,12 @@ export async function addTodayClose(ctx: ResearchContext, index: KrIndexName, ne
     const results = await Promise.all(queries.map((query) => news({ sources: ["yonhap", "hankyung"], query, limit: 5, content: "body" }).catch(() => null)));
     for (const article of results.flatMap((r) => r?.data.articles ?? [])) {
       if (article.body.status !== "available") continue;
-      const date = sessionDate(article.body.text, article.publishedAt);
-      if (!date || date <= prevDate) continue;
       const today = closeMatch(article.body.text, index);
       // "21일 … 전날 코스피는 … 마쳤다" 처럼 다른 날의 마감을 다시 쓴 문장은 본문의 날짜가 그 종가의 날짜가 아니라 건너뜁니다 (#123 Codex 리뷰)
       if (!today || /전날|어제|지난|전주|앞서/.test(today.lead) || !consistent(prevClose, today)) continue;
+      // 거래일은 종가 문장(없으면 바로 앞의 시장 문장)에서 읽습니다. 본문 첫 날짜는 다른 사건일 수 있음
+      const date = closeDate(today, article.publishedAt);
+      if (!date || date <= prevDate) continue;
       const entry: Evidence = {
         id: ctx.nextCalcId(),
         tool: INDEX_TODAY_TOOL,
