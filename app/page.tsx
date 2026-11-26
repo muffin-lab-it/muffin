@@ -24,11 +24,12 @@ const areaOptions: { value: Area; label: string }[] = [
   { value: "macro", label: "물가" },
 ];
 
-// 깊이마다 무엇이 달라지는지 구체적으로 (11/20 QA 9: 한 줄 설명으로는 뭘 골라야 할지 몰랐음). 시간은 운영 기록의 대략값. '·' 앞은 줄이 안 바뀌게 붙임
+// 깊이 설명은 쉬운 말로 (11/26 사용자: '숫자 1~2개' 같은 설명 대신. 11/20 QA 9 에서 구체적으로 바꿨던 것을 되돌림),
+// 시간은 운영 기록의 대략값을 '이내' 로
 const depthOptions: { value: Depth; label: string; hint: string; time: string }[] = [
-  { value: "easy", label: "Easy", hint: "숫자 1~2개\u00a0· 짧은 요약", time: "20초 안팎" },
-  { value: "standard", label: "Standard", hint: "숫자 3~4개\u00a0· 배경과 생활 영향", time: "30초 안팎" },
-  { value: "deep", label: "Deep Dive", hint: "기간 비교\u00a0· 반대 근거까지", time: "45초 안팎" },
+  { value: "easy", label: "Easy", hint: "쉽게 설명해줘요", time: "20초 이내" },
+  { value: "standard", label: "Standard", hint: "보통이에요", time: "30초 이내" },
+  { value: "deep", label: "Deep Dive", hint: "심층적이에요", time: "45초 이내" },
 ];
 
 /**
