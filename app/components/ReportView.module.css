@@ -873,3 +873,8 @@
   .report .nextTopics :global(.report-continue) a { display:inline-flex; align-items:center; padding:10px 18px; border:1px solid #d9c9ec; border-radius:999px; background:#fff; }
   .report .nextTopics :global(.report-continue) a:hover { border-color:#b89ad9; text-decoration:none; }
 }
+
+/* 11/26 리포트 내보내기: 'PDF로 담기' 옆 'Notion에 붙여 넣기' · '시트용 CSV 받기'. 안내 줄은 비어 있으면 화면에서 숨기되 읽기 도구 알림 칸은 남김 */
+.report :global(.report-actions) [role="status"] { flex-basis:100%; grid-column:1 / -1; text-align:right; color:#5b4a75; }
+.report :global(.report-actions) [role="status"]:empty { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@container report (max-width: 560px) { .report :global(.report-actions) [role="status"] { text-align:left; } }
