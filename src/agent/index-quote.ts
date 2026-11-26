@@ -81,12 +81,14 @@ export function explicitDays(question: string): number | null {
   const clamp = (n: number) => Math.min(365, Math.max(2, Math.round(n)));
   const day = /(?:최근|지난)\s*(\d{1,3})\s*일|(?<!\d)(\d{1,3})\s*일\s*(?:간|동안|사이)/.exec(question);
   if (day) return clamp(Number(day[1] ?? day[2]));
-  if (/(?<!\d)1\s*년|일\s*년|한\s*해|(?<!\d)12\s*개월/.test(question)) return 365;
+  // 한글로 쓴 기간은 낱말 경계가 있어야 합니다: "대한 해석" 의 "한 해" 가 1년으로 읽혀 '이번 주' 를 덮던 것 (#182 Codex 리뷰)
+  const word = (body: string) => new RegExp(`(?<![가-힣])(?:${body})(?=$|[^가-힣]|간|동안|사이|의|을|를|은|는|이|가|에)`);
+  if (/(?<!\d)1\s*년|(?<!\d)12\s*개월/.test(question) || word("일\\s*년|한\\s*해").test(question)) return 365;
   const month = /(?<!\d)(\d{1,2})\s*개월|(?<!\d)(\d{1,2})\s*달\s*(?:간|동안|사이)?/.exec(question);
   if (month) return clamp(Number(month[1] ?? month[2]) * 30);
-  if (/반\s*년|여섯\s*달/.test(question)) return 180;
-  if (/석\s*달|세\s*달/.test(question)) return 90;
-  if (/두\s*달/.test(question)) return 60;
+  if (word("반\\s*년|여섯\\s*달").test(question)) return 180;
+  if (word("석\\s*달|세\\s*달").test(question)) return 90;
+  if (word("두\\s*달").test(question)) return 60;
   const week = /(?<!\d)(\d)\s*주\s*(?:간|동안|사이)/.exec(question);
   if (week) return clamp(Number(week[1]) * 7);
   return null;

@@ -373,6 +373,14 @@ describe("숫자로 말한 지수 기간 (11/26 Codex 적대적 검토 #7)", () 
     expect(explicitDays("11월 20일 코스피 종가")).toBeNull();
     expect(explicitDays("2021년 코스피")).toBeNull();
     expect(explicitDays("요즘 코스피 어때?")).toBeNull();
+    // 낱말 안의 글자는 기간이 아님 (#182 Codex 리뷰: "대한 해석" 의 "한 해")
+    expect(indexPlan("이번 주 코스피 급락에 대한 해석 알려줘")).toEqual({ days: 7, calendar: "this_week" });
+    expect(explicitDays("코스피 하락에 대한 해설")).toBeNull();
+    expect(explicitDays("매일 년초 계획")).toBeNull();
+    expect(explicitDays("한해 동안 코스피")).toBe(365);
+    expect(explicitDays("일년간 코스닥")).toBe(365);
+    expect(explicitDays("반년 동안 나스닥")).toBe(180);
+    expect(explicitDays("두 달 사이 코스피")).toBe(60);
     // 기존 낱말은 그대로
     expect(indexPlan("코스피 일주일 추세")).toEqual({ days: 7, calendar: null });
     expect(indexPlan("코스피 한 달 동안 어땠어?")).toEqual({ days: 30, calendar: null });
