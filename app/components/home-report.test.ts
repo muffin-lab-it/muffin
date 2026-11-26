@@ -172,7 +172,7 @@ describe("홈에서 분류 후 진행 화면으로 전환", () => {
     response.resolve(result); await pending;
   });
 
-  it("범위 밖 plan은 홈에서 안내하고 최종 report가 와도 저장하거나 이동하지 않는다", async () => {
+  it("범위 밖 plan은 진행 화면에 머물러 안내하고 최종 report가 와도 저장하거나 이동하지 않는다 (11/26)", async () => {
     const { deps, navigate, request } = setup();
     const response = deferred<ReportResponse>();
     let emit!: (event: MuffinEvent) => void;
@@ -182,7 +182,8 @@ describe("홈에서 분류 후 진행 화면으로 전환", () => {
     emit({ type: "plan", mode: "out_of_scope", intent: "out_of_scope", tools: [] });
     expect(request.getSnapshot().phase).toBe("unsupported");
     expect(request.getSnapshot().input).toEqual(original);
-    expect(showsHomeProgress(request.getSnapshot())).toBe(false);
+    // 11/26 사용자: 홈으로 튕겨 내려 안내하지 않고 진행 화면에서 안내
+    expect(showsHomeProgress(request.getSnapshot())).toBe(true);
     emit(reportEvent); response.resolve(result); await pending;
     expect(deps.saveReport).not.toHaveBeenCalled(); expect(navigate).not.toHaveBeenCalled();
     expect(request.getSnapshot().phase).toBe("unsupported");

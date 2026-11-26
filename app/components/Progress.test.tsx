@@ -30,9 +30,10 @@ describe("MF-02 진행 화면", () => {
     expect(render(events)("[role=progressbar]").attr("aria-valuenow")).toBe("20");
     expect(render([...events, { type: "error", message: "실패" }])("[role=progressbar]").attr("aria-valuenow")).toBe("20");
   });
-  it("범위 밖 질문은 건너뛴 단계를 완료율 분모에서 제외한다", () => {
+  it("범위 밖 질문은 진행 막대 대신 안내를 보여 준다 (11/26: 50% 에서 멈춘 막대가 아직 조사 중처럼 보였음)", () => {
     const $ = render([{ type: "stage", stage: "plan", status: "done" }, { type: "plan", mode: "out_of_scope", intent: "out_of_scope", tools: [] }]);
-    expect($("[role=progressbar]").attr("aria-valuenow")).toBe("50");
+    expect($("[role=progressbar]")).toHaveLength(0);
+    expect($("[role=alert]").text()).toContain("질문을 바꿔 다시 물어봐 주세요");
   });
   it("질문·진행 상태·이야기를 분리하고 계획을 실행 중으로 표현하지 않는다", () => {
     const $ = render([{ type: "plan", intent: "cause", mode: "research", tools: ["get_fx_krw_rate", "get_rate_data"] }]);
@@ -133,5 +134,31 @@ describe("진행 화면 움직임 · 칸 이름 (11/25 사용자)", () => {
     expect(running("[role=progressbar]").attr("data-active")).toBe("true");
     const stopped = render([{ type: "stage", stage: "research", status: "start" }], "조사 중 오류가 생겼어요");
     expect(stopped("[role=progressbar]").attr("data-active")).toBeUndefined();
+  });
+});
+
+describe("범위 밖 질문은 진행 화면에서 안내 (11/26 사용자)", () => {
+  // 홈은 범위 밖 plan 뒤 이벤트를 받지 않아 '질문 살펴보기 끝' 신호 없이 멈춤
+  const scopeEvents: MuffinEvent[] = [
+    { type: "stage", stage: "plan", status: "start" },
+    { type: "plan", mode: "out_of_scope", intent: "out_of_scope", tools: [] },
+  ];
+  it("이유 · 대신 물어볼 질문 · 질문 고치기 · 지우고 다시 쓰기, 진행 막대는 숨기고 남은 단계는 건너뜀", () => {
+    const scopeInfo = { summary: "위안화 환율은 아직 다루지 않아요. 달러 · 유로 · 엔 환율을 확인할 수 있어요.", topics: [{ question: "최근 30일 원·달러 환율은 얼마나 변했나요?", reason: "달러 환율 변화를 확인해요." }] };
+    const $ = load(renderToStaticMarkup(<Progress question="위안화 환율 어때?" depth="standard" events={scopeEvents} scopeInfo={scopeInfo} onPickTopic={vi.fn()} onEditQuestion={vi.fn()} onClearQuestion={vi.fn()} />));
+    expect($("h1").text()).toContain("이 질문은 아직 답하기 어려워요");
+    expect($("[role=alert]").text()).toBe(scopeInfo.summary);
+    expect($("button").map((_, el) => $(el).text()).get()).toEqual(["최근 30일 원·달러 환율은 얼마나 변했나요?", "질문 고치기", "지우고 다시 쓰기"]);
+    expect($.text()).toContain("달러 환율 변화를 확인해요.");
+    expect($("[role=progressbar]")).toHaveLength(0);
+    const states = $("ol li").map((_, el) => $(el).attr("data-state")).get();
+    expect(states[0]).toBe("done");
+    expect(states.slice(1)).toEqual(["skipped", "skipped", "skipped", "skipped"]);
+    expect($("[role=status]").first().text()).toContain("이 질문은 아직 답하기 어려워요");
+  });
+  it("이유가 아직 안 왔으면 기본 안내, 손잡이가 없으면(다시 보기) 버튼 없이", () => {
+    const $ = load(renderToStaticMarkup(<Progress question="오늘 점심은?" events={scopeEvents} />));
+    expect($("[role=alert]").text()).toContain("질문을 바꿔 다시 물어봐 주세요");
+    expect($("button")).toHaveLength(0);
   });
 });

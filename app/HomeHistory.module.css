@@ -113,11 +113,7 @@
 
 /* 7. 홈에서 질문 확인 중인 상태와 지원 범위 안내 */
 .checking{font-size:15px;color:var(--accent);line-height:1.8;margin:0 0 22px}
-.scopeNotice{background:#fff8f7;border:1px solid #f0cfcc;border-radius:14px;padding:20px 22px;margin:0 0 25px;word-break:keep-all;overflow-wrap:anywhere}
-.scopeNotice h2{font-size:19px;color:#c83532;line-height:1.6;margin:0 0 10px}
-.scopeNotice p{font-size:14px;color:#765c60;line-height:1.9;margin:0}
 .fieldset:disabled .option{cursor:wait}
-@media(max-width:600px){.scopeNotice{padding:17px}.scopeNotice h2{font-size:17px}.scopeNotice p{font-size:13px}}
 
 /* 8. 홈 안내 문구와 생성형 AI 고지 */
 .questionLimit,.hint{font-size:15px}
@@ -136,11 +132,9 @@
 .formError button:hover{border-color:var(--accent);background:#f8f4ff}
 .formError button:disabled{opacity:.5;cursor:not-allowed}
 
-/* 11/21 QA 1묶음: 깊이 설명 두 줄 + 비교 링크(QA 9), 반려 뒤 지우기 버튼(외부 F1) */
+/* 11/21 QA 1묶음: 깊이 설명 두 줄 (QA 9). 반려 뒤 지우기 버튼(외부 F1)은 11/26 부터 진행 화면에 */
 .depths .option>span{height:auto;min-height:96px;padding:12px 8px;gap:4px}
 .depthTime{color:#8550df;font-size:13px}
-.clearQuestion{margin-top:14px;border:1px solid var(--brand-purple-border);border-radius:10px;background:#fff;color:var(--brand-purple-strong);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
-.clearQuestion:hover{background:var(--brand-purple-tint)}
 @media(max-width:600px){.depths .option>span{min-height:0;padding:12px 6px}}
 
 /* 11/21: 진행 화면은 홈 폭(1280)으로, 위 여백만 */
@@ -180,14 +174,6 @@
   .depths .option input:checked+span::after{top:6px;right:6px;width:18px;height:18px;background-size:11px}
 }
 
-/* 11/23 범위 밖 안내의 추천 질문: 누르면 입력칸에 채움 */
-.scopeTopics{margin-top:14px;padding-top:12px;border-top:1px solid #f0cfcc}
-.scopeTopics>p{font-size:13px;font-weight:700;color:#765c60;margin:0 0 8px}
-.scopeTopics ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.scopeTopics li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
-.scopeTopics button{border:1px solid var(--brand-purple-border);border-radius:999px;background:#fff;color:var(--brand-purple-strong);padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;text-align:left}
-.scopeTopics button:hover{background:var(--brand-purple-tint)}
-.scopeTopics small{font-size:12px;color:#8a7478;line-height:1.6}
 
 /* 11/25 사용자: 홈 머핀 둘레에 두둥실 떠 있는 금융 그림 (초기 시안처럼). 위치는 그림 상자 기준 % */
 .mascotWrap{position:relative;flex-shrink:0;justify-self:center}
