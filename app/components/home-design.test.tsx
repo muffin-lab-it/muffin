@@ -20,8 +20,20 @@ describe("홈과 보관함 기본 상태", () => {
     expect($("input[name=area][checked]").closest("label").text()).toContain("Auto 머핀");
     expect($("input[name=depth][checked]").attr("value")).toBe("easy");
     expect($("button[type=submit]").attr("disabled")).toBeDefined();
-    expect($("label[for=question]").text()).toBe("궁금한 금융 질문");
+    // 11/26 사용자: 질문칸 제목은 보이는 '무엇이 궁금하세요?' (전에는 읽기 도구용 '궁금한 금융 질문')
+    expect($("label[for=question]").text()).toBe("무엇이 궁금하세요?");
     expect($("[aria-label='리포트 생성 진행']")).toHaveLength(0);
+  });
+  it("콘셉트 순서 · 칸마다 그림 · 쉬운 난이도 설명 (11/26 사용자)", () => {
+    const $ = load(renderToStaticMarkup(<Home />));
+    expect($("form legend").map((_, el) => $(el).text()).get()).toEqual(["관심 영역", "분석 난이도"]);
+    // 관심 영역 → 분석 난이도 → 질문 → 굽기 순서 (굽기는 질문칸과 같은 판 안)
+    const order = $("form").find("legend, textarea, button[type=submit]").map((_, el) => el.tagName === "legend" ? $(el).text() : el.tagName).get();
+    expect(order).toEqual(["관심 영역", "분석 난이도", "textarea", "button"]);
+    expect($("textarea").closest("div").parent().find("button[type=submit]")).toHaveLength(1);
+    expect($("input[name=area]").closest("label").find("svg")).toHaveLength(6);
+    expect($("input[name=depth]").closest("label").find("svg")).toHaveLength(3);
+    expect($("input[name=depth]").closest("label").map((_, el) => $(el).text()).get()).toEqual(["Easy쉽게 설명해줘요25초 이내", "Standard보통이에요30초 이내", "Deep Dive심층적이에요45초 이내"]);
   });
   it("보관함이 조회되기 전에 빈 상태로 오인시키지 않는다", () => {
     const $ = load(renderToStaticMarkup(<HistoryPage />));
