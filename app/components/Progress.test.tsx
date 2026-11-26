@@ -121,6 +121,9 @@ describe("진행 화면 움직임 · 칸 이름 (11/25 사용자)", () => {
     expect(running.text()).not.toContain("머핀 이야기");
     const stopped = render([{ type: "stage", stage: "plan", status: "start" }], "조사 중 오류가 생겼어요");
     expect(stopped("[data-section=story] h2").text()).toBe("확인 노트");
+    // 11/26 사용자: 제목 앞은 쿠키 이모지 (전에는 머핀 로고 그림)
+    expect(running("[data-section=story] h2").prev().text()).toBe("🍪");
+    expect(running("[data-section=story] h2").prev().find("img")).toHaveLength(0);
   });
 
   it("그림 둘레에 떠 있는 금융 그림을 두고, 진행 막대의 빛은 진행 중일 때만 흐른다", () => {

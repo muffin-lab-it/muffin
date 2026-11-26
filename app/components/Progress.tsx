@@ -181,9 +181,9 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
         <Image key={imageIndex} className={styles.mascot} src={stageImages[imageIndex]} width={200} height={200} sizes="(max-width: 720px) 160px, 200px" alt="" aria-hidden="true" />
         <FinanceFloaters variant="progress" />
       </div>
-      {/* 11/25 사용자: '머핀 이야기' 대신 '확인 노트' */}
+      {/* 11/25 사용자: '머핀 이야기' 대신 '확인 노트'. 11/26: 앞 그림은 쿠키 이모지 */}
       <aside className={styles.tip} aria-label={storyTitle} data-section="story">
-        <div className={styles.storyHeading}><span className={styles.storyIcon} aria-hidden="true"><Image src="/icon.svg" alt="" width={20} height={20} /></span><h2>{storyTitle}</h2></div>
+        <div className={styles.storyHeading}><span className={styles.storyIcon} aria-hidden="true">🍪</span><h2>{storyTitle}</h2></div>
         <p className={styles.story} aria-live="polite">{story}</p>
         {(state.plan || state.steps.length > 0 || verification) && <div className={styles.storyData}>
 
