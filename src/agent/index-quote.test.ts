@@ -280,6 +280,8 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
     expect(isWeekToDate(at("2026-11-20", "2026-11-25"), "2026-11-26")).toBe(true); // 금요일 시작
     expect(isWeekToDate(at("2026-11-19", "2026-11-25"), "2026-11-26")).toBe(true); // 금요일 휴장 → 목요일 시작
     expect(isWeekToDate(at("2026-11-18", "2026-11-20"), "2026-11-26")).toBe(false); // 기준일이 아직 지난주
+    expect(isWeekToDate(at("2026-11-17", "2026-11-25"), "2026-11-26")).toBe(false); // 시작일이 너무 앞 (최근 7일 자료)
+    expect(isWeekToDate(at("2026-11-18", "2026-11-25"), "2026-11-26")).toBe(true); // 목 · 금 휴장이면 수요일 시작
     expect(isWeekToDate(at("2026-11-23", "2026-11-25"), "2026-11-26")).toBe(false); // 시작일이 이번 주 안
 
     const nasdaq: Evidence = { ...kospi7, id: "E8", tool: "get_us_stock_index", values: { ...kospi7.values, index: "나스닥 종합" } };
@@ -295,5 +297,30 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
     const year = kosdaq("E3", "2025-11-24");
     expect([...indexHidden([seven, week, year], [{ index: "코스닥", days: 4, calendar: "this_week" }])]).toEqual(["E1"]);
     expect([...indexHidden([seven], [{ index: "코스닥", days: 7, calendar: null }])]).toEqual([]);
+  });
+
+  it("이번 주로 다시 받기가 실패하면 먼저 받은 7일 항목을 '이번 주' 로 쓰지 않는다 (#178 Codex 리뷰)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-26T03:00:00Z"));
+    try {
+      const ctx = new ResearchContext();
+      const invoke = vi.fn(async (_run: unknown, input: string) => {
+        const { days } = JSON.parse(input) as { days: number };
+        if (days !== 7) throw new Error("timeout");
+        ctx.addEvidence([{ ...kospi7, id: "E1", values: { ...kospi7.values, "latest.date": "2026-11-25", "period.from": "2026-11-18", "period.to": "2026-11-25" } }]);
+        return "ok";
+      });
+      const [pick] = await ensureIndexes(ctx, "이번 주 코스피 어때?", { name: "get_kr_stock_index", invoke }, newsOf() as never);
+      expect(pick).toMatchObject({ index: "코스피", days: 7, calendar: "this_week_empty" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("두 지수의 기간 수익률이 같은 값이어도 카드가 지수마다 남는다 (#178 Codex 리뷰)", () => {
+    const a: Evidence = { ...kospi7, id: "E1", values: { ...kospi7.values, "period.returnPct": 1.23 } };
+    const b: Evidence = { ...kosdaq("E2"), values: { ...kosdaq("E2").values, "period.returnPct": 1.23 } };
+    const cards = (["코스닥", "코스피"] as const).reduce<WriterOutput>((acc, i) => withIndexNumbers(acc, [a, b], i, 7), empty).numbers;
+    expect(cards.filter((n) => n.value === "+1.23%").map((n) => n.label)).toEqual(["코스피 기간 변화 (공식 자료)", "코스닥 기간 변화 (공식 자료)"]);
   });
 });

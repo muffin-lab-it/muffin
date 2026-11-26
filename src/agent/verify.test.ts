@@ -802,6 +802,13 @@ describe("11/22 다시 쓰기 원인: 쉼표로 이어 쓴 하락폭 · 지수 �
     expect(extractNumbers("0.5%p, 미국은 그대로고 한국은 0.2%p 낮아요")[0]!.falling ?? false).toBe(false);
   });
 
+  it("주어만 바뀌는 꼴도 같은 하락으로 읽는다 (11/26 로컬: '코스피는 7.30%, 코스닥은 1.84% 하락했어요')", () => {
+    expect(extractNumbers("코스피는 7.30%, 코스닥은 1.84% 하락했어요").map((n) => [n.value, n.falling ?? false])).toEqual([[7.3, true], [1.84, true]]);
+    expect(extractNumbers("코스피는 3.54%, 나스닥 종합은 2.45% 내렸어요").map((n) => n.falling ?? false)).toEqual([true, true]);
+    // 다른 방향 낱말이 끼면 그대로 따로 읽음
+    expect(extractNumbers("코스피는 3.54% 올랐고, 코스닥은 0.77% 내렸어요")[0]!.falling ?? false).toBe(false);
+  });
+
   it("지수 기준 연도는 숫자로 보지 않는다", () => {
     expect(extractNumbers("337.476 (1982-1984=100)").map((n) => n.value)).toEqual([337.476]);
     expect(extractNumbers("337.476 (1982~84=100)").map((n) => n.value)).toEqual([337.476]);

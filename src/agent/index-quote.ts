@@ -97,7 +97,8 @@ export function isWeekToDate(e: Evidence, today: string = todayKst()): boolean {
   const monday = t - ((new Date(t).getUTCDay() + 6) % 7) * DAY_MS;
   const from = Date.parse(`${String(e.values["period.from"])}T00:00:00Z`);
   const to = Date.parse(`${String(e.values["period.to"])}T00:00:00Z`);
-  return from < monday && from >= monday - 10 * DAY_MS && to >= monday;
+  // 월요일 앞 마지막 거래일은 금요일(휴장이면 목 · 수요일)입니다. 그보다 앞이면 이번 주 비교가 아니라 다른 기간 자료입니다 (#178 Codex 리뷰)
+  return from < monday && from >= monday - 5 * DAY_MS && to >= monday;
 }
 
 /** 받은 지수와 그 기간 (작성 · 카드 · 차트가 같은 항목을 고르도록) */
@@ -249,9 +250,14 @@ async function ensureOne(ctx: ResearchContext, index: IndexName, plan: { days: n
     // 맞게 받았는지는 거리가 아니라 비교 시작일로 봅니다: 금요일이 휴장이면 목요일과 비교되어 거리가 하루 더 깁니다 (#178 Codex 리뷰).
     // 기준일이 아직 지난주면(월요일 아침 · 미국 자료가 늦는 날) 최근 7일로 두고 '이번 주' 라고 부르지 않게
     const exact = thisWeekDays(String(first.values["latest.date"]));
-    if (exact !== null && exact !== spanDays(first)) await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days: exact })).catch(() => undefined);
-    const week = exact === null ? undefined : officialIndex(ctx.evidence, index, exact);
-    if (week && isWeekToDate(week)) days = exact!;
+    let week: Evidence | undefined = exact !== null && exact === spanDays(first) ? first : undefined;
+    if (exact !== null && !week) {
+      // 이번 주로 다시 받은 항목만 봅니다. 다시 받기가 실패하면 먼저 받은 7일 항목이 '이번 주' 로 둔갑하지 않게 (#178 Codex 리뷰)
+      const before = ctx.evidence.length;
+      await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days: exact })).catch(() => undefined);
+      week = ctx.evidence.slice(before).find((e) => (e.tool === INDEX_TOOL || e.tool === US_INDEX_TOOL) && e.values.index === index && typeof e.values["latest.close"] === "number");
+    }
+    if (week && isWeekToDate(week)) days = spanDays(week);
     else calendar = "this_week_empty";
   }
   // 당일 종가의 기사 검산은 국내 지수만 합니다 (국내 마감 기사의 문장 꼴에 맞춘 것)
@@ -343,7 +349,9 @@ export function withIndexNumbers(output: WriterOutput, evidence: Evidence[], ind
   if (!o) return output;
   // 글자가 아니라 값으로 비교합니다 ("23,879.20" 과 "23,879.2포인트" 는 같은 값). 변화 칸에 적혀 있어도 있는 것으로 봅니다.
   // 부호가 적힌 숫자는 부호까지 같아야 같은 값입니다: 전일 대비 "+2.00%" 를 썼다고 기간 변화 -2.00% 가 이미 있는 것은 아닙니다 (#128 Codex 리뷰)
-  const written = output.numbers.flatMap((n) =>
+  // 이 지수의 항목을 가리키는 카드만 봅니다. 두 지수의 기간 수익률이 같은 값이어도 둘 다 남게 (#178 Codex 리뷰)
+  const own = new Set([o.id, todayIndex(evidence, index)?.id].filter(Boolean));
+  const written = output.numbers.filter((n) => n.ref !== null && own.has(n.ref)).flatMap((n) =>
     [...`${n.value} ${n.change}`.replace(/\d{4}-\d{2}-\d{2}/g, " ").matchAll(/([-+−])?\s*(\d[\d,]*(?:\.\d+)?)/g)].map((m) => ({ sign: m[1] ? (m[1] === "+" ? 1 : -1) : 0, value: Number(m[2]!.replace(/,/g, "")) })),
   );
   const has = (value: number) => written.some((w) => Math.abs(w.value - Math.abs(value)) < 0.005 && (w.sign === 0 || w.sign === Math.sign(value)));
