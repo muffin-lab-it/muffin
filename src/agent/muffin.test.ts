@@ -15,7 +15,7 @@ vi.mock("./rate-cause", () => ({ ensureRateStatement: vi.fn(async () => null), r
 vi.mock("./cpi-trend", () => ({ cpiChart: vi.fn(() => null), cpiTrendHidden: vi.fn(() => new Set()), ensureCpiTrend: vi.fn(async () => null) }));
 vi.mock("./deep", () => ({ deepNote: vi.fn(() => ""), deepRefs: vi.fn(() => []), ensureDeep: vi.fn(async () => null), withDeepNumbers: vi.fn((o: unknown) => o) }));
 vi.mock("./rate-trend", () => ({ ensureRateYear: vi.fn(async () => []), ensureRateReference: vi.fn(async () => null), rateReferenceNote: vi.fn(() => ""), rateYearNote: vi.fn(() => ""), withRateReference: vi.fn((o: unknown) => o), yearRates: vi.fn(() => []) }));
-vi.mock("./index-quote", () => ({ ensureIndex: vi.fn(async () => null), indexFor: vi.fn(() => null), officialIndex: vi.fn(() => undefined), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
+vi.mock("./index-quote", () => ({ ensureIndexes: vi.fn(async () => []), dropDailyCloseTalk: vi.fn((o: unknown) => o), indexHidden: vi.fn(() => new Set()), indexesFor: vi.fn(() => []), indexFor: vi.fn(() => null), officialIndex: vi.fn(() => undefined), indexRefs: vi.fn(() => []), indexNote: vi.fn(() => ""), indexCaveats: vi.fn(() => []), withIndexNumbers: vi.fn((o: unknown) => o) }));
 
 import { run, type RunContext } from "@openai/agents";
 import { indexFor } from "./index-quote";

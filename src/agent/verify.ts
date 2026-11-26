@@ -79,7 +79,10 @@ function sharedFalling(rest: string): boolean {
   // 사이에는 비교 기준("전년 동월보다")만 올 수 있습니다. 다른 대상을 말하는 말("미국은 그대로고 한국은")이 끼면 같은 하락으로 보지 않습니다
   const middle = (m?.[1] ?? "").trim();
   // 비교 기준에는 기준 값이 들어갈 수 있습니다: "2025-10의 2.7%보다" (11/22 운영 실업률: 날짜는 미리 지워져 "의 2.7%보다" 로 옴)
-  return !!m && !DIRECTION_WORD.test(middle) && (middle === "" || /^[가-힣\s\d.,%()]{0,24}보다$/.test(middle));
+  // 주어만 바뀌는 꼴도 같은 하락입니다: "코스피는 7.30%, 코스닥은 1.84% 하락했어요" (11/26 로컬: 코스피 -7.3% 를 +7.3% 로 읽어 문장을 뺌).
+  // 낱말 한두 개 + 은 · 는 · 이 · 가 만 (다른 방향 낱말이 끼는 "미국은 그대로고 한국은" 은 위에서 이미 걸러짐)
+  const subjectOnly = /^[가-힣A-Za-z0-9&]+(?:\s[가-힣A-Za-z0-9&]+)?\s*(?:은|는|이|가)$/.test(middle);
+  return !!m && !DIRECTION_WORD.test(middle) && (middle === "" || subjectOnly || /^[가-힣\s\d.,%()]{0,24}보다$/.test(middle));
 }
 
 /**
