@@ -23,6 +23,15 @@ function openContainingDetails(target: HTMLElement) {
   }
 }
 
+/**
+ * 근거로 내려간 뒤 사용자가 버튼 없이 스크롤로 읽던 곳에 돌아왔는지 (11/26 사용자: 떠 있는 돌아가기 버튼이 남지 않게).
+ * 읽던 곳이 화면에서 한 번 벗어났다가(left) 다시 절반 넘게 보이면 돌아온 것으로 봅니다. 처음부터 계속 보이면 돌아온 게 아닙니다.
+ */
+export function returnedByScroll(left: boolean, visible: boolean): { left: boolean; returned: boolean } {
+  if (!visible) return { left: true, returned: false };
+  return { left, returned: left };
+}
+
 function clearHighlights() {
   document.querySelectorAll<HTMLElement>("[data-highlight='true']").forEach(element => element.removeAttribute("data-highlight"));
 }
@@ -47,6 +56,21 @@ export function ReportEvidenceScope({ children }: { children: ReactNode }) {
     window.addEventListener("hashchange", revealHash);
     return () => window.removeEventListener("hashchange", revealHash);
   }, [prefix]);
+  // 스크롤로 직접 돌아오면 떠 있는 돌아가기 버튼을 거둠
+  useEffect(() => {
+    const element = visit.origin ? document.getElementById(visit.origin) : null;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    let left = false;
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const next = returnedByScroll(left, entry.intersectionRatio >= 0.5);
+        left = next.left;
+        if (next.returned) setVisit({ origin: null, target: null });
+      }
+    }, { threshold: [0, 0.5] });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [visit.origin]);
   const value = useMemo<Scope>(() => ({
     prefix,
     selection,

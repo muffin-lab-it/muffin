@@ -638,8 +638,6 @@
 
 /* 11/21 QA 2묶음 A: 근거 보기는 값 줄로(색칠 · 돌아가기), 출처 카드는 쓴 값 먼저 · 원본 전체 접기 · 안 쓴 자료 뒤로 · 계산식, 숫자 카드 묶기 */
 .report :global(.evidence-values) > div[data-highlight="true"] { background:#fff3c4; box-shadow:inset 3px 0 0 #e0b400; }
-.report :global(.evidence-return) { display:inline-flex; align-items:center; gap:6px; margin:0 0 10px; padding:7px 12px; border:1px solid #d8cfe7; border-radius:8px; background:#fff; color:#6b4a94; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
-.report :global(.evidence-return):hover { background:#f6f1fb; }
 .report :global(.evidence-more), .report :global(.source-unused) { margin-top:10px; }
 .report :global(.evidence-more) > summary, .report :global(.source-unused) > summary { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:8px; background:#f1edf6; color:#5e4a78; font-size:14px; font-weight:600; cursor:pointer; list-style:none; }
 .report :global(.evidence-more) > summary::-webkit-details-marker, .report :global(.source-unused) > summary::-webkit-details-marker { display:none; }
@@ -895,3 +893,15 @@
 @media (prefers-reduced-motion:reduce) { .report :global(.chart-news) > summary::after, .report :global(.responsive-details > summary)::after { transition:none; } }
 /* 추천 질문 카드 화살표는 동그라미 한가운데 (앞 규칙의 justify-content:flex-end 가 칸 안 글자를 오른쪽 끝으로 밀던 것) */
 .report .nextTopics .topicLink :global(.topic-action) { place-content:center; padding:0; }
+
+
+/* 11/26 사용자: '읽던 곳으로 돌아가기' 가 티가 안 남 → 근거 칸 위 작은 버튼 대신 화면 아래 가운데 떠 있는 보라 버튼.
+   근거를 읽으며 내려도 그 자리에 있고, 누르거나 다른 근거로 가거나 스크롤로 직접 돌아오면 사라짐 */
+.report :global(.evidence-return) { display:inline-flex; align-items:center; gap:6px; font:inherit; cursor:pointer; position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom, 0px)); translate:-50% 0; z-index:45; margin:0; padding:13px 22px; border:0; border-radius:999px; background:linear-gradient(180deg, #9b6bff, #7c3aed); color:#fff; font-size:16px; font-weight:700; white-space:nowrap; box-shadow:0 10px 26px rgba(91, 33, 182, .32); animation:returnRise .25s ease-out; }
+.report :global(.evidence-return):hover { background:linear-gradient(180deg, #a77cff, #7c3aed); filter:brightness(1.04); }
+.report :global(.evidence-return):focus-visible { outline:3px solid #c4b5fd; outline-offset:3px; }
+@keyframes returnRise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+/* 아주 좁은 휴대폰은 오른쪽 아래 목차 · 맨 위로 버튼과 겹치지 않게 왼쪽으로 */
+@media (max-width:360px) { .report :global(.evidence-return) { left:16px; translate:none; padding:12px 18px; font-size:15px; } }
+@media (prefers-reduced-motion:reduce) { .report :global(.evidence-return) { animation:none; } }
+@media print { .report :global(.evidence-return) { display:none; } }
