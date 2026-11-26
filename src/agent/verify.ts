@@ -778,6 +778,65 @@ export function applyVerification(output: WriterOutput, result: VerifyResult): A
   };
 }
 
+/**
+ * 검증 뒤 문장 다듬기(trimNegatives · trimRepeats 등)로 새로 생긴 권유 표현을 한 번 더 뺍니다.
+ * 11/26 Codex 적대적 검토 #1: "KODEX 200을 추천하지만, 미래 수익은 확인할 수 없어요." 는 검증을 통과하지만, 한 줄 요약의 부정 꼬리를 떼면
+ * "KODEX 200을 추천해요." 가 되어 권유 문장이 사용자에게 나가고 검증 결과는 pass · advice 0 으로 남았습니다.
+ * 규칙 · 안내 문구는 applyVerification 과 같습니다. 숫자 카드는 검증 뒤에 바뀌지 않으므로(검증 결과와 순서가 짝) 건드리지 않습니다.
+ */
+export function scrubAdvice<T extends WriterOutput>(output: T): { output: T; removed: string[] } {
+  if (findAdvice({ ...output, numbers: [] }).length === 0) return { output, removed: [] };
+  const removed: string[] = [];
+  let summary = output.summary;
+  if (hasAdvice(summary)) {
+    summary = stripAdvice(summary).trim() || SUMMARY_FALLBACK;
+    removed.push("요약에서 투자 권유로 읽히는 문장을 뺌");
+  }
+  let headline = output.headline ?? null;
+  if (headline && hasAdvice(headline)) {
+    removed.push("핵심 한 문장을 뺌: 투자 권유 표현");
+    headline = null;
+  }
+  const why = output.why.filter((w, i) => {
+    if (!hasAdvice(`${w.claim} ${w.evidence}`)) return true;
+    removed.push(`원인 ${i + 1}번을 뺌: 투자 권유 표현`);
+    return false;
+  });
+  const keep = (xs: string[], field: "impact" | "caveats" | "nextTopics" | "dataGaps") =>
+    xs.map((_, i) => i).filter((i) => {
+      if (!hasAdvice(xs[i]!)) return true;
+      removed.push(`${FIELD_NAMES[field]} ${i + 1}번을 뺌: 투자 권유 표현`);
+      return false;
+    });
+  const align = (texts: string[] | undefined, total: number, idx: number[], field: "impactTitles" | "topicReasons") => {
+    if (!texts || texts.length !== total) return texts;
+    return idx.map((i) => {
+      if (!hasAdvice(texts[i]!)) return texts[i]!;
+      removed.push(`${FIELD_NAMES[field]} ${i + 1}번을 비움: 투자 권유 표현`);
+      return "";
+    });
+  };
+  const impactKeep = keep(output.impact, "impact");
+  const topicsKeep = keep(output.nextTopics, "nextTopics");
+  const impactTitles = align(output.impactTitles, output.impact.length, impactKeep, "impactTitles");
+  const topicReasons = align(output.topicReasons, output.nextTopics.length, topicsKeep, "topicReasons");
+  return {
+    output: {
+      ...output,
+      summary,
+      headline,
+      why,
+      impact: impactKeep.map((i) => output.impact[i]!),
+      ...(impactTitles !== undefined ? { impactTitles } : {}),
+      caveats: keep(output.caveats, "caveats").map((i) => output.caveats[i]!),
+      nextTopics: topicsKeep.map((i) => output.nextTopics[i]!),
+      ...(topicReasons !== undefined ? { topicReasons } : {}),
+      dataGaps: keep(output.dataGaps, "dataGaps").map((i) => output.dataGaps[i]!),
+    },
+    removed,
+  };
+}
+
 /** 리포트에 붙는 검증 요약. pass 는 뺀 것도 낮춘 것도 없고 권유 표현도 0 일 때. advice 는 처리 뒤에도 남은 권유 문장 수(목표 0). */
 export function summarizeVerification(applied: Applied, revisions: number, revisionSkipped = false): Verification {
   const verified = applied.checks.filter((c) => c === "verified").length;

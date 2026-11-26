@@ -43,7 +43,8 @@ import { createResearcherAgent, runResearch } from "./research";
 import { modeFor, type Area, type Chart, type Depth, type Evidence, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
 import { dropOffTopic, ensureMentioned, mentionedTools, offTopicGap, offTopicNote, offTopicParts, rescueScope, scopeGap, scopeNote } from "./scope-rescue";
 import { trimGapInputs, trimRepeats } from "./trim";
-import { applyVerification, summarizeVerification, verify } from "./verify";
+import { applyVerification, scrubAdvice, summarizeVerification, verify } from "./verify";
+import { findAdvice } from "./guard";
 import { createWriterAgent, revisionNote, runWriter, writerInput } from "./write";
 
 export { modelFor } from "./models";
@@ -406,7 +407,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds). Easy 요약이 ETF 이름을 설명 없이 쓰면 소개 한 문장을 넣습니다 (etf-intro.ts, QA-02)
-  const finalOutput = withEtfIntro(dropRefIds({
+  const polished = withEtfIntro(dropRefIds({
     ...trimmed,
     // 원인 질문의 평소 범위 답이 요약에 "평소 범위 안" 을 두 번 쓰면 뒤의 것을 줄입니다 (movement.ts dedupeNormalRange)
     ...(movement ? { summary: dedupeNormalRange(trimmed.summary) } : {}),
@@ -417,11 +418,17 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
   }), ctx.evidence, depth);
+  // 다듬은 뒤의 글에 권유 표현이 새로 생겼으면 한 번 더 빼고 검증 결과에 남깁니다 (verify.ts scrubAdvice, 11/26 Codex 적대적 검토 #1)
+  const scrubbed = scrubAdvice(polished);
+  const finalOutput = scrubbed.output;
+  const finalVerification = scrubbed.removed.length > 0
+    ? { ...verification, status: "partial" as const, removed: [...verification.removed, ...scrubbed.removed], advice: findAdvice(finalOutput).length }
+    : verification;
 
   // 지역 행정 기사를 가리키는 차트 사건 점은 뺍니다. 근거 목록에서 빠진 기사를 점이 가리키지 않게 합니다 (#154 Codex 리뷰)
   const shownCharts = withoutEvents(charts, localNews);
   return {
-    report: assembleReport(finalOutput, withoutUncited(ctx.evidence, localNews, { finalOutput, charts: shownCharts }), verification, {
+    report: assembleReport(finalOutput, withoutUncited(ctx.evidence, localNews, { finalOutput, charts: shownCharts }), finalVerification, {
       mode: plan.mode,
       intent: plan.intent,
       ...(plan.mode === "decision_facts" ? { notice: DECISION_NOTICE } : movement ? { notice: movementNotice(movement, swing) } : {}),

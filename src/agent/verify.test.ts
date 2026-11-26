@@ -1,18 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence, WriterOutput } from "./schema";
-import { verifyText,
-  SUMMARY_FALLBACK,
-  applyVerification,
-  extractNumbers,
-  isDataNumber,
-  matchValue,
-  numericCandidates,
-  roleConflict,
-  summarizeVerification,
-  verify,
-  verifyNumbers,
-  verifyWhy,
-} from "./verify";
+import { verifyText, SUMMARY_FALLBACK, applyVerification, extractNumbers, isDataNumber, matchValue, numericCandidates, roleConflict, summarizeVerification, verify, verifyNumbers, verifyWhy, scrubAdvice } from "./verify";
+import { findAdvice } from "./guard";
+import { trimNegatives } from "./negatives";
 
 const src = (name: string, asOf = "2026-10-19") => ({ name, url: `https://example.com/${name}`, asOf });
 
@@ -863,5 +853,31 @@ describe("값이 같은 칸이 여럿일 때 기준일의 달 (11/24)", () => {
     ], [jobs]);
     expect(out.map((f) => f.status)).toEqual(["verified", "verified", "verified"]);
     expect(out.map((f) => (f as { key?: string }).key)).toEqual(["observations.202608.value", "latest.previousYear.value", "latest.value"]);
+  });
+});
+
+describe("다듬은 뒤 새로 생긴 권유 표현 (11/26 Codex 적대적 검토 #1)", () => {
+  const base = { summary: "확인했어요.", numbers: [], why: [], impact: [], caveats: [], nextTopics: [], dataGaps: [] };
+
+  it("'추천하지만, … 없어요' 의 꼬리를 떼어 '추천해요' 가 되면 한 번 더 빼고 검증 결과에 남긴다", () => {
+    const draft = { ...base, headline: "KODEX 200을 추천하지만, 미래 수익은 확인할 수 없어요." };
+    // 검증 단계에서는 권유 표현이 아님 (부정 꼬리가 붙은 꼴)
+    expect(findAdvice(draft)).toEqual([]);
+    const trimmed = trimNegatives(draft, "decision");
+    expect(trimmed.headline).toBe("KODEX 200을 추천해요.");
+    const { output, removed } = scrubAdvice(trimmed);
+    expect(output.headline).toBeNull();
+    expect(removed).toEqual(["핵심 한 문장을 뺌: 투자 권유 표현"]);
+    expect(findAdvice(output)).toEqual([]);
+  });
+
+  it("목록 칸의 권유 문장도 빼고 짝 제목은 비운다. 권유가 없으면 같은 객체", () => {
+    const out = scrubAdvice({ ...base, summary: "시장이 내렸어요. 지금 매수 추천해요.", impact: ["환율이 오르면 비용이 늘어요.", "지금 사세요."], impactTitles: ["비용", "행동"] });
+    expect(out.output.summary).toBe("시장이 내렸어요.");
+    expect(out.output.impact).toEqual(["환율이 오르면 비용이 늘어요."]);
+    expect(out.output.impactTitles).toEqual(["비용"]);
+    expect(out.removed).toEqual(["요약에서 투자 권유로 읽히는 문장을 뺌", "생활 영향 카드 2번을 뺌: 투자 권유 표현"]);
+    const clean = { ...base };
+    expect(scrubAdvice(clean).output).toBe(clean);
   });
 });

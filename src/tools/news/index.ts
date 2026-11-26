@@ -150,6 +150,29 @@ async function searchInstead(query: string, startedAt: number): Promise<Article[
   }
 }
 
+/** 고정 주소 피드를 다시 받지 않는 시간. 피드는 몇 분 단위로 바뀌어 1분이면 같은 내용입니다 */
+const FEED_TTL_MS = 60_000;
+const feedCache = new Map<string, { at: number; text: Promise<string> }>();
+
+/**
+ * 주소가 같은 피드는 1분 동안 한 번만 받습니다. 진행 중인 요청도 함께 기다립니다 (11/26 Codex 적대적 검토 #10:
+ * "오늘 경제 뉴스" 의 주제어 보강 6개가 같은 연합뉴스 · 한국경제 피드를 각각 6번 받음). 실패한 응답은 남기지 않아 다음 요청이 다시 받습니다
+ */
+function feedText(url: string, timeoutMs: number): Promise<string> {
+  const now = Date.now();
+  const hit = feedCache.get(url);
+  if (hit && now - hit.at < FEED_TTL_MS) return hit.text;
+  const text = fetchText(url, { timeoutMs });
+  feedCache.set(url, { at: now, text });
+  text.catch(() => { if (feedCache.get(url)?.text === text) feedCache.delete(url); });
+  return text;
+}
+
+/** 테스트용: 피드 캐시 비우기 (테스트마다 fetch 를 바꿔 끼우므로) */
+export function clearFeedCache(): void {
+  feedCache.clear();
+}
+
 async function fetchSource(id: NewsSourceId, query: string | null, timeoutMs = RSS_TIMEOUT_MS, periodSearch: string | null = null): Promise<Article[]> {
   if (id === "policy") {
     // 정책브리핑: 최근 8일 정책뉴스. 검색어가 없으면 경제 부처 · 경제 낱말 기사만 (김장철 원산지 점검 같은 일반 정책 제외)
@@ -157,7 +180,9 @@ async function fetchSource(id: NewsSourceId, query: string | null, timeoutMs = R
     return query ? articles.filter((article) => titleMatches(article.title, query, article.description?.slice(0, MATCH_DESCRIPTION_CHARS))) : articles.filter(isEconomicPolicy);
   }
   // 뉴스 검색은 기간을 검색어 연산자로 겁니다 ("경제 when:7d", "경제 after:2026-11-15 before:2026-11-24")
-  const xml = await fetchText(newsSources[id].url(id === "google" && periodSearch ? `${query ?? "경제"} ${periodSearch}` : query), { timeoutMs });
+  const url = newsSources[id].url(id === "google" && periodSearch ? `${query ?? "경제"} ${periodSearch}` : query);
+  // 검색어와 상관없이 주소가 같은 피드(연합뉴스 · 한국경제 · 한국은행)는 잠깐 받은 것을 함께 씁니다 (feedText)
+  const xml = id === "google" ? await fetchText(url, { timeoutMs }) : await feedText(url, timeoutMs);
   const feed = parseRss(xml);
   if (feed.items.length === 0) throw new Error("RSS 기사 항목이 없습니다.");
   const articles = normalizeArticles(feed, id);

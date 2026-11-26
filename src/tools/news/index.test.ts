@@ -3,7 +3,7 @@ import { RunContext } from "@openai/agents";
 import { ResearchContext } from "../../agent/context";
 import type { Source, ToolResult } from "../types";
 import fixture from "./fixture.json";
-import { execute, newsTool, parameters, periodRange, spreadByDay, type Input, type NewsData } from "./index";
+import { clearFeedCache, execute, newsTool, parameters, periodRange, spreadByDay, type Input, type NewsData } from "./index";
 import { extractHankyung, extractYonhap } from "./body";
 import { fetchArticleBody } from "./body";
 import { parseRss } from "./rss";
@@ -89,7 +89,7 @@ function mockBodyScenario(count: number, unavailable: Record<number, "paid" | "m
 }
 
 // RSS fixture의 기준 시각만 고정합니다. 요청 타임아웃과 비동기 타이머는 실제로 동작합니다.
-beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(TEST_NOW); });
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(TEST_NOW); clearFeedCache(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("News Tool", () => {
@@ -931,5 +931,22 @@ describe("기간을 물은 질문 (period, 11/20 QA 13)", () => {
     const calls = mockFeeds();
     await execute({ sources: ["google"], query: null, limit: 2, content: "list" });
     expect(calls.find((url) => url.hostname === "news.google.com")?.searchParams.get("q")).toBe("경제");
+  });
+});
+
+describe("같은 피드는 잠깐 함께 쓴다 (11/26 Codex 적대적 검토 #10)", () => {
+  it("검색어만 다른 연합뉴스 · 한국경제 조회 6번이 피드를 한 번씩만 받는다. 실패한 응답은 남기지 않는다", async () => {
+    const calls = mockFeeds();
+    await Promise.all(["코스피", "증시", "환율", "금리", "물가", "수출"].map((query) => execute({ sources: ["yonhap", "hankyung"], query, limit: 2, content: "list" }).catch(() => null)));
+    const feeds = calls.filter((u) => u.hostname === "www.yna.co.kr" || u.hostname === "www.hankyung.com").filter((u) => !u.pathname.startsWith("/view/") && !u.pathname.startsWith("/article/"));
+    expect(feeds.map((u) => u.hostname).sort()).toEqual(["www.hankyung.com", "www.yna.co.kr"]);
+
+    clearFeedCache();
+    const failing = mockFeeds({ yonhap: new Error("RSS 연결 실패") });
+    await execute({ sources: ["yonhap", "hankyung"], query: null, limit: 2, content: "list" }).catch(() => null);
+    mockFeeds();
+    const again = await execute({ sources: ["yonhap"], query: null, limit: 2, content: "list" });
+    expect(again.data.articles.length).toBeGreaterThan(0);
+    expect(failing.some((u) => u.hostname === "www.yna.co.kr")).toBe(true);
   });
 });
