@@ -22,7 +22,7 @@ import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
-import { dropDailyCloseTalk, ensureIndexes, indexCaveats, indexFor, indexHidden, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
+import { dropDailyCloseTalk, ensureIndexes, indexCaveats, indexesFor, indexFor, indexHidden, indexNote, indexRefs, officialIndex, withIndexNumbers, type IndexName } from "./index-quote";
 import { dropFetchTalk, dropRefIds, trimNegatives } from "./negatives";
 import { withEtfIntro } from "./etf-intro";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
@@ -398,8 +398,11 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const negTrimmedAll = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, fallbackTools(ctx.steps)), plan.intent));
   const negTrimmedRate = explainsLatest(ctx.evidence, ctx.raw, rateStatement) ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
   // 지수 차트가 일별 종가를 보여 주면 "일별 종가가 없어요" 문장을 뺍니다 (index-quote.ts dropDailyCloseTalk)
-  const indexCharted = charts.some((c) => indexItems.some((item) => c.series.some((x) => x.ref === item.id)));
-  const negTrimmed = indexCharted ? dropDailyCloseTalk(negTrimmedRate) : negTrimmedRate;
+  // 차트가 실제로 보여 주는 지수 · 기간만 넘깁니다 (차트가 없는 지수 · 차트 밖 날짜의 한계는 남김, #178 Codex 리뷰)
+  const charted = indexItems
+    .filter((item) => charts.some((c) => c.series.some((x) => x.ref === item.id)))
+    .map((item) => ({ index: item.values.index as IndexName, from: String(item.values["period.from"]), to: String(item.values["period.to"]) }));
+  const negTrimmed = dropDailyCloseTalk(negTrimmedRate, charted, indexesFor(question));
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds). Easy 요약이 ETF 이름을 설명 없이 쓰면 소개 한 문장을 넣습니다 (etf-intro.ts, QA-02)

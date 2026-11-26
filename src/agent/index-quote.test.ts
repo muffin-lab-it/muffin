@@ -222,17 +222,35 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
   });
 
   it("차트가 일별 종가를 보여 주면 '일별 종가가 없어요' 문장을 뺀다 (11/26 로컬)", () => {
+    const charted = [{ index: "코스피" as const, from: "2026-11-17", to: "2026-11-24" }, { index: "코스닥" as const, from: "2026-11-17", to: "2026-11-24" }];
     const out = dropDailyCloseTalk({
       caveats: ["코스피 공식 자료는 다음 영업일에 공개돼요."],
       dataGaps: [
-        "최근 7일의 일일 종가·등락률 자료가 없어, 2026-11-17~2026-11-24 기간 변화와 2026-11-25 하루 변화를 나눠 설명했어요.",
-        "2026-11-25 이후를 포함한 최근 7일 종가 기준 추세와 주간 변동률을 확인하려면 해당 기간의 공식 일자별 종가 자료가 필요해요.",
+        "최근 7일의 일일 종가·등락률 자료가 없어, 2026-11-17~2026-11-24 기간 변화와 하루 변화를 나눠 설명했어요.",
         "일주일 날짜별 지수 종가가 없어 정확한 일별 흐름은 확인할 수 없어요. 공식 자료로 확인되는 기간에는 코스피가 0.76% 상승했어요.",
         "오늘 하락의 이유를 뒷받침할 근거가 확인되지 않았어요.",
       ],
-    });
+    }, charted, ["코스피", "코스닥"]);
     expect(out.caveats).toEqual(["코스피 공식 자료는 다음 영업일에 공개돼요."]);
     expect(out.dataGaps).toEqual(["공식 자료로 확인되는 기간에는 코스피가 0.76% 상승했어요.", "오늘 하락의 이유를 뒷받침할 근거가 확인되지 않았어요."]);
+  });
+
+  it("차트가 없는 지수 · 차트 밖 날짜의 '일별 종가 없음' 은 남긴다 (#178 Codex 리뷰)", () => {
+    const charted = [{ index: "코스피" as const, from: "2026-11-17", to: "2026-11-24" }];
+    const keep = {
+      caveats: [],
+      dataGaps: [
+        "나스닥 일별 종가 자료가 없어 흐름을 확인할 수 없어요.",
+        "2026-11-25 이후 일별 종가는 아직 확인할 수 없어요.",
+        "11월 26일 일별 시세는 확인되지 않았어요.",
+      ],
+    };
+    expect(dropDailyCloseTalk(keep, charted, ["코스피", "나스닥 종합"])).toBe(keep);
+    // 지수를 말하지 않은 문장은 물은 지수가 모두 차트에 있을 때만 뺌
+    const vague = { caveats: [], dataGaps: ["일별 종가가 없어 흐름은 확인할 수 없어요."] };
+    expect(dropDailyCloseTalk(vague, charted, ["코스피", "나스닥 종합"])).toBe(vague);
+    expect(dropDailyCloseTalk(vague, charted, ["코스피"]).dataGaps).toEqual([]);
+    expect(dropDailyCloseTalk(vague, [], ["코스피"])).toBe(vague);
   });
 
   it("같은 지수를 여러 기간으로 받았으면 질문의 기간에 가장 가까운 것을 쓴다 (Deep 이 뒤에 받은 1년이 30일을 대신하지 않게, #178 Codex 리뷰)", () => {

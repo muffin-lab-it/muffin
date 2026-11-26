@@ -393,14 +393,37 @@ export function indexCaveats(evidence: Evidence[], index: IndexName, caveats: st
 const DAILY_TALK = /(?:일일|일별|일자별|날짜별|하루하루)\s*(?:지수\s*)?(?:종가|등락|흐름|시세)/;
 const DAILY_MISSING = /없|필요|부족|확인(?:되지|하지|할\s*수)/;
 
+/** 차트가 보여 주는 지수와 기간 */
+export type ChartedIndex = { index: IndexName; from: string; to: string };
+
+/** 문장에 나온 날짜 (YYYY-MM-DD · "11월 25일"). 연도가 없으면 차트 기간의 연도로 */
+function datesIn(sentence: string, year: string): string[] {
+  const iso = [...sentence.matchAll(/(\d{4})-(\d{2})-(\d{2})/g)].map((m) => `${m[1]}-${m[2]}-${m[3]}`);
+  const md = [...sentence.matchAll(/(\d{1,2})월\s*(\d{1,2})일/g)].map((m) => `${year}-${m[1]!.padStart(2, "0")}-${m[2]!.padStart(2, "0")}`);
+  return [...iso, ...md];
+}
+
 /**
  * 지수 차트가 일별 종가를 보여 주는데 주의점 · 확인하지 못한 것에 "일별 종가 자료가 없어요" 가 들어가면 그 문장을 뺍니다
- * (11/26 로컬: 작성 메모로 막아도 일주일 추세 질문 2번 모두 확인하지 못한 것에 남음). 차트가 있을 때만 부릅니다 (muffin.ts)
+ * (11/26 로컬: 작성 메모로 막아도 일주일 추세 질문 2번 모두 확인하지 못한 것에 남음).
+ * 차트가 실제로 반박하는 문장만 뺍니다 (#178 Codex 리뷰): 문장이 말한 지수가 모두 차트에 있고(지수를 말하지 않았으면 물은 지수가 모두 차트에 있고),
+ * 문장의 날짜가 모두 차트 기간 안일 때. 차트가 없는 지수 · 차트 밖 날짜(오늘 장중 등)의 한계는 남깁니다
  */
-export function dropDailyCloseTalk<T extends Pick<WriterOutput, "caveats" | "dataGaps">>(output: T): T {
-  const talk = (s: string) => DAILY_TALK.test(s) && DAILY_MISSING.test(s);
+export function dropDailyCloseTalk<T extends Pick<WriterOutput, "caveats" | "dataGaps">>(output: T, charted: readonly ChartedIndex[], asked: readonly IndexName[]): T {
+  if (charted.length === 0) return output;
+  const names = new Set(charted.map((c) => c.index));
+  const from = charted.map((c) => c.from).sort()[0]!;
+  const to = charted.map((c) => c.to).sort().at(-1)!;
+  const contradicted = (s: string) => {
+    if (!DAILY_TALK.test(s) || !DAILY_MISSING.test(s)) return false;
+    const mentioned = INDEX_WORDS.filter(([re]) => re.test(s)).map(([, name]) => name);
+    const indexesOk = mentioned.length > 0 ? mentioned.every((n) => names.has(n)) : asked.every((n) => names.has(n));
+    const datesOk = datesIn(s, to.slice(0, 4)).every((d) => d >= from && d <= to);
+    return indexesOk && datesOk;
+  };
+  const sentences = (l: string) => l.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
   const clean = (lines: string[]) =>
-    lines.map((l) => (talk(l) ? l.split(/(?<=[.!?])\s+/).filter((x) => x.trim() && !talk(x)).join(" ") : l)).filter((l) => l.trim().length > 0);
+    lines.map((l) => (sentences(l).some(contradicted) ? sentences(l).filter((x) => !contradicted(x)).join(" ") : l)).filter((l) => l.trim().length > 0);
   const caveats = clean(output.caveats);
   const dataGaps = clean(output.dataGaps);
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
