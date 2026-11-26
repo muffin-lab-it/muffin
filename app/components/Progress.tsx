@@ -16,6 +16,7 @@ import { FinanceFloaters } from "./FinanceFloaters";
 import type { ReactNode } from "react";
 import type { Depth } from "@/src/agent/schema";
 import { splitAreaPrefix } from "./home-form";
+import type { ScopeInfo } from "./home-report";
 
 const skippedStages: readonly Stage[] = ["research", "edit", "write"];
 
@@ -36,6 +37,12 @@ export type ProgressProps = {
   onReturnHome?: () => void;
   /** 요청은 보냈지만 서버 이벤트가 아직 없는 분류 중 (11/21 QA 8). 첫 단계를 진행 중으로 보여 줍니다 */
   pending?: boolean;
+  /** 범위 밖일 때 서버가 준 이유와 대신 물어볼 질문 (11/26: 홈 대신 진행 화면에서 안내) */
+  scopeInfo?: ScopeInfo;
+  /** 추천 질문을 고르면 입력칸에 채우고 홈으로 */
+  onPickTopic?: (question: string) => void;
+  /** 반려된 질문을 지우고 새로 쓰기 (11/20 외부 F1) */
+  onClearQuestion?: () => void;
 };
 
 /** 실제 이벤트로 화면 상태를 만듭니다. 시간만으로 단계를 진행시키지 않습니다. */
@@ -53,6 +60,8 @@ export function progressFromEvents(events: readonly MuffinEvent[]) {
       case "plan":
         plan = event;
         if (event.mode === "out_of_scope") {
+          // 범위 밖 판정이 왔다는 건 질문 살펴보기가 끝났다는 뜻 (홈은 이 뒤 이벤트를 받지 않아 '끝' 신호가 안 옴, 11/26)
+          status.plan = "done";
           for (const stage of skippedStages) status[stage] = "skipped";
         }
         break;
@@ -84,7 +93,7 @@ const depthCopy: Record<Depth, string> = {
 /** 상단 로고와 같은 머핀 그림 (11/23 사용자: 진행 화면의 🧁 이모지와 로고 머핀을 통일) */
 const brandMuffin = <Image src="/icon.svg" alt="" width={36} height={36} />;
 
-export function Progress({ question, depth, titleIcon = brandMuffin, events, error: connectionError, onRetry, onEditQuestion, onReturnHome, pending = false }: ProgressProps) {
+export function Progress({ question, depth, titleIcon = brandMuffin, events, error: connectionError, onRetry, onEditQuestion, onReturnHome, pending = false, scopeInfo, onPickTopic, onClearQuestion }: ProgressProps) {
   const state = progressFromEvents(events);
   const shown = splitAreaPrefix(question); // 여러 영역을 고른 질문의 "관심 영역: …" 머리말은 떼어 따로 (11/20 외부 G1)
   const error = connectionError ?? state.error;
@@ -112,7 +121,9 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
     : failed ? (current === "write" || current === "verify" ? "일부 자료를 찾지 못했지만, 확인한 자료로 작성하고 있어요." : "일부 자료를 찾지 못했어요. 확인한 내용과 한계를 함께 알려드릴게요.")
     : state.complete ? "저장이 끝나면 리포트를 보여드릴게요."
     : "궁금한 내용에 맞춰 자료를 찾고, 이해하기 쉽게 정리해 드릴게요.";
-  const announcement = error ? error.kind === "save" ? "생성 완료 · 저장 실패" : "요청을 진행하지 못했어요" : state.complete ? "리포트를 저장하고 있어요" : current ? activeLabels[current] : "조사를 준비하고 있어요";
+  const announcement = error ? error.kind === "save" ? "생성 완료 · 저장 실패" : "요청을 진행하지 못했어요" : state.complete ? "리포트를 저장하고 있어요" : current ? activeLabels[current] : scope ? "이 질문은 아직 답하기 어려워요" : "조사를 준비하고 있어요";
+  // 범위 밖이면 조사가 멈추므로 아직 안 온 단계도 '건너뜀', 진행 막대는 숨김
+  const stopped = scope && !error && !state.complete;
   // 계획은 실행 중이라는 뜻이 아니며, step은 도구 실행이 끝난 뒤에만 도착합니다.
   const latestStep = state.steps.at(-1);
   const story = error ? error.kind === "save" ? "저장을 다시 시도해도 조사를 새로 시작하지 않아요." : "오류 안내는 자동으로 사라지지 않아요. 입력한 질문을 유지한 채 다음 행동을 선택할 수 있어요."
@@ -150,12 +161,15 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
           {announcement}
         </p>
 
+        {!stopped && <>
         <div className={styles.progressHeading}><span>완료 단계 기준{error ? error.kind === "save" ? " · 저장 실패" : " · 중단됨" : ""}</span><strong>{percent}%</strong></div>
         <div className={styles.track} data-active={!error && !state.complete ? "true" : undefined} role="progressbar" aria-label="완료 단계 기준 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${applicable.length}단계 중 ${finished}단계 완료${error ? ", 조사 중단" : ""}`}><span style={{ width: `${percent}%` }} /></div>
+        </>}
 
         <ol className={styles.stages} aria-label="리포트가 만들어지는 과정">
           {stages.map((stage) => {
-            const status = state.status[stage] === "waiting" && stage === current ? "active" : state.status[stage];
+            // 범위 밖으로 멈추면 아직 안 온 단계는 건너뜀
+            const status = state.status[stage] === "waiting" && stage === current ? "active" : stopped && state.status[stage] === "waiting" ? "skipped" : state.status[stage];
             const interrupted = !!error && status === "active";
             return <li key={stage} className={styles.stage} data-state={interrupted ? "interrupted" : status} aria-current={!error && status === "active" ? "step" : undefined}>
               <span className={styles.marker} aria-hidden="true">{interrupted ? "!" : status === "done" ? "✓" : status === "skipped" ? "—" : ""}</span>
@@ -164,6 +178,16 @@ export function Progress({ question, depth, titleIcon = brandMuffin, events, err
             </li>;
           })}
         </ol>
+        {stopped && <div className={styles.scope}>
+          <p role="alert">{scopeInfo?.summary ?? "생성형 AI서비스인 머핀은 지금 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요."}</p>
+          {scopeInfo && scopeInfo.topics.length > 0 && <div className={styles.scopeTopics}><p>이렇게 물어보면 답할 수 있어요</p><ul>{scopeInfo.topics.map(topic => <li key={topic.question}>
+            {onPickTopic ? <button type="button" onClick={() => onPickTopic(topic.question)}>{topic.question}</button> : <span>{topic.question}</span>}{topic.reason && <small>{topic.reason}</small>}
+          </li>)}</ul></div>}
+          {(onEditQuestion || onClearQuestion) && <div className={styles.actions}>
+            {onEditQuestion && <button type="button" onClick={onEditQuestion}>질문 고치기</button>}
+            {onClearQuestion && <button type="button" className={styles.secondary} onClick={onClearQuestion}>지우고 다시 쓰기</button>}
+          </div>}
+        </div>}
         {error && <div className={styles.error}>
           <div role="alert"><p>{error.message}</p></div>
           <div className={styles.actions}>

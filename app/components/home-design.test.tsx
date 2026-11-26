@@ -79,8 +79,13 @@ describe("홈에서 지원 범위와 서버 오류를 구분", () => {
     await request.start({question: "오늘 점심은?", depth: "easy"});
     vi.spyOn(homeReport, "createHomeReport").mockReturnValue(request);
     const $ = load(renderToStaticMarkup(<Home />));
-    expect($("[role=alert] h2").text()).toBe("이 질문은 아직 답하기 어려워요.");
-    // 11/21 외부 F1: 다시 시도 버튼은 없고 "지우고 다시 쓰기" 만
-    expect($("[role=alert] button").map((_, el) => $(el).text()).get()).toEqual(["지우고 다시 쓰기"]);
+    // 11/26 사용자: 홈 폼으로 돌아가 아래에 안내를 붙이지 않고, 진행 화면에 머물며 안내
+    const progress = $("[aria-label='리포트 생성 진행']");
+    expect(progress).toHaveLength(1);
+    expect(progress.find("h1").text()).toContain("이 질문은 아직 답하기 어려워요");
+    expect(progress.find("[role=alert]").text()).toContain("질문을 바꿔 다시 물어봐 주세요");
+    // 11/21 외부 F1: 다시 시도 버튼은 없고 질문 고치기 · 지우고 다시 쓰기
+    expect(progress.find("button").map((_, el) => $(el).text()).get()).toEqual(["질문 고치기", "지우고 다시 쓰기"]);
+    expect($("form textarea")).toHaveLength(0);
   });
 });

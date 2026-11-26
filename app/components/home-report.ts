@@ -130,9 +130,10 @@ export function createHomeReport(deps = { streamReport, saveReport, getReport },
 
 /** Request failures return to the home form; preserve completed content on save failure. */
 export function showsHomeProgress(state: State): boolean {
-  if (["idle", "unsupported"].includes(state.phase)) return false;
-  // 굽기를 누르면 바로 진행 화면으로 (11/21 QA 8: 홈에서 버튼 글자만 바뀐 채 2~6초 멈춰 있었음). 범위 밖이면 unsupported 로 돌아와 홈이 안내합니다
-  if (state.phase === "checking") return !!state.input;
+  if (state.phase === "idle") return false;
+  // 굽기를 누르면 바로 진행 화면으로 (11/21 QA 8: 홈에서 버튼 글자만 바뀐 채 2~6초 멈춰 있었음).
+  // 11/26 사용자: 범위 밖이어도 진행 화면에 머물며 안내 · 추천 질문 · 질문 고치기를 보여 줌 (홈으로 튕겨 내려 아래에 안내가 붙던 것)
+  if (state.phase === "checking" || state.phase === "unsupported") return !!state.input;
   if (state.phase === "error") return !!state.result;
   return true;
 }

@@ -158,3 +158,15 @@
 .story, .hint, .note { text-align:center; }
 .details > summary { text-align:center; }
 .details ul { text-align:left; }
+
+/* 11/26 사용자: 범위 밖 질문도 진행 화면에 머물며 이유 · 대신 물어볼 질문 · 질문 고치기 (홈으로 튕겨 내려 아래에 안내가 붙던 것) */
+.scope { margin:18px 0 0; padding:18px 20px; border:1px solid #f0cfcc; border-radius:14px; background:#fff8f7; word-break:keep-all; overflow-wrap:anywhere; }
+.scope > p { margin:0; font-size:15px; line-height:1.8; color:#6b5256; }
+.scopeTopics { margin-top:14px; padding-top:12px; border-top:1px solid #f0cfcc; }
+.scopeTopics > p { margin:0 0 8px; font-size:13px; font-weight:700; color:#765c60; }
+.scopeTopics ul { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+.scopeTopics li { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+.scopeTopics button { border:1px solid var(--brand-purple-border); border-radius:999px; background:#fff; color:var(--brand-purple-strong); padding:7px 14px; font-size:14px; font-weight:600; cursor:pointer; text-align:left; min-height:0; width:auto; margin:0; }
+.scopeTopics button:hover { background:var(--brand-purple-tint); }
+.scopeTopics small { font-size:12px; color:#8a7478; line-height:1.6; }
+@media (max-width:600px) { .scope { padding:16px; } .scope > p { font-size:14px; } }

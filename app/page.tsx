@@ -59,7 +59,6 @@ function HomeForm() {
   const coolingDown = state.retrySeconds > 0;
   const checking = state.phase === "checking";
   const busy = checking;
-  const unsupported = state.phase === "unsupported";
   const canRetry = state.phase === "error" && ![400, 403, 413, 503].includes(state.error?.status ?? 0);
   const allowance = questionAllowance(selectedAreas);
   const over = Math.max(0, question.length - allowance);
@@ -120,7 +119,8 @@ function HomeForm() {
         <Progress question={state.input.question} depth={state.input.depth} events={state.events} pending={state.phase === "checking"}
           error={state.error && { ...state.error, retryAfterSec: state.retrySeconds }}
           onRetry={state.phase === "error" ? () => { void request.retry(); } : undefined}
-          onEditQuestion={editQuestion} onReturnHome={editQuestion} />
+          onEditQuestion={editQuestion} onReturnHome={editQuestion}
+          scopeInfo={state.phase === "unsupported" ? state.scope : undefined} onPickTopic={pickScopeTopic} onClearQuestion={clearQuestion} />
         {state.result && <ReportView report={state.result.report} steps={state.result.steps} area={state.input.area} question={state.input.question} />}
       </div>
     );
@@ -162,11 +162,6 @@ function HomeForm() {
             <button className={`${styles.submit} ${styles.bakeSubmit}`} data-checking={checking ? "true" : undefined} type="submit" disabled={busy || coolingDown || question.trim().length === 0}>{!checking && <Image src="/icon.svg" width={28} height={28} alt="" />}{checking ? "질문 살펴보는 중…" : coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "Muffin 리포트 굽기"}<span aria-hidden="true">›</span></button>
           </div>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
-          {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2>
-            {/* 서버가 만든 이유(미국 상장 ETF · 개별 주가 등)와 대신 물어볼 질문 (11/23 운영 검수 · QA 11 · 20명 시나리오 2) */}
-            <p>{state.scope?.summary ?? "생성형 AI서비스인 머핀은 현재는 환율·ETF·경제뉴스·금리·물가를 중심으로 리포트를 만들어요. 질문을 바꿔 다시 물어봐 주세요."}</p>
-            {state.scope && state.scope.topics.length > 0 && <div className={styles.scopeTopics}><p>이렇게 물어보면 답할 수 있어요</p><ul>{state.scope.topics.map(topic => <li key={topic.question}><button type="button" onClick={() => pickScopeTopic(topic.question)}>{topic.question}</button>{topic.reason && <small>{topic.reason}</small>}</li>)}</ul></div>}
-            <button type="button" className={styles.clearQuestion} onClick={clearQuestion}>지우고 다시 쓰기</button></section>}
           {state.phase === "error" && state.error && <div className={styles.formError} role="alert"><p>{state.error.message}</p>{canRetry && <button type="button" disabled={coolingDown} onClick={() => { void request.retry(); }}>{coolingDown ? `${formatWait(state.retrySeconds)} 후 다시 시도` : "다시 시도"}</button>}</div>}
           {/* 11/25 사용자: 두 줄 (글은 그대로) */}
           <p className={styles.aiDisclosure}><span>Muffin은 생성형 AI로 여러 자료를 바탕으로 리포트를 작성해요.</span> <span>투자 권유가 아닌 참고용 정보이며, 내용에 오류가 있을 수 있어요. 출처와 기준일을 함께 확인해 주세요.</span></p>
