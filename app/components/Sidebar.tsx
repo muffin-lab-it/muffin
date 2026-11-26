@@ -14,7 +14,7 @@ export function Sidebar() {
   const pathname = usePathname();
   return (
     <header className="muffin-gnb">
-      <Link href="/" className="muffin-brand"><Image src="/icon.svg" alt="" width={38} height={38} /> Muffin Lab <small>쉽게 배우는 금융</small></Link>
+      <Link href="/" className="muffin-brand"><Image src="/icon.svg" alt="" width={38} height={38} /> Muffin Lab <small>복잡한 금융 정보를 한입 크기로.</small></Link>
       <nav aria-label="주 메뉴">
         {items.map((it) => {
           const active = it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
