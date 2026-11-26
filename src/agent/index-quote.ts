@@ -91,6 +91,15 @@ export function thisWeekDays(latestDate: string, today: string = todayKst()): nu
   return Math.round((latest - (monday - DAY_MS)) / DAY_MS);
 }
 
+/** 이번 주 들어 비교가 맞는지: 비교 시작일이 이번 주 월요일 앞이고 기준일이 월요일 이후. 휴장으로 시작일이 금요일보다 앞이어도 맞습니다 (#178 Codex 리뷰) */
+export function isWeekToDate(e: Evidence, today: string = todayKst()): boolean {
+  const t = Date.parse(`${today}T00:00:00Z`);
+  const monday = t - ((new Date(t).getUTCDay() + 6) % 7) * DAY_MS;
+  const from = Date.parse(`${String(e.values["period.from"])}T00:00:00Z`);
+  const to = Date.parse(`${String(e.values["period.to"])}T00:00:00Z`);
+  return from < monday && from >= monday - 10 * DAY_MS && to >= monday;
+}
+
 /** 받은 지수와 그 기간 (작성 · 카드 · 차트가 같은 항목을 고르도록) */
 export type IndexPick = { index: IndexName; days: number; calendar: IndexCalendar | "this_week_empty" };
 
@@ -236,18 +245,34 @@ async function ensureOne(ctx: ResearchContext, index: IndexName, plan: { days: n
   const first = officialIndex(ctx.evidence, index, days);
   if (!first) return null;
   if (plan.calendar === "this_week") {
-    // 기준일을 알았으니 월요일 앞 마지막 거래일과 비교하도록 다시 받습니다. 기준일이 아직 지난주면(월요일 아침 등) 최근 7일로 두고 '이번 주' 라고 부르지 않게
+    // 기준일을 알았으니 월요일 앞 마지막 거래일과 비교하도록 다시 받습니다 (기준일에서 지난 일요일까지 → 그 이하 가장 가까운 거래일).
+    // 맞게 받았는지는 거리가 아니라 비교 시작일로 봅니다: 금요일이 휴장이면 목요일과 비교되어 거리가 하루 더 깁니다 (#178 Codex 리뷰).
+    // 기준일이 아직 지난주면(월요일 아침 · 미국 자료가 늦는 날) 최근 7일로 두고 '이번 주' 라고 부르지 않게
     const exact = thisWeekDays(String(first.values["latest.date"]));
-    if (exact === null) calendar = "this_week_empty";
-    else if (exact !== spanDays(first)) {
-      await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days: exact })).catch(() => undefined);
-      if (officialIndex(ctx.evidence, index, exact) && Math.abs(spanDays(officialIndex(ctx.evidence, index, exact)!) - exact) <= 2) days = exact;
-      else calendar = "this_week_empty";
-    } else days = exact;
+    if (exact !== null && exact !== spanDays(first)) await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days: exact })).catch(() => undefined);
+    const week = exact === null ? undefined : officialIndex(ctx.evidence, index, exact);
+    if (week && isWeekToDate(week)) days = exact!;
+    else calendar = "this_week_empty";
   }
   // 당일 종가의 기사 검산은 국내 지수만 합니다 (국내 마감 기사의 문장 꼴에 맞춘 것)
   if (!isUs(index)) await addTodayClose(ctx, index, news);
   return { index, days, calendar };
+}
+
+/**
+ * 작성에 보이지 않게 할 지수 항목: 고르지 않은 짧은 기간 항목 ('이번 주' 를 받으려고 먼저 받은 최근 7일).
+ * 둘 다 보이면 작성이 7일 값을 이번 주 날짜로 적습니다 (11/26 로컬: 이번 주 11/20~24 카드 +2.79% 옆에 요약은 7일 값 +0.76% 을 "11/20~24" 로).
+ * 1년 항목(Deep · 관계 질문)은 그쪽 메모가 쓰므로 그대로 둡니다. 검증은 장부 전체로 합니다
+ */
+export function indexHidden(evidence: Evidence[], picks: readonly IndexPick[]): Set<string> {
+  const out = new Set<string>();
+  for (const p of picks) {
+    const chosen = officialIndex(evidence, p.index, p.days);
+    for (const e of evidence) {
+      if ((e.tool === INDEX_TOOL || e.tool === US_INDEX_TOOL) && e.values.index === p.index && e !== chosen && spanDays(e) < 300) out.add(e.id);
+    }
+  }
+  return out;
 }
 
 /** 정제가 뺐더라도 [지수 값] 으로 다시 보여 주는 항목들 */
@@ -275,7 +300,7 @@ export function indexNote(evidence: Evidence[], index: IndexName | (IndexName | 
   if (picks.length === 0) return "";
   const indexes = picks.map((p) => p.index);
   const lines = [`[지수 값] 질문이 물은 ${indexes.join(" · ")} 지수의 값입니다. 지수 값에는 "원" 을 붙이지 않습니다.`];
-  for (const { index: i, days } of picks) {
+  for (const { index: i, days, calendar } of picks) {
     const o = officialIndex(evidence, i, days)!;
     const v = o.values;
     const t = todayIndex(evidence, i);
@@ -293,16 +318,16 @@ export function indexNote(evidence: Evidence[], index: IndexName | (IndexName | 
     } else {
       lines.push(`${i} 공식 자료의 기준일(${v["latest.date"]}) 뒤의 움직임은 기사 내용으로만 쓰고, 기준일과 구분해 적습니다.`);
     }
+    // 기간 안내는 지수마다 (국내는 이번 주 자료가 있는데 미국 자료는 아직 지난주까지일 수 있음, #178 Codex 리뷰)
+    if (calendar === "this_week") lines.push(`${i} 의 기간 변화는 이번 주 월요일 앞 마지막 거래일(${v["period.from"]}) 종가와 기준일 종가의 비교라 "이번 주 들어" 로 쓸 수 있습니다.`);
+    if (calendar === "this_week_empty") lines.push(`${i} 은(는) 이번 주 거래일의 공식 종가가 아직 없어 최근 7일로 받았습니다. ${i} 에는 '이번 주' 라고 쓰지 않고 날짜로 밝힙니다.`);
+    if (calendar === "last_week") lines.push(`질문이 '지난주' 를 물었지만 ${i} 지수 자료는 기준일까지의 최근 기간으로만 받을 수 있어, 지난주만 떼어 계산하지 않았습니다. 위 기간을 날짜로 밝히고 '지난주 변화' 라고 부르지 않습니다. 지난주만의 변화는 확인하지 못한 것에 한 줄로 씁니다.`);
   }
   // 질문이 "왜 떨어졌어?" 여도 하루 등락은 장부 방향 그대로 (11/25 운영: 11/24 하루 +4.79% 를 "전일보다 4.79% 하락" 으로 써 검증이 문장을 뺌, mwvnyrfx-2axwvk)
   lines.push(`오르내림의 방향은 위 괄호 그대로 씁니다. 질문이 "떨어졌어 · 올랐어" 라고 해도 방향을 바꾸지 않습니다. 하루와 기간의 방향이 다르면 어느 기간인지 밝혀 나눠 쓰고, 질문이 말한 방향과 맞는 기간을 먼저 씁니다.`);
   if (indexes.length > 1) {
     lines.push(`질문이 지수 ${indexes.length}개(${indexes.join(" · ")})를 물었습니다. 요약에 지수마다 값과 기간 변화를 쓰고, 한 지수만 쓰고 끝내지 않습니다. 두 지수의 방향이 같은지 다른지도 한 구절로 씁니다.`);
   }
-  const calendar = picks[0]!.calendar;
-  if (calendar === "this_week") lines.push(`질문이 '이번 주' 를 물어, 기간 변화는 이번 주 월요일 앞 마지막 거래일(시작일) 종가와 기준일 종가의 비교입니다. "이번 주 들어" 로 쓸 수 있습니다.`);
-  if (calendar === "this_week_empty") lines.push(`질문이 '이번 주' 를 물었지만 이번 주 거래일의 공식 종가가 아직 없어 최근 7일로 받았습니다. '이번 주' 라고 부르지 않고 날짜로 밝힙니다.`);
-  if (calendar === "last_week") lines.push(`질문이 '지난주' 를 물었지만 지수 자료는 기준일까지의 최근 기간으로만 받을 수 있어, 지난주만 떼어 계산하지 않았습니다. 위 기간을 날짜로 밝히고 '지난주 변화' 라고 부르지 않습니다. 지난주만의 변화는 확인하지 못한 것에 한 줄로 씁니다.`);
   lines.push(`기간 변화는 위 기간(시작일 ~ 기준일)의 값입니다. 질문이 '일주일 추세' 처럼 흐름을 물으면 그 기간의 시작 · 끝 값과 변화로 씁니다. 일별 종가는 리포트의 차트가 보여 주므로, 중간 날짜의 종가 숫자를 따로 쓰지 않고 "일별 종가가 없다 · 일별 흐름을 확인할 수 없다" 고도 쓰지 않습니다 (11/26 로컬).`);
   lines.push(`지수가 왜 움직였는지 묻는 질문이면, 요약의 첫 문장은 움직인 크기로 쓰고 둘째 문장에 기사가 전한 배경을 "○○ 보도에 따르면" 으로 씁니다. "원인은 단정하기 어려워요" 로 요약을 시작하지 않고, 그 한계는 주의점에 한 번만 씁니다.`);
   lines.push(`지수 값이 없다거나 확인할 수 없다고 쓰지 않습니다. 이 밖에 기사 본문에만 있는 숫자는 장부에 없어 검증에서 빠지므로 쓰지 않고, 내용만 숫자 없이 씁니다.`);

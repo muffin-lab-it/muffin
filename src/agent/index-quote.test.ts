@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { addTodayClose, consistent, dropDailyCloseTalk, ensureIndex, ensureIndexes, indexCaveats, indexDays, indexesFor, indexFor, indexNote, indexPlan, indexRefs, officialIndex, parseClose, sessionDate, thisWeekDays, withIndexNumbers } from "./index-quote";
+import { addTodayClose, consistent, dropDailyCloseTalk, ensureIndex, ensureIndexes, indexCaveats, indexDays, indexesFor, indexFor, indexHidden, indexNote, indexPlan, indexRefs, isWeekToDate, officialIndex, parseClose, sessionDate, thisWeekDays, withIndexNumbers } from "./index-quote";
 import type { Evidence, WriterOutput } from "./schema";
 
 const official: Evidence = {
@@ -267,11 +267,33 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
     });
     const [pick] = await ensureIndexes(ctx, "이번 주 코스피 어때?", { name: "get_kr_stock_index", invoke }, newsOf() as never);
     expect(pick).toMatchObject({ index: "코스피", days: 4, calendar: "this_week" });
-    expect(indexNote(ctx.evidence, [pick!])).toContain("이번 주 월요일 앞 마지막 거래일");
+    expect(indexNote(ctx.evidence, [pick!])).toContain("코스피 의 기간 변화는 이번 주 월요일 앞 마지막 거래일");
 
     vi.useRealTimers();
     expect(calls).toEqual([7, 4]); // 기준일 11/26 → 지난 일요일 11/22 까지 4일
     const last = indexNote([kospi7], [{ index: "코스피", days: 30, calendar: "last_week" }]);
     expect(last).toContain("'지난주 변화' 라고 부르지 않습니다");
+  });
+
+  it("금요일이 휴장이라 목요일과 비교돼도 이번 주 들어 비교로 본다. 지수마다 기간 안내를 따로 (#178 Codex 리뷰)", () => {
+    const at = (from: string, to: string): Evidence => ({ ...kospi7, values: { ...kospi7.values, "period.from": from, "period.to": to } });
+    expect(isWeekToDate(at("2026-11-20", "2026-11-25"), "2026-11-26")).toBe(true); // 금요일 시작
+    expect(isWeekToDate(at("2026-11-19", "2026-11-25"), "2026-11-26")).toBe(true); // 금요일 휴장 → 목요일 시작
+    expect(isWeekToDate(at("2026-11-18", "2026-11-20"), "2026-11-26")).toBe(false); // 기준일이 아직 지난주
+    expect(isWeekToDate(at("2026-11-23", "2026-11-25"), "2026-11-26")).toBe(false); // 시작일이 이번 주 안
+
+    const nasdaq: Evidence = { ...kospi7, id: "E8", tool: "get_us_stock_index", values: { ...kospi7.values, index: "나스닥 종합" } };
+    const note = indexNote([kospi7, nasdaq], [{ index: "코스피", days: 4, calendar: "this_week" }, { index: "나스닥 종합", days: 7, calendar: "this_week_empty" }]);
+    expect(note).toContain("코스피 의 기간 변화는 이번 주 월요일 앞 마지막 거래일");
+    expect(note).toContain("나스닥 종합 은(는) 이번 주 거래일의 공식 종가가 아직 없어 최근 7일로 받았습니다");
+    expect(note).not.toContain("코스피 은(는) 이번 주 거래일의 공식 종가가 아직 없어");
+  });
+
+  it("이번 주로 다시 받았으면 먼저 받은 7일 항목은 작성에 숨기고, 1년 항목은 그대로 둔다 (11/26 로컬)", () => {
+    const seven = kosdaq("E1", "2026-11-17");
+    const week = kosdaq("E2", "2026-11-20");
+    const year = kosdaq("E3", "2025-11-24");
+    expect([...indexHidden([seven, week, year], [{ index: "코스닥", days: 4, calendar: "this_week" }])]).toEqual(["E1"]);
+    expect([...indexHidden([seven], [{ index: "코스닥", days: 7, calendar: null }])]).toEqual([]);
   });
 });

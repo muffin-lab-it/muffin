@@ -22,7 +22,7 @@ import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
-import { dropDailyCloseTalk, ensureIndexes, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
+import { dropDailyCloseTalk, ensureIndexes, indexCaveats, indexFor, indexHidden, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
 import { dropFetchTalk, dropRefIds, trimNegatives } from "./negatives";
 import { withEtfIntro } from "./etf-intro";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
@@ -337,9 +337,11 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   const trendHidden = cpiTrend ? cpiTrendHidden(ctx.evidence, cpiTrend) : new Set<string>();
   // 지역 행정 · 정당 기사(경제 흐름 기사가 아님)는 작성에게 보이지 않게 하고, 인용되지 않았으면 리포트 근거에서도 뺍니다 (news-topics.ts)
   const localNews = localNewsIds(ctx.evidence, macroNews);
-  const hidden = new Set([...reversed, ...sameIndicator, ...trendHidden, ...localNews]);
+  // 지수를 질문의 기간으로 다시 받았으면 먼저 받은 다른 기간 항목은 작성에 보이지 않게 합니다 (index-quote.ts indexHidden)
+  const indexOld = indexHidden(ctx.evidence, indexPicks);
+  const hidden = new Set([...reversed, ...sameIndicator, ...trendHidden, ...localNews, ...indexOld]);
   // 숨긴 항목은 "정제가 뺀 자료" 목록에도 올리지 않습니다 (작성이 "30일 자료는 쓰지 않았어요" 라고 적지 않게)
-  for (const id of [...sameIndicator, ...trendHidden, ...localNews]) rescued.add(id);
+  for (const id of [...sameIndicator, ...trendHidden, ...localNews, ...indexOld]) rescued.add(id);
   const writerLedger = hidden.size > 0 ? ctx.evidence.filter((e) => !hidden.has(e.id)) : ctx.evidence;
   const writerFactsShown = writerFacts && hidden.size > 0 ? { ...writerFacts, facts: writerFacts.facts.filter((f) => !hidden.has(f.ref)) } : writerFacts;
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
