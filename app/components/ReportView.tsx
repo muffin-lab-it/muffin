@@ -17,6 +17,7 @@ import type { ToolStep } from "@/src/agent/context";
 import type { Area, Evidence, Report } from "@/src/agent/schema";
 import { ReportChart } from "./ReportChart";
 import { ReportQuickMenu, type QuickItem } from "./ReportQuickMenu";
+import { CookieDecor } from "./CookieDecor";
 import { EvidenceOrigin, ReportEvidenceScope, ReasonEvidenceTarget, ReportSectionTarget } from "./ReportEvidenceScope";
 import { EvidenceReference, ReportVerification, SourceLink } from "./ReportEvidence";
 import { formatDateKo, isBokRelease, isNewsEvidence, newsCountLine, newsNoun, prettyDates, prettyReport, publisherOf, repeatsClaim, valueTone } from "./format";
@@ -201,6 +202,8 @@ export function ReportView({
   return (
     <div className={styles.reportContainer}>
     {quickMenu && <ReportQuickMenu items={quickItems} />}
+    {/* 11/26 사용자: 리포트 · 다시 보기 화면(목차가 있는 한 장 화면) 오른쪽 아래 쿠키 */}
+    {quickMenu && <CookieDecor />}
     <ReportEvidenceScope>
     <ReportDisplay className={`report ${styles.report}`}>
       <header className="report-brand-header"><div><p>갓 구운 오늘의 리포트</p><h1>Today&apos;s Muffin</h1></div>{actions && <div className="report-actions">{actions}</div>}</header>
