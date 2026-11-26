@@ -28,6 +28,11 @@ export async function copyForNotion(report: Report, meta: ExportMeta, clipboard:
   }
 }
 
+/** 내보낸 글 맨 아래에 붙일 주소. 화면이 넘긴 주소(상대 주소 가능)가 있으면 그것, 없으면 지금 주소 */
+export function exportLink(url: string | undefined, here: string): string {
+  return url ? new URL(url, here).href : here;
+}
+
 /** 시트용 CSV 파일 (구글 시트 · 엑셀 가져오기). 이름은 PDF 기본 파일명에 .csv */
 export function csvFile(report: Report, question?: string, createdAt?: string): { name: string; blob: Blob } {
   return { name: `${pdfTitle(question, createdAt)}.csv`, blob: new Blob([reportToCsv(report)], { type: "text/csv;charset=utf-8" }) };
@@ -38,7 +43,13 @@ export function csvFile(report: Report, question?: string, createdAt?: string): 
  * 11/26: 스터디 결과물 'Notion / Google Sheets 내보내기' — Notion 은 Markdown 복사, 시트는 숫자 카드 CSV(숫자 카드가 없으면 숨김).
  * 인쇄 때는 감싼 .report-actions 가 통째로 숨습니다.
  */
-export function ReportActions({ question, createdAt, report }: { question?: string; createdAt?: string; report?: Report }) {
+export function ReportActions({ question, createdAt, report, url }: {
+  question?: string;
+  createdAt?: string;
+  report?: Report;
+  /** 내보낸 글의 리포트 주소. 다시 보기처럼 지금 주소가 고른 리포트를 가리키지 않는 화면이 넘깁니다 (#181 Codex 리뷰) */
+  url?: string;
+}) {
   const [note, setNote] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -55,7 +66,7 @@ export function ReportActions({ question, createdAt, report }: { question?: stri
     window.print();
   }
   async function copy(target: Report) {
-    show(await copyForNotion(target, { question, createdAt, url: window.location.href }));
+    show(await copyForNotion(target, { question, createdAt, url: exportLink(url, window.location.href) }));
   }
   function download(target: Report) {
     const { name, blob } = csvFile(target, question, createdAt);

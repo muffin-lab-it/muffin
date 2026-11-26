@@ -1,7 +1,7 @@
 import { load } from "cheerio";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { COPY_DONE, COPY_FAILED, copyForNotion, csvFile, pdfTitle, ReportActions } from "./ReportActions";
+import { COPY_DONE, COPY_FAILED, copyForNotion, csvFile, exportLink, pdfTitle, ReportActions } from "./ReportActions";
 import recording from "@/src/replays/rate-compare.json";
 import type { Report } from "@/src/agent/schema";
 
@@ -47,5 +47,14 @@ describe("리포트 내보내기 버튼 (11/26, Notion · 구글 시트)", () =>
     const text = await blob.text();
     expect(text.split("\r\n")[0]).toContain("항목,값,변화,기준일,출처,출처 링크,확인");
     expect(text.split("\r\n").filter(Boolean)).toHaveLength(report.numbers.length + 1);
+  });
+});
+
+describe("내보낸 글의 리포트 주소 (#181 Codex 리뷰)", () => {
+  it("화면이 넘긴 주소가 있으면 그것(상대 주소는 지금 주소 기준), 없으면 지금 주소", () => {
+    // 다시 보기 목록에서 고르면 주소가 /replay 그대로라, 고른 녹화의 주소를 넘김
+    expect(exportLink("/replay?id=fx-cause", "https://muffin-kappa.vercel.app/replay")).toBe("https://muffin-kappa.vercel.app/replay?id=fx-cause");
+    expect(exportLink("/replay?id=macro-cause", "https://muffin-kappa.vercel.app/replay?id=fx-cause&speed=10")).toBe("https://muffin-kappa.vercel.app/replay?id=macro-cause");
+    expect(exportLink(undefined, "https://muffin-kappa.vercel.app/report/abc")).toBe("https://muffin-kappa.vercel.app/report/abc");
   });
 });
