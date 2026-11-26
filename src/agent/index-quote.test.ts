@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ResearchContext } from "./context";
-import { addTodayClose, consistent, dropDailyCloseTalk, ensureIndex, ensureIndexes, indexCaveats, indexDays, indexesFor, indexFor, indexNote, indexRefs, officialIndex, parseClose, sessionDate, withIndexNumbers } from "./index-quote";
+import { addTodayClose, consistent, dropDailyCloseTalk, ensureIndex, ensureIndexes, indexCaveats, indexDays, indexesFor, indexFor, indexNote, indexPlan, indexRefs, officialIndex, parseClose, sessionDate, thisWeekDays, withIndexNumbers } from "./index-quote";
 import type { Evidence, WriterOutput } from "./schema";
 
 const official: Evidence = {
@@ -187,7 +187,7 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
       ctx.addEvidence([index === "코스닥" ? kosdaq("E5") : kospi7]);
       return "ok";
     });
-    expect(await ensureIndexes(ctx, Q, { name: "get_kr_stock_index", invoke }, newsOf() as never)).toEqual(["코스피", "코스닥"]);
+    expect((await ensureIndexes(ctx, Q, { name: "get_kr_stock_index", invoke }, newsOf() as never)).map((p) => [p.index, p.days])).toEqual([["코스피", 7], ["코스닥", 7]]);
     expect(invoke.mock.calls.map((c) => c[1]).sort()).toEqual(['{"index":"코스닥","days":7}', '{"index":"코스피","days":7}']);
   });
 
@@ -233,5 +233,45 @@ describe("여러 지수 · 질문의 기간 (11/26 운영 mwwu02ns-uzqmor)", () 
     });
     expect(out.caveats).toEqual(["코스피 공식 자료는 다음 영업일에 공개돼요."]);
     expect(out.dataGaps).toEqual(["공식 자료로 확인되는 기간에는 코스피가 0.76% 상승했어요.", "오늘 하락의 이유를 뒷받침할 근거가 확인되지 않았어요."]);
+  });
+
+  it("같은 지수를 여러 기간으로 받았으면 질문의 기간에 가장 가까운 것을 쓴다 (Deep 이 뒤에 받은 1년이 30일을 대신하지 않게, #178 Codex 리뷰)", () => {
+    const month = kosdaq("E2", "2026-10-24");
+    const year = kosdaq("E9", "2025-11-24");
+    expect(officialIndex([month, year], "코스닥")?.id).toBe("E2");
+    expect(officialIndex([month, year], "코스닥", 365)?.id).toBe("E9");
+    expect(officialIndex([year, kosdaq("E4")], "코스닥", 7)?.id).toBe("E4");
+  });
+
+  it("'이번 주' 는 기준일을 안 뒤 월요일 앞 마지막 거래일과 비교하도록 다시 받고, '지난주' 는 떼어 받지 않고 그렇게 알린다 (#178 Codex 리뷰)", async () => {
+    // 2026-11-26(목): 이번 주 월요일 11/23, 지난 일요일 11/22
+    expect(thisWeekDays("2026-11-25", "2026-11-26")).toBe(3);
+    expect(thisWeekDays("2026-11-20", "2026-11-23")).toBeNull(); // 월요일 아침: 기준일이 아직 지난주
+    expect(indexPlan("이번 주 코스피 어때?")).toEqual({ days: 7, calendar: "this_week" });
+    expect(indexPlan("지난주 코스피 추세 알려줘")).toEqual({ days: 30, calendar: "last_week" });
+    expect(indexPlan("최근 일주일 코스피")).toEqual({ days: 7, calendar: null });
+
+    // 시계를 2026-11-26(목) 정오(한국 시간)로 고정합니다 (UTC 날짜와 한국 날짜가 다른 시간대에도 같게)
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-26T03:00:00Z"));
+    const today = "2026-11-26";
+    const ctx = new ResearchContext();
+    const calls: number[] = [];
+    const invoke = vi.fn(async (_run: unknown, input: string) => {
+      const { days } = JSON.parse(input) as { days: number };
+      calls.push(days);
+      const to = today;
+      const from = new Date(Date.parse(`${to}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
+      ctx.addEvidence([{ ...kospi7, id: `E${calls.length}`, values: { ...kospi7.values, "latest.date": to, "period.from": from, "period.to": to } }]);
+      return "ok";
+    });
+    const [pick] = await ensureIndexes(ctx, "이번 주 코스피 어때?", { name: "get_kr_stock_index", invoke }, newsOf() as never);
+    expect(pick).toMatchObject({ index: "코스피", days: 4, calendar: "this_week" });
+    expect(indexNote(ctx.evidence, [pick!])).toContain("이번 주 월요일 앞 마지막 거래일");
+
+    vi.useRealTimers();
+    expect(calls).toEqual([7, 4]); // 기준일 11/26 → 지난 일요일 11/22 까지 4일
+    const last = indexNote([kospi7], [{ index: "코스피", days: 30, calendar: "last_week" }]);
+    expect(last).toContain("'지난주 변화' 라고 부르지 않습니다");
   });
 });

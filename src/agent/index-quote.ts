@@ -15,6 +15,7 @@ import type { ResearchContext } from "./context";
 import type { Evidence, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
 import { questionPeriod } from "./news-topics";
+import { todayKst } from "./today";
 
 export const INDEX_TOOL = "get_kr_stock_index";
 export const US_INDEX_TOOL = "get_us_stock_index";
@@ -64,19 +65,44 @@ export function indexesFor(question: string): IndexName[] {
   return hits.sort((a, b) => a.at - b.at).map((h) => h.name).slice(0, MAX_INDEXES);
 }
 
-/** 지수 조회 기간(달력 일수): 질문이 '일주일 · 이번 주 · 지난주' 면 7, '한 달 · 이번 달' 이면 30, 말이 없으면 30 (11/26: '일주일 추세' 를 30일로 답함) */
-export function indexDays(question: string): number {
+/**
+ * 질문의 기간 → 지수 조회 계획. 지수 tool 은 늘 최신 기준일에서 거꾸로 days 만큼과 비교합니다 (#178 Codex 리뷰).
+ *  - '일주일 · 최근 7일' 7일, '한 달' · 말 없음 30일
+ *  - '이번 주': 기준일을 안 뒤 "지난 일요일까지" 로 다시 받아 월요일 앞 마지막 거래일 종가와 비교 (ensureOne)
+ *  - '지난주': 기준일이 늘 최신이라 지난주만 떼어 받을 수 없음 → 기본 기간으로 받고 작성에 '지난주' 라고 부르지 않게 알림
+ */
+export type IndexCalendar = "this_week" | "last_week" | null;
+export function indexPlan(question: string): { days: number; calendar: IndexCalendar } {
   const period = questionPeriod(question);
-  return period === "7d" || period === "this_week" || period === "last_week" ? 7 : 30;
+  if (period === "7d") return { days: 7, calendar: null };
+  if (period === "this_week") return { days: 7, calendar: "this_week" };
+  if (period === "last_week") return { days: 30, calendar: "last_week" };
+  return { days: 30, calendar: null };
 }
+export const indexDays = (question: string) => indexPlan(question).days;
+
+const DAY_MS = 86_400_000;
+/** 이번 주를 지수 tool 의 days 로: 기준일에서 지난 일요일까지의 달력 일수 (그 앞 마지막 거래일과 비교됨). 기준일이 이번 주가 아니면 null */
+export function thisWeekDays(latestDate: string, today: string = todayKst()): number | null {
+  const t = Date.parse(`${today}T00:00:00Z`);
+  const monday = t - ((new Date(t).getUTCDay() + 6) % 7) * DAY_MS;
+  const latest = Date.parse(`${latestDate}T00:00:00Z`);
+  if (Number.isNaN(latest) || latest < monday) return null;
+  return Math.round((latest - (monday - DAY_MS)) / DAY_MS);
+}
+
+/** 받은 지수와 그 기간 (작성 · 카드 · 차트가 같은 항목을 고르도록) */
+export type IndexPick = { index: IndexName; days: number; calendar: IndexCalendar | "this_week_empty" };
 
 /** 공식 지수 항목의 비교 기간(달력 일수) */
 const spanDays = (e: Evidence) => Math.round((Date.parse(String(e.values["period.to"])) - Date.parse(String(e.values["period.from"]))) / 86_400_000);
 
 /** 장부의 공식 지수 항목 */
-export function officialIndex(evidence: Evidence[], index: IndexName): Evidence | undefined {
-  // 같은 지수를 기간을 바꿔 다시 받았으면(관계 질문의 1년 뒤 질문의 일주일) 마지막에 받은 것을 씁니다
-  return evidence.filter((e) => (e.tool === INDEX_TOOL || e.tool === US_INDEX_TOOL) && e.values.index === index && typeof e.values["latest.close"] === "number").at(-1);
+export function officialIndex(evidence: Evidence[], index: IndexName, days = 30): Evidence | undefined {
+  // 같은 지수를 여러 기간으로 받았으면(관계 질문 · Deep 의 1년, 질문의 일주일) 비교 기간이 days 에 가장 가까운 것을 씁니다.
+  // 마지막에 받은 것을 쓰면 Deep 이 뒤에 받은 1년 자료가 짧은 기간 자료를 대신합니다 (#178 Codex 리뷰)
+  const found = evidence.filter((e) => (e.tool === INDEX_TOOL || e.tool === US_INDEX_TOOL) && e.values.index === index && typeof e.values["latest.close"] === "number");
+  return found.reduce<Evidence | undefined>((best, e) => (!best || Math.abs(spanDays(e) - days) < Math.abs(spanDays(best) - days) ? e : best), undefined);
 }
 /** 장부의 당일 종가 항목 (기사 보도 · 검산) */
 export function todayIndex(evidence: Evidence[], index: IndexName): Evidence | undefined {
@@ -184,34 +210,49 @@ export async function addTodayClose(ctx: ResearchContext, index: KrIndexName, ne
 export async function ensureIndex(ctx: ResearchContext, question: string, given?: InvokableTool, news?: NewsFetch): Promise<IndexName | null> {
   const index = indexFor(question);
   if (!index) return null;
-  return (await ensureOne(ctx, index, indexDays(question), given, news)) ? index : null;
+  return (await ensureOne(ctx, index, indexPlan(question), given, news)) ? index : null;
 }
 
-/** 질문이 물은 지수 모두를 받습니다 (지수마다 공식 종가 · 당일 종가 검산). 받은 지수만 돌려줍니다 */
-export async function ensureIndexes(ctx: ResearchContext, question: string, given?: InvokableTool, news?: NewsFetch): Promise<IndexName[]> {
-  const days = indexDays(question);
-  const indexes = indexesFor(question);
-  const ok = await Promise.all(indexes.map((index) => ensureOne(ctx, index, days, given, news)));
-  return indexes.filter((_, i) => ok[i]);
+/** 질문이 물은 지수 모두를 받습니다 (지수마다 공식 종가 · 당일 종가 검산). 받은 지수와 그 기간 */
+export async function ensureIndexes(ctx: ResearchContext, question: string, given?: InvokableTool, news?: NewsFetch): Promise<IndexPick[]> {
+  const plan = indexPlan(question);
+  const picks = await Promise.all(indexesFor(question).map((index) => ensureOne(ctx, index, plan, given, news)));
+  return picks.filter((p): p is IndexPick => p !== null);
 }
 
 /** 한 지수: 없거나 질문의 기간과 다르게 받아 둔 것만 있으면 그 기간으로 받고, 국내 지수는 당일 종가를 기사로 검산합니다 */
-async function ensureOne(ctx: ResearchContext, index: IndexName, days: number, given?: InvokableTool, news?: NewsFetch): Promise<boolean> {
+async function ensureOne(ctx: ResearchContext, index: IndexName, plan: { days: number; calendar: IndexCalendar }, given?: InvokableTool, news?: NewsFetch): Promise<IndexPick | null> {
   const tool = given ?? ((isUs(index) ? usIndexTool : krIndexTool) as unknown as InvokableTool);
-  const have = officialIndex(ctx.evidence, index);
-  // 관계 질문이 1년으로 받아 둔 것은 기본 기간(30일)이면 그대로 쓰고, 질문이 기간을 말했는데 그 기간과 다르면 다시 받습니다 (거래일 차이 2일까지 같다고 봄)
-  if (!have || (days !== 30 && Math.abs(spanDays(have) - days) > 2)) {
-    await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days })).catch(() => undefined);
+  const fetch = async (days: number) => {
+    const have = officialIndex(ctx.evidence, index, days);
+    // 관계 질문이 1년으로 받아 둔 것은 기본 기간(30일)이면 그대로 쓰고, 질문이 기간을 말했는데 그 기간과 다르면 다시 받습니다 (거래일 차이 2일까지 같다고 봄)
+    if (!have || (days !== 30 && Math.abs(spanDays(have) - days) > 2)) {
+      await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days })).catch(() => undefined);
+    }
+  };
+  let days = plan.days;
+  let calendar: IndexPick["calendar"] = plan.calendar;
+  await fetch(days);
+  const first = officialIndex(ctx.evidence, index, days);
+  if (!first) return null;
+  if (plan.calendar === "this_week") {
+    // 기준일을 알았으니 월요일 앞 마지막 거래일과 비교하도록 다시 받습니다. 기준일이 아직 지난주면(월요일 아침 등) 최근 7일로 두고 '이번 주' 라고 부르지 않게
+    const exact = thisWeekDays(String(first.values["latest.date"]));
+    if (exact === null) calendar = "this_week_empty";
+    else if (exact !== spanDays(first)) {
+      await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days: exact })).catch(() => undefined);
+      if (officialIndex(ctx.evidence, index, exact) && Math.abs(spanDays(officialIndex(ctx.evidence, index, exact)!) - exact) <= 2) days = exact;
+      else calendar = "this_week_empty";
+    } else days = exact;
   }
-  if (!officialIndex(ctx.evidence, index)) return false;
   // 당일 종가의 기사 검산은 국내 지수만 합니다 (국내 마감 기사의 문장 꼴에 맞춘 것)
   if (!isUs(index)) await addTodayClose(ctx, index, news);
-  return true;
+  return { index, days, calendar };
 }
 
 /** 정제가 뺐더라도 [지수 값] 으로 다시 보여 주는 항목들 */
-export function indexRefs(evidence: Evidence[], index: IndexName): string[] {
-  return [officialIndex(evidence, index)?.id, todayIndex(evidence, index)?.id].filter((id): id is string => !!id);
+export function indexRefs(evidence: Evidence[], index: IndexName, days = 30): string[] {
+  return [officialIndex(evidence, index, days)?.id, todayIndex(evidence, index)?.id].filter((id): id is string => !!id);
 }
 
 export const points = (n: number) => n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -227,12 +268,15 @@ function direction(value: unknown): string {
   return !Number.isFinite(n) || n === 0 ? "변동 없음" : n > 0 ? "상승" : "하락";
 }
 
-export function indexNote(evidence: Evidence[], index: IndexName | IndexName[]): string {
-  const indexes = (Array.isArray(index) ? index : [index]).filter((i) => officialIndex(evidence, i));
-  if (indexes.length === 0) return "";
+export function indexNote(evidence: Evidence[], index: IndexName | (IndexName | IndexPick)[]): string {
+  const picks: IndexPick[] = (Array.isArray(index) ? index : [index])
+    .map((x) => (typeof x === "string" ? { index: x, days: 30, calendar: null } : x))
+    .filter((p) => officialIndex(evidence, p.index, p.days));
+  if (picks.length === 0) return "";
+  const indexes = picks.map((p) => p.index);
   const lines = [`[지수 값] 질문이 물은 ${indexes.join(" · ")} 지수의 값입니다. 지수 값에는 "원" 을 붙이지 않습니다.`];
-  for (const i of indexes) {
-    const o = officialIndex(evidence, i)!;
+  for (const { index: i, days } of picks) {
+    const o = officialIndex(evidence, i, days)!;
     const v = o.values;
     const t = todayIndex(evidence, i);
     lines.push(
@@ -255,6 +299,10 @@ export function indexNote(evidence: Evidence[], index: IndexName | IndexName[]):
   if (indexes.length > 1) {
     lines.push(`질문이 지수 ${indexes.length}개(${indexes.join(" · ")})를 물었습니다. 요약에 지수마다 값과 기간 변화를 쓰고, 한 지수만 쓰고 끝내지 않습니다. 두 지수의 방향이 같은지 다른지도 한 구절로 씁니다.`);
   }
+  const calendar = picks[0]!.calendar;
+  if (calendar === "this_week") lines.push(`질문이 '이번 주' 를 물어, 기간 변화는 이번 주 월요일 앞 마지막 거래일(시작일) 종가와 기준일 종가의 비교입니다. "이번 주 들어" 로 쓸 수 있습니다.`);
+  if (calendar === "this_week_empty") lines.push(`질문이 '이번 주' 를 물었지만 이번 주 거래일의 공식 종가가 아직 없어 최근 7일로 받았습니다. '이번 주' 라고 부르지 않고 날짜로 밝힙니다.`);
+  if (calendar === "last_week") lines.push(`질문이 '지난주' 를 물었지만 지수 자료는 기준일까지의 최근 기간으로만 받을 수 있어, 지난주만 떼어 계산하지 않았습니다. 위 기간을 날짜로 밝히고 '지난주 변화' 라고 부르지 않습니다. 지난주만의 변화는 확인하지 못한 것에 한 줄로 씁니다.`);
   lines.push(`기간 변화는 위 기간(시작일 ~ 기준일)의 값입니다. 질문이 '일주일 추세' 처럼 흐름을 물으면 그 기간의 시작 · 끝 값과 변화로 씁니다. 일별 종가는 리포트의 차트가 보여 주므로, 중간 날짜의 종가 숫자를 따로 쓰지 않고 "일별 종가가 없다 · 일별 흐름을 확인할 수 없다" 고도 쓰지 않습니다 (11/26 로컬).`);
   lines.push(`지수가 왜 움직였는지 묻는 질문이면, 요약의 첫 문장은 움직인 크기로 쓰고 둘째 문장에 기사가 전한 배경을 "○○ 보도에 따르면" 으로 씁니다. "원인은 단정하기 어려워요" 로 요약을 시작하지 않고, 그 한계는 주의점에 한 번만 씁니다.`);
   lines.push(`지수 값이 없다거나 확인할 수 없다고 쓰지 않습니다. 이 밖에 기사 본문에만 있는 숫자는 장부에 없어 검증에서 빠지므로 쓰지 않고, 내용만 숫자 없이 씁니다.`);
@@ -265,8 +313,8 @@ export function indexNote(evidence: Evidence[], index: IndexName | IndexName[]):
  * 지수 숫자가 "오늘의 숫자" 에 없으면 맨 앞에 넣습니다. 작성이 [지수 값] 을 보고도 숫자 칸을 비우는 일이 있어(11/20 실측 3번 중 1번) 코드가 보장합니다.
  * 값은 장부 그대로라 검증을 통과하고, 작성이 이미 같은 값을 썼으면(값 · 변화 칸) 넣지 않습니다. 순서는 당일(기사 보도) → 공식 종가 → 기간 변화.
  */
-export function withIndexNumbers(output: WriterOutput, evidence: Evidence[], index: IndexName): WriterOutput {
-  const o = officialIndex(evidence, index);
+export function withIndexNumbers(output: WriterOutput, evidence: Evidence[], index: IndexName, days = 30): WriterOutput {
+  const o = officialIndex(evidence, index, days);
   if (!o) return output;
   // 글자가 아니라 값으로 비교합니다 ("23,879.20" 과 "23,879.2포인트" 는 같은 값). 변화 칸에 적혀 있어도 있는 것으로 봅니다.
   // 부호가 적힌 숫자는 부호까지 같아야 같은 값입니다: 전일 대비 "+2.00%" 를 썼다고 기간 변화 -2.00% 가 이미 있는 것은 아닙니다 (#128 Codex 리뷰)
@@ -294,8 +342,8 @@ export function withIndexNumbers(output: WriterOutput, evidence: Evidence[], ind
 }
 
 /** 두 값의 기준일이 다른 이유를 적는 주의점 한 줄. 검증 뒤에 붙이고, 작성이 이미 같은 설명을 썼으면 넣지 않습니다 */
-export function indexCaveats(evidence: Evidence[], index: IndexName, caveats: string[] = []): string[] {
-  const o = officialIndex(evidence, index);
+export function indexCaveats(evidence: Evidence[], index: IndexName, caveats: string[] = [], days = 30): string[] {
+  const o = officialIndex(evidence, index, days);
   if (!o || caveats.some((c) => /하루 늦|하루 이틀|늦게 올라|다음 영업일|T\+1|직전 영업일/.test(c))) return [];
   const t = todayIndex(evidence, index);
   const date = o.values["latest.date"];
