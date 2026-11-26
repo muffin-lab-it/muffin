@@ -22,7 +22,7 @@ import { changeDetailsFor } from "./change";
 import { droppedNote } from "./dropped";
 import { addModelUsage, type UsageSummary } from "../lib/pricing";
 import { basketChart, basketNote, basketRows, ensureEtfBasket, withBasketNumbers } from "./etf-basket";
-import { ensureIndex, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
+import { dropDailyCloseTalk, ensureIndexes, indexCaveats, indexFor, indexNote, indexRefs, officialIndex, withIndexNumbers } from "./index-quote";
 import { dropFetchTalk, dropRefIds, trimNegatives } from "./negatives";
 import { withEtfIntro } from "./etf-intro";
 import { dropNewsCards, newsCardNote } from "./news-numbers";
@@ -40,7 +40,7 @@ import { cpiCauseNote, cpiRescuedRefs } from "./cpi";
 import { DECISION_NOTICE, FOREIGN_ETF_NOTICE, OUT_OF_SCOPE_NOTICE, STOCK_NOTICE, assembleReport, fallbackGaps, fallbackTools, foreignEtfOutput, fxBasisCaveats, outOfScopeOutput, stockOutput } from "./report";
 import { dedupeNormalRange, isSwingQuestion, measureMovement, movementEvidence, movementNote, movementNotice, movementSummary, pickTarget, rescuedRefs, swingNote, withSwingNumbers, type MovementResult } from "./movement";
 import { createResearcherAgent, runResearch } from "./research";
-import { modeFor, type Area, type Chart, type Depth, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
+import { modeFor, type Area, type Chart, type Depth, type Evidence, type FactsOutput, type PlanOutput, type Report, type ReportMode, type WriterOutput } from "./schema";
 import { dropOffTopic, ensureMentioned, mentionedTools, offTopicGap, offTopicNote, offTopicParts, rescueScope, scopeGap, scopeNote } from "./scope-rescue";
 import { trimGapInputs, trimRepeats } from "./trim";
 import { applyVerification, summarizeVerification, verify } from "./verify";
@@ -250,8 +250,9 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 관계 질문("물가와 금리 관계", "환율이 오르면 코스피는?")이면 질문이 말한 지표를 모두 같은 1년으로 받아 나란히 볼 수 있게 합니다 (src/agent/relation.ts).
   // 지수 값보다 먼저 받아서, 지수가 든 관계 질문은 공식 종가 · 차트도 같은 1년 자료를 씁니다
   const relation = await ensureRelation(ctx, question, muffinTools);
-  // 지수 질문(코스피 · 코스닥 등)이면 공식 종가와, 검산되는 당일 종가(기사 보도)를 장부에 올립니다 (분류가 고르지 않아도 코드가 부름, src/agent/index-quote.ts)
-  const index = await ensureIndex(ctx, question);
+  // 지수 질문(코스피 · 코스닥 등)이면 물은 지수마다 공식 종가와, 검산되는 당일 종가(기사 보도)를 장부에 올립니다 (분류가 고르지 않아도 코드가 부름, src/agent/index-quote.ts).
+  // 기간은 질문을 따릅니다 ('일주일 추세' 면 7일). 11/26 운영: 코스피 · 코스닥을 함께 물었는데 먼저 나온 코스피만 30일로 받음
+  const indexes = await ensureIndexes(ctx, question);
   // 정책금리의 짧은 기간 변화가 0 이면 1년 전과도 비교할 수 있게 365일로 한 번 더 받습니다 (src/agent/rate-trend.ts)
   // 돈의 가치 질문이면 물가 · 환율을 채웁니다 (money-value.ts)
   const moneyValue = await ensureMoneyValue(ctx, question, muffinTools);
@@ -287,12 +288,13 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   if (movement) ctx.addEvidence([movementEvidence(movement, movementId)]);
   // 게이트가 받은 일별 환율로 차트 (최근 30일 선 · 평소 폭 띠 · 기간 안의 뉴스 점). 코드가 만든 것이라 검증 대상이 아닙니다
   // 차트: 환율 원인 질문은 평소 폭 띠가 있는 환율 차트, 지수 질문은 비교 기간의 지수 선
-  const indexItem = index ? officialIndex(ctx.evidence, index) : undefined;
+  const indexItems = indexes.map((i) => officialIndex(ctx.evidence, i)).filter((e): e is Evidence => !!e);
   // 종목을 정하지 않은 ETF 질문은 대표 ETF 수익률 막대, 물가 질문은 달별 상승률 선 (화면 #149). charts 는 배열이라 해당하는 것을 순서대로 모두 넣습니다
   const cpiItem = cpiTrend ? ctx.evidence.find((e) => e.id === cpiTrend) : undefined;
   const charts = [
     movement ? fxChart(movement, movementId, ctx.evidence) : null,
-    indexItem ? indexChart(indexItem, ctx.raw.get(indexItem.id)) : null,
+    // 지수마다 차트 하나 (코스피 5,000대 · 코스닥 600대처럼 눈금이 달라 한 차트에 겹치지 않음)
+    ...indexItems.map((item) => indexChart(item, ctx.raw.get(item.id))),
     basket ? basketChart(ctx.evidence) : null,
     cpiItem ? cpiChart(cpiItem, ctx.raw.get(cpiItem.id)) : null,
   ].filter((c): c is Chart => c !== null);
@@ -311,7 +313,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 지수 값을 가진 항목도 정제가 뺐더라도 [지수 값] 으로 다시 보여 주므로 "쓰지 않은 자료" 에서 뺍니다
   // 코드가 조사 뒤에 채운 항목들. 정제가 뺐더라도 "쓰지 않은 자료" 로 알리지 않고, 작성의 사실 목록에 넣어 인용할 수 있게 합니다 (src/agent/extra-facts.ts)
   const ensured = new Set<string>([
-    ...(index ? indexRefs(ctx.evidence, index) : []),
+    ...indexes.flatMap((i) => indexRefs(ctx.evidence, i)),
     ...yearRates(ctx.evidence).map((e) => e.id),
     ...(rateRef ? [rateRef] : []),
     ...(rateStatement ? [rateStatement.id] : []),
@@ -343,14 +345,15 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 조사 · 정제가 각각 쓴 "확인하지 못한 것" 을 합쳐 줄인 뒤 넘깁니다 (같은 말 · 작업 과정 줄 제외, src/agent/trim.ts)
   const gapInputs = trimGapInputs([...notes.gaps, ...(facts?.unverified ?? [])]);
   const writerNotes = { ...notes, gaps: gapInputs };
-  const input = [todayLine(), writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", index ? indexNote(ctx.evidence, index) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), rateStatementNote(ctx.evidence, rateStatement, ctx.raw), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
+  const input = [todayLine(), writerInput(question, writerLedger, writerNotes, writerFactsShown ? { ...writerFactsShown, unverified: [] } : writerFactsShown), droppedNote(facts, ctx.evidence, rescued), movement ? movementNote(movement, movementId, ctx.evidence, shown, dropped) : "", movement && swing ? swingNote(movement, movementId) : "", plan.intent === "cause" ? cpiCauseNote(ctx.evidence, shown, question) : "", indexes.length > 0 ? indexNote(ctx.evidence, indexes) : "", rateYearNote(ctx.evidence), rateReferenceNote(ctx.evidence, rateRef), rateStatementNote(ctx.evidence, rateStatement, ctx.raw), deep ? deepNote(ctx.evidence, deep) : "", newsCardNote(ctx.evidence), macroNewsNote(macroNews), relation ? relationNote(ctx.evidence, relation) : "", basket ? basketNote(ctx.evidence) : "", scope ? scopeNote(scope) : "", offTopic ? offTopicNote(offTopic) : "", moneyValue ? moneyValueNote(ctx.evidence) : "", example ? exampleNote(example) : ""]
     .filter(Boolean)
     .join("\n\n");
   const writeCtx = new RunContext(ctx);
   // 지수 질문이면 지수 종가 · 기간 수익률은 작성이 빠뜨려도 코드가 "오늘의 숫자" 에 넣습니다 (실측: 3번 중 1번 빠뜨림). 검증 전이라 장부와 대조됩니다
   // 기사 항목을 가리키는 숫자 카드는 뺍니다 (검산되지 않은 기사 숫자가 "확인한 숫자" 자리에 오르지 않게, src/agent/news-numbers.ts)
   const indexed = (o: WriterOutput) => {
-    let out = index ? withIndexNumbers(o, ctx.evidence, index) : o;
+    // 지수마다 카드를 앞에 넣으므로 뒤 지수부터 넣어 질문 순서(코스피 → 코스닥)대로 놓이게 합니다
+    let out = [...indexes].reverse().reduce((acc, i) => withIndexNumbers(acc, ctx.evidence, i), o);
     if (relation) out = withRelationNumbers(out, ctx.evidence, relation);
     if (rateRef) out = withRateReference(out, ctx.evidence, rateRef);
     if (deep) out = withDeepNumbers(out, ctx.evidence, deep);
@@ -391,7 +394,10 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
   // 요약 · 주의점의 "조회가 실패해 이전 응답을 썼어요" 문장은 뺍니다. 저장된 응답을 썼으면 확인하지 못한 것에 코드가 한 줄 넣습니다 (negatives.ts dropFetchTalk)
   // 금리 원인 질문을 한국은행 통화정책방향으로 답했고 이번 조회로 가장 최근 결정과 그 설명을 확인했으면 "더 최근 결정은 확인되지 않았어요" 문장을 뺍니다 (rate-cause.ts dropNewerDecisionTalk)
   const negTrimmedAll = trimRepeats(trimNegatives(dropFetchTalk(offTopic ? dropOffTopic(applied.output, offTopic) : applied.output, fallbackTools(ctx.steps)), plan.intent));
-  const negTrimmed = explainsLatest(ctx.evidence, ctx.raw, rateStatement) ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
+  const negTrimmedRate = explainsLatest(ctx.evidence, ctx.raw, rateStatement) ? dropNewerDecisionTalk(negTrimmedAll) : negTrimmedAll;
+  // 지수 차트가 일별 종가를 보여 주면 "일별 종가가 없어요" 문장을 뺍니다 (index-quote.ts dropDailyCloseTalk)
+  const indexCharted = charts.some((c) => indexItems.some((item) => c.series.some((x) => x.ref === item.id)));
+  const negTrimmed = indexCharted ? dropDailyCloseTalk(negTrimmedRate) : negTrimmedRate;
   const trimmed = relation ? trimRelationRepeats(negTrimmed, relation) : negTrimmed;
   const fxNotes = fxBasisCaveats(ctx.evidence, trimmed.caveats);
   // 글에 남은 장부 번호("(E2-1)")는 뗍니다 (negatives.ts dropRefIds). Easy 요약이 ETF 이름을 설명 없이 쓰면 소개 한 문장을 넣습니다 (etf-intro.ts, QA-02)
@@ -402,7 +408,7 @@ async function runStages({ question: asked, depth, area }: ResearchInput, { onEv
     // 관계 질문의 한 줄은 꼬리를 떼기 전의 원래 문장으로 판단합니다. 뗀 뒤에는 "금리 차이는 환율에 영향을 줄 수 있어요." 처럼 숫자 없는 일반론만 남아
     // 바꿀 조건에 걸리지 않았습니다 (11/22 운영 14번)
     ...(relation ? { headline: relationHeadline(applied.output.headline, ctx.evidence, relation) } : {}),
-    caveats: [...trimmed.caveats, ...fxNotes, ...(index ? indexCaveats(ctx.evidence, index, trimmed.caveats) : [])],
+    caveats: [...trimmed.caveats, ...fxNotes, ...indexes.flatMap((i) => indexCaveats(ctx.evidence, i, trimmed.caveats))],
     // 범위 밖 부탁이 있으면 그 한 줄이 더 구체적이라 일반 범위 안내는 넣지 않습니다 (같은 말이 두 줄)
     dataGaps: [...trimmed.dataGaps, ...(offTopic ? [offTopicGap(offTopic)] : scope ? [scopeGap(scope)] : []), ...gaps],
   }), ctx.evidence, depth);

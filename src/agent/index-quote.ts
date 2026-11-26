@@ -14,6 +14,7 @@ import { US_INDEXES, usIndexTool, type UsIndexName } from "../tools/us-index";
 import type { ResearchContext } from "./context";
 import type { Evidence, WriterOutput } from "./schema";
 import type { InvokableTool } from "./supplement";
+import { questionPeriod } from "./news-topics";
 
 export const INDEX_TOOL = "get_kr_stock_index";
 export const US_INDEX_TOOL = "get_us_stock_index";
@@ -46,15 +47,36 @@ const ETF_SUBJECT =
 const NOT_SPOT_INDEX = /선물|옵션|파생|ETN|레버리지|인버스|VIX|변동성\s*지수|뭐야|뭔가요|무슨\s*뜻|뜻이|뜻인|구성\s*종목|산출|계산/i;
 
 export function indexFor(question: string): IndexName | null {
-  if (ETF_SUBJECT.test(question) || NOT_SPOT_INDEX.test(question)) return null;
+  return indexesFor(question)[0] ?? null;
+}
+
+/** 한 질문에서 받는 지수 수의 상한 */
+export const MAX_INDEXES = 3;
+
+/**
+ * 질문이 물은 지수 모두 (나온 순서, 최대 3개). 지수 질문이 아니거나 ETF 를 묻는 질문이면 빈 배열.
+ * 11/26 운영: "오늘 코스피랑 코스닥 왜이렇게 떨어지지 코스피랑 코스닥 일주일 추세 좀 알려줘" 에 먼저 나온 코스피만 받아 코스닥이 빠짐 (mwwu02ns-uzqmor)
+ */
+export function indexesFor(question: string): IndexName[] {
+  if (ETF_SUBJECT.test(question) || NOT_SPOT_INDEX.test(question)) return [];
   const hits = INDEX_WORDS.map(([re, name]) => ({ name, at: question.search(re) })).filter((h) => h.at >= 0);
   // "코스피 200" 은 "코스피" 패턴에 걸리지 않으므로(뒤에 숫자) 위치만 비교하면 됩니다
-  return hits.sort((a, b) => a.at - b.at)[0]?.name ?? null;
+  return hits.sort((a, b) => a.at - b.at).map((h) => h.name).slice(0, MAX_INDEXES);
 }
+
+/** 지수 조회 기간(달력 일수): 질문이 '일주일 · 이번 주 · 지난주' 면 7, '한 달 · 이번 달' 이면 30, 말이 없으면 30 (11/26: '일주일 추세' 를 30일로 답함) */
+export function indexDays(question: string): number {
+  const period = questionPeriod(question);
+  return period === "7d" || period === "this_week" || period === "last_week" ? 7 : 30;
+}
+
+/** 공식 지수 항목의 비교 기간(달력 일수) */
+const spanDays = (e: Evidence) => Math.round((Date.parse(String(e.values["period.to"])) - Date.parse(String(e.values["period.from"]))) / 86_400_000);
 
 /** 장부의 공식 지수 항목 */
 export function officialIndex(evidence: Evidence[], index: IndexName): Evidence | undefined {
-  return evidence.find((e) => (e.tool === INDEX_TOOL || e.tool === US_INDEX_TOOL) && e.values.index === index && typeof e.values["latest.close"] === "number");
+  // 같은 지수를 기간을 바꿔 다시 받았으면(관계 질문의 1년 뒤 질문의 일주일) 마지막에 받은 것을 씁니다
+  return evidence.filter((e) => (e.tool === INDEX_TOOL || e.tool === US_INDEX_TOOL) && e.values.index === index && typeof e.values["latest.close"] === "number").at(-1);
 }
 /** 장부의 당일 종가 항목 (기사 보도 · 검산) */
 export function todayIndex(evidence: Evidence[], index: IndexName): Evidence | undefined {
@@ -162,12 +184,29 @@ export async function addTodayClose(ctx: ResearchContext, index: KrIndexName, ne
 export async function ensureIndex(ctx: ResearchContext, question: string, given?: InvokableTool, news?: NewsFetch): Promise<IndexName | null> {
   const index = indexFor(question);
   if (!index) return null;
+  return (await ensureOne(ctx, index, indexDays(question), given, news)) ? index : null;
+}
+
+/** 질문이 물은 지수 모두를 받습니다 (지수마다 공식 종가 · 당일 종가 검산). 받은 지수만 돌려줍니다 */
+export async function ensureIndexes(ctx: ResearchContext, question: string, given?: InvokableTool, news?: NewsFetch): Promise<IndexName[]> {
+  const days = indexDays(question);
+  const indexes = indexesFor(question);
+  const ok = await Promise.all(indexes.map((index) => ensureOne(ctx, index, days, given, news)));
+  return indexes.filter((_, i) => ok[i]);
+}
+
+/** 한 지수: 없거나 질문의 기간과 다르게 받아 둔 것만 있으면 그 기간으로 받고, 국내 지수는 당일 종가를 기사로 검산합니다 */
+async function ensureOne(ctx: ResearchContext, index: IndexName, days: number, given?: InvokableTool, news?: NewsFetch): Promise<boolean> {
   const tool = given ?? ((isUs(index) ? usIndexTool : krIndexTool) as unknown as InvokableTool);
-  if (!officialIndex(ctx.evidence, index)) await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days: 30 })).catch(() => undefined);
-  if (!officialIndex(ctx.evidence, index)) return null;
+  const have = officialIndex(ctx.evidence, index);
+  // 관계 질문이 1년으로 받아 둔 것은 기본 기간(30일)이면 그대로 쓰고, 질문이 기간을 말했는데 그 기간과 다르면 다시 받습니다 (거래일 차이 2일까지 같다고 봄)
+  if (!have || (days !== 30 && Math.abs(spanDays(have) - days) > 2)) {
+    await tool.invoke(new RunContext(ctx), JSON.stringify({ index, days })).catch(() => undefined);
+  }
+  if (!officialIndex(ctx.evidence, index)) return false;
   // 당일 종가의 기사 검산은 국내 지수만 합니다 (국내 마감 기사의 문장 꼴에 맞춘 것)
   if (!isUs(index)) await addTodayClose(ctx, index, news);
-  return index;
+  return true;
 }
 
 /** 정제가 뺐더라도 [지수 값] 으로 다시 보여 주는 항목들 */
@@ -188,28 +227,35 @@ function direction(value: unknown): string {
   return !Number.isFinite(n) || n === 0 ? "변동 없음" : n > 0 ? "상승" : "하락";
 }
 
-export function indexNote(evidence: Evidence[], index: IndexName): string {
-  const o = officialIndex(evidence, index);
-  if (!o) return "";
-  const v = o.values;
-  const t = todayIndex(evidence, index);
-  const lines = [
-    `[지수 값] 질문이 물은 ${index} 지수의 값입니다. 지수 값에는 "원" 을 붙이지 않습니다.`,
-    `공식 자료 (ref ${o.id}, ${lag(index)} ${v["latest.date"]} 종가가 최신입니다):`,
-    `- 종가 ${points(v["latest.close"] as number)} (${v["latest.date"]}), 전일 대비 ${signed(v["latest.changePct"] as number, "%")} (${direction(v["latest.changePct"])})`,
-    `- ${v["period.from"]} 종가 ${points(v["period.closeFrom"] as number)} 와 비교해 ${signed(v["period.returnPct"] as number, "%")} (${direction(v["period.returnPct"])})`,
-    // 질문이 "왜 떨어졌어?" 여도 하루 등락은 장부 방향 그대로 (11/25 운영: 11/24 하루 +4.79% 를 "전일보다 4.79% 하락" 으로 써 검증이 문장을 뺌, mwvnyrfx-2axwvk)
-    `오르내림의 방향은 위 괄호 그대로 씁니다. 질문이 "떨어졌어 · 올랐어" 라고 해도 방향을 바꾸지 않습니다. 하루와 기간의 방향이 다르면 어느 기간인지 밝혀 나눠 쓰고, 질문이 말한 방향과 맞는 기간을 먼저 씁니다.`,
-  ];
-  if (t) {
+export function indexNote(evidence: Evidence[], index: IndexName | IndexName[]): string {
+  const indexes = (Array.isArray(index) ? index : [index]).filter((i) => officialIndex(evidence, i));
+  if (indexes.length === 0) return "";
+  const lines = [`[지수 값] 질문이 물은 ${indexes.join(" · ")} 지수의 값입니다. 지수 값에는 "원" 을 붙이지 않습니다.`];
+  for (const i of indexes) {
+    const o = officialIndex(evidence, i)!;
+    const v = o.values;
+    const t = todayIndex(evidence, i);
     lines.push(
-      `기사 보도 (ref ${t.id}, ${t.source.name}. 공식 전일 종가로 검산한 값입니다):`,
-      `- ${t.values.date} 종가 ${points(t.values.close as number)}, 전일 대비 ${signed(t.values.changePct as number, "%")} (${signed(t.values.change as number, "포인트")})`,
-      `요약은 가장 최근인 ${t.values.date} 값을 먼저 쓰고 "기사 보도" 라고 밝힙니다. 공식 자료의 값은 기준일(${v["latest.date"]})과 함께 따로 씁니다. 두 날짜의 값을 섞지 않습니다.`,
+      `${i} 공식 자료 (ref ${o.id}, ${lag(i)} ${v["latest.date"]} 종가가 최신입니다):`,
+      `- 종가 ${points(v["latest.close"] as number)} (${v["latest.date"]}), 전일 대비 ${signed(v["latest.changePct"] as number, "%")} (${direction(v["latest.changePct"])})`,
+      `- ${v["period.from"]} 종가 ${points(v["period.closeFrom"] as number)} 와 비교해 ${signed(v["period.returnPct"] as number, "%")} (${direction(v["period.returnPct"])})`,
     );
-  } else {
-    lines.push(`공식 자료의 기준일(${v["latest.date"]}) 뒤의 움직임은 기사 내용으로만 쓰고, 기준일과 구분해 적습니다.`);
+    if (t) {
+      lines.push(
+        `${i} 기사 보도 (ref ${t.id}, ${t.source.name}. 공식 전일 종가로 검산한 값입니다):`,
+        `- ${t.values.date} 종가 ${points(t.values.close as number)}, 전일 대비 ${signed(t.values.changePct as number, "%")} (${signed(t.values.change as number, "포인트")})`,
+        `${i} 은(는) 가장 최근인 ${t.values.date} 값을 먼저 쓰고 "기사 보도" 라고 밝힙니다. 공식 자료의 값은 기준일(${v["latest.date"]})과 함께 따로 씁니다. 두 날짜의 값을 섞지 않습니다.`,
+      );
+    } else {
+      lines.push(`${i} 공식 자료의 기준일(${v["latest.date"]}) 뒤의 움직임은 기사 내용으로만 쓰고, 기준일과 구분해 적습니다.`);
+    }
   }
+  // 질문이 "왜 떨어졌어?" 여도 하루 등락은 장부 방향 그대로 (11/25 운영: 11/24 하루 +4.79% 를 "전일보다 4.79% 하락" 으로 써 검증이 문장을 뺌, mwvnyrfx-2axwvk)
+  lines.push(`오르내림의 방향은 위 괄호 그대로 씁니다. 질문이 "떨어졌어 · 올랐어" 라고 해도 방향을 바꾸지 않습니다. 하루와 기간의 방향이 다르면 어느 기간인지 밝혀 나눠 쓰고, 질문이 말한 방향과 맞는 기간을 먼저 씁니다.`);
+  if (indexes.length > 1) {
+    lines.push(`질문이 지수 ${indexes.length}개(${indexes.join(" · ")})를 물었습니다. 요약에 지수마다 값과 기간 변화를 쓰고, 한 지수만 쓰고 끝내지 않습니다. 두 지수의 방향이 같은지 다른지도 한 구절로 씁니다.`);
+  }
+  lines.push(`기간 변화는 위 기간(시작일 ~ 기준일)의 값입니다. 질문이 '일주일 추세' 처럼 흐름을 물으면 그 기간의 시작 · 끝 값과 변화로 씁니다. 일별 종가는 리포트의 차트가 보여 주므로, 중간 날짜의 종가 숫자를 따로 쓰지 않고 "일별 종가가 없다 · 일별 흐름을 확인할 수 없다" 고도 쓰지 않습니다 (11/26 로컬).`);
   lines.push(`지수가 왜 움직였는지 묻는 질문이면, 요약의 첫 문장은 움직인 크기로 쓰고 둘째 문장에 기사가 전한 배경을 "○○ 보도에 따르면" 으로 씁니다. "원인은 단정하기 어려워요" 로 요약을 시작하지 않고, 그 한계는 주의점에 한 번만 씁니다.`);
   lines.push(`지수 값이 없다거나 확인할 수 없다고 쓰지 않습니다. 이 밖에 기사 본문에만 있는 숫자는 장부에 없어 검증에서 빠지므로 쓰지 않고, 내용만 숫자 없이 씁니다.`);
   return lines.join("\n");
@@ -260,4 +306,22 @@ export function indexCaveats(evidence: Evidence[], index: IndexName, caveats: st
         ? `${index} 지수 값은 하루 이틀 늦게 올라오는 자료라 ${date} 종가가 최신이에요. 그 뒤의 움직임은 숫자로 확인한 값이 아니에요.`
         : `${index} 공식 자료는 다음 영업일에 공개돼 ${date} 종가가 최신이에요. 그 뒤의 움직임은 기사 내용이며, 숫자로 확인한 값이 아니에요.`,
   ];
+}
+
+/** "일별 종가가 없어 일별 흐름은 확인할 수 없어요" 꼴 (일별 · 일자별 · 날짜별 종가 · 등락 · 흐름 + 없음 · 필요 · 확인 못 함) */
+const DAILY_TALK = /(?:일일|일별|일자별|날짜별|하루하루)\s*(?:지수\s*)?(?:종가|등락|흐름|시세)/;
+const DAILY_MISSING = /없|필요|부족|확인(?:되지|하지|할\s*수)/;
+
+/**
+ * 지수 차트가 일별 종가를 보여 주는데 주의점 · 확인하지 못한 것에 "일별 종가 자료가 없어요" 가 들어가면 그 문장을 뺍니다
+ * (11/26 로컬: 작성 메모로 막아도 일주일 추세 질문 2번 모두 확인하지 못한 것에 남음). 차트가 있을 때만 부릅니다 (muffin.ts)
+ */
+export function dropDailyCloseTalk<T extends Pick<WriterOutput, "caveats" | "dataGaps">>(output: T): T {
+  const talk = (s: string) => DAILY_TALK.test(s) && DAILY_MISSING.test(s);
+  const clean = (lines: string[]) =>
+    lines.map((l) => (talk(l) ? l.split(/(?<=[.!?])\s+/).filter((x) => x.trim() && !talk(x)).join(" ") : l)).filter((l) => l.trim().length > 0);
+  const caveats = clean(output.caveats);
+  const dataGaps = clean(output.dataGaps);
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+  return same(caveats, output.caveats) && same(dataGaps, output.dataGaps) ? output : { ...output, caveats, dataGaps };
 }
