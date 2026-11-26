@@ -25,9 +25,9 @@ const areaOptions: { value: Area; label: string }[] = [
 ];
 
 // 깊이 설명은 쉬운 말로 (11/26 사용자: '숫자 1~2개' 같은 설명 대신. 11/20 QA 9 에서 구체적으로 바꿨던 것을 되돌림),
-// 시간은 운영 기록의 대략값을 '이내' 로
+// 시간은 운영 기록의 대략값을 '이내' 로 (Easy 는 잰 7건 중 2건이 20초를 넘어 25초)
 const depthOptions: { value: Depth; label: string; hint: string; time: string }[] = [
-  { value: "easy", label: "Easy", hint: "쉽게 설명해줘요", time: "20초 이내" },
+  { value: "easy", label: "Easy", hint: "쉽게 설명해줘요", time: "25초 이내" },
   { value: "standard", label: "Standard", hint: "보통이에요", time: "30초 이내" },
   { value: "deep", label: "Deep Dive", hint: "심층적이에요", time: "45초 이내" },
 ];
@@ -151,13 +151,16 @@ function HomeForm() {
           <fieldset className={styles.fieldset} disabled={busy}><legend>분석 난이도</legend><div className={styles.depths}>
             {depthOptions.map(o => <label className={styles.option} key={o.value}><input type="radio" name="depth" value={o.value} checked={depth === o.value} onChange={() => setDepth(o.value)} /><span><i className={styles.optionIcon}><DepthIcon depth={o.value} /></i><b>{o.label}</b><small>{o.hint}</small><small className={styles.depthTime}>{o.time}</small></span></label>)}
           </div></fieldset>
-          <label htmlFor="question" className={styles.srOnly}>궁금한 금융 질문</label>
-          <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
-            <textarea ref={questionField} id="question" required readOnly={busy} maxLength={500} aria-describedby="question-limit" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault(); }} value={question} onChange={(e) => { setQuestion(e.target.value); setFormError(null); if (state.phase === "unsupported" || state.phase === "error") request.edit(); }} placeholder="예: 요즘 환율 왜 올라?" />
+          {/* 11/26 사용자: 질문칸이 티가 안 남 → 질문과 굽기를 옅은 보라 판 하나로 묶고 보이는 제목 · 말풍선 그림 */}
+          <div className={styles.askPanel}>
+            <label htmlFor="question" className={styles.askTitle}>무엇이 궁금하세요?</label>
+            <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-7.5L7 21v-3.5H5A1.5 1.5 0 0 1 3.5 16V7A1.5 1.5 0 0 1 5 5.5z" /><path d="M8 10.5h8M8 13.5h5" /></svg>
+              <textarea ref={questionField} id="question" required readOnly={busy} maxLength={500} aria-describedby="question-limit" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) event.preventDefault(); }} value={question} onChange={(e) => { setQuestion(e.target.value); setFormError(null); if (state.phase === "unsupported" || state.phase === "error") request.edit(); }} placeholder="예: 요즘 환율 왜 올라?" />
+            </div>
+            <small id="question-limit" className={styles.questionLimit}><span>궁금한 금융 이야기를 자유롭게 물어보세요.</span><span className={styles.questionCount} data-over={over > 0 ? "true" : undefined}>{over > 0 ? `${over}자 줄여 주세요 · ` : ""}{question.length} / {allowance}자</span></small>
+            {formError && <p className={styles.formError} role="alert">{formError}</p>}
+            <button className={`${styles.submit} ${styles.bakeSubmit}`} data-checking={checking ? "true" : undefined} type="submit" disabled={busy || coolingDown || question.trim().length === 0}>{!checking && <Image src="/icon.svg" width={28} height={28} alt="" />}{checking ? "질문 살펴보는 중…" : coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "Muffin 리포트 굽기"}<span aria-hidden="true">›</span></button>
           </div>
-          <small id="question-limit" className={styles.questionLimit}><span>궁금한 금융 이야기를 자유롭게 물어보세요.</span><span className={styles.questionCount} data-over={over > 0 ? "true" : undefined}>{over > 0 ? `${over}자 줄여 주세요 · ` : ""}{question.length} / {allowance}자</span></small>
-          {formError && <p className={styles.formError} role="alert">{formError}</p>}
-          <button className={`${styles.submit} ${styles.bakeSubmit}`} data-checking={checking ? "true" : undefined} type="submit" disabled={busy || coolingDown || question.trim().length === 0}>{!checking && <Image src="/icon.svg" width={28} height={28} alt="" />}{checking ? "질문 살펴보는 중…" : coolingDown ? `${state.retrySeconds}초 후 다시 시도` : "Muffin 리포트 굽기"}<span aria-hidden="true">›</span></button>
           {checking && <p className={styles.checking} role="status" aria-live="polite">작성해주신 질문을 살펴보고 있어요.</p>}
           {unsupported && <section className={styles.scopeNotice} role="alert"><h2>이 질문은 아직 답하기 어려워요.</h2>
             {/* 서버가 만든 이유(미국 상장 ETF · 개별 주가 등)와 대신 물어볼 질문 (11/23 운영 검수 · QA 11 · 20명 시나리오 2) */}

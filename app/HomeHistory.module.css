@@ -221,3 +221,13 @@
   .home .depths .optionIcon svg{width:19px;height:19px}
   .home .depths .option b{font-size:20px}
 }
+
+/* 11/26 사용자: 질문칸이 티가 안 남 → 질문 · 굽기를 옅은 보라 판으로 묶고 제목, 흰 칸 보라 2px 테두리, 말풍선 그림 */
+.askPanel{background:linear-gradient(180deg,#f8f4ff,#f2eafd);border:1px solid #e4d8f6;border-radius:20px;padding:16px 16px 18px}
+.askTitle{display:block;margin:0 0 10px;font-size:19px;font-weight:750;color:var(--ink)}
+.askPanel .search{background:#fff;border:2px solid #a78bfa;box-shadow:0 6px 18px #7c3aed1a}
+.askPanel .search:focus-within{border-color:#8b5cf6;box-shadow:0 0 0 4px #8b5cf62e,0 6px 18px #7c3aed1a}
+.askPanel .search svg{stroke:#7c4dcc;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.askPanel .search textarea::placeholder{color:#7f7891}
+.askPanel .questionLimit{margin:8px 2px 12px}
+@media(max-width:600px){.askPanel{padding:14px 12px}.askTitle{font-size:17px}} /* 다른 칸 제목(legend)과 같은 크기 */
