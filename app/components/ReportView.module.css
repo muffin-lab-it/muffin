@@ -878,3 +878,20 @@
 .report :global(.report-actions) [role="status"] { flex-basis:100%; grid-column:1 / -1; text-align:right; color:#5b4a75; }
 .report :global(.report-actions) [role="status"]:empty { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 @container report (max-width: 560px) { .report :global(.report-actions) [role="status"] { text-align:left; } }
+
+/* 11/26 사용자: 접고 펴는 표시는 노션 토글처럼 채운 삼각형 (닫힘 ▶ · 열림 ▼), 꺾쇠(⌄ ⌃) 대신. 글자 앞에 둠 */
+.report :global(.verification-summary-action) { gap:8px; }
+.report :global(.verification-chevron) { display:inline-block; flex:none; width:8px; height:10px; font-size:0; background:currentColor; clip-path:polygon(0 0, 100% 50%, 0 100%); transition:transform .15s; }
+.report :global(.verification-toggle[open] .verification-chevron) { transform:rotate(90deg); }
+.report :global(.source-fold) > summary::after { content:"펼치기"; display:inline-block; padding-left:15px; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 10'%3E%3Cpath d='M0 0 8 5 0 10z' fill='%236b4a94'/%3E%3C/svg%3E") left center / 8px 10px no-repeat; }
+.report :global(.source-fold[open]) > summary::after { content:"접기"; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M0 0h10L5 8z' fill='%236b4a94'/%3E%3C/svg%3E"); background-size:10px 8px; transform:none; } /* 휴대폰 접는 칸의 열림 180° 회전이 '접기' 글자를 뒤집던 것 */
+.report :global(.chart-news) > summary::after, .report :global(.chart-news[open]) > summary::after { content:""; display:inline-block; flex:none; width:7px; height:9px; background:currentColor; clip-path:polygon(0 0, 100% 50%, 0 100%); transition:transform .15s; }
+.report :global(.chart-news[open]) > summary::after { transform:rotate(90deg); }
+@media (max-width:600px) {
+  /* 출처 칸은 '펼치기 · 접기' 글이 붙은 자기 표시를 그대로 씀 */
+  .report :global(.responsive-details:not(.source-fold) > summary)::after { content:""; flex:none; width:9px; height:11px; font-size:0; background:#6b4a94; clip-path:polygon(0 0, 100% 50%, 0 100%); transition:transform .15s; }
+  .report :global(.responsive-details[open]:not(.source-fold) > summary)::after { transform:rotate(90deg); }
+}
+@media (prefers-reduced-motion:reduce) { .report :global(.chart-news) > summary::after, .report :global(.responsive-details > summary)::after { transition:none; } }
+/* 추천 질문 카드 화살표는 동그라미 한가운데 (앞 규칙의 justify-content:flex-end 가 칸 안 글자를 오른쪽 끝으로 밀던 것) */
+.report .nextTopics .topicLink :global(.topic-action) { place-content:center; padding:0; }

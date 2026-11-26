@@ -1,0 +1,8 @@
+/* 11/26 사용자: 리포트 칸(가운데 1040px) 오른쪽 끝에 살짝 걸치는 쿠키. 본문 뒤(z-index -1)에 깔고 화면 밖으로 나간 부분은 잘라 가로 넘침이 없게 */
+.cookies { display: none; }
+@media (min-width: 1280px) {
+  .cookies { display: block; position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .cookie { position: absolute; width: 272px; height: auto; left: calc(50% + 520px - 32px); bottom: -80px; opacity: .5; transform: rotate(calc(var(--tilt, 0) * 10deg)); transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+}
+@media (prefers-reduced-motion: reduce) { .cookie { transition: none; } }
+@media print { .cookies { display: none !important; } }
