@@ -152,13 +152,33 @@
 .questionCount{font-variant-numeric:tabular-nums;color:#9a93a6;white-space:nowrap}
 .questionCount[data-over="true"]{color:#c83532;font-weight:600}
 
-/* 11/23 디자인 리뷰: '리포트 굽기' 를 질문칸 옆으로. 휴대폰은 질문칸 아래 꽉 찬 버튼 */
-.askRow{display:flex;align-items:stretch;gap:12px}
-.askRow .search{flex:1;min-width:0}
-.askSubmit{width:auto;min-height:78px;margin:0;padding:0 24px;flex:none;align-self:flex-start;border-radius:17px;font-size:19px;gap:10px;white-space:nowrap}
-.askSubmit span{font-size:24px}
-@media(max-width:720px){.askSubmit{padding:0 18px;font-size:17px}}
-@media(max-width:600px){.askRow{flex-direction:column}.askSubmit{width:100%;min-height:56px}}
+/* 11/26 사용자: 처음 콘셉트처럼 관심 영역 → 분석 난이도 → 질문 → 굽기. 11/23 에 굽기를 질문칸 옆으로 옮겼지만
+   그러면 고르는 칸이 버튼 아래라 지나치기 쉬워, 질문칸 바로 아래 꽉 찬 버튼으로 */
+.depths{margin-bottom:26px}
+.questionLimit{margin-bottom:14px}
+.bakeSubmit{width:100%;min-height:64px;margin:0;border-radius:17px;font-size:20px;gap:10px}
+.bakeSubmit span{font-size:24px}
+@media(max-width:600px){.bakeSubmit{min-height:56px;font-size:17px}}
+/* 칸마다 그림 (옅은 보라 동그라미 · 선 그림). 관심 영역은 그림 위 · 이름 아래 */
+.optionIcon{display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border-radius:50%;background:#f1eaf8;color:#7c4dcc;font-style:normal}
+.optionIcon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.areas .option>span{flex-direction:column;height:auto;min-height:84px;padding:12px 6px;gap:7px}
+.areas .option input:checked+span .optionIcon{background:#ffffff2e;color:#fff}
+/* 분석 난이도: 그림 위 · 글 아래, 세 칸 높이를 맞추고 고른 칸은 오른쪽 위 체크 */
+.depths .option>span{position:relative;height:100%;justify-content:flex-start;text-align:center}
+.depths .option small{text-wrap:balance;word-break:keep-all}
+.depths .optionIcon{width:40px;height:40px}
+.depths .optionIcon svg{width:22px;height:22px}
+.depths .option input:checked+span .optionIcon{background:#fff;color:#8438ef}
+.depths .option input:checked+span::after{content:"";position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:50%;background:#8438ef url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12 4 4 8-9'/%3E%3C/svg%3E") center/13px no-repeat}
+@media(max-width:600px){
+  .areas .option>span{min-height:76px;padding:10px 4px;gap:6px}
+  .optionIcon{width:28px;height:28px}
+  .optionIcon svg{width:16px;height:16px}
+  .depths .optionIcon{width:32px;height:32px}
+  .depths .optionIcon svg{width:18px;height:18px}
+  .depths .option input:checked+span::after{top:6px;right:6px;width:18px;height:18px;background-size:11px}
+}
 
 /* 11/23 범위 밖 안내의 추천 질문: 누르면 입력칸에 채움 */
 .scopeTopics{margin-top:14px;padding-top:12px;border-top:1px solid #f0cfcc}
@@ -184,3 +204,20 @@
 .cardFoot{margin:0;padding:8px 18px 12px;border-top:1px solid #f2ecf7;font-size:13px;color:#8f819a}
 .deleteButton{align-self:auto;min-height:32px;margin:0;padding:4px 12px;font-size:13px}
 @media(max-width:600px){.historyGrid{gap:12px}.historyCard h2{font-size:17px}.cardSummary{font-size:15px}}
+
+/* 11/26 사용자 B안: PC 는 소개(왼쪽) · 질문 칸(오른쪽) 나란히. 콘셉트 순서로 세로로만 쌓으면 1280×900 에서
+   질문칸이 884px · 굽기 버튼이 1,010px 로 첫 화면 밖이라, 나란히 두어 버튼(778~842px)까지 첫 화면에 */
+@media(min-width:1101px){
+  .home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,600px);column-gap:44px;align-items:center;margin-top:24px}
+  .home>.hero{flex-direction:column;align-items:flex-start;min-height:0;padding:8px 0 0;gap:8px}
+  .home>.hero>.mascotWrap{align-self:center}
+  .home .mascot{width:400px;height:318px}
+  .home>.form{margin:0;padding:22px 26px}
+  .home .areas{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .home .areas .option>span{min-height:76px}
+  .home .hint{margin:8px 0 16px}
+  .home .depths .option>span{padding:10px 6px;gap:3px}
+  .home .depths .optionIcon{width:34px;height:34px}
+  .home .depths .optionIcon svg{width:19px;height:19px}
+  .home .depths .option b{font-size:20px}
+}
